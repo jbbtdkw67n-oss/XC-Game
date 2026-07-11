@@ -31,13 +31,28 @@
     constructor() {
       this.dynastyName = '';
       this.seed = 0;
-      this.world = null; // { schools, coaches, athletes, schoolOrder }
+      this.world = null; // { schools, coaches, athletes, recruits, schoolOrder }
       this.playerSchoolId = null;
       this.playerCoachId = null;
       this.year = 2026;
       this.week = 1;
       this.newsLog = [];
       this.createdAt = null;
+
+      // Recruiting session state (player economy + boards)
+      this.recruiting = {
+        pointsLeft: 0,
+        budgetLeft: 0,
+        actionsThisWeek: {},   // recruitId -> actions used this week
+        board: { M: [], W: [] }, // player's target lists
+        aiBoards: {},          // schoolId -> { M: [ids], W: [ids] }
+        classYear: null
+      };
+
+      // Long-term records (grows through later phases)
+      this.history = {
+        recruitingClasses: {} // year -> ranked class list
+      };
     }
 
     /*
@@ -75,6 +90,13 @@
       gs.playerCoachId = playerCoach.id;
 
       gs.logNews(`${coachFirstName} ${coachLastName} takes over as head coach at ${school.name}.`);
+
+      // Spin up the first recruiting cycle.
+      const rng = new window.XCD.core.SeededRNG((gs.seed ^ 0xA11CE) >>> 0);
+      gs.world.recruits = {};
+      gs.recruiting.budgetLeft = school.budget.recruiting;
+      window.XCD.engine.Recruiting.generateClass(gs, rng);
+      window.XCD.engine.Recruiting.startNewWeek(gs);
       return gs;
     }
 
@@ -99,6 +121,12 @@
 
     // --- Game loop -------------------------------------------------
     advanceWeek() {
+      // Deterministic per-week RNG so simulated worlds are reproducible.
+      const rng = new window.XCD.core.SeededRNG((this.seed + this.year * 53 + this.week * 7919) >>> 0);
+
+      // Recruiting: AI schools work their boards, recruits decide.
+      window.XCD.engine.Recruiting.processWeek(this, rng);
+
       Object.values(this.world.athletes).forEach((a) => {
         if (!a.schoolId) return;
         a.fatigue = Utils.clamp(a.fatigue - Utils.clamp(8 - Math.round(a.recovery / 20), 2, 8), 0, 100);
@@ -118,15 +146,18 @@
         this.year += 1;
         this.rolloverYear();
       }
+
+      // Fresh weekly recruiting points/limits for the player.
+      window.XCD.engine.Recruiting.startNewWeek(this);
     }
 
     rolloverYear() {
       const D_ORDER = D.CLASS_YEARS; // Freshman..Graduate
       const rng = new window.XCD.core.SeededRNG((this.seed + this.year) >>> 0);
 
+      // 1) Age everyone; seniors graduate off rosters.
       Object.values(this.world.schools).forEach((school) => {
         ['rosterM', 'rosterW'].forEach((rosterKey) => {
-          const gender = rosterKey === 'rosterM' ? 'M' : 'W';
           const survivors = [];
           school[rosterKey].forEach((athId) => {
             const athlete = this.world.athletes[athId];
@@ -134,7 +165,6 @@
             athlete.age += 1;
             const idx = D_ORDER.indexOf(athlete.classYear);
             if (athlete.classYear === 'Senior' || athlete.classYear === 'Graduate' || athlete.eligibilityRemaining <= 1) {
-              // Graduates and leaves the program.
               athlete.schoolId = null;
               athlete.health = 'Graduated';
               delete this.world.athletes[athId];
@@ -144,22 +174,35 @@
             athlete.eligibilityRemaining = Math.max(0, athlete.eligibilityRemaining - 1);
             survivors.push(athId);
           });
-
-          // Simple incoming-freshman replacement so rosters stay populated
-          // until the recruiting engine (Phase 2) drives this properly.
-          const target = rng.int(10, 15);
-          while (survivors.length < target) {
-            const freshman = window.XCD.engine.WorldGenerator.buildAthlete(rng, school, gender);
-            freshman.classYear = 'Freshman';
-            freshman.age = 18 + rng.int(0, 1);
-            freshman.eligibilityRemaining = 4;
-            this.world.athletes[freshman.id] = freshman;
-            survivors.push(freshman.id);
-          }
           school[rosterKey] = survivors;
         });
+      });
 
-        // Coaching changes: AI coaches may retire at their target age.
+      // 2) Signed recruits enroll as freshmen (JUCOs as sophomores).
+      const enrolled = window.XCD.engine.Recruiting.enrollSignees(this);
+      const playerClass = enrolled[this.playerSchoolId] || [];
+      if (playerClass.length) {
+        this.logNews(`${playerClass.length} signees arrive on campus: ${playerClass.map((r) => r.fullName).join(', ')}.`);
+      }
+
+      // 3) Thin rosters top up with unheralded walk-ons.
+      Object.values(this.world.schools).forEach((school) => {
+        ['rosterM', 'rosterW'].forEach((rosterKey) => {
+          const gender = rosterKey === 'rosterM' ? 'M' : 'W';
+          while (school[rosterKey].length < 10) {
+            const walkOn = window.XCD.engine.WorldGenerator.buildAthlete(rng, school, gender);
+            walkOn.classYear = 'Freshman';
+            walkOn.age = 18 + rng.int(0, 1);
+            walkOn.eligibilityRemaining = 4;
+            // Walk-ons are a clear notch below scholarship talent.
+            walkOn.potential = Math.min(walkOn.potential, rng.int(35, 62));
+            walkOn.recalculateOverall();
+            this.world.athletes[walkOn.id] = walkOn;
+            school[rosterKey].push(walkOn.id);
+          }
+        });
+
+        // 4) Coaching changes: AI coaches may retire at their target age.
         const coach = this.world.coaches[school.coachId];
         if (coach && !coach.isPlayer) {
           coach.age += 1;
@@ -169,12 +212,18 @@
             const replacement = window.XCD.engine.WorldGenerator.buildReplacementCoach(rng, school);
             this.world.coaches[replacement.id] = replacement;
             school.coachId = replacement.id;
+            this.logNews(`${school.name} hires ${replacement.fullName} as head coach after a retirement.`);
           }
         } else if (coach) {
           coach.age += 1;
           coach.yearsAtSchool += 1;
         }
+        const assistant = this.world.coaches[school.assistantId];
+        if (assistant) assistant.age += 1;
       });
+
+      // 5) A brand-new national recruiting class appears.
+      window.XCD.engine.Recruiting.resetForNewYear(this, rng);
 
       this.logNews(`A new academic year begins: ${this.year}.`);
     }
@@ -191,7 +240,9 @@
         year: this.year,
         week: this.week,
         newsLog: this.newsLog,
-        createdAt: this.createdAt
+        createdAt: this.createdAt,
+        recruiting: this.recruiting,
+        history: this.history
       };
     }
 
@@ -205,7 +256,22 @@
       Object.values(obj.world.coaches).forEach((c) => { coaches[c.id] = new M.Coach(c); });
       const athletes = {};
       Object.values(obj.world.athletes).forEach((a) => { athletes[a.id] = new M.Athlete(a); });
-      gs.world = { schools, coaches, athletes, schoolOrder: obj.world.schoolOrder, seed: obj.world.seed };
+      const recruits = {};
+      Object.values(obj.world.recruits || {}).forEach((r) => { recruits[r.id] = new M.Recruit(r); });
+      gs.world = { schools, coaches, athletes, recruits, schoolOrder: obj.world.schoolOrder, seed: obj.world.seed };
+
+      // Defaults for saves from before the recruiting engine existed.
+      gs.recruiting = obj.recruiting || {
+        pointsLeft: 0, budgetLeft: 0, actionsThisWeek: {},
+        board: { M: [], W: [] }, aiBoards: {}, classYear: null
+      };
+      gs.history = obj.history || { recruitingClasses: {} };
+      if (!Object.keys(recruits).length) {
+        const rng = new window.XCD.core.SeededRNG((gs.seed ^ 0xA11CE) >>> 0);
+        gs.recruiting.budgetLeft = gs.getPlayerSchool().budget.recruiting;
+        window.XCD.engine.Recruiting.generateClass(gs, rng);
+        window.XCD.engine.Recruiting.startNewWeek(gs);
+      }
       return gs;
     }
   }

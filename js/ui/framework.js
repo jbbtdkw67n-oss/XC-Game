@@ -108,6 +108,13 @@
         return state.sortDir === 'asc' ? cmp : -cmp;
       });
 
+      // Very large datasets (e.g. the national recruit pool) are capped per
+      // view; sorting/searching still operates over the full set.
+      const totalRows = rows.length;
+      const cap = config.maxRows || 400;
+      const truncated = totalRows > cap;
+      if (truncated) rows = rows.slice(0, cap);
+
       const thead = config.columns.map((c) => {
         const sorted = c.key === state.sortKey ? ` sorted-${state.sortDir}` : '';
         return `<th class="${c.numeric ? 'num' : ''}${sorted}" data-col="${c.key}">${c.label}</th>`;
@@ -127,7 +134,8 @@
             <thead><tr>${thead}</tr></thead>
             <tbody>${tbody}</tbody>
           </table>
-        </div>`;
+        </div>
+        ${truncated ? `<div style="color:var(--text-faint); font-size:12px; padding:8px 2px 0;">Showing ${cap} of ${totalRows.toLocaleString()} — narrow with search or sorting.</div>` : ''}`;
 
       container.querySelectorAll('th').forEach((th) => {
         th.addEventListener('click', () => {
@@ -161,6 +169,7 @@
   const NAV_ITEMS = [
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
     { id: 'roster', label: 'Roster', icon: '👟' },
+    { id: 'recruiting', label: 'Recruiting', icon: '🎯' },
     { id: 'school', label: 'My Program', icon: '🏫' },
     { id: 'world', label: 'World', icon: '🌎' },
     { id: 'news', label: 'News', icon: '📰' },

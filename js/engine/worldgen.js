@@ -166,16 +166,18 @@
     return athlete;
   }
 
-  function buildCoach(rng, school, isPlayer) {
+  function buildCoach(rng, school, isPlayer, role = 'Head') {
     const gender = rng.bool(0.75) ? 'M' : 'W';
     const firstName = gender === 'M' ? rng.choice(D.FIRST_NAMES_M) : rng.choice(D.FIRST_NAMES_W);
     const tierBonus = { 1: 14, 2: 6, 3: 0, 4: -6 }[school.conferenceTier];
-    const statFor = () => rng.gaussianRange(58 + tierBonus, 13, 20, 99);
+    const rolePenalty = role === 'Assistant' ? 8 : 0;
+    const statFor = () => rng.gaussianRange(58 + tierBonus - rolePenalty, 13, 20, 99);
 
     return new M.Coach({
       firstName,
       lastName: rng.choice(D.LAST_NAMES),
-      age: rng.int(32, 64),
+      age: role === 'Assistant' ? rng.int(26, 50) : rng.int(32, 64),
+      role,
       personality: rng.choice(D.COACH_PERSONALITIES),
       recruiting: statFor(), training: statFor(), raceStrategy: statFor(), development: statFor(),
       loyalty: rng.gaussianRange(55, 18, 10, 99), charisma: statFor(),
@@ -218,6 +220,9 @@
       const school = buildSchool(rng, raw);
       const coach = buildCoach(rng, school, false);
       school.coachId = coach.id;
+      const assistant = buildCoach(rng, school, false, 'Assistant');
+      school.assistantId = assistant.id;
+      coaches[assistant.id] = assistant;
 
       const rosterSizeM = rng.int(rosterMin, rosterMax);
       const rosterSizeW = rng.int(rosterMin, rosterMax);

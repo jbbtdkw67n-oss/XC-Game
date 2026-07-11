@@ -112,6 +112,7 @@
         culture: 55,
 
         schoolId: null,
+        role: 'Head', // Head | Assistant
         isPlayer: false,
         yearsAtSchool: 0,
         hotSeat: 0, // 0-100, drives firing risk in later phases
@@ -165,6 +166,7 @@
         rivalries: [],
 
         coachId: null,
+        assistantId: null,
         rosterM: [],
         rosterW: [],
         scholarshipsAvailableM: 12.6, // NCAA D1 XC/T&F equivalency scholarship limits (approx)
@@ -180,7 +182,64 @@
     }
   }
 
+  /* ---------------------------------------------------------------- *
+   * Recruit — an Athlete plus everything the recruiting engine needs.
+   * Recruits live in world.recruits until they sign & enroll, at which
+   * point the engine converts them into a rostered Athlete.
+   * ---------------------------------------------------------------- */
+  class Recruit extends Athlete {
+    constructor(data) {
+      super(data);
+      Object.assign(this, {
+        isRecruit: true,
+        source: 'HS',            // HS | JUCO | International
+        country: 'USA',
+
+        starRating: 2,
+        nationalRank: 0,
+        stateRank: 0,
+        regionalRank: 0,
+
+        // Hidden decision drivers (revealed to the player via scouting)
+        motivations: [],         // keys into XCD.data.MOTIVATIONS
+        parentsInfluence: 50,
+
+        // What matters to this recruit when weighing schools (20-100 each)
+        importance: {
+          playingTime: 50, development: 50, prestige: 50,
+          location: 50, nil: 30, academics: 50, facilities: 50
+        },
+
+        // Per-school recruiting state, sparse — only schools actively
+        // recruiting this athlete have an entry.
+        // { schoolId: { relationship, interest, offered, visited, overnight } }
+        interests: {},
+
+        committedTo: null,
+        signed: false,
+        commitWeek: null,
+        decisionWeek: 12,        // when they start seriously deciding
+        breakout: false,         // hidden late-riser flag
+        breakoutFired: false,
+
+        // The player's scouting knowledge of this recruit.
+        playerKnowledge: { scout: 0, revealed: [] },
+
+        ...data
+      });
+      this.isRecruit = true;
+    }
+
+    getSchoolState(schoolId, create = false) {
+      if (!this.interests[schoolId] && create) {
+        this.interests[schoolId] = { relationship: 0, interest: 0, offered: false, visited: false, overnight: false };
+      }
+      return this.interests[schoolId] || null;
+    }
+  }
+
   M.Athlete = Athlete;
   M.Coach = Coach;
   M.School = School;
+  M.Recruit = Recruit;
 })();
