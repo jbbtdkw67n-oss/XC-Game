@@ -26,14 +26,16 @@
     return { ok: true, message: `Upgrade complete (+${UPGRADE_STEP}) — $${cost.toLocaleString()} spent.`, cost };
   }
 
-  // Once-a-year booster push driven by prestige and the coach's charisma.
+  // Once-a-year booster push driven by prestige and the coach's culture.
   function fundraise(gameState) {
     if (gameState.fundraisedYear === gameState.year) {
       return { ok: false, message: 'The boosters already gave this year.' };
     }
     const school = gameState.getPlayerSchool();
     const coach = gameState.getPlayerCoach();
-    const amount = Math.round((school.prestige * 320 + coach.charisma * 260 + 8000) / 100) * 100;
+    // Boosters give to winners with strong programs — and coaches whose
+    // culture makes people want to be part of it.
+    const amount = Math.round((school.prestige * 320 + coach.culture * 260 + 8000) / 100) * 100;
     school.budget.facilitiesFund += amount;
     gameState.fundraisedYear = gameState.year;
     gameState.logNews(`Fundraiser: boosters commit $${amount.toLocaleString()} to the facilities fund.`);

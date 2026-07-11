@@ -176,7 +176,7 @@
       );
       rows.push({
         coachId: coach.id, name: coach.fullName, isPlayer: coach.isPlayer,
-        school: school.name, schoolId: school.id, personality: coach.personality,
+        school: school.name, schoolId: school.id, personality: coach.archetype,
         natTitles: cr.nationalTitles, confTitles: cr.conferenceTitles,
         bestRank, score
       });

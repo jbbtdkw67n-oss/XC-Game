@@ -648,6 +648,24 @@
     }
   }
 
+  function recordRegionalChampions(gameState, meet, gender) {
+    const res = meet.results[gender];
+    if (!res || !res.teamScores.length) return;
+    const champId = res.teamScores[0].schoolId;
+    const school = gameState.getSchool(champId);
+    const coach = gameState.getCoach(school.coachId);
+    if (coach) coach.careerRecord.regionalTitles = (coach.careerRecord.regionalTitles || 0) + 1;
+
+    const H = gameState.history;
+    H.regionalChampions = H.regionalChampions || {};
+    H.regionalChampions[gameState.year] = H.regionalChampions[gameState.year] || {};
+    H.regionalChampions[gameState.year][`${meet.region}-${gender}`] = school.name;
+
+    if (champId === gameState.playerSchoolId) {
+      gameState.logNews(`🏆 REGIONAL CHAMPIONS! Your ${gender === 'M' ? 'men' : 'women'} win the ${meet.region} Regional!`);
+    }
+  }
+
   function buildNationalsField(gameState) {
     // Auto qualifiers: top 2 teams per regional; at-large: best-ranked rest.
     const season = gameState.season;
@@ -742,6 +760,7 @@
         }
 
         if (meet.type === 'conference') recordConferenceChampions(gameState, meet, gender);
+        if (meet.type === 'regional') recordRegionalChampions(gameState, meet, gender);
         if (meet.type === 'national') recordNationalChampions(gameState, meet, gender);
       });
 

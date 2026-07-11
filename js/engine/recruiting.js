@@ -275,7 +275,7 @@
       facilities: school.facilitiesOverall,
       nil: Utils.clamp(Math.round(school.budget.nil / 1200), 5, 100),
       playingTime: playingTimeScore(gameState, school, recruit, ctx),
-      development: coach ? Math.round(coach.development * 0.65 + school.facilities.sportsScienceLab * 0.35) : 50
+      development: coach ? Math.round(coach.training * 0.65 + school.facilities.sportsScienceLab * 0.35) : 50
     };
 
     let total = 0;
@@ -376,11 +376,11 @@
     R.budgetLeft -= action.cost;
     R.actionsThisWeek[recruitId] = usedThisWeek + 1;
 
-    // Effect scaling: charisma sells the relationship; personality matters.
-    const charismaMul = 0.75 + coach.charisma / 200;                 // 0.85–1.25
+    // Effect scaling: the coach's Recruiting rating sells the relationship.
+    const recruitingMul = 0.75 + coach.recruiting / 200;             // 0.85–1.25
     const coachabilityMul = 0.8 + rec.coachability / 250;
-    let rel = action.relationship * charismaMul * coachabilityMul;
-    let int = action.interest * charismaMul;
+    let rel = action.relationship * recruitingMul * coachabilityMul;
+    let int = action.interest * recruitingMul;
 
     // Campus visit lands harder when the campus/facilities are genuinely good.
     if (actionKey === 'campusVisit') {
@@ -502,7 +502,7 @@
 
       ensureAIBoard(gameState, school, rng, ctx);
       const board = R.aiBoards[school.id];
-      const aggressive = coach.personality === 'Aggressive Recruiter';
+      const aggressive = coach.archetype === 'Recruiter';
 
       ['M', 'W'].forEach((gender) => {
         const committedCount = (ctx.commitCounts[school.id] && ctx.commitCounts[school.id][gender]) || 0;
@@ -663,6 +663,14 @@
     const playerClass = classes[gameState.playerSchoolId] || [];
     if (playerClass.length) {
       gameState.logNews(`Your ${playerClass.length}-runner class signs — ranked #${playerRank + 1} nationally.`);
+      // Elite recruiting hauls feed coach progression.
+      if (playerRank >= 0 && playerRank < 10) {
+        const coach = gameState.getPlayerCoach();
+        if (coach) {
+          coach.upgradePoints = (coach.upgradePoints || 0) + 1;
+          gameState.logNews(`📋 Top-10 recruiting class: +1 coach upgrade point.`);
+        }
+      }
     } else {
       gameState.logNews('Signing day passes without a single signature for your program.');
     }

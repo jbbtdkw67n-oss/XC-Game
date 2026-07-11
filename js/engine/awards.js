@@ -101,7 +101,88 @@
     gameState.history.awards[gameState.year] = yearAwards;
 
     updatePlayerCareer(gameState);
+    awardCoachUpgradePoints(gameState, rng);
     coachFirings(gameState, rng);
+  }
+
+  /*
+   * Coach progression: career success earns upgrade points, spendable on
+   * the four coach ratings (Recruiting / Training / Peaking / Culture).
+   * AI coaches earn a smaller trickle and auto-spend on their archetype.
+   */
+  function awardCoachUpgradePoints(gameState, rng) {
+    const season = gameState.season;
+    const coach = gameState.getPlayerCoach();
+    const natMeet = season.meets[season.nationalsMeetId];
+    let pts = 0;
+    const why = [];
+
+    ['M', 'W'].forEach((gender) => {
+      const label = gender === 'M' ? "men's" : "women's";
+
+      // Conference title
+      (season.byWeek[season.conferenceWeek] || []).forEach((meetId) => {
+        const res = season.meets[meetId] && season.meets[meetId].results[gender];
+        if (res && res.teamScores[0] && res.teamScores[0].schoolId === gameState.playerSchoolId) {
+          pts += 1; why.push(`${label} conference title (+1)`);
+        }
+      });
+      // Regional title
+      (season.byWeek[season.regionalWeek] || []).forEach((meetId) => {
+        const res = season.meets[meetId] && season.meets[meetId].results[gender];
+        if (res && res.teamScores[0] && res.teamScores[0].schoolId === gameState.playerSchoolId) {
+          pts += 1; why.push(`${label} regional title (+1)`);
+        }
+      });
+
+      const res = natMeet && natMeet.results[gender];
+      if (res) {
+        // National title
+        if (res.teamScores[0] && res.teamScores[0].schoolId === gameState.playerSchoolId) {
+          pts += 3; why.push(`${label} NATIONAL TITLE (+3)`);
+        }
+        // Individual national champion
+        if (res.finishers[0] && res.finishers[0].schoolId === gameState.playerSchoolId) {
+          pts += 2; why.push(`${label} individual national champion (+2)`);
+        }
+        // All-Americans (top 40): 1 point per two
+        const aas = res.finishers.slice(0, 40).filter((f) => f.schoolId === gameState.playerSchoolId).length;
+        if (aas) { const p = Math.ceil(aas / 2); pts += p; why.push(`${aas} ${label} All-American${aas > 1 ? 's' : ''} (+${p})`); }
+      }
+
+      // Beat preseason expectations by 15+ poll spots
+      const pre = season.preseasonRanks && season.preseasonRanks[gender];
+      const finalRow = gameState.rankings[gender].find((r) => r.schoolId === gameState.playerSchoolId);
+      if (pre && finalRow) {
+        const preRank = pre[gameState.playerSchoolId] || 200;
+        if (preRank - finalRow.rank >= 15) { pts += 1; why.push(`${label} squad beat preseason expectations (+1)`); }
+      }
+    });
+
+    if (pts > 0 && coach) {
+      coach.upgradePoints = (coach.upgradePoints || 0) + pts;
+      gameState.logNews(`📋 COACHING RÉSUMÉ: you earn ${pts} upgrade point${pts > 1 ? 's' : ''} — ${why.join(', ')}. Spend them on My Program.`);
+    }
+
+    // AI coaches: a light version — titles improve their signature rating.
+    const D = window.XCD.data;
+    Object.values(gameState.world.schools).forEach((school) => {
+      const c = gameState.getCoach(school.coachId);
+      if (!c || c.isPlayer) return;
+      const yr = gameState.year;
+      let aiPts = 0;
+      const conf = (gameState.history.conferenceChampions || {})[yr] || {};
+      if (conf[`${school.conference}-M`] === school.name) aiPts++;
+      if (conf[`${school.conference}-W`] === school.name) aiPts++;
+      const nat = (gameState.history.nationalChampions || {})[yr] || {};
+      if (nat.M && nat.M.teamId === school.id) aiPts += 2;
+      if (nat.W && nat.W.teamId === school.id) aiPts += 2;
+      if (!aiPts) return;
+      const arch = (D.COACH_ARCHETYPES || []).find((a) => a.key === c.archetype);
+      const target = arch && rng.bool(0.6) ? arch.rating
+        : ['recruiting', 'training', 'peaking', 'culture'].sort((x, y) => c[x] - c[y])[0];
+      c[target] = Utils.clamp(c[target] + aiPts * 2, 20, 99);
+    });
   }
 
   /* Player career ledger */

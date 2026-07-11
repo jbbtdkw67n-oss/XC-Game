@@ -171,21 +171,24 @@
     const firstName = gender === 'M' ? rng.choice(D.FIRST_NAMES_M) : rng.choice(D.FIRST_NAMES_W);
     const tierBonus = { 1: 14, 2: 6, 3: 0, 4: -6 }[school.conferenceTier];
     const rolePenalty = role === 'Assistant' ? 8 : 0;
-    const statFor = () => rng.gaussianRange(58 + tierBonus - rolePenalty, 13, 20, 99);
+    const statFor = () => rng.gaussianRange(56 + tierBonus - rolePenalty, 13, 20, 99);
 
-    return new M.Coach({
+    const archetype = rng.choice(D.COACH_ARCHETYPES);
+    const coach = new M.Coach({
       firstName,
       lastName: rng.choice(D.LAST_NAMES),
       age: role === 'Assistant' ? rng.int(26, 50) : rng.int(32, 64),
       role,
-      personality: rng.choice(D.COACH_PERSONALITIES),
-      recruiting: statFor(), training: statFor(), raceStrategy: statFor(), development: statFor(),
-      loyalty: rng.gaussianRange(55, 18, 10, 99), charisma: statFor(),
-      discipline: rng.gaussianRange(58, 15, 15, 99), culture: statFor(),
+      archetype: archetype.key,
+      portrait: rng.choice(D.COACH_PORTRAITS),
+      recruiting: statFor(), training: statFor(), peaking: statFor(), culture: statFor(),
       schoolId: school.id,
       isPlayer,
       yearsAtSchool: isPlayer ? 0 : rng.int(0, 14)
     });
+    // Archetypes matter: a real bump to the signature rating.
+    coach[archetype.rating] = Utils.clamp(coach[archetype.rating] + 12, 20, 99);
+    return coach;
   }
 
   function assignRivalries(schools) {

@@ -35,10 +35,18 @@
 
   D.GENDERS = ['M', 'W'];
 
-  D.COACH_PERSONALITIES = [
-    'Aggressive Recruiter', 'Development Guru', 'Distance Specialist', 'Transfer Hunter',
-    'Prestige Chaser', 'Loyal', 'Builder', 'Win Now'
+  /*
+   * The four coach archetypes. Each starts with a meaningful bonus to its
+   * signature rating (and AI coaches lean into it as they progress).
+   */
+  D.COACH_ARCHETYPES = [
+    { key: 'Recruiter',     rating: 'recruiting', icon: '📞', desc: 'A relentless salesman on the trail. Starts with bonus Recruiting — more points every week and more pull with prospects.' },
+    { key: 'Developer',     rating: 'training',   icon: '📈', desc: 'A master of the daily grind. Starts with bonus Training — athletes develop faster all year long.' },
+    { key: 'Tactician',     rating: 'peaking',    icon: '🎯', desc: 'Built for November. Starts with bonus Peaking — athletes hit championship fitness at Conference, Regionals, and Nationals.' },
+    { key: 'Players Coach', rating: 'culture',    icon: '🤝', desc: 'Runs the best locker room in the country. Starts with bonus Culture — happier athletes, better chemistry, fewer transfers.' }
   ];
+
+  D.COACH_PORTRAITS = ['🧢', '😤', '🧔', '👩‍🦰', '👨‍🦲', '🕶', '👴', '🧑‍🏫'];
 
   D.ATHLETE_PERSONALITIES = [
     'Grinder', 'Confident', 'Laid Back', 'Fiery Competitor', 'Team-First', 'Individualist',

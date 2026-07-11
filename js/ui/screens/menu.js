@@ -40,10 +40,89 @@
     });
   }
 
+  /*
+   * New dynasty flow — no dynasty begins until a coach has been created:
+   *   Step 1: Coach Creation (name, portrait, archetype)
+   *   Step 2: Choose your school
+   */
   function renderNewGame(root) {
     // Generate a preview world so the school list shows real prestige values.
     const seed = (Math.random() * 0xFFFFFFFF) >>> 0;
     const world = window.XCD.engine.WorldGenerator.generate(seed);
+    renderCoachCreation(root, seed, world);
+  }
+
+  function renderCoachCreation(root, seed, world, prev = {}) {
+    const D = window.XCD.data;
+    let archetype = prev.archetype || null;
+    let portrait = prev.portrait || D.COACH_PORTRAITS[0];
+
+    root.innerHTML = `
+      <div id="menu-root">
+        <div class="menu-panel" style="width:min(640px,94vw);">
+          <h1 style="font-size:22px;">Create Your <span>Coach</span></h1>
+          <p class="tagline">Step 1 of 2 — every dynasty starts with a coach. Who are you?</p>
+          <div class="grid cols-2">
+            <div class="field"><label>First Name</label><input id="coach-first" value="${Utils.escapeHtml(prev.first || 'Alex')}" maxlength="20"></div>
+            <div class="field"><label>Last Name</label><input id="coach-last" value="${Utils.escapeHtml(prev.last || 'Carter')}" maxlength="20"></div>
+          </div>
+          <div class="field"><label>Dynasty Name</label><input id="dyn-name" value="${Utils.escapeHtml(prev.dynName || '')}" placeholder="e.g. The Carter Era" maxlength="40"></div>
+          <div class="field">
+            <label>Portrait</label>
+            <div class="portrait-row">
+              ${D.COACH_PORTRAITS.map((p) => `
+                <button type="button" class="portrait-pick ${p === portrait ? 'selected' : ''}" data-portrait="${p}">${p}</button>`).join('')}
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>Coaching Archetype</label>
+            <div class="archetype-grid">
+              ${D.COACH_ARCHETYPES.map((a) => `
+                <div class="archetype-card ${archetype === a.key ? 'selected' : ''}" data-arch="${a.key}">
+                  <div class="arch-name">${a.icon} ${a.key}</div>
+                  <div class="arch-desc">${a.desc}</div>
+                </div>`).join('')}
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:14px;">
+            <button class="btn" id="btn-back">← Back</button>
+            <button class="btn primary" id="btn-next" style="flex:1;" disabled>Next: Choose Your School →</button>
+          </div>
+        </div>
+      </div>`;
+
+    const nextBtn = root.querySelector('#btn-next');
+    const refresh = () => { nextBtn.disabled = !archetype; };
+    refresh();
+
+    root.querySelectorAll('[data-arch]').forEach((el) => {
+      el.addEventListener('click', () => {
+        archetype = el.dataset.arch;
+        root.querySelectorAll('[data-arch]').forEach((n) => n.classList.toggle('selected', n.dataset.arch === archetype));
+        refresh();
+      });
+    });
+    root.querySelectorAll('[data-portrait]').forEach((el) => {
+      el.addEventListener('click', () => {
+        portrait = el.dataset.portrait;
+        root.querySelectorAll('[data-portrait]').forEach((n) => n.classList.toggle('selected', n.dataset.portrait === portrait));
+      });
+    });
+
+    root.querySelector('#btn-back').addEventListener('click', () => renderMainMenu(root));
+    nextBtn.addEventListener('click', () => {
+      const coach = {
+        first: root.querySelector('#coach-first').value.trim() || 'Alex',
+        last: root.querySelector('#coach-last').value.trim() || 'Carter',
+        dynName: root.querySelector('#dyn-name').value.trim(),
+        archetype,
+        portrait
+      };
+      renderSchoolSelect(root, seed, world, coach);
+    });
+  }
+
+  function renderSchoolSelect(root, seed, world, coach) {
     const schools = Object.values(world.schools)
       .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -52,20 +131,15 @@
     root.innerHTML = `
       <div id="menu-root">
         <div class="menu-panel" style="width:min(640px,94vw);">
-          <h1 style="font-size:22px;">Start a New <span>Dynasty</span></h1>
-          <p class="tagline">Choose your identity and your first school. Smaller programs mean a harder, longer climb.</p>
-          <div class="grid cols-2">
-            <div class="field"><label>Coach First Name</label><input id="coach-first" value="Alex" maxlength="20"></div>
-            <div class="field"><label>Coach Last Name</label><input id="coach-last" value="Carter" maxlength="20"></div>
-          </div>
-          <div class="field"><label>Dynasty Name</label><input id="dyn-name" placeholder="e.g. The Carter Era" maxlength="40"></div>
+          <h1 style="font-size:22px;">Choose Your <span>School</span></h1>
+          <p class="tagline">Step 2 of 2 — Coach ${Utils.escapeHtml(coach.first)} ${Utils.escapeHtml(coach.last)} (${Utils.escapeHtml(coach.archetype)}). Smaller programs mean a harder, longer climb.</p>
           <div class="field">
             <label>Search Schools</label>
             <input id="school-search" placeholder="Search by name, conference, or state...">
           </div>
           <div class="school-pick-list" id="school-list"></div>
           <div style="display:flex; gap:10px; margin-top:18px;">
-            <button class="btn" id="btn-back">← Back</button>
+            <button class="btn" id="btn-back">← Coach</button>
             <button class="btn primary" id="btn-start" style="flex:1;" disabled>Start Dynasty</button>
           </div>
         </div>
@@ -101,18 +175,17 @@
     drawList();
 
     root.querySelector('#school-search').addEventListener('input', (e) => drawList(e.target.value));
-    root.querySelector('#btn-back').addEventListener('click', () => renderMainMenu(root));
+    root.querySelector('#btn-back').addEventListener('click', () => renderCoachCreation(root, seed, world, coach));
 
     startBtn.addEventListener('click', async () => {
-      const first = root.querySelector('#coach-first').value.trim() || 'Alex';
-      const last = root.querySelector('#coach-last').value.trim() || 'Carter';
-      const dynName = root.querySelector('#dyn-name').value.trim() || `The ${last} Era`;
-
+      const dynName = coach.dynName || `The ${coach.last} Era`;
       const game = window.XCD.engine.GameState.newGame({
         schoolId: selectedId,
         dynastyName: dynName,
-        coachFirstName: first,
-        coachLastName: last,
+        coachFirstName: coach.first,
+        coachLastName: coach.last,
+        archetype: coach.archetype,
+        portrait: coach.portrait,
         seed,
         world // reuse the previewed world so selected ids stay valid
       });
@@ -122,7 +195,7 @@
         await window.XCD.engine.SaveManager.autoSave(game);
       } catch (err) { /* autosave best-effort at creation */ }
       UI.renderShell();
-      UI.toast(`Welcome to ${game.getPlayerSchool().name}, Coach ${last}!`, 'success');
+      UI.toast(`Welcome to ${game.getPlayerSchool().name}, Coach ${coach.last}!`, 'success');
     });
   }
 

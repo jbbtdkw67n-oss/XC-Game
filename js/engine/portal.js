@@ -91,6 +91,11 @@
     let u = 0;
     const reasons = [];
 
+    // A great locker-room culture keeps runners home; a bad one pushes
+    // them out the door.
+    const coach = gameState.getCoach(school.coachId);
+    if (coach) u -= (coach.culture - 50) * 0.25;
+
     // Playing time: buried on the depth chart while good enough to run
     const roster = gameState.getRoster(school.id, a.gender).sort((x, y) => y.currentOverall - x.currentOverall);
     const rank = roster.findIndex((x) => x.id === a.id) + 1;
@@ -171,7 +176,7 @@
       playingTime * 0.28 +
       Utils.clamp(100 - dist / 18, 0, 100) * 0.14 +
       school.facilitiesOverall * 0.10 +
-      (coach ? coach.development : 50) * 0.08 +
+      (coach ? coach.training : 50) * 0.08 +
       Utils.clamp(school.budget.nil / 1200, 5, 100) * 0.06 +
       (school.prestige > (fromSchool ? fromSchool.prestige : 50) ? 6 : 0),
       0, 100);
@@ -193,9 +198,10 @@
       for (let i = 0; i < 30; i++) {
         const s = rng.choice(needy);
         if (s.id === entry.fromSchoolId || entry.offers.includes(s.id)) continue;
-        // Programs chase talent near/above their level; transfer hunters chase everyone.
+        // Programs chase talent near/above their level; Recruiter-archetype
+        // coaches chase everyone.
         const coach = gameState.getCoach(s.coachId);
-        const hunter = coach && coach.personality === 'Transfer Hunter';
+        const hunter = coach && coach.archetype === 'Recruiter';
         if (!hunter && Math.abs(a.currentOverall - (30 + s.prestige * 0.55)) > 22) continue;
         candidates.push(s);
         if (candidates.length >= 3) break;

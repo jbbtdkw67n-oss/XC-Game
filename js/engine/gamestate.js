@@ -92,7 +92,7 @@
      * Ids are unique per generation, so regenerating from the same seed
      * would produce identical data but different ids.
      */
-    static newGame({ schoolId, dynastyName, coachFirstName, coachLastName, seed, world }) {
+    static newGame({ schoolId, dynastyName, coachFirstName, coachLastName, archetype, portrait, seed, world }) {
       const gs = new GameState();
       gs.dynastyName = dynastyName || `${coachLastName} Dynasty`;
       gs.seed = seed >>> 0;
@@ -103,19 +103,23 @@
       gs.createdAt = Date.now();
 
       const school = gs.world.schools[schoolId];
-      // Replace the AI coach at the chosen school with the player.
+      // Replace the AI coach at the chosen school with the player's
+      // created coach. Archetype grants a real bonus to its rating.
       const oldCoachId = school.coachId;
       delete gs.world.coaches[oldCoachId];
+      const arch = (D.COACH_ARCHETYPES || []).find((a) => a.key === archetype) || { key: 'Developer', rating: 'training' };
       const playerCoach = new M.Coach({
         firstName: coachFirstName || 'Alex',
         lastName: coachLastName || 'Carter',
         age: 34,
-        recruiting: 55, training: 55, raceStrategy: 55, development: 55,
-        loyalty: 60, charisma: 55, discipline: 55, culture: 55,
+        archetype: arch.key,
+        portrait: portrait || '🧢',
+        recruiting: 50, training: 50, peaking: 50, culture: 50,
         schoolId,
         isPlayer: true,
         yearsAtSchool: 0
       });
+      playerCoach[arch.rating] = 64;
       gs.world.coaches[playerCoach.id] = playerCoach;
       school.coachId = playerCoach.id;
       gs.playerCoachId = playerCoach.id;

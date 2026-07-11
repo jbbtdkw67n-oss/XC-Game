@@ -130,36 +130,55 @@
         firstName: '',
         lastName: '',
         age: 40,
-        personality: 'Builder',
+        archetype: 'Developer', // Recruiter | Developer | Tactician | Players Coach
+        portrait: '🧢',
 
-        recruiting: 55,
-        training: 55,
-        raceStrategy: 55,
-        development: 55,
-        loyalty: 55,
-        charisma: 55,
-        discipline: 55,
-        culture: 55,
+        // The ONLY four coach ratings.
+        recruiting: 55, // recruiting effectiveness
+        training: 55,   // athlete development
+        peaking: 55,    // championship-week form (Conference/Regionals/Nationals)
+        culture: 55,    // morale, happiness, transfers, chemistry
+
+        // Career progression: points earned through success, spent on ratings.
+        upgradePoints: 0,
 
         schoolId: null,
         role: 'Head', // Head | Assistant
         isPlayer: false,
         yearsAtSchool: 0,
-        hotSeat: 0, // 0-100, drives firing risk in later phases
-        careerRecord: { wins: 0, losses: 0, conferenceTitles: 0, nationalTitles: 0 },
+        hotSeat: 0, // 0-100, drives firing risk
+        careerRecord: { wins: 0, losses: 0, conferenceTitles: 0, regionalTitles: 0, nationalTitles: 0 },
         retireAge: Utils.clamp(62 + Math.round(Math.random() * 10), 60, 75),
 
         ...data
       });
+      this.migrateLegacyRatings(data);
+    }
+
+    // Coaches saved before the four-rating overhaul fold down cleanly.
+    migrateLegacyRatings(data) {
+      if (!data || (data.development === undefined && data.raceStrategy === undefined)) return;
+      if (data.training === undefined || data.development !== undefined) {
+        this.training = Math.round(Math.max(data.training ?? 0, data.development ?? 55));
+      }
+      if (data.peaking === undefined && data.raceStrategy !== undefined) this.peaking = data.raceStrategy;
+      if (data.archetype === undefined && data.personality !== undefined) {
+        const map = {
+          'Aggressive Recruiter': 'Recruiter', 'Transfer Hunter': 'Recruiter', 'Prestige Chaser': 'Recruiter',
+          'Development Guru': 'Developer', 'Builder': 'Developer', 'Distance Specialist': 'Developer',
+          'Win Now': 'Tactician', 'Loyal': 'Players Coach'
+        };
+        this.archetype = map[data.personality] || 'Developer';
+      }
+      ['personality', 'raceStrategy', 'development', 'loyalty', 'charisma', 'discipline']
+        .forEach((k) => { delete this[k]; });
+      this.careerRecord.regionalTitles = this.careerRecord.regionalTitles || 0;
     }
 
     get fullName() { return `${this.firstName} ${this.lastName}`; }
 
     get overallRating() {
-      return Math.round(Utils.average([
-        this.recruiting, this.training, this.raceStrategy, this.development,
-        this.loyalty, this.charisma, this.discipline, this.culture
-      ]));
+      return Math.round(Utils.average([this.recruiting, this.training, this.peaking, this.culture]));
     }
   }
 

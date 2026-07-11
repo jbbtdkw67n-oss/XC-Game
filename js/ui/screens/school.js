@@ -12,9 +12,10 @@
   };
 
   const COACH_ATTRS = [
-    ['recruiting', 'Recruiting'], ['training', 'Training'], ['raceStrategy', 'Race Strategy'],
-    ['development', 'Development'], ['loyalty', 'Loyalty'], ['charisma', 'Charisma'],
-    ['discipline', 'Discipline'], ['culture', 'Culture']
+    ['recruiting', 'Recruiting', 'Recruiting effectiveness: weekly points and pull with prospects.'],
+    ['training', 'Training', 'Athlete development speed, every single week.'],
+    ['peaking', 'Peaking', 'Championship form at Conference, Regionals, and Nationals.'],
+    ['culture', 'Culture', 'Morale, happiness, chemistry, and keeping runners out of the portal.']
   ];
 
   function render(container) {
@@ -44,13 +45,25 @@
 
       <div class="grid cols-2">
         <div class="card">
-          <h2>Head Coach — ${Utils.escapeHtml(coach.fullName)}</h2>
+          <h2>${coach.portrait || '🧢'} Head Coach — ${Utils.escapeHtml(coach.fullName)}</h2>
           <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">
-            Age ${coach.age} • ${Utils.escapeHtml(coach.personality)} • Year ${coach.yearsAtSchool + 1} at ${Utils.escapeHtml(school.name)} • Overall ${coach.overallRating}
+            Age ${coach.age} • ${Utils.escapeHtml(coach.archetype || '')} • Year ${coach.yearsAtSchool + 1} at ${Utils.escapeHtml(school.name)} • Overall ${coach.overallRating}
           </div>
-          <div class="attr-grid">
-            ${COACH_ATTRS.map(([key, label]) => `
-              <div class="attr-row"><span class="attr-name">${label}</span>${UI.ratingBadge(coach[key])}</div>`).join('')}
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-size:13px;">Upgrade Points: <strong style="color:${coach.upgradePoints ? 'var(--gold)' : 'var(--text-dim)'};">${coach.upgradePoints || 0}</strong></span>
+            <span style="font-size:11.5px; color:var(--text-faint);">1 point = +2 to a rating</span>
+          </div>
+          ${COACH_ATTRS.map(([key, label, hint]) => `
+            <div class="attr-row" style="margin-bottom:6px;" title="${hint}">
+              <span class="attr-name" style="min-width:90px;">${label}</span>
+              <div style="flex:1; margin:0 10px;">${UI.meter(coach[key])}</div>
+              ${UI.ratingBadge(coach[key])}
+              <button class="btn small" data-coach-upg="${key}" style="margin-left:8px;"
+                ${(coach.upgradePoints || 0) > 0 && coach[key] < 99 ? '' : `disabled title="${coach[key] >= 99 ? 'Maxed out' : 'Earn points via titles, All-Americans, top classes, and beating expectations'}"`}>+2</button>
+            </div>`).join('')}
+          <div style="font-size:12px; color:var(--text-faint); margin-top:6px;">
+            Earn upgrade points with conference/regional/national titles, individual champions,
+            All-Americans, top-10 recruiting classes, and beating preseason expectations.
           </div>
         </div>
 
@@ -113,6 +126,17 @@
             : '<div style="color:var(--text-dim); font-size:13px;">No records on the books yet — race!</div>'}
         </div>
       </div>`;
+
+    container.querySelectorAll('[data-coach-upg]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.coachUpg;
+        if ((coach.upgradePoints || 0) <= 0 || coach[key] >= 99) return;
+        coach.upgradePoints -= 1;
+        coach[key] = Math.min(99, coach[key] + 2);
+        UI.toast(`${COACH_ATTRS.find(([k]) => k === key)[1]} improved to ${coach[key]}.`, 'success');
+        render(container);
+      });
+    });
 
     container.querySelectorAll('[data-upg]').forEach((btn) => {
       btn.addEventListener('click', () => {
