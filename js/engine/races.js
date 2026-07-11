@@ -24,7 +24,7 @@
   const CONFERENCE_WEEK = 8;
   const REGIONAL_WEEK = 9;
   const NATIONAL_WEEK = 10;
-  const SEGMENTS = 8;
+  const SEGMENTS = 12;
   const NATIONALS_FIELD = 31;
   const PRENATS_ELITE = 36;      // top-prestige programs auto-invited
   const PRENATS_CAP = 60;        // field cap including mid-major invites
@@ -257,15 +257,30 @@
   }
 
   /*
-   * Simulate one gender's race at a meet. Returns a result object:
-   * { finishers, teamScores, splits (optional) }
+   * Simulate one gender's race at a meet — a true segment-by-segment
+   * simulation in which positioning changes naturally:
+   *
+   *  - Early race (segs 0-2): pack formation — the field compresses and
+   *    runs together; nobody's race is decided yet.
+   *  - Mid race (segs 3-7): pace drifts apart. Elite Lactate Threshold
+   *    holds pace; aggressive runners throw in surges that cost energy;
+   *    big VO2 Max engines recover from surges best. Hills bite twice.
+   *  - Late race (segs 8-10): the grind. Every runner burns an energy
+   *    reserve built from Stamina + fitness + freshness; runners who
+   *    empty the tank fade hard, strong Stamina runners move up.
+   *  - Final segment: the kick — Speed + Running Economy + whatever is
+   *    left in the tank. Fresh, fast runners carve through the field
+   *    over the final 800-1000m.
+   *
+   * Returns { finishers, teamScores, splits, events } (splits/events when
+   * detailed) — the race center replays the splits as a live broadcast.
    */
   function simulateRace(gameState, meet, gender, rng, detailed) {
     const distanceM = meet.distances[gender];
-    const km = distanceM / 1000;
-    const hillSegs = new Set([2, 5]); // segments with the course's hills
+    const hillSegs = new Set([3, 7]); // where the course's hills live
 
-    // Field: top 7 healthy runners per team, readiness-weighted selection.
+    // Field: top 7 healthy runners per team, readiness-weighted selection,
+    // plus any individually-qualified athletes (nationals).
     const entries = [];
     meet.schoolIds.forEach((schoolId) => {
       const school = gameState.getSchool(schoolId);
@@ -277,45 +292,169 @@
         .slice(0, 7);
       squad.forEach((a) => entries.push({ athlete: a, schoolId }));
     });
+    (meet.individualEntries && meet.individualEntries[gender] || []).forEach((athId) => {
+      const a = gameState.world.athletes[athId];
+      if (a && !a.injury && !entries.some((e) => e.athlete.id === athId)) {
+        entries.push({ athlete: a, schoolId: a.schoolId, individual: true });
+      }
+    });
     if (!entries.length) return null;
 
-    // Per-runner race plan
     const hillFactor = meet.conditions.hilliness / 100;
-    const runners = entries.map(({ athlete: a, schoolId }) => {
+
+    // --- Per-runner race state -----------------------------------------
+    const runners = entries.map(({ athlete: a, schoolId, individual }) => {
       const rating = raceRating(a, distanceM);
       let total = baseTime(rating, gender, distanceM) * conditionsMultiplier(gameState, a, meet, gender);
-      // Team chemistry travels with the squad on race day (±~0.9%).
       const chem = gameState.getSchool(schoolId)?.chemistry?.[gender];
       if (chem !== undefined) total *= 1 + (55 - chem) * 0.0002;
-      // Course hills slow everyone; hill-adapted runners lose less.
-      total *= 1 + hillFactor * 0.03 * (1.35 - hillAbility(a) / 100);
       // Day form: consistent runners have narrower swings.
-      const swing = 0.016 * (1.45 - a.consistency / 100);
-      total *= 1 + rng.gaussian(0, swing);
+      total *= 1 + rng.gaussian(0, 0.015 * (1.45 - a.consistency / 100));
 
-      // Segment pacing profile: fast start, mid steady, late fade vs toughness, kick.
-      const fade = 0.012 * (1.5 - (a.stamina * 0.5 + a.mentalToughness * 0.5) / 70);
-      const kick = 0.030 * ((a.speed * 0.6 + a.runningEconomy * 0.25 + a.confidence * 0.15) / 100 - 0.5);
-      const segTimes = [];
-      const segBase = total / SEGMENTS;
-      for (let s = 0; s < SEGMENTS; s++) {
-        let t = segBase;
-        if (s === 0) t *= 0.985;                        // adrenaline start
-        if (s >= 5) t *= 1 + fade * (s - 4);            // the grind
-        if (hillSegs.has(s)) t *= 1 + hillFactor * 0.02 * (1.3 - hillAbility(a) / 100);
-        if (s === SEGMENTS - 1) t *= 1 - Utils.clamp(kick, -0.02, 0.02); // finishing kick
-        t *= 1 + rng.gaussian(0, 0.004 * (1.4 - a.consistency / 100));
-        segTimes.push(t);
-      }
-      return { athlete: a, schoolId, segTimes, cum: [], packBonus: a.raceIQ };
+      // The energy tank: Stamina + current fitness + freshness. A 12-segment
+      // race costs ~66-78 depending on Lactate Threshold, so tired or
+      // low-stamina runners run out before the finish and fade.
+      const reserve = 35 + a.stamina * 0.35 + a.fitness * 0.20 + (100 - a.fatigue) * 0.16;
+
+      return {
+        athlete: a, schoolId, individual: !!individual,
+        segBase: total / SEGMENTS,
+        cum: [], segTimes: [],
+        reserve,
+        faded: false,
+        surgedLastSeg: false,
+        surges: 0,
+        aggression: a.confidence * 0.5 + a.raceIQ * 0.5,
+        hill: hillAbility(a),
+        kicked: false
+      };
     });
 
-    // Pack running: segment by segment, runners in groups tow each other.
+    const fieldPace = median(runners.map((r) => r.segBase));
+    const events = [];
     const cums = new Array(runners.length).fill(0);
+    let lastLeaderId = null;
+
+    // --- The race, segment by segment -----------------------------------
     for (let s = 0; s < SEGMENTS; s++) {
+      const isEarly = s <= 2;
+      const isMid = s >= 3 && s <= 7;
+      const isLate = s >= 8 && s <= 10;
+      const kickPhase = s >= SEGMENTS - 2; // the final 800-1000m
+
+      // Current running order (for pack math + event context).
+      const order = runners.map((r, i) => ({ i, t: cums[i] })).sort((a, b) => a.t - b.t);
+      const posOf = {};
+      order.forEach((o, pos) => { posOf[o.i] = pos + 1; });
+
+      // Local pack pace for every runner: the mean natural pace of the
+      // group they're physically running with (±3 positions, within ~4s).
+      const localPace = new Array(runners.length).fill(0);
+      for (let k = 0; k < order.length; k++) {
+        let sum = 0, n = 0;
+        for (let j = Math.max(0, k - 3); j <= Math.min(order.length - 1, k + 3); j++) {
+          if (s > 0 && Math.abs(order[j].t - order[k].t) > 4) continue;
+          sum += runners[order[j].i].segBase; n++;
+        }
+        localPace[order[k].i] = n ? sum / n : runners[order[k].i].segBase;
+      }
+
+      runners.forEach((r, i) => {
+        const a = r.athlete;
+        let t = r.segBase;
+
+        // Cost of covering this segment (drained from the tank). A strong
+        // threshold makes hard running cheaper.
+        let cost = 6.6 - a.lactateThreshold * 0.016;
+
+        if (s === 0) {
+          // The gun: adrenaline + the field goes out together.
+          t = t * 0.5 + fieldPace * 0.5;
+          t *= 0.985;
+        } else if (isEarly) {
+          // Pack formation: everyone tucks into a group. Hanging with a
+          // pack that's quicker than you costs energy you'll miss later.
+          t = t * 0.45 + localPace[i] * 0.55;
+        } else if (isMid) {
+          // Packs still matter mid-race, but the elastic starts stretching.
+          t = t * 0.55 + localPace[i] * 0.45;
+        }
+        if (s > 0 && (isEarly || isMid) && localPace[i] < r.segBase) {
+          const overreach = (r.segBase - localPace[i]) / r.segBase; // running above your head
+          cost += overreach * 150;
+        }
+
+        if (isMid) {
+          // Mid-race drift: weak thresholds leak time as the pace tells.
+          t *= 1 + 0.010 * (1.35 - a.lactateThreshold / 100) * ((s - 2) / 5);
+
+          // Surges: confident, race-smart runners attack mid-race.
+          const surgeChance = 0.05 + (r.aggression / 100) * 0.10;
+          if (!r.surgedLastSeg && r.reserve > 30 && rng.bool(surgeChance)) {
+            t *= 0.972;
+            cost += 7;
+            r.surges++;
+            r.surgedLastSeg = true;
+            if (detailed && posOf[i] <= 30) {
+              events.push({ seg: s, type: 'surge', athleteId: a.id, name: a.fullName, schoolId: r.schoolId });
+            }
+          } else if (r.surgedLastSeg) {
+            // Recovering from the surge: big VO2 Max engines re-settle fastest.
+            t *= 1 + 0.012 * (1.35 - a.vo2Max / 100);
+            r.surgedLastSeg = false;
+          }
+        }
+
+        // Hills: adapted hill runners gain time on everyone here.
+        if (hillSegs.has(s)) {
+          t *= 1 + hillFactor * 0.045 * (1.30 - r.hill / 100);
+          cost += 2.5 * hillFactor;
+        }
+
+        if (isLate) {
+          // The grind: pace held by stamina + toughness. This is where
+          // strong distance runners move up through the field.
+          const grind = 0.016 * (1.45 - (a.stamina * 0.6 + a.mentalToughness * 0.4) / 100) * (s - 7);
+          t *= 1 + grind;
+        }
+
+        if (kickPhase && !r.faded && r.reserve > 10) {
+          // The final 800-1000m: Speed + Running Economy + whatever's left.
+          const kickPower = Utils.clamp(
+            ((a.speed * 0.50 + a.runningEconomy * 0.30 + a.confidence * 0.20) / 100 - 0.40) * 0.095 +
+            Utils.clamp((r.reserve - 10) / 300, 0, 0.018),
+            -0.015, 0.065) * (s === SEGMENTS - 1 ? 1 : 0.5);
+          t *= 1 - kickPower;
+          cost += 2.5;
+          if (s === SEGMENTS - 1) {
+            r.kicked = kickPower > 0.03;
+            if (detailed && r.kicked && posOf[i] <= 25) {
+              events.push({ seg: s, type: 'kick', athleteId: a.id, name: a.fullName, schoolId: r.schoolId });
+            }
+          }
+        }
+
+        // Burn the tank; an empty tank means the dreaded late-race bonk.
+        r.reserve -= cost;
+        if (r.reserve <= 0) {
+          const depth = Math.min(1.6, -r.reserve / 18);
+          t *= 1 + 0.020 + 0.024 * depth;
+          if (!r.faded) {
+            r.faded = true;
+            if (detailed && posOf[i] <= 30) {
+              events.push({ seg: s, type: 'fade', athleteId: a.id, name: a.fullName, schoolId: r.schoolId });
+            }
+          }
+        }
+
+        // Segment-level noise: races breathe.
+        t *= 1 + rng.gaussian(0, 0.008 * (1.45 - a.consistency / 100));
+
+        r.segTimes.push(t);
+      });
+
+      // Pack drafting: runners with company share the work (race IQ helps).
       if (s >= 1 && s <= SEGMENTS - 2) {
-        // Who is packed up entering this segment?
-        const order = runners.map((r, i) => ({ i, t: cums[i] })).sort((a, b) => a.t - b.t);
         for (let k = 0; k < order.length; k++) {
           let packmates = 0;
           for (let j = Math.max(0, k - 3); j <= Math.min(order.length - 1, k + 3); j++) {
@@ -323,14 +462,26 @@
           }
           if (packmates >= 2) {
             const r = runners[order[k].i];
-            r.segTimes[s] *= 1 - 0.0022 * (r.packBonus / 100); // drafting/company
+            r.segTimes[s] *= 1 - 0.0022 * (r.athlete.raceIQ / 100);
           }
         }
       }
+
+      // Commit the segment.
       runners.forEach((r, i) => {
         cums[i] += r.segTimes[s];
         r.cum.push(Math.round(cums[i] * 10) / 10);
       });
+
+      // Lead-change events for the broadcast.
+      if (detailed && s >= 1) {
+        const leader = runners.reduce((best, r, i) => (cums[i] < cums[best] ? i : best), 0);
+        const leadId = runners[leader].athlete.id;
+        if (lastLeaderId && leadId !== lastLeaderId && s < SEGMENTS - 1) {
+          events.push({ seg: s, type: 'lead', athleteId: leadId, name: runners[leader].athlete.fullName, schoolId: runners[leader].schoolId });
+        }
+        lastLeaderId = leadId;
+      }
     }
 
     // Finish order
@@ -340,6 +491,7 @@
         name: r.athlete.fullName,
         schoolId: r.schoolId,
         classYear: r.athlete.classYear,
+        individual: r.individual,
         time: r.cum[SEGMENTS - 1]
       }))
       .sort((a, b) => a.time - b.time);
@@ -356,12 +508,19 @@
     if (detailed) {
       result.splits = {};
       runners.forEach((r) => { result.splits[r.athlete.id] = r.cum; });
+      result.events = events.slice(0, 60);
     }
 
     // Post-race bookkeeping: stats, PRs, records, fatigue, morale.
     applyRaceEffects(gameState, meet, gender, finishers, teamScores, distanceM);
 
     return result;
+  }
+
+  function median(arr) {
+    const s = arr.slice().sort((a, b) => a - b);
+    const mid = s.length >> 1;
+    return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
   }
 
   /* NCAA team scoring */

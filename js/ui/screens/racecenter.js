@@ -63,6 +63,7 @@
       <div class="grid" style="grid-template-columns: 1.5fr 1fr; gap:16px;">
         <div class="card" id="race-track" style="min-height:300px;"></div>
         <div>
+          <div class="card" id="live-ticker" style="margin-bottom:16px;"></div>
           <div class="card" id="live-board" style="margin-bottom:16px;"></div>
           <div class="card" id="live-teams"></div>
         </div>
@@ -115,14 +116,29 @@
     return { shown, lastFinish };
   }
 
+  const EVENT_TEXT = {
+    surge: (e) => `⚡ ${e.name} throws in a surge!`,
+    fade: (e) => `🥵 ${e.name} is tying up — the tank is empty.`,
+    kick: (e) => `🚀 ${e.name} unleashes a huge finishing kick!`,
+    lead: (e) => `🔥 ${e.name} takes the lead!`
+  };
+
   function startReplay(game, meet, container) {
     stopAnim();
     const { shown, lastFinish } = buildReplay(game, meet);
     const res = meet.results[activeGender];
     const track = container.querySelector('#race-track');
+    const ticker = container.querySelector('#live-ticker');
     const board = container.querySelector('#live-board');
     const teams = container.querySelector('#live-teams');
     const S = Races().SEGMENTS;
+
+    // Broadcast events (from the sim) get timestamped by segment so the
+    // ticker fires as the replay reaches them.
+    const avgSeg = lastFinish / S;
+    const raceEvents = (res.events || []).map((e) => ({ ...e, at: (e.seg + 0.5) * avgSeg }));
+    let nextEvent = 0;
+    const prevPos = new Map(); // athlete order snapshot for movement arrows
 
     track.innerHTML = `<h2 id="race-clock">0:00</h2>` + shown.map((r, i) => `
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
@@ -133,8 +149,10 @@
         <div style="width:52px; text-align:right; font-size:11px; color:var(--text-faint);" id="pos-${i}"></div>
       </div>`).join('');
 
-    const playedSeconds = 42; // broadcast length at 1×
-    anim = { speed: 1, elapsed: 0, last: performance.now(), raf: null };
+    ticker.innerHTML = `<h3>📡 Race Feed</h3><div class="race-ticker"><div class="tick">The gun goes off — ${shown.length} runners shown of ${res.finisherCount}.</div></div>`;
+
+    const playedSeconds = 48; // broadcast length at 1×
+    anim = { speed: 1, elapsed: 0, last: performance.now(), raf: null, lastSnap: 0 };
 
     function progressAt(r, t) {
       // t = race seconds; splits are cumulative per segment (equal distance)
@@ -170,12 +188,40 @@
         if (posEl) posEl.textContent = s.p >= 1 ? `✓ ${Races().formatTime(s.r.time)}` : Utils.ordinal(pos + 1);
       });
 
-      // Live leaderboard
-      board.innerHTML = `<h3>Live Leaders</h3>` + standings.slice(0, 10).map((s, pos) => `
+      // Broadcast ticker: fire events as the race reaches them.
+      while (nextEvent < raceEvents.length && raceEvents[nextEvent].at <= raceT) {
+        const e = raceEvents[nextEvent++];
+        const text = (EVENT_TEXT[e.type] || ((x) => x.type))(e);
+        const mine = e.schoolId === UI.state.game.playerSchoolId;
+        const div = document.createElement('div');
+        div.className = `tick ${e.type === 'lead' || e.type === 'kick' ? 'hot' : ''} ${mine ? 'mine' : ''}`;
+        div.textContent = `${Races().formatTime(e.at)} — ${text}`;
+        const feed = ticker.querySelector('.race-ticker');
+        if (feed) {
+          feed.prepend(div);
+          while (feed.children.length > 24) feed.lastChild.remove();
+        }
+      }
+
+      // Live leaderboard with position-movement arrows (vs ~a second ago).
+      board.innerHTML = `<h3>Live Leaders</h3>` + standings.slice(0, 10).map((s, pos) => {
+        const prev = prevPos.get(s.r.athleteId);
+        let move = '<span class="pos-move"> </span>';
+        if (prev !== undefined && prev !== pos + 1) {
+          move = prev > pos + 1
+            ? `<span class="pos-move up">▲${prev - pos - 1}</span>`
+            : `<span class="pos-move down">▼${pos + 1 - prev}</span>`;
+        }
+        return `
         <div class="attr-row" style="padding:2.5px 0;">
-          <span style="${s.r.mine ? 'color:var(--accent-hover); font-weight:700;' : ''}">${pos + 1}. ${Utils.escapeHtml(s.r.name)}</span>
+          <span style="${s.r.mine ? 'color:var(--accent-hover); font-weight:700;' : ''}">${pos + 1}. ${move}${Utils.escapeHtml(s.r.name)}</span>
           <span style="color:var(--text-faint); font-size:11.5px;">${Utils.escapeHtml(UI.state.game.getSchool(s.r.schoolId)?.name || '')}</span>
-        </div>`).join('');
+        </div>`;
+      }).join('');
+      if (anim && (!anim.lastSnap || now - anim.lastSnap > 900)) {
+        anim.lastSnap = now;
+        standings.forEach((s, pos) => prevPos.set(s.r.athleteId, pos + 1));
+      }
 
       // Live team score projection from current positions of ALL finishers
       const liveScore = projectedScore(res, raceT);
