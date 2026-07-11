@@ -13,20 +13,22 @@
   const D = window.XCD.data;
 
   /*
-   * The standard year: a 10-week season (Wk 1-10) plus a 4-week offseason.
-   *   Wk 1 Meet · Wk 2 Training · Wk 3 Meet · Wk 4 Training ·
-   *   Wk 5 Pre-Nationals · Wk 6 Training · Wk 7 Meet ·
-   *   Wk 8 Conference · Wk 9 Regionals · Wk 10 Nationals ·
-   *   Wk 11-14 Offseason (awards, transfer portal, signing day).
+   * The standard year — Update 2 (Part 5):
+   *   Wk 1-3   Summer Training
+   *   Wk 4-12  Regular Season (meets 4/6/8/10/12 — one bye between each)
+   *   Wk 13    Conference · Wk 14 Regionals · Wk 15 Nationals (no byes)
+   *   Wk 16-21 Offseason (awards, portal, signing day, development)
+   * All numbers live in XCD.data.CALENDAR — nothing downstream hardcodes them.
    */
-  const WEEKS_PER_YEAR = 14;
-  const AWARDS_WEEK = 11; // the week after nationals
+  const WEEKS_PER_YEAR = D.CALENDAR.WEEKS_PER_YEAR;
+  const AWARDS_WEEK = D.CALENDAR.AWARDS_WEEK; // the week after nationals
   const SEASON_PHASES = [
-    { upTo: 7, label: 'Regular Season' },
-    { upTo: 8, label: 'Conference Championships' },
-    { upTo: 9, label: 'Regional Championships' },
-    { upTo: 10, label: 'National Championships' },
-    { upTo: 14, label: 'Offseason' }
+    { upTo: D.CALENDAR.SUMMER_WEEKS, label: 'Summer Training' },
+    { upTo: D.CALENDAR.CONFERENCE_WEEK - 1, label: 'Regular Season' },
+    { upTo: D.CALENDAR.CONFERENCE_WEEK, label: 'Conference Championships' },
+    { upTo: D.CALENDAR.REGIONAL_WEEK, label: 'Regional Championships' },
+    { upTo: D.CALENDAR.NATIONAL_WEEK, label: 'National Championships' },
+    { upTo: D.CALENDAR.WEEKS_PER_YEAR, label: 'Offseason' }
   ];
 
   function phaseForWeek(week) {
@@ -62,11 +64,14 @@
       };
 
       // Weekly training plans: 7 workout keys (Mon-Sun) per squad,
-      // plus per-athlete load overrides.
+      // plus per-athlete load overrides, plus the mileage layer (Part 6):
+      // program mileage per squad and per-athlete mileage overrides.
       this.training = {
         M: D.DEFAULT_WEEK_PLAN.slice(),
         W: D.DEFAULT_WEEK_PLAN.slice(),
-        overrides: {} // athleteId -> 'reduced' | 'rest'
+        overrides: {}, // athleteId -> 'reduced' | 'rest'
+        mileage: { M: D.MILEAGE.DEFAULT.M, W: D.MILEAGE.DEFAULT.W },
+        mileageOverrides: {} // athleteId -> weekly miles (30-120)
       };
 
       this.season = null;    // current season schedule + results (Races engine)
@@ -123,9 +128,11 @@
         yearsAtSchool: 0
       });
       playerCoach[arch.rating] = 64;
+      playerCoach.reputation = 12; // everyone starts as an unknown
       gs.world.coaches[playerCoach.id] = playerCoach;
       school.coachId = playerCoach.id;
       gs.playerCoachId = playerCoach.id;
+      window.XCD.engine.Legacy.openStint(gs, playerCoach, school, gs.year);
 
       gs.career.stops.push({ school: school.name, startYear: gs.year });
       gs.logNews(`${coachFirstName} ${coachLastName} takes over as head coach at ${school.name}.`);
@@ -245,6 +252,7 @@
               athlete.redshirt = 'Used';
               if (athlete.yearsOnCampus > 5) { // five-year clock still expires
                 window.XCD.engine.Awards.considerHallOfFame(this, athlete);
+                window.XCD.engine.Legacy.recordAlumni(this, athlete);
                 athlete.schoolId = null;
                 athlete.health = 'Graduated';
                 delete this.world.athletes[athId];
@@ -257,6 +265,7 @@
             if (athlete.eligibilityRemaining <= 1 || athlete.yearsOnCampus > 5 ||
                 athlete.classYear === 'Graduate') {
               window.XCD.engine.Awards.considerHallOfFame(this, athlete);
+              window.XCD.engine.Legacy.recordAlumni(this, athlete);
               athlete.schoolId = null;
               athlete.health = 'Graduated';
               delete this.world.athletes[athId];
@@ -278,6 +287,10 @@
         this.logNews(`${playerClass.length} signees arrive on campus: ${playerClass.map((r) => r.fullName).join(', ')}.`);
       }
 
+      // 2b) Offseason development (Part 12): every athlete in the world
+      //     progresses or regresses between seasons.
+      window.XCD.engine.Training.offseasonDevelopment(this, rng);
+
       // 3) Every program must field 14 men and 14 women. If recruiting
       //    left a roster short, walk-ons fill the gap — weak, low-ceiling
       //    runners, except the ~0.1% hidden legend.
@@ -292,33 +305,22 @@
             if (school.id === this.playerSchoolId) playerWalkOns++;
           }
         });
-
-        // 4) Coaching changes: AI coaches may retire at their target age.
-        const coach = this.world.coaches[school.coachId];
-        if (coach && !coach.isPlayer) {
-          coach.age += 1;
-          coach.yearsAtSchool += 1;
-          if (coach.age >= coach.retireAge) {
-            delete this.world.coaches[coach.id];
-            const replacement = window.XCD.engine.WorldGenerator.buildReplacementCoach(rng, school);
-            this.world.coaches[replacement.id] = replacement;
-            school.coachId = replacement.id;
-            school.coachChangedYear = this.year; // transfers may follow the old coach out
-            this.logNews(`${school.name} hires ${replacement.fullName} as head coach after a retirement.`);
-          }
-        } else if (coach) {
-          coach.age += 1;
-          coach.yearsAtSchool += 1;
-        }
-        const assistant = this.world.coaches[school.assistantId];
-        if (assistant) assistant.age += 1;
       });
       if (playerWalkOns) {
         this.logNews(`${playerWalkOns} walk-on${playerWalkOns > 1 ? 's' : ''} join your program to fill the roster to 14 per squad.`);
       }
 
-      // 4b) Elite programs raid successful small-school coaches.
-      window.XCD.engine.Careers.aiPoaching(this, rng);
+      // 4) Coaches age, progress or decline, and reputations move with
+      //    results (Parts 1-2) — before the carousel judges anyone.
+      window.XCD.engine.Coaching.yearlyProgression(this, rng);
+
+      // 4a) The coaching carousel (Part 11): retirements (75+), poaching
+      //     chains, and the rehiring pool — schools only hire when a coach
+      //     retires, is fired, or leaves.
+      window.XCD.engine.Careers.runCarousel(this, rng);
+
+      // 4b) Program prestige rises and falls on the year's evidence (Part 3).
+      window.XCD.engine.Prestige.yearlyUpdate(this, rng);
 
       // 4c) Captains who graduated fall off the leadership group.
       ['M', 'W'].forEach((g) => {
@@ -332,9 +334,15 @@
       window.XCD.engine.Recruiting.resetForNewYear(this, rng);
 
       // 6) Season development counters reset; stale training overrides clear.
-      Object.values(this.world.athletes).forEach((a) => { a.seasonDev = 0; });
+      Object.values(this.world.athletes).forEach((a) => {
+        a.seasonDev = 0;
+        a.seasonInjuryWeeks = 0;
+      });
       Object.keys(this.training.overrides).forEach((id) => {
         if (!this.world.athletes[id]) delete this.training.overrides[id];
+      });
+      Object.keys(this.training.mileageOverrides || {}).forEach((id) => {
+        if (!this.world.athletes[id]) delete this.training.mileageOverrides[id];
       });
 
       // 7) Archive last season's player results, then build the new season.
@@ -364,6 +372,7 @@
     toJSON() {
       return {
         version: window.XCD.VERSION,
+        saveVersion: GameState.SAVE_VERSION,
         dynastyName: this.dynastyName,
         seed: this.seed,
         world: this.world,
@@ -389,6 +398,9 @@
     }
 
     static fromJSON(obj) {
+      // Versioned migrations (Part 13): old saves are upgraded in place,
+      // never rejected. Each migration moves a save one version forward.
+      obj = GameState.migrateSave(obj);
       const gs = new GameState();
       Object.assign(gs, obj);
       // Revive plain objects back into class instances so methods/getters work.
@@ -414,7 +426,9 @@
       gs.training = {
         M: Array.isArray(savedTraining.M) ? savedTraining.M : D.DEFAULT_WEEK_PLAN.slice(),
         W: Array.isArray(savedTraining.W) ? savedTraining.W : D.DEFAULT_WEEK_PLAN.slice(),
-        overrides: savedTraining.overrides || {}
+        overrides: savedTraining.overrides || {},
+        mileage: savedTraining.mileage || { M: D.MILEAGE.DEFAULT.M, W: D.MILEAGE.DEFAULT.W },
+        mileageOverrides: savedTraining.mileageOverrides || {}
       };
       gs.season = obj.season || null;
       gs.rankings = obj.rankings || null;
@@ -428,9 +442,9 @@
       gs.culture = obj.culture || { captains: { M: [], W: [] } };
       gs.jobOffers = obj.jobOffers || null;
       gs.weeklyFlow = obj.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
-      // Saves from before the 14-week calendar: clamp into the new year shape
-      // and rebuild the season so every week reference is valid.
       if (gs.week > WEEKS_PER_YEAR) gs.week = WEEKS_PER_YEAR;
+      // A season built under a different calendar is rebuilt so every week
+      // reference is valid (results already banked in history are kept).
       if (!gs.season || gs.season.year !== gs.year ||
           gs.season.nationalWeek !== window.XCD.engine.Races.NATIONAL_WEEK) {
         const seasonRng = new window.XCD.core.SeededRNG((gs.seed + gs.year * 977) >>> 0);
@@ -445,7 +459,38 @@
       }
       return gs;
     }
+
+    /*
+     * Versioned save migrations. `saveVersion` history:
+     *   (absent) — pre-Update-2 saves (14-week calendar, static prestige,
+     *              4-rating coaches, no mileage/divisions)
+     *   3        — Update 2 (21-week calendar, divisions, mileage,
+     *              reputation, program history)
+     * Model constructors handle per-entity field defaults; this handles
+     * cross-cutting shape changes.
+     */
+    static migrateSave(obj) {
+      const from = obj.saveVersion || 2;
+      if (from >= GameState.SAVE_VERSION) return obj;
+
+      // v2 -> v3: the calendar changed shape (14 -> 21 weeks), so week
+      // numbers from old saves point at different phases. Rather than
+      // guess, resume the dynasty at the top of the same academic year —
+      // rosters, history, recruiting classes, and careers all survive.
+      if (from < 3) {
+        obj.week = 1;
+        obj.season = null;    // rebuilt for the new calendar in fromJSON
+        obj.portal = null;    // old portal windows reference dead weeks
+        obj.jobOffers = null; // ditto for offer expiry weeks
+        if (obj.recruiting) obj.recruiting.actionsThisWeek = {};
+        obj.weeklyFlow = { trainingConfirmed: false, recruitingDone: false };
+      }
+      obj.saveVersion = GameState.SAVE_VERSION;
+      return obj;
+    }
   }
+
+  GameState.SAVE_VERSION = 3;
 
   window.XCD.engine.GameState = GameState;
 })();

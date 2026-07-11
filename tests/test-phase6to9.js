@@ -1,10 +1,10 @@
 // Phases 6-9 test: facilities impact, 14/14 rosters + walk-ons,
 // individual nationals qualifiers, mandatory weekly flow.
 const { chromium } = require('playwright');
-const { newDynasty, wireErrors } = require('./helpers');
+const { newDynasty, wireErrors, launchOpts } = require('./helpers');
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(launchOpts());
   const page = await browser.newPage();
   const errors = [];
   wireErrors(page, errors);
@@ -79,7 +79,7 @@ const { newDynasty, wireErrors } = require('./helpers');
   // --- Phase 8: individual qualifiers at nationals ---------------------
   const nats = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
-    while (g.week !== 10) g.advanceWeek(); // through regionals
+    while (g.week !== window.XCD.data.CALENDAR.NATIONAL_WEEK) g.advanceWeek(); // through regionals
     const iq = g.season.individualQualifiers;
     const fieldM = new Set(g.season.nationalsFieldIds.M);
     const badIQ = (iq.M || []).filter((id) => fieldM.has(g.world.athletes[id]?.schoolId)).length;
@@ -98,7 +98,7 @@ const { newDynasty, wireErrors } = require('./helpers');
   // --- Phase 7 again: rosters stay 14/14 after 3 rollovers, walk-ons weak
   const longRun = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
-    for (let i = 0; i < 14 * 3; i++) g.advanceWeek();
+    for (let i = 0; i < 21 * 3; i++) g.advanceWeek();
     const short = Object.values(g.world.schools)
       .filter((s) => s.rosterM.length < 14 || s.rosterW.length < 14).length;
     const walkOns = Object.values(g.world.athletes).filter((a) => a.isWalkOn);

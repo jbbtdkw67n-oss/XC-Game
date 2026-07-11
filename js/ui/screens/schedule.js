@@ -71,11 +71,14 @@
     const school = game.getPlayerSchool();
     const Rk = window.XCD.engine.Rankings;
 
-    const typeLabel = { invite: 'Invitational', prenats: 'Pre-Nationals', conference: 'Conference', regional: 'Regional', national: 'Nationals' };
+    const typeLabel = { invite: 'Invitational', conference: 'Conference', regional: 'Regional', national: 'Nationals' };
     const weeks = [
       ...season.raceWeeks.map((w) => {
         const meet = season.playerMeetByWeek[w] && season.meets[season.playerMeetByWeek[w]];
-        return { week: w, label: meet ? (typeLabel[meet.type] || 'Invitational') : (w === season.prenatsWeek ? 'Pre-Nationals week' : 'Invitational') };
+        const label = meet
+          ? (meet.elite ? '⭐ Elite Invitational' : typeLabel[meet.type] || 'Invitational')
+          : 'Invitational';
+        return { week: w, label };
       }),
       { week: season.conferenceWeek, label: 'Conference' },
       { week: season.regionalWeek, label: 'Regional' },

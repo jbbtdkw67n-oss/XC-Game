@@ -1,0 +1,101 @@
+/*
+ * PrestigeEngine — Update 2 (Part 3).
+ *
+ * Program prestige is no longer static. Every offseason each school's
+ * prestige moves on the year's evidence: poll finishes vs expectation,
+ * conference and national success, recruiting class strength, facilities,
+ * the coach's reputation, budget health, and long-run momentum. Mid-majors
+ * can climb into the blue-blood tier over a decade of results; sleeping
+ * giants that stop winning slowly fall back to the pack.
+ *
+ * Deltas are small (±3/year hard cap) so rises and falls read as eras,
+ * not lottery tickets.
+ */
+(function () {
+  const Utils = window.XCD.core.Utils;
+
+  function yearlyUpdate(gameState, rng) {
+    const year = gameState.year - 1; // the season that just ended
+    const rankings = gameState.rankings;
+    const total = rankings ? rankings.M.length : 354;
+    const rankIndex = { M: {}, W: {} };
+    if (rankings) {
+      ['M', 'W'].forEach((g) => rankings[g].forEach((r) => { rankIndex[g][r.schoolId] = r.rank; }));
+    }
+    const conf = (gameState.history.conferenceChampions || {})[year] || {};
+    const nat = (gameState.history.nationalChampions || {})[year] || {};
+    const classes = (gameState.history.recruitingClasses || {})[year] || [];
+    const classRank = {};
+    classes.forEach((c) => { classRank[c.schoolId] = c.rank; });
+
+    Object.values(gameState.world.schools).forEach((school) => {
+      const division = school.division || 'DI';
+      const coach = gameState.getCoach(school.coachId);
+      let score = 0; // season evidence, roughly -3 .. +3
+
+      // 1) National standing vs where the prestige says you should be.
+      const best = Math.min(rankIndex.M[school.id] || total, rankIndex.W[school.id] || total);
+      const expected = Math.round((1 - school.prestige / 100) * total * 0.92) + 4;
+      score += Utils.clamp((expected - best) / 55, -1.4, 1.4);
+
+      // 2) Hardware.
+      if (conf[`${school.conference}-M`] === school.name) score += 0.5;
+      if (conf[`${school.conference}-W`] === school.name) score += 0.5;
+      ['M', 'W'].forEach((g) => {
+        const key = division === 'DI' ? g : `${division}-${g}`;
+        const n = nat[key];
+        if (n && n.teamId === school.id) score += 2.2;
+      });
+      const season = gameState.season;
+      if (season && season.championships) {
+        const champ = season.championships[division];
+        ['M', 'W'].forEach((g) => {
+          const field = champ && champ.fieldIds && champ.fieldIds[g];
+          if (field && field.includes(school.id)) score += 0.35; // making nationals matters
+        });
+      }
+
+      // 3) Recruiting rankings feed the brand.
+      const cr = classRank[school.id];
+      if (cr) score += cr <= 5 ? 0.7 : cr <= 15 ? 0.45 : cr <= 30 ? 0.2 : 0;
+
+      // 4) Facilities, budget, and the coach's name.
+      score += Utils.clamp((school.facilitiesOverall - school.prestige) / 40, -0.5, 0.5);
+      if (coach) score += Utils.clamp(((coach.reputation || 25) - school.prestige) / 60, -0.4, 0.6);
+
+      // 5) Athlete development reputation (programs that improve runners).
+      const roster = gameState.getRoster(school.id, 'M');
+      if (roster.length) {
+        const avgDev = Utils.average(roster.map((a) => a.seasonDev || 0));
+        score += Utils.clamp((avgDev - 2.2) * 0.15, -0.3, 0.3);
+      }
+
+      // 6) Momentum: sustained eras move mountains; one-offs fade.
+      school.prestigeMomentum = Utils.clamp((school.prestigeMomentum || 0) * 0.65 + score * 0.5, -3, 3);
+      let delta = score * 0.55 + school.prestigeMomentum * 0.45 + (rng.next() - 0.5) * 0.4;
+
+      // Gravity at the extremes: staying elite requires sustained winning,
+      // and rock bottom eventually finds new leadership energy.
+      if (school.prestige >= 88 && score < 0.5) delta -= 0.4;
+      if (school.prestige <= 25 && score > -0.5) delta += 0.3;
+
+      delta = Utils.clamp(delta, -3, 3);
+      const before = school.prestige;
+      school.prestige = Utils.clamp(Math.round(school.prestige + delta), 5, 99);
+
+      // Trajectory ledger (drives job-offer pitches + program page charts).
+      school.prestigeHistory = school.prestigeHistory || [];
+      school.prestigeHistory.push({ year, prestige: school.prestige });
+      if (school.prestigeHistory.length > 30) school.prestigeHistory.shift();
+
+      // Big brand moves make the news.
+      if (school.prestige - before >= 3 && school.prestige >= 70) {
+        gameState.logNews(`RISING POWER: ${school.name} is becoming a national brand (prestige ${before} → ${school.prestige}).`);
+      } else if (before - school.prestige >= 3 && before >= 80) {
+        gameState.logNews(`FADING GIANT: ${school.name}'s standing slips after another quiet year (prestige ${before} → ${school.prestige}).`);
+      }
+    });
+  }
+
+  window.XCD.engine.Prestige = { yearlyUpdate };
+})();

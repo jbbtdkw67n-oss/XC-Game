@@ -1,10 +1,10 @@
 // Phase 4 test: dynamic racing. Measures position changes through the race,
 // late-race movement by attribute, fades under fatigue, events, replay UI.
 const { chromium } = require('playwright');
-const { newDynasty, wireErrors } = require('./helpers');
+const { newDynasty, wireErrors, launchOpts } = require('./helpers');
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(launchOpts());
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message + '\n' + (e.stack || '')));
@@ -12,10 +12,10 @@ const { newDynasty, wireErrors } = require('./helpers');
 
   await newDynasty(page);
 
-  // Advance to week 2 (week-1 races run)
+  // Advance through summer to the week-4 season opener
   const stats = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
-    g.advanceWeek();
+    for (let i = 0; i < 4; i++) g.advanceWeek();
     const meet = g.season.meets[g.lastPlayerMeetId];
     const res = meet.results.M;
     const S = window.XCD.engine.Races.SEGMENTS;
@@ -112,7 +112,7 @@ const { newDynasty, wireErrors } = require('./helpers');
     const R = window.XCD.engine.Races;
     const roster = g.getRoster(g.playerSchoolId, 'M').sort((a, b) => b.currentOverall - a.currentOverall);
     const star = roster[0];
-    const meet = Object.values(g.season.meets).find((m) => m.week === 3 && m.schoolIds.includes(g.playerSchoolId));
+    const meet = Object.values(g.season.meets).find((m) => m.week === 6 && m.schoolIds.includes(g.playerSchoolId));
     if (!meet) return null;
     const Rng = window.XCD.core.SeededRNG;
     const run = (fatigue) => {

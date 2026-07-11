@@ -1,10 +1,10 @@
 // Phase 5 test: coach creation flow, 4 ratings only, archetype bonus,
 // upgrade points earned + spendable, archetype gameplay effects.
 const { chromium } = require('playwright');
-const { newDynasty, wireErrors } = require('./helpers');
+const { newDynasty, wireErrors, launchOpts } = require('./helpers');
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(launchOpts());
   const page = await browser.newPage();
   const errors = [];
   wireErrors(page, errors);
@@ -62,7 +62,7 @@ const { newDynasty, wireErrors } = require('./helpers');
         a.recalculateOverall();
       });
     });
-    for (let i = 0; i < 12; i++) g.advanceWeek(); // through nationals + awards + signing
+    for (let i = 0; i < 20; i++) g.advanceWeek(); // through nationals + awards + signing
     const c = g.getPlayerCoach();
     return { upgradePoints: c.upgradePoints, news: g.newsLog.filter((n) => n.text.includes('RÉSUMÉ')).length };
   });

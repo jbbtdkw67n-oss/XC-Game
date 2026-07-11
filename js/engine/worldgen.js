@@ -79,6 +79,7 @@
 
     return new M.School({
       name, state, region, conference, conferenceTier: tier,
+      division: 'DI', // the generated world is DI today; DII/DIII arrive as data
       prestige, academics, campusAppeal, facilities, budget,
       weather: { tempBase: weatherProfile.tempBase + rng.int(-4, 4), altitude, humidity: weatherProfile.humidity },
       historicalSuccess
@@ -155,6 +156,8 @@
 
       fatigue: rng.int(5, 20),
       fitness: Math.round(Utils.clamp(statMean - rng.int(0, 15), 10, 90)),
+      sharpness: rng.int(45, 65),
+      chronicMileage: gender === 'M' ? rng.int(55, 80) : rng.int(45, 70),
       morale: rng.int(55, 85),
       devProfile: rng.weightedChoice(D.DEV_PROFILES, (p) => p.weight).type,
 
@@ -182,12 +185,36 @@
       archetype: archetype.key,
       portrait: rng.choice(D.COACH_PORTRAITS),
       recruiting: statFor(), training: statFor(), peaking: statFor(), culture: statFor(),
+      talentEval: statFor(), motivation: statFor(), transferRecruiting: statFor(),
+      internationalRecruiting: Utils.clamp(statFor() - 10, 15, 95),
+      media: statFor(), staffManagement: statFor(), relationships: statFor(),
+      retireAge: 75 + rng.int(0, 8), // retirement is random, always 75+
       schoolId: school.id,
       isPlayer,
       yearsAtSchool: isPlayer ? 0 : rng.int(0, 14)
     });
     // Archetypes matter: a real bump to the signature rating.
     coach[archetype.rating] = Utils.clamp(coach[archetype.rating] + 12, 20, 99);
+
+    // Tendencies (Part 2): one or two identity traits per coach, seeded
+    // from ratings so identities feel earned rather than random.
+    const t = [];
+    if (coach.recruiting >= 68) t.push('elite-recruiter');
+    else if (coach.training >= 66) t.push('development-specialist');
+    if (coach.transferRecruiting >= 70) t.push('transfer-expert');
+    if (coach.internationalRecruiting >= 62) t.push('international');
+    else if (rng.bool(0.35)) t.push('regional');
+    t.push(rng.bool(0.5) ? (rng.bool(0.45) ? 'mileage-heavy' : 'low-mileage') : null);
+    t.push(rng.bool(0.55) ? (rng.bool(0.5) ? 'aggressive' : 'conservative') : null);
+    coach.tendencies = t.filter(Boolean).slice(0, 3);
+
+    // Reputation (Part 1): seeded from stature — most coaches start as
+    // regional names; a handful of blue-blood veterans arrive established.
+    coach.reputation = Utils.clamp(Math.round(
+      coach.overallRating * 0.5 + tierBonus + coach.yearsAtSchool * 0.8 + rng.int(-8, 8) - (role === 'Assistant' ? 15 : 0)
+    ), 3, 78);
+
+    coach.stints = [{ schoolId: school.id, school: school.name, division: school.division || 'DI', startYear: 2026 - coach.yearsAtSchool, endYear: null }];
     return coach;
   }
 

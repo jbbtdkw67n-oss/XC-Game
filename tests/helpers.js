@@ -1,4 +1,6 @@
-// Shared test helpers for the Update 1 test suite.
+// Shared test helpers for the automated test suite.
+const launchOpts = () => (process.env.PLAYWRIGHT_CHROMIUM_PATH
+  ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {});
 async function newDynasty(page, { archetype = 'Developer' } = {}) {
   await page.goto('file://' + require('path').resolve(__dirname, '../index.html'));
   await page.click('#btn-new');
@@ -18,4 +20,4 @@ function wireErrors(page, errors) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
 }
 
-module.exports = { newDynasty, wireErrors };
+module.exports = { newDynasty, wireErrors, launchOpts };

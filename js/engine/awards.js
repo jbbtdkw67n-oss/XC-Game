@@ -13,6 +13,10 @@
     else if (honor === 'natChamp') a.honors.natChamp += 1;
     else if (honor === 'confChamp') a.honors.confChamp += 1;
     else a.honors.awards.push(`${honor} (${gameState.year})`);
+    // Permanent year-stamped badges (Part 10).
+    if (honor === 'allAmerican' || honor === 'natChamp' || honor === 'confChamp') {
+      window.XCD.engine.Legacy.athleteHonor(gameState, a, honor);
+    }
   }
 
   /*
@@ -50,12 +54,19 @@
         if (frosh.athleteId) addHonor(gameState, frosh.athleteId, 'Freshman of the Year');
       }
 
-      // All-Americans: top 40 at nationals.
-      const allAmericans = res.finishers.slice(0, 40);
+      // All-Americans: the division's count (DI: top 40 at nationals).
+      const aaCount = window.XCD.data.divisionFor(natMeet.division || 'DI').championship.allAmericans;
+      const allAmericans = res.finishers.slice(0, aaCount);
       yearAwards[gender].allAmericans = allAmericans.map((f) => ({
         place: f.place, name: f.name, school: gameState.getSchool(f.schoolId)?.name || '?'
       }));
-      allAmericans.forEach((f) => addHonor(gameState, f.athleteId, 'allAmerican'));
+      allAmericans.forEach((f) => {
+        addHonor(gameState, f.athleteId, 'allAmerican');
+        // Permanent ledgers: the program and the coach both get credit.
+        window.XCD.engine.Legacy.program(gameState, f.schoolId).allAmericans += 1;
+        const c = gameState.getCoach(gameState.getSchool(f.schoolId)?.coachId);
+        if (c) c.careerRecord.allAmericans = (c.careerRecord.allAmericans || 0) + 1;
+      });
       const mine = allAmericans.filter((f) => f.schoolId === gameState.playerSchoolId);
       if (mine.length) {
         gameState.logNews(`${mine.length} of your ${label} runners earn All-America honors: ${mine.map((f) => f.name).join(', ')}.`);
@@ -81,13 +92,8 @@
         }
       }
 
-      // Conference Runners of the Year + champs honors
-      (season.byWeek[season.conferenceWeek] || []).forEach((meetId) => {
-        const meet = season.meets[meetId];
-        const cres = meet && meet.results[gender];
-        if (!cres || !cres.finishers[0]) return;
-        addHonor(gameState, cres.finishers[0].athleteId, 'confChamp');
-      });
+      // (Individual conference champions + All-Conference honors are
+      //  recorded at the conference meets themselves — see races.js.)
 
       // Academic All-Americans: best students among the top 100 runners.
       const scholars = gameState.rankings.individuals[gender]
@@ -212,7 +218,12 @@
     });
   }
 
-  /* AI coach hot seats: underperform your prestige for too long and you're out. */
+  /*
+   * AI coach hot seats: underperform your prestige for too long and you're
+   * out. Fired coaches hit the free-agent pool (they may resurface at
+   * another program); the chair stays open until the offseason carousel
+   * fills it — schools only hire on genuine vacancies (Part 11).
+   */
   function coachFirings(gameState, rng) {
     const rankIndex = { M: {}, W: {} };
     ['M', 'W'].forEach((g) => gameState.rankings[g].forEach((r) => { rankIndex[g][r.schoolId] = r.rank; }));
@@ -223,10 +234,12 @@
       const coach = gameState.getCoach(school.coachId);
       if (!coach || coach.isPlayer) return;
 
-      // Expectation: your poll position should roughly match your prestige position.
+      // Expectation scales with the division's pressure and the school's
+      // prestige: blue-blood chairs are hot by default.
+      const pressure = window.XCD.data.divisionFor(school).expectations || 1;
       const expectedPct = 1 - school.prestige / 100;
       const actualPct = ((rankIndex.M[school.id] || total) + (rankIndex.W[school.id] || total)) / (2 * total);
-      const underperformance = actualPct - expectedPct; // positive = worse than expected
+      const underperformance = (actualPct - expectedPct) * pressure; // positive = worse than expected
 
       coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(underperformance * 55), 0, 100);
       if (underperformance < -0.08) coach.hotSeat = Math.max(0, coach.hotSeat - 18);
@@ -234,12 +247,14 @@
       if (coach.hotSeat >= 60 && coach.yearsAtSchool >= 3 && rng.bool(0.45) && fired < 20) {
         fired++;
         gameState.history.firings = (gameState.history.firings || 0) + 1;
-        delete gameState.world.coaches[coach.id];
-        const replacement = window.XCD.engine.WorldGenerator.buildReplacementCoach(rng, school);
-        gameState.world.coaches[replacement.id] = replacement;
-        school.coachId = replacement.id;
+        window.XCD.engine.Legacy.closeStint(gameState, coach, school, gameState.year);
+        coach.schoolId = null;   // into the free-agent pool
+        coach.hotSeat = 0;
+        coach.poolYears = 0;
+        coach.reputation = Utils.clamp((coach.reputation || 25) - 6, 1, 99); // firings sting
+        school.coachId = null;   // the chair sits open until the carousel
         school.coachChangedYear = gameState.year;
-        gameState.logNews(`FIRED: ${school.name} lets ${coach.fullName} go after ${coach.yearsAtSchool} seasons. ${replacement.fullName} takes over.`);
+        gameState.logNews(`FIRED: ${school.name} lets ${coach.fullName} go after ${coach.yearsAtSchool} seasons. The search for a successor begins.`);
       }
     });
   }
@@ -248,7 +263,8 @@
   function considerHallOfFame(gameState, athlete) {
     const h = athlete.honors || { allAmerican: 0, natChamp: 0, confChamp: 0, awards: [] };
     const score = athlete.careerStats.wins * 3 + athlete.careerStats.top5 +
-      h.allAmerican * 8 + h.natChamp * 20 + h.confChamp * 4;
+      h.allAmerican * 8 + h.natChamp * 20 + h.confChamp * 4 +
+      (athlete.generational ? 10 : 0); // legends get remembered
     // High bar: roughly multi-time All-Americans / champions only (~2-4 per class).
     if (score < 70) return false;
     const school = gameState.getSchool(athlete.schoolId);

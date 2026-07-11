@@ -10,6 +10,175 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 3.0 — Update 2: The Living NCAA
+
+Update 2 turns the game from a solid Division I simulator into the framework
+for a living, multi-division NCAA coaching universe. Dynasty building is
+harder, every decision echoes for decades, and the world writes its own
+stories — Cinderella programs, coaching legends, shocking transfers, and
+once-in-a-generation recruits — so no two dynasties ever feel the same.
+
+### The new season (Part 5)
+
+A full 21-week year: **Summer Training (wk 1-3) → Regular Season (wk 4-12,
+meets at 4/6/8/10/12 with one bye week between every meet) → Conference
+(wk 13) → NCAA Regionals (wk 14) → NCAA Nationals (wk 15) → Offseason
+(wk 16-21)**. No byes between championship rounds. All numbers live in
+`XCD.data.CALENDAR` — nothing downstream hardcodes the calendar.
+
+### Mileage & tapering (Part 6)
+
+Weekly volume is now its own training dial, independent of the day-by-day
+planner: 30-120 miles per week, per squad, with per-athlete overrides.
+Mileage is **not** fitness — it drives fitness, fatigue, injury risk,
+aerobic adaptation, and race **sharpness**. High volume builds huge
+Stamina/Threshold engines at the cost of fatigue, injuries, and flat legs;
+low volume races sharp but stagnates. **Durability gates volume**: only
+durable runners survive 100-120-mile weeks. Cutting volume below the
+chronic load produces a genuine **taper** — sheds fatigue, spikes
+sharpness, preserves fitness — and timing it is a real coaching skill. The
+training screen adds a program mileage slider, individual sliders,
+Quick Set All, and Freshmen / Redshirt / Championship-taper / Recovery
+presets.
+
+### Coach reputation & living AI coaches (Parts 1-2)
+
+Every coach carries a national **reputation** (Unknown Assistant → Small
+School Coach → Respected Builder → National Coach → Elite Recruiter →
+Legend → Hall of Fame Coach), separate from school prestige — a legend at a
+mid-major out-recruits an average coach at a blue blood. Reputation feeds
+recruiting, the transfer portal, job offers, and media buzz; it's earned by
+winning, developing athletes, and producing All-Americans, and lost through
+losing seasons and roster exodus. Coaches also gained seven secondary craft
+ratings (talent evaluation, motivation, transfer recruiting, international
+recruiting, media, staff management, relationship building) and permanent
+**tendencies** (mileage-heavy/low-mileage, elite recruiter, development
+specialist, transfer expert, international/regional, aggressive/
+conservative) that shape their programs for entire careers. Young coaches
+improve fast, veterans plateau, and some decline with age — the same rules
+for AI and player alike.
+
+### Dynamic prestige (Part 3)
+
+Prestige is no longer static. Every offseason it moves on the year's
+evidence — poll finishes vs expectation, titles, nationals trips,
+recruiting class ranks, facilities, budget, coach reputation — with
+momentum, so sustained eras move mountains. Mid-majors can become national
+powers over a decade; sleeping blue bloods decline. Every program tracks a
+prestige trajectory chart on its History tab.
+
+### The smart portal (Part 4)
+
+Transfer logic rewritten from scratch. Entries have legible causes: lack of
+racing opportunities (elite athletes who never race grow likelier to leave
+every year), coach departures, poor culture, homesickness, academics,
+championship aspirations, training-philosophy misfit, low coach
+relationship, NIL, style mismatch, overtraining, undertraining.
+Destinations weigh coach reputation, prestige, genuine racing likelihood,
+recent success, facilities, academics, distance, conference, NIL, and
+whether the program's volume philosophy fits the athlete's body.
+
+### Prestigious invitationals (Part 7)
+
+Elite programs get invitations to named fall classics — the **Nuttycombe
+Invitational**, **Pre-Nationals**, **Joe Piane**, **Roy Griak**, and
+**Wisconsin Invitational** — which carry extra poll weight. Everyone else
+races regional invitationals close to home, with a few lottery invites for
+hot mid-majors.
+
+### Permanent history (Parts 8-10)
+
+- **Program ledgers**: every school permanently tracks meet wins, W/L
+  record and winning percentage, conference/regional/national titles, NCAA
+  appearances and podiums, best finish, highest ranking, individual
+  champions, All-Americans, All-Conference honors, top recruiting classes,
+  and its full coaching history — on a new History tab of the program page.
+- **Coach history**: career records, stints, titles, All-Americans coached,
+  reputation arcs — and retired coaches remain **searchable forever** in the
+  new Coach Registry (History → Coaches).
+- **Athlete badges**: 🏆 National Champion, 🇺🇸 All-American, 🥇 Conference
+  Champion, 🏅 All-Conference — year-stamped, displayed on player cards for
+  life, and preserved after graduation in the Decorated Alumni ledger
+  (History → Legends).
+
+### The coaching carousel (Part 11)
+
+Schools only hire when a coach retires (randomly, always 75+), is fired, or
+leaves. Fired coaches enter a free-agent pool and may resurface; vacancies
+cascade as bigger schools poach sitting coaches whose reputations outgrew
+their programs; unknown assistants get first breaks. The player receives
+offers only from genuine vacancies — step-ups, laterals, step-downs, and
+the occasional 🌟 dream job.
+
+### Offseason development & generational talent (Parts 12, 12.5)
+
+Between seasons every athlete in the world progresses **or regresses**
+based on potential, work ethic, the coach's training, injuries, burnout,
+confidence, consistency, and hidden late-bloomer/plateau profiles.
+
+And roughly once every 7-8 recruiting classes — on weighted odds with no
+pattern, streaks and droughts both possible — a **⭐ generational recruit**
+appears: immediately among the best runners in the country, capable of
+winning NCAAs as a freshman, but never perfect (The Diesel, The Closer, The
+Aerobic Freak, The Tactician, The Metronome, The Prodigy — each with a
+signature weakness). Their recruitment becomes the story of the year with
+rolling news coverage; landing one lifts a program's prestige, buzz, and
+roster morale; and they're remembered forever in History → Legends.
+
+### Division architecture (Part 13 — the foundation)
+
+Division I is no longer hardcoded anywhere. A new division layer
+(`js/data/divisions.js`) defines scholarships, championship structure
+(field sizes, auto-qualifiers, All-America counts, distances), budgets,
+NIL, recruiting scope, academic emphasis, and expectations per division —
+DI active, DII and DIII fully specified and awaiting schools. Schools carry
+a `division`; postseason scheduling, nationals fields, awards, transfer
+logic, finances, and the history database are all division-aware, while
+regular-season invitationals can mix divisions. Saves are protected by a
+versioned migration system (`GameState.SAVE_VERSION` = 3): pre-Update-2
+dynasties load cleanly, resuming at the top of the same academic year with
+rosters, records, and history intact.
+
+### Architectural changes (for developers)
+
+- `js/data/divisions.js` — the division rule layer (`D.divisionFor(school)`).
+- `js/engine/legacy.js` — permanent memory: program ledgers, athlete honor
+  years/badges, alumni, coach stints, and the retired-coach registry.
+- `js/engine/coaching.js` — reputation updates, age-curve progression,
+  tendencies, mileage philosophy.
+- `js/engine/prestige.js` — the yearly dynamic-prestige engine.
+- `careers.js` rebuilt around vacancies/free agents/poach chains;
+  `portal.js` rewritten; `training.js` gained the mileage/sharpness/taper
+  layer and offseason development; `races.js` schedules from
+  `D.CALENDAR`/`D.ELITE_MEETS` and builds championships per division.
+- Save migrations run in `GameState.migrateSave`; entity-level defaults
+  live in the model constructors, so every layer heals old data.
+
+### Roadmap — Update 3: Full Division II & III integration
+
+The foundation above makes DII/DIII a data-and-content update, not a rewrite:
+
+1. **School data**: add DII and DIII school datasets (names, states,
+   conferences) with `division` set; worldgen already routes budgets,
+   scholarships, and facilities through division rules.
+2. **Conference data**: add DII/DIII conference tables to `D.CONFERENCES`
+   (division-tagged tiers) so postseason grouping picks them up.
+3. **Activate divisions**: flip `active: true` in `D.DIVISIONS` and scale
+   worldgen counts (target 1,000+ schools; the recruiting pool and rankings
+   already partition by division).
+4. **Cross-division scheduling polish**: large invitationals inviting
+   nearby DII/DIII programs (the invite builder already mixes divisions).
+5. **Career-mode starts** at DII/DIII schools, with the carousel's ladder
+   (DIII → DII → DI) already in place, plus division-aware job-offer flavor.
+6. **UI filters**: division dropdowns on rankings, world, and history
+   screens (ranking rows already carry `division`).
+7. **Partial-scholarship recruiting** for DII (offer fractions) and
+   walk-on-driven DIII recruiting emphasizing academics/campus fit — the
+   fit model already reads `scholarshipModel`, `academicEmphasis`, and
+   `recruitingScope`.
+8. **Performance pass** at 1,000+ schools: pool partitioning per division
+   and lazy meet simulation (only detailed meets keep splits).
+
 ## Version 2.0 — Update 1: The Simulation Overhaul
 
 A ground-up gameplay overhaul: dynamic racing, a real weekly training planner, six core athlete ratings, a four-rating coach system with archetypes and progression, facilities that matter, and a tight 14-week yearly rhythm.
@@ -17,7 +186,7 @@ A ground-up gameplay overhaul: dynamic racing, a real weekly training planner, s
 ### Update 1 highlights
 
 - **Live races that breathe**: a segment-by-segment race engine with pack formation, mid-race surges, lactate-threshold pace holding, energy reserves, late-race fades, and a final-800m kick. The Race Center broadcasts it all with a live event feed and position-movement arrows — runners genuinely pass each other all race long.
-- **The new season**: Wk 1 Meet · Wk 2 Training · Wk 3 Meet · Wk 4 Training · Wk 5 **Pre-Nationals** (elite field + invited mid-majors) · Wk 6 Training · Wk 7 Meet · Wk 8 Conference · Wk 9 Regionals · Wk 10 Nationals · Wk 11-14 Offseason (awards, portal, signing day). New seasons always open on the Dashboard.
+- **The season** *(superseded by Update 2's 21-week calendar)*: Wk 1 Meet · Wk 2 Training · Wk 3 Meet · Wk 4 Training · Wk 5 **Pre-Nationals** (elite field + invited mid-majors) · Wk 6 Training · Wk 7 Meet · Wk 8 Conference · Wk 9 Regionals · Wk 10 Nationals · Wk 11-14 Offseason (awards, portal, signing day). New seasons always open on the Dashboard.
 - **Weekly training planner**: assign one of seven workouts (Easy Run, Recovery Run, Long Run, Tempo, Hills, Intervals, Speed Development) to every day, Monday-Sunday. Balanced weeks develop athletes fastest; stacked hard days cause overtraining, fatigue, and injuries.
 - **Six core ratings**: VO₂ Max, Running Economy, Stamina, Injury Resistance, Lactate Threshold, Speed. Each workout trains specific ratings; races are computed straight from them (no more per-distance abilities).
 - **Coach creation & progression**: every dynasty starts by creating a coach — name, portrait, and one of four archetypes (Recruiter, Developer, Tactician, Players Coach). Coaches have exactly four ratings — Recruiting, Training, Peaking, Culture — and earn upgrade points from titles, champions, All-Americans, top classes, and beating expectations.

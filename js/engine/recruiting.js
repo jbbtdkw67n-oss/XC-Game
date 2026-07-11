@@ -125,9 +125,9 @@
     }
 
     const decisionStyleRoll = rng.next();
-    const decisionWeek = decisionStyleRoll < 0.2 ? rng.int(D.RECRUITING.EARLY_COMMIT_WEEK, 5)
-      : decisionStyleRoll < 0.7 ? rng.int(6, 9)
-      : rng.int(10, D.RECRUITING.SIGNING_WEEK);
+    const decisionWeek = decisionStyleRoll < 0.2 ? rng.int(D.RECRUITING.EARLY_COMMIT_WEEK, 8)
+      : decisionStyleRoll < 0.7 ? rng.int(9, 14)
+      : rng.int(15, D.RECRUITING.SIGNING_WEEK);
 
     const firstName = gender === 'M' ? rng.choice(D.FIRST_NAMES_M) : rng.choice(D.FIRST_NAMES_W);
 
@@ -186,10 +186,53 @@
     return recruit;
   }
 
+  /*
+   * Generational talent (Part 12.5): elevate a recruit into a
+   * once-in-a-decade prospect — immediately among the best runners in the
+   * country, with a signature strength/weakness profile so no two feel
+   * the same. Elite in almost everything, perfect in nothing.
+   */
+  function elevateToGenerational(rng, rec) {
+    const G = D.GENERATIONAL;
+    rec.potential = rng.int(96, 99);
+    rec.peakOverall = rec.potential;
+
+    // Capable of contending for the NCAA title as a freshman.
+    const eliteStat = () => rng.gaussianRange(83, 3, 76, 92);
+    ['vo2Max', 'lactateThreshold', 'runningEconomy', 'stamina', 'speed'].forEach((k) => { rec[k] = eliteStat(); });
+    rec.workEthic = rng.int(88, 99);
+    rec.mentalToughness = rng.int(85, 99);
+    rec.raceIQ = rng.int(85, 99);
+    rec.consistency = rng.int(80, 96);
+    rec.injuryResistance = rng.int(40, 95); // durability is NOT guaranteed
+    rec.hillAdaptation = rng.int(40, 75);
+    rec.fitness = rng.int(70, 85);
+    rec.devProfile = rng.weightedChoice(
+      [{ t: 'normal', w: 60 }, { t: 'early', w: 25 }, { t: 'late', w: 15 }], (p) => p.w).t;
+
+    // The signature: incredible somewhere, mortal somewhere else.
+    const profile = rng.choice(G.PROFILES);
+    Object.entries(profile.strengths).forEach(([k, v]) => {
+      rec[k] = Utils.clamp((rec[k] || 60) + v, 10, 99);
+    });
+    Object.entries(profile.weaknesses).forEach(([k, v]) => {
+      rec[k] = Utils.clamp((rec[k] || 60) + v, 10, 99);
+    });
+
+    rec.generational = true;
+    rec.genProfile = profile.key;
+    rec.breakout = false;
+    // National recruitments run long — the circus follows them all fall.
+    rec.decisionWeek = rng.int(9, D.RECRUITING.SIGNING_WEEK);
+    rec.recalculateOverall();
+    return rec;
+  }
+
   function generateClass(gameState, rng) {
     const gradYear = gameState.year + 1;
     const recruits = {};
     const perGender = D.RECRUITING.CLASS_SIZE_PER_GENDER;
+    const generationalArrivals = [];
 
     ['M', 'W'].forEach((gender) => {
       const pool = [];
@@ -198,11 +241,30 @@
         pool.push(r);
         recruits[r.id] = r;
       }
+
+      // Generational spawn roll (Part 12.5): weighted odds, no pattern.
+      // Averages ~1 per 7-8 classes across both genders; streaks and long
+      // droughts both happen, and (very rarely) two land in one class.
+      const G = D.GENERATIONAL;
+      const roll = rng.next();
+      const count = roll < G.P_TWO ? 2 : roll < G.P_TWO + G.P_ONE ? 1 : 0;
+      for (let g = 0; g < count; g++) {
+        const idx = rng.int(0, pool.length - 1);
+        generationalArrivals.push(elevateToGenerational(rng, pool[idx]));
+      }
+
       rankPool(pool);
     });
 
     gameState.world.recruits = recruits;
     gameState.recruiting.classYear = gradYear;
+
+    // The story of the year begins.
+    generationalArrivals.forEach((r) => {
+      const profile = (D.GENERATIONAL.PROFILES.find((p) => p.key === r.genProfile) || {});
+      gameState.logNews(`⭐ GENERATIONAL TALENT: ${r.fullName} (${r.hometownState === 'INT' ? r.country : r.hometownState}) headlines the ${gradYear} class — scouts call ${r.gender === 'M' ? 'him' : 'her'} "${profile.label || 'a once-in-a-decade prospect'}". ${profile.note || ''} Every major program is expected to pursue.`);
+    });
+
     return recruits;
   }
 
@@ -265,15 +327,19 @@
 
   function fitScore(gameState, school, recruit, ctx) {
     const coach = gameState.getCoach(school.coachId);
+    const division = D.divisionFor(school);
     const dist = recruit.hometownState === 'INT' ? 1200 : distanceMiles(recruit.hometownState, school.state);
     const imp = recruit.importance;
 
+    // Regional-scope divisions (DII/DIII) live and die on nearby kids.
+    const distScale = division.recruitingScope === 'regional' ? 12 : 18;
+
     const scores = {
       prestige: school.prestige,
-      location: Utils.clamp(100 - dist / 18, 0, 100),
+      location: Utils.clamp(100 - dist / distScale, 0, 100),
       academics: school.academics,
       facilities: school.facilitiesOverall,
-      nil: Utils.clamp(Math.round(school.budget.nil / 1200), 5, 100),
+      nil: division.nil ? Utils.clamp(Math.round(school.budget.nil / 1200), 5, 100) : 5,
       playingTime: playingTimeScore(gameState, school, recruit, ctx),
       development: coach ? Math.round(coach.training * 0.65 + school.facilities.sportsScienceLab * 0.35) : 50
     };
@@ -306,6 +372,25 @@
     // buildings turn heads, run-down ones cost you visits.
     fit += (school.facilitiesOverall - 55) * 0.09;
 
+    // Coach reputation (Part 1): the name on the door recruits by itself.
+    // A legend at a mid-major out-pulls an average coach at a blue blood.
+    if (coach) {
+      fit += ((coach.reputation || 25) - 42) * 0.24;
+      // International pipelines are a craft — and a division rule.
+      if (recruit.hometownState === 'INT') {
+        fit += division.internationalRecruiting
+          ? ((coach.internationalRecruiting || 45) - 45) * 0.15
+          : -22;
+      }
+      // Relationship-builders close; media darlings intrigue stars.
+      fit += ((coach.relationships || 55) - 55) * 0.05;
+      if (recruit.starRating >= 4) fit += ((coach.media || 50) - 50) * 0.05;
+    }
+
+    // Academic-emphasis divisions (DIII especially): campus fit and the
+    // classroom drive the choice more than athletics.
+    fit += (school.academics - 55) * Math.max(0, division.academicEmphasis - 0.9) * 0.12;
+
     return Utils.clamp(fit, 5, 99);
   }
 
@@ -329,7 +414,10 @@
     const coach = gameState.getPlayerCoach();
     const school = gameState.getPlayerSchool();
     const assistant = gameState.getCoach(school.assistantId);
-    return 10 + Math.round(coach.recruiting / 8) + (assistant ? Math.round(assistant.recruiting / 20) : 0);
+    // Reputation opens doors (Part 1): famous coaches get calls returned.
+    return 10 + Math.round(coach.recruiting / 8) +
+      Math.round((coach.reputation || 10) / 30) +
+      (assistant ? Math.round(assistant.recruiting / 20) : 0);
   }
 
   function scholarshipsUsed(gameState, schoolId, gender) {
@@ -462,6 +550,19 @@
         const r = gameState.world.recruits[id];
         return r && !r.signed && (!r.committedTo || r.committedTo === school.id);
       });
+
+      // Generational prospects (Part 12.5) jump straight onto every elite
+      // board; some coaches below that level gamble a whole class on one.
+      const coach = gameState.getCoach(school.coachId);
+      ctx.pools[gender].slice(-6).forEach((r) => {
+        if (!r.generational || r.committedTo || board[gender].includes(r.id)) return;
+        const gambler = coach && coach.hasTendency &&
+          (coach.hasTendency('aggressive') || coach.hasTendency('elite-recruiter'));
+        if (school.prestige >= 72 || (gambler && rng.bool(0.35)) || rng.bool(0.04)) {
+          board[gender].unshift(r.id);
+        }
+      });
+
       if (board[gender].length >= 8) return;
 
       // Target recruits whose composite matches the program's level, with
@@ -516,7 +617,20 @@
         const pushes = aggressive ? 3 : 2;
         const targets = board[gender]
           .map((id) => gameState.world.recruits[id])
-          .filter((r) => r && !r.signed && !r.committedTo)
+          .filter((r) => {
+            if (!r || r.signed || r.committedTo) return false;
+            // Mid-majors shift resources off a generational battle once
+            // it's clearly a blue-blood bidding war (Part 12.5).
+            if (r.generational && school.prestige < 62 && !aggressive) {
+              const eliteOffers = Object.keys(r.interests).filter((sid) => {
+                const st = r.interests[sid];
+                const s = gameState.getSchool(sid);
+                return st.offered && s && s.prestige >= 75;
+              }).length;
+              if (eliteOffers >= 4) return false;
+            }
+            return true;
+          })
           .sort((a, b) => recruitComposite(b) - recruitComposite(a))
           .slice(0, pushes);
 
@@ -547,7 +661,7 @@
       if (rec.signed) continue;
 
       // Late risers: a hidden breakout fires mid-season and bumps ratings.
-      if (rec.breakout && !rec.breakoutFired && week >= 3 && week <= 9 && rng.bool(0.18)) {
+      if (rec.breakout && !rec.breakoutFired && week >= 4 && week <= 12 && rng.bool(0.18)) {
         rec.breakoutFired = true;
         rec.potential = Utils.clamp(rec.potential + rng.int(5, 10), 25, 99);
         ['vo2Max', 'stamina', 'lactateThreshold', 'runningEconomy'].forEach((k) => {
@@ -560,6 +674,23 @@
       }
 
       const offers = Object.keys(rec.interests).filter((sid) => rec.interests[sid].offered);
+
+      // The circus (Part 12.5): an uncommitted generational recruit is the
+      // story of the fall — leaders, visits, and rumors make the news.
+      if (rec.generational && !rec.committedTo && week >= 4 && week % 3 === 1) {
+        const suitors = Object.entries(rec.interests)
+          .map(([sid, st]) => ({ sid, pull: st.relationship + st.interest + (st.offered ? 15 : 0) }))
+          .sort((a, b) => b.pull - a.pull)
+          .slice(0, 3)
+          .map((s) => gameState.getSchool(s.sid))
+          .filter(Boolean);
+        if (suitors.length) {
+          const flavor = week >= rec.decisionWeek
+            ? 'A decision is expected any week now.'
+            : rng.bool(0.5) ? 'Official visits are being scheduled.' : 'Insiders say the race is wide open.';
+          gameState.logNews(`⭐ RECRUITING WATCH: ${rec.fullName} (${'★'.repeat(rec.starRating)}) — ${suitors.map((s) => s.name).join(', ')} lead the chase. ${flavor}`);
+        }
+      }
 
       if (!rec.committedTo) {
         if (week < D.RECRUITING.EARLY_COMMIT_WEEK || week < rec.decisionWeek || offers.length === 0) continue;
@@ -580,7 +711,15 @@
           rec.committedTo = choice.sid;
           rec.commitWeek = week;
           const school = gameState.getSchool(choice.sid);
-          if (rec.starRating >= 4 || choice.sid === player) {
+          if (rec.generational) {
+            // A national event: the commitment changes the program (Part 12.5).
+            gameState.logNews(`⭐⭐ BLOCKBUSTER: ${rec.fullName}, the generational prospect, commits to ${school.name}${choice.sid === player ? ' — YOUR program!' : '!'} The recruiting world is stunned.`);
+            school.prestige = Utils.clamp(school.prestige + 2, 5, 99);
+            school.prestigeMomentum = Utils.clamp((school.prestigeMomentum || 0) + 1, -3, 3);
+            gameState.getRoster(school.id, rec.gender).forEach((a) => {
+              a.morale = Utils.clamp(a.morale + 3, 0, 100); // the buzz is real
+            });
+          } else if (rec.starRating >= 4 || choice.sid === player) {
             gameState.logNews(`${'★'.repeat(rec.starRating)} ${rec.fullName} (${rec.hometownState === 'INT' ? rec.country : rec.hometownState}) commits to ${school.name}!`);
           }
         }
@@ -660,6 +799,25 @@
       avgStars: entry.stars
     }));
 
+    // Permanent ledgers (Parts 8-9): top classes per program, best class per coach.
+    const Legacy = window.XCD.engine.Legacy;
+    ranking.forEach((entry, i) => {
+      const rank = i + 1;
+      Legacy.recordClassRank(gameState, entry.schoolId, gameState.year, rank);
+      const coach = gameState.getCoach(gameState.getSchool(entry.schoolId)?.coachId);
+      if (coach && (!coach.careerRecord.bestClassRank || rank < coach.careerRecord.bestClassRank)) {
+        coach.careerRecord.bestClassRank = rank;
+      }
+    });
+
+    // Generational signings are national news one more time.
+    Object.entries(classes).forEach(([sid, recs]) => {
+      recs.filter((r) => r.generational).forEach((r) => {
+        const s = gameState.getSchool(sid);
+        gameState.logNews(`⭐ SIGNED: generational prospect ${r.fullName} makes it official with ${s ? s.name : '?'}.`);
+      });
+    });
+
     const top = ranking[0] && gameState.getSchool(ranking[0].schoolId);
     if (top) gameState.logNews(`SIGNING DAY: ${top.name} hauls in the nation's #1 recruiting class (${ranking[0].count} signees).`);
 
@@ -711,6 +869,23 @@
         athlete.recalculateOverall();
         gameState.world.athletes[athlete.id] = athlete;
         (rec.gender === 'M' ? school.rosterM : school.rosterW).push(athlete.id);
+
+        // Generational arrivals enter the permanent record (Part 12.5) —
+        // legends discussed decades after they graduate.
+        if (rec.generational) {
+          gameState.history.generational = gameState.history.generational || [];
+          gameState.history.generational.push({
+            athleteId: athlete.id,
+            name: athlete.fullName,
+            gender: athlete.gender,
+            schoolId,
+            school: school.name,
+            division: school.division || 'DI',
+            classYear: gameState.year,
+            classRank: rec.nationalRank,
+            profile: rec.genProfile
+          });
+        }
       });
     }
     return bySchool;

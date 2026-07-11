@@ -15,9 +15,11 @@
   const Utils = window.XCD.core.Utils;
   const D = window.XCD.data;
 
-  const ENTRY_WEEK = 11;      // the week after nationals
-  const DECISION_WEEK = 13;   // portal closes before the year rolls over
-  const SEASON_END_WEEK = 10; // nationals week
+  const CAL = window.XCD.data.CALENDAR;
+  const ENTRY_WEEK = CAL.NATIONAL_WEEK + 1;   // the week after nationals
+  const DECISION_WEEK = CAL.WEEKS_PER_YEAR - 1; // portal closes before rollover
+  const SEASON_END_WEEK = CAL.NATIONAL_WEEK;
+  const REDSHIRT_CUTOFF = CAL.MEET_WEEKS[2];  // mid regular season
   const PLAYER_OFFER_LIMIT = 3;
 
   /* ================================================================ *
@@ -30,7 +32,7 @@
   function canRedshirt(gameState, athlete) {
     if (athlete.redshirt !== 'None') return { ok: false, why: 'Redshirt already used or active.' };
     if (athlete.seasonRaces > 0) return { ok: false, why: 'Has already raced this season.' };
-    if (gameState.week > 6) return { ok: false, why: 'Too late in the season.' };
+    if (gameState.week > REDSHIRT_CUTOFF) return { ok: false, why: 'Too late in the season.' };
     if (athlete.yearsOnCampus >= 5) return { ok: false, why: 'Five-year clock expired.' };
     return { ok: true };
   }
@@ -86,41 +88,79 @@
   /* ================================================================ *
    * Portal: entries
    * ================================================================ */
+  /*
+   * Smart entry model (Part 4): every departure has a concrete, legible
+   * cause. Returns the accumulated unhappiness and the loudest reason.
+   */
   function unhappiness(gameState, a, school) {
     const RE = window.XCD.engine.Recruiting;
+    const TE = window.XCD.engine.Training;
+    const R = window.XCD.data.PORTAL_REASONS;
     let u = 0;
-    const reasons = [];
+    const reasons = []; // { w, label }
+    const add = (w, label) => { u += w; reasons.push({ w, label }); };
 
-    // A great locker-room culture keeps runners home; a bad one pushes
-    // them out the door.
     const coach = gameState.getCoach(school.coachId);
-    if (coach) u -= (coach.culture - 50) * 0.25;
 
-    // Playing time: buried on the depth chart while good enough to run
+    // Racing opportunities: good runners who never toe the line leave —
+    // and elite ones who rarely race become MORE likely to go each year.
     const roster = gameState.getRoster(school.id, a.gender).sort((x, y) => y.currentOverall - x.currentOverall);
     const rank = roster.findIndex((x) => x.id === a.id) + 1;
-    if (rank > 9 && a.currentOverall > 45) { u += 22; reasons.push('Playing time'); }
+    const buried = rank > 7 && a.currentOverall > 45;
+    if ((a.seasonRaces || 0) === 0 && !isRedshirted(a) && a.currentOverall > 50) {
+      add(a.currentOverall > 70 ? 30 : 18, R.racing);
+    } else if (buried) {
+      add(20, R.racing);
+    }
 
-    // Star stuck at a weak program
-    if (a.currentOverall > school.prestige + 18) { u += 20; reasons.push('Seeking a contender'); }
+    // Coach left this year — loyalty walks out the door with them.
+    if (school.coachChangedYear === gameState.year) add(18, R.coachLeft);
 
-    // Coach left this year
-    if (school.coachChangedYear === gameState.year) { u += 18; reasons.push('Coach departed'); }
+    // Team culture: chemistry + the coach's culture/relationship craft.
+    const chem = (school.chemistry && school.chemistry[a.gender]) ?? 55;
+    if (chem < 42) add(14, R.culture);
+    if (coach) u -= (coach.culture - 50) * 0.20 + ((coach.relationships || 55) - 50) * 0.12;
+    else add(8, R.culture);
 
-    // Homesick
+    // Low coach relationship: unhappy AND unheard.
+    if (a.morale < 50 && coach && (coach.relationships || 55) < 45) add(10, R.relationship);
+
+    // Homesickness
     const dist = a.hometownState === 'INT' ? 0 : RE.distanceMiles(a.hometownState, school.state);
-    if (dist > 900) { u += 12; reasons.push('Homesick'); }
+    if (dist > 900) add(a.personality === 'Anxious' ? 16 : 11, R.homesick);
 
-    // Program quality complaints
-    if (school.facilitiesOverall < 40) { u += 8; reasons.push('Facilities'); }
-    if (a.academics > 80 && school.academics < 50) { u += 8; reasons.push('Academics'); }
-    if (school.budget.nil < 15000 && a.personality === 'Individualist') { u += 8; reasons.push('NIL'); }
+    // Academics
+    if (a.academics > 80 && school.academics < 50) add(9, R.academics);
 
-    // Miserable
-    if (a.morale < 40) { u += 25; reasons.push('Unhappy'); }
-    else if (a.morale < 55) { u += 10; }
+    // Championship aspirations: stars stuck outside the national picture.
+    if (a.currentOverall > school.prestige + 18) add(20, R.contender);
 
-    return { u, reason: reasons[0] || 'Fresh start' };
+    // Training fit (Part 6 interplay): fragile bodies on crushing volume,
+    // or speed merchants ground down by a mileage-heavy program.
+    const teamMiles = TE.aiMileage ? TE.aiMileage(gameState, coach, a.gender) : 70;
+    const safe = TE.safeMileage ? TE.safeMileage(a) : 100;
+    if (teamMiles > safe + 10) add(12, R.trainingFit);
+    else if (a.speed > a.stamina + 18 && coach && coach.hasTendency && coach.hasTendency('mileage-heavy')) {
+      add(9, R.style);
+    }
+
+    // Overtraining / undertraining: chronic states, not one bad week.
+    if (a.fatigue > 75) add(10, R.overtraining);
+    else if (a.fitness < 38 && a.fatigue < 30 && a.workEthic > 60) add(8, R.undertraining);
+
+    // NIL money talks (only where the division allows it).
+    const division = window.XCD.data.divisionFor(school);
+    if (division.nil && school.budget.nil < 15000 && (a.personality === 'Individualist' || a.currentOverall >= 75)) {
+      add(8, R.nil);
+    }
+
+    // Facilities & misery
+    if (school.facilitiesOverall < 40) add(7, 'Facilities');
+    if (a.morale < 40) add(24, 'Unhappy');
+    else if (a.morale < 55) u += 10;
+
+    reasons.sort((x, y) => y.w - x.w);
+    return { u, reason: reasons.length ? reasons[0].label : R.fresh };
   }
 
   function openPortal(gameState, rng) {
@@ -163,22 +203,60 @@
   /* ================================================================ *
    * Portal: offers & decisions
    * ================================================================ */
+  /*
+   * Destination model (Part 4): transfers weigh the coach's national
+   * reputation, prestige, the genuine likelihood of racing, recent
+   * success, facilities, academics, distance from home, conference
+   * level, NIL, and whether the training philosophy fits their body.
+   * Division is no barrier — a buried DI runner will drop down for
+   * racing opportunities, and a DIII star will chase DI competition.
+   */
   function portalAppeal(gameState, school, a, fromSchool) {
     const RE = window.XCD.engine.Recruiting;
+    const TE = window.XCD.engine.Training;
     const coach = gameState.getCoach(school.coachId);
     const roster = gameState.getRoster(school.id, a.gender).map((x) => x.currentOverall).sort((x, y) => y - x);
     const fifth = roster[4] ?? 40;
     const playingTime = a.currentOverall >= fifth ? 90 : a.currentOverall >= (roster[6] ?? 35) ? 65 : 30;
     const dist = a.hometownState === 'INT' ? 900 : RE.distanceMiles(a.hometownState, school.state);
 
+    // Recent success: poll standing reads as "they're going somewhere."
+    let recentSuccess = 50;
+    if (gameState.rankings) {
+      const row = gameState.rankings[a.gender].find((r) => r.schoolId === school.id);
+      if (row) recentSuccess = Utils.clamp(100 - row.rank * 1.1, 20, 100);
+    }
+
+    // Coach reputation (Part 1) + transfer-recruiting craft pull hard.
+    const rep = coach ? (coach.reputation || 25) : 25;
+    const pull = coach ? (coach.transferRecruiting || 55) : 45;
+
+    // Training philosophy fit: durable grinders want volume programs;
+    // fragile or speed-based runners want to be handled with care.
+    let trainingFit = 60;
+    if (coach && coach.hasTendency) {
+      const safe = TE.safeMileage ? TE.safeMileage(a) : 100;
+      if (coach.hasTendency('mileage-heavy')) trainingFit = safe >= 105 ? 85 : safe <= 85 ? 25 : 55;
+      else if (coach.hasTendency('low-mileage')) trainingFit = a.speed > a.stamina ? 85 : 50;
+    }
+
+    const division = window.XCD.data.divisionFor(school);
+    const nilScore = division.nil ? Utils.clamp(school.budget.nil / 1200, 5, 100) : 5;
+    const academicsFit = a.academics > 75 ? school.academics : 50;
+
     return Utils.clamp(
-      school.prestige * 0.34 +
-      playingTime * 0.28 +
-      Utils.clamp(100 - dist / 18, 0, 100) * 0.14 +
-      school.facilitiesOverall * 0.10 +
-      (coach ? coach.training : 50) * 0.08 +
-      Utils.clamp(school.budget.nil / 1200, 5, 100) * 0.06 +
-      (school.prestige > (fromSchool ? fromSchool.prestige : 50) ? 6 : 0),
+      school.prestige * 0.22 +
+      playingTime * 0.22 +
+      rep * 0.13 +
+      recentSuccess * 0.09 +
+      Utils.clamp(100 - dist / 18, 0, 100) * 0.09 +
+      school.facilitiesOverall * 0.07 +
+      trainingFit * 0.06 +
+      academicsFit * 0.05 +
+      nilScore * 0.04 +
+      pull * 0.03 +
+      (school.conferenceTier === 1 ? 5 : 0) +
+      (school.prestige > (fromSchool ? fromSchool.prestige : 50) ? 4 : 0),
       0, 100);
   }
 
@@ -198,10 +276,12 @@
       for (let i = 0; i < 30; i++) {
         const s = rng.choice(needy);
         if (s.id === entry.fromSchoolId || entry.offers.includes(s.id)) continue;
-        // Programs chase talent near/above their level; Recruiter-archetype
-        // coaches chase everyone.
+        // Programs chase talent near/above their level; portal-expert
+        // coaches and elite transfer recruiters hunt everyone.
         const coach = gameState.getCoach(s.coachId);
-        const hunter = coach && coach.archetype === 'Recruiter';
+        const hunter = coach && (coach.archetype === 'Recruiter' ||
+          (coach.hasTendency && coach.hasTendency('transfer-expert')) ||
+          (coach.transferRecruiting || 55) >= 75);
         if (!hunter && Math.abs(a.currentOverall - (30 + s.prestige * 0.55)) > 22) continue;
         candidates.push(s);
         if (candidates.length >= 3) break;
@@ -302,7 +382,7 @@
    * ================================================================ */
   function processWeek(gameState, rng) {
     const week = gameState.week;
-    if (week === 2) aiRedshirts(gameState, rng);
+    if (week === CAL.SUMMER_WEEKS) aiRedshirts(gameState, rng); // decided before racing starts
     medicalRedshirtScan(gameState);
     if (week === ENTRY_WEEK) openPortal(gameState, rng);
     if (week > ENTRY_WEEK && week < DECISION_WEEK) {

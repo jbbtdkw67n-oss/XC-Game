@@ -196,11 +196,142 @@
     { type: 'bust',   weight: 12 }   // never quite gets there
   ];
 
-  // Recruiting calendar (within the 14-week year)
+  /* ------------------------------------------------------------------ *
+   * The season calendar — Update 2 (Part 5).
+   *
+   *   Wk 1-3   Summer Training (3 weeks)
+   *   Wk 4-12  Regular Season (9 weeks): meets at 4/6/8/10/12 with one
+   *            bye week between every meet
+   *   Wk 13    Conference Championships   ┐
+   *   Wk 14    NCAA Regionals             ├ no bye weeks between rounds
+   *   Wk 15    NCAA Nationals             ┘
+   *   Wk 16-21 Offseason (6 weeks): awards, portal, signing day
+   * ------------------------------------------------------------------ */
+  D.CALENDAR = {
+    WEEKS_PER_YEAR: 21,
+    SUMMER_WEEKS: 3,
+    REGULAR_SEASON_START: 4,
+    MEET_WEEKS: [4, 6, 8, 10, 12],
+    CONFERENCE_WEEK: 13,
+    REGIONAL_WEEK: 14,
+    NATIONAL_WEEK: 15,
+    OFFSEASON_START: 16,
+    AWARDS_WEEK: 16
+  };
+
+  /*
+   * Prestigious regular-season invitationals (Part 7). Elite programs get
+   * the call; everyone else runs regional invitationals the same weekend.
+   * `size` = teams invited (by prestige, with a few lottery mid-majors),
+   * `weight` = extra poll credit for racing (and beating) the best.
+   */
+  D.ELITE_MEETS = [
+    { week: 6,  name: 'Joe Piane Invitational',  size: 28, weight: 1.2 },
+    { week: 6,  name: 'Roy Griak Invitational',  size: 28, weight: 1.15 },
+    { week: 8,  name: 'Nuttycombe Invitational', size: 34, weight: 1.3 },
+    { week: 8,  name: 'Pre-Nationals',           size: 42, weight: 1.25 },
+    { week: 10, name: 'Wisconsin Invitational',  size: 34, weight: 1.2 }
+  ];
+
+  // Recruiting calendar (within the 21-week year)
   D.RECRUITING = {
     CLASS_SIZE_PER_GENDER: 1200,
-    SIGNING_WEEK: 12,       // national signing day (offseason)
-    EARLY_COMMIT_WEEK: 2,   // earliest anyone verbals
+    SIGNING_WEEK: 19,       // national signing day (offseason)
+    EARLY_COMMIT_WEEK: 3,   // earliest anyone verbals
     AI_SIGNEES_TARGET: 5    // roster spots AI schools try to fill per gender
+  };
+
+  /* ------------------------------------------------------------------ *
+   * Mileage (Part 6). Weekly volume is its own training variable,
+   * independent of the day-by-day workout plan.
+   * ------------------------------------------------------------------ */
+  D.MILEAGE = {
+    MIN: 30,
+    MAX: 120,
+    DEFAULT: { M: 70, W: 60 },
+    // Named presets for the training screen (per-athlete deltas are
+    // applied relative to the squad's program mileage).
+    PRESETS: [
+      { key: 'freshmen',  label: 'Freshmen preset',          desc: 'New arrivals absorb less volume', delta: -15, filter: 'freshmen' },
+      { key: 'redshirt',  label: 'Redshirt preset',          desc: 'A quiet year of aerobic building', delta: +10, filter: 'redshirts' },
+      { key: 'taper',     label: 'Championship taper',       desc: 'Cut volume, sharpen, race fast',   scale: 0.55, filter: 'all' },
+      { key: 'recovery',  label: 'Recovery preset',          desc: 'Back off everyone to recharge',    absolute: 42, filter: 'all' }
+    ]
+  };
+
+  /* ------------------------------------------------------------------ *
+   * Coach reputation (Part 1): national standing, separate from school
+   * prestige. Earned by winning and developing; lost by losing and misses.
+   * ------------------------------------------------------------------ */
+  D.REPUTATION_LEVELS = [
+    { min: 92, label: 'Hall of Fame Coach', icon: '🏛' },
+    { min: 80, label: 'Legend',             icon: '👑' },
+    { min: 66, label: 'Elite Recruiter',    icon: '🌟' },
+    { min: 50, label: 'National Coach',     icon: '🇺🇸' },
+    { min: 34, label: 'Respected Builder',  icon: '🔨' },
+    { min: 18, label: 'Small School Coach', icon: '🏫' },
+    { min: 0,  label: 'Unknown Assistant',  icon: '❔' }
+  ];
+
+  D.reputationLevel = function (rep) {
+    return D.REPUTATION_LEVELS.find((l) => rep >= l.min) || D.REPUTATION_LEVELS[D.REPUTATION_LEVELS.length - 1];
+  };
+
+  /*
+   * Coaching tendencies (Part 2): every coach — AI and player alike —
+   * carries identity traits that shape how they run their program over
+   * decades. Mileage tendencies set training volume; recruiting
+   * tendencies shape boards; temperament shapes race-week choices.
+   */
+  D.COACH_TENDENCIES = [
+    { key: 'elite-recruiter',        label: 'Elite Recruiter',        group: 'recruiting' },
+    { key: 'development-specialist', label: 'Development Specialist', group: 'recruiting' },
+    { key: 'transfer-expert',        label: 'Transfer Portal Expert', group: 'recruiting' },
+    { key: 'international',         label: 'International Recruiter', group: 'territory' },
+    { key: 'regional',              label: 'Regional Recruiter',      group: 'territory' },
+    { key: 'mileage-heavy',         label: 'Mileage Heavy',           group: 'volume' },
+    { key: 'low-mileage',           label: 'Low Mileage',             group: 'volume' },
+    { key: 'conservative',          label: 'Conservative',            group: 'temperament' },
+    { key: 'aggressive',            label: 'Aggressive',              group: 'temperament' }
+  ];
+
+  /* ------------------------------------------------------------------ *
+   * Generational talent (Part 12.5). Roughly one per 7-8 recruiting
+   * classes via weighted odds — streaks and droughts both happen, and
+   * (very rarely) two land in the same class.
+   * ------------------------------------------------------------------ */
+  D.GENERATIONAL = {
+    // Per gender, per class: P(1) + P(2) ≈ 0.066 → ~0.13 expected per
+    // year across both genders ≈ one every 7.6 classes. As a share of
+    // recruits that's ~1 in 18,000 generated (≈0.006% per recruit, and
+    // ~0.05-0.15% of the *ranked* national pool in the years one appears).
+    P_ONE: 0.062,
+    P_TWO: 0.004,
+    // Signature strength/weakness archetypes — no two feel the same.
+    PROFILES: [
+      { key: 'diesel',     label: 'The Diesel',        strengths: { stamina: 8, lactateThreshold: 6 }, weaknesses: { speed: -14 },            note: 'Incredible endurance, average finishing kick.' },
+      { key: 'kicker',     label: 'The Closer',        strengths: { speed: 9, runningEconomy: 4 },     weaknesses: { consistency: -18 },      note: 'Elite speed, inconsistent pacing.' },
+      { key: 'engine',     label: 'The Aerobic Freak', strengths: { vo2Max: 9 },                       weaknesses: { injuryResistance: -25 }, note: 'Outstanding engine with injury concerns.' },
+      { key: 'tactician',  label: 'The Tactician',     strengths: { raceIQ: 12, consistency: 8 },      weaknesses: { hillAdaptation: -20 },   note: 'Tactical genius, struggles on hills.' },
+      { key: 'metronome',  label: 'The Metronome',     strengths: { consistency: 14, lactateThreshold: 5 }, weaknesses: { mentalToughness: -12 }, note: 'Machine-like pacing, wobbles under pressure.' },
+      { key: 'complete',   label: 'The Prodigy',       strengths: { vo2Max: 4, speed: 4, stamina: 4 }, weaknesses: { workEthic: -10 },        note: 'Does everything well; talent came easy.' }
+    ]
+  };
+
+  /* Transfer portal entry reasons (Part 4) — every departure has a story. */
+  D.PORTAL_REASONS = {
+    racing:       'Lack of racing opportunities',
+    coachLeft:    'Coach departed',
+    culture:      'Poor team culture',
+    homesick:     'Homesickness',
+    academics:    'Academics',
+    contender:    'Championship aspirations',
+    trainingFit:  'Poor training fit',
+    relationship: 'Low coach relationship',
+    nil:          'NIL opportunities',
+    style:        'Playing style mismatch',
+    overtraining: 'Overtraining',
+    undertraining:'Undertraining',
+    fresh:        'Fresh start'
   };
 })();

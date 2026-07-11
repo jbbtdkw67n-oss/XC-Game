@@ -1,10 +1,10 @@
-// Phase 1 test: new calendar, full-season advance via UI, rollover->dashboard,
-// world conference filter, schedule rendering.
+// Phase 1 test: Update 2 calendar (21 weeks), full-season advance via UI,
+// rollover->dashboard, world conference filter, schedule rendering.
 const { chromium } = require('playwright');
-const { newDynasty, wireErrors } = require('./helpers');
+const { newDynasty, wireErrors, launchOpts } = require('./helpers');
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(launchOpts());
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message + '\n' + (e.stack || '')));
@@ -12,9 +12,9 @@ const { newDynasty, wireErrors } = require('./helpers');
 
   await newDynasty(page);
 
-  // Advance through one full year via the UI button (14 weeks)
+  // Advance through one full year via the UI button (21 weeks)
   const log = [];
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 21; i++) {
     const info = await page.evaluate(() => {
       const g = window.XCD.ui.state.game;
       const meets = (g.season.byWeek[g.week] || []).length;
@@ -38,19 +38,21 @@ const { newDynasty, wireErrors } = require('./helpers');
   console.log('after year:', JSON.stringify(post));
   if (post.week !== 1 || post.screen !== 'dashboard') errors.push('ROLLOVER did not land on dashboard week 1: ' + JSON.stringify(post));
 
-  // Verify season structure: meets at 1,3,5,7,8,9,10 and none at 2,4,6,11-14
+  // Verify season structure: summer weeks 1-3 empty, meets at 4/6/8/10/12
+  // with byes at 5/7/9/11, championships 13/14/15, offseason 16-21 empty.
   const structure = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     const out = {};
-    for (let w = 1; w <= 14; w++) out[w] = (g.season.byWeek[w] || []).length;
-    const pn = g.season.meets[g.season.prenatsMeetId];
-    return { out, prenatsField: pn ? pn.schoolIds.length : 0 };
+    for (let w = 1; w <= 21; w++) out[w] = (g.season.byWeek[w] || []).length;
+    const elite = Object.values(g.season.meets).filter((m) => m.elite).map((m) => m.name);
+    return { out, elite };
   });
   console.log('season meets by week:', JSON.stringify(structure));
   const s = structure.out;
-  [1, 3, 5, 7, 8, 9, 10].forEach((w) => { if (!s[w]) errors.push(`No meets scheduled week ${w}`); });
-  [2, 4, 6, 11, 12, 13, 14].forEach((w) => { if (s[w]) errors.push(`Unexpected meets week ${w}`); });
-  if (structure.prenatsField < 36) errors.push('Pre-Nationals field too small: ' + structure.prenatsField);
+  [4, 6, 8, 10, 12, 13, 14, 15].forEach((w) => { if (!s[w]) errors.push(`No meets scheduled week ${w}`); });
+  [1, 2, 3, 5, 7, 9, 11, 16, 17, 18, 19, 20, 21].forEach((w) => { if (s[w]) errors.push(`Unexpected meets week ${w}`); });
+  if (structure.elite.length < 5) errors.push('Elite invitationals missing: ' + JSON.stringify(structure.elite));
+  if (!structure.elite.includes('Nuttycombe Invitational')) errors.push('No Nuttycombe on the calendar');
 
   // Nationals results exist?
   const nats = await page.evaluate(() => {
@@ -80,7 +82,7 @@ const { newDynasty, wireErrors } = require('./helpers');
 
   // Sim a second full year quickly in-engine
   const simErr = await page.evaluate(() => {
-    try { const g = window.XCD.ui.state.game; for (let i = 0; i < 14; i++) g.advanceWeek(); return null; }
+    try { const g = window.XCD.ui.state.game; for (let i = 0; i < 21; i++) g.advanceWeek(); return null; }
     catch (e) { return e.message + '\n' + e.stack; }
   });
   if (simErr) errors.push('YEAR2 SIM ERROR: ' + simErr);

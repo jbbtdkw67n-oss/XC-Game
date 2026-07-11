@@ -30,11 +30,22 @@
     const statusColor = athlete.fatigue > 70 ? 'red' : athlete.fatigue > 40 ? 'yellow' : 'green';
     const moraleColor = athlete.morale < 40 ? 'red' : athlete.morale < 65 ? 'yellow' : 'green';
 
+    // Permanent award badges (Part 10) — earned years, displayed for life.
+    const badges = window.XCD.engine.Legacy ? window.XCD.engine.Legacy.badgesFor(athlete) : [];
+    const badgesHtml = badges.length ? `
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px;">
+        ${badges.map((b) => `
+          <span style="background:var(--accent-soft); border:1px solid var(--border); border-radius:14px; padding:4px 10px; font-size:12.5px;"
+            title="${b.label}${b.years.length ? ' — ' + b.years.join(', ') : ''}">
+            ${b.icon} ${b.label}${b.years.length ? ` <span style="color:var(--text-dim);">${b.years.join(' · ')}</span>` : ''}
+          </span>`).join('')}
+      </div>` : '';
+
     UI.showModal(`
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
       <div class="player-card-header">
         <div class="who">
-          <h2>${Utils.escapeHtml(athlete.fullName)}</h2>
+          <h2>${athlete.generational ? '⭐ ' : ''}${Utils.escapeHtml(athlete.fullName)}</h2>
           <div class="sub">
             ${athlete.classYear} • ${athlete.gender === 'M' ? "Men's" : "Women's"} •
             ${Utils.escapeHtml(athlete.hometownCity)}, ${athlete.hometownState} •
@@ -51,10 +62,16 @@
         </div>
       </div>
 
-      <div class="grid cols-3" style="margin-bottom:16px;">
+      ${badgesHtml}
+
+      <div class="grid cols-4" style="margin-bottom:16px;">
         <div>
           <h3>Fatigue — ${athlete.fatigue}</h3>
           ${UI.meter(athlete.fatigue, statusColor)}
+        </div>
+        <div>
+          <h3>Sharpness — ${Math.round(athlete.sharpness ?? 55)}</h3>
+          ${UI.meter(Math.round(athlete.sharpness ?? 55))}
         </div>
         <div>
           <h3>Morale — ${athlete.morale}</h3>

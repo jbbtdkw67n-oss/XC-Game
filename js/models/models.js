@@ -58,6 +58,9 @@
         // Status
         fatigue: 10,       // 0 fresh - 100 exhausted
         fitness: 50,       // 0-100 current fitness level built from training
+        sharpness: 55,     // 0-100 race sharpness: low mileage/tapering raises it
+        chronicMileage: 0, // rolling weekly-volume average (taper detection)
+        seasonInjuryWeeks: 0, // weeks lost to injury this season (offseason dev)
         morale: 70,        // 0-100
         devProfile: 'normal', // hidden archetype: normal | early | late | bust
         devProgress: 0,    // fractional development accumulator
@@ -70,6 +73,12 @@
         yearsOnCampus: 1,  // NCAA five-year clock
         seasonRaces: 0,    // races run this season (blocks redshirting)
         honors: { allAmerican: 0, natChamp: 0, confChamp: 0, awards: [] },
+        // Permanent award badges by year (Part 10): survive graduation via
+        // the alumni ledger. { allAmerican:[years], natChamp:[...],
+        // confChamp:[...], allConference:[...] }
+        honorYears: { allAmerican: [], natChamp: [], confChamp: [], allConference: [] },
+        generational: false, // ⭐ once-in-a-decade prospect (Part 12.5)
+        genProfile: null,    // signature strength/weakness archetype key
         raceLog: [],       // last 8 results: {y, w, m, p, t, d}
 
         schoolId: null,
@@ -133,11 +142,27 @@
         archetype: 'Developer', // Recruiter | Developer | Tactician | Players Coach
         portrait: '🧢',
 
-        // The ONLY four coach ratings.
+        // The four core coach ratings.
         recruiting: 55, // recruiting effectiveness
         training: 55,   // athlete development
-        peaking: 55,    // championship-week form (Conference/Regionals/Nationals)
+        peaking: 55,    // race strategy & championship-week form
         culture: 55,    // morale, happiness, transfers, chemistry
+
+        // Secondary craft ratings (Update 2, Part 2): shape AI identity and
+        // feed specific systems without diluting the four core ratings.
+        talentEval: 55,        // scouting accuracy / board quality
+        motivation: 55,        // athlete morale & confidence upkeep
+        transferRecruiting: 55,// pull in the portal
+        internationalRecruiting: 45, // overseas pipeline
+        media: 50,             // press handling: buzz, preseason attention
+        staffManagement: 55,   // assistant quality & retention
+        relationships: 55,     // bonds that keep athletes home
+
+        // National reputation (Part 1): separate from school prestige.
+        reputation: 25,
+
+        // Long-term identity (Part 2): tendencies persist for a career.
+        tendencies: [],
 
         // Career progression: points earned through success, spent on ratings.
         upgradePoints: 0,
@@ -147,12 +172,47 @@
         isPlayer: false,
         yearsAtSchool: 0,
         hotSeat: 0, // 0-100, drives firing risk
-        careerRecord: { wins: 0, losses: 0, conferenceTitles: 0, regionalTitles: 0, nationalTitles: 0 },
-        retireAge: Utils.clamp(62 + Math.round(Math.random() * 10), 60, 75),
+        careerRecord: {
+          wins: 0, losses: 0, conferenceTitles: 0, regionalTitles: 0, nationalTitles: 0,
+          seasons: 0, allAmericans: 0, indivNatChamps: 0, indivConfChamps: 0,
+          nationalsAppearances: 0, bestClassRank: null
+        },
+        // Career timeline (Part 9): every stop, forever.
+        stints: [], // { schoolId, school, division, startYear, endYear }
+        retireAge: 75 + Math.round(Math.random() * 8), // retirement is random, 75+
 
         ...data
       });
       this.migrateLegacyRatings(data);
+      this.migrateUpdate2(data);
+    }
+
+    // Saves from before Update 2: derive the new fields from what exists.
+    migrateUpdate2(data) {
+      if (!data) return;
+      const cr = this.careerRecord;
+      ['seasons', 'allAmericans', 'indivNatChamps', 'indivConfChamps', 'nationalsAppearances']
+        .forEach((k) => { if (cr[k] === undefined) cr[k] = 0; });
+      if (cr.bestClassRank === undefined) cr.bestClassRank = null;
+      if (data.reputation === undefined) {
+        // Seed reputation from résumé + rating so old worlds feel earned.
+        this.reputation = Utils.clamp(Math.round(
+          this.overallRating * 0.45 + cr.nationalTitles * 12 + cr.conferenceTitles * 3 +
+          Math.min(20, this.yearsAtSchool)), 5, 90);
+      }
+      if (data.retireAge !== undefined && data.retireAge < 75) {
+        this.retireAge = 75 + (data.retireAge % 9); // deterministic-ish remap to the 75+ rule
+      }
+      if (data.talentEval === undefined) {
+        const near = (base, spread) => Utils.clamp(Math.round(base + (Math.random() - 0.5) * spread), 20, 99);
+        this.talentEval = near(this.recruiting, 20);
+        this.motivation = near(this.culture, 20);
+        this.transferRecruiting = near(this.recruiting, 24);
+        this.internationalRecruiting = near(this.recruiting - 12, 24);
+        this.media = near((this.recruiting + this.culture) / 2 - 5, 20);
+        this.staffManagement = near(this.culture, 22);
+        this.relationships = near(this.culture, 18);
+      }
     }
 
     // Coaches saved before the four-rating overhaul fold down cleanly.
@@ -180,6 +240,18 @@
     get overallRating() {
       return Math.round(Utils.average([this.recruiting, this.training, this.peaking, this.culture]));
     }
+
+    get reputationLevel() {
+      return window.XCD.data.reputationLevel(this.reputation || 0);
+    }
+
+    hasTendency(key) { return (this.tendencies || []).includes(key); }
+
+    get winPct() {
+      const cr = this.careerRecord;
+      const games = (cr.wins || 0) + (cr.losses || 0);
+      return games ? Math.round((cr.wins / games) * 1000) / 10 : 0;
+    }
   }
 
   /* ---------------------------------------------------------------- *
@@ -194,8 +266,11 @@
         region: '',
         conference: '',
         conferenceTier: 3,
+        division: 'DI', // NCAA division key into XCD.data.DIVISIONS
 
-        prestige: 50, // 0-100 overall program prestige, drives recruiting pull
+        prestige: 50, // 0-100 program prestige — dynamic, rises and falls yearly
+        prestigeHistory: [], // [{year, prestige}] recent trajectory (last 30)
+        prestigeMomentum: 0, // rolling success trend feeding the yearly update
         academics: 55,
         campusAppeal: 55,
 
@@ -219,11 +294,19 @@
         assistantId: null,
         rosterM: [],
         rosterW: [],
-        scholarshipsAvailableM: 12.6, // NCAA D1 XC/T&F equivalency scholarship limits (approx)
+        // Scholarship limits come from the division rules; these mirror the
+        // school's division so old code paths keep working.
+        scholarshipsAvailableM: 12.6,
         scholarshipsAvailableW: 18,
 
         ...data
       });
+      // Keep scholarship limits in sync with division rules (data-driven).
+      const div = window.XCD.data.divisionFor && window.XCD.data.divisionFor(this);
+      if (div && (!data || data.scholarshipsAvailableM === undefined)) {
+        this.scholarshipsAvailableM = div.scholarships.M;
+        this.scholarshipsAvailableW = div.scholarships.W;
+      }
     }
 
     get facilitiesOverall() {

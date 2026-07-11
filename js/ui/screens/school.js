@@ -18,36 +18,123 @@
     ['culture', 'Culture', 'Morale, happiness, chemistry, and keeping runners out of the portal.']
   ];
 
+  let activeTab = 'overview';
+
   function render(container) {
     const game = UI.state.game;
     const school = game.getPlayerSchool();
     const coach = game.getPlayerCoach();
-    const b = school.budget;
-    const h = school.historicalSuccess;
-    const rivals = school.rivalries.map((id) => game.getSchool(id)).filter(Boolean);
 
     container.innerHTML = `
       <div class="screen-header">
         <h1>${Utils.escapeHtml(school.name)}</h1>
         <div class="actions">
+          <div class="pill-tabs">
+            <button data-stab="overview" class="${activeTab === 'overview' ? 'active' : ''}">Overview</button>
+            <button data-stab="history" class="${activeTab === 'history' ? 'active' : ''}">History</button>
+          </div>
           <span style="color:var(--text-dim); font-size:13px;">
-            ${Utils.escapeHtml(school.conference)} • ${school.region} • ${window.XCD.data.STATE_NAMES[school.state] || school.state}
+            ${window.XCD.data.divisionFor(school).label} • ${Utils.escapeHtml(school.conference)} • ${school.region} • ${window.XCD.data.STATE_NAMES[school.state] || school.state}
           </span>
         </div>
       </div>
+      <div id="school-body"></div>`;
 
+    const body = container.querySelector('#school-body');
+    if (activeTab === 'history') renderHistoryTab(game, school, body);
+    else renderOverview(game, school, coach, body, container);
+
+    container.querySelectorAll('[data-stab]').forEach((btn) => {
+      btn.addEventListener('click', () => { activeTab = btn.dataset.stab; render(container); });
+    });
+  }
+
+  /* ---------------- History tab (Part 8): the permanent record ------- */
+  function renderHistoryTab(game, school, body) {
+    const Legacy = window.XCD.engine.Legacy;
+    const prog = Legacy.program(game, school.id);
+    const winPct = Legacy.programWinPct(prog);
+    const ph = school.prestigeHistory || [];
+    const trend = ph.slice(-10).map((p) => p.prestige);
+    const trendStr = trend.length >= 2
+      ? `${trend[0]} → ${trend[trend.length - 1]} over ${trend.length} yrs`
+      : '—';
+
+    const row = (label, value) => `<div class="attr-row"><span class="attr-name">${label}</span><span><strong>${value}</strong></span></div>`;
+
+    body.innerHTML = `
       <div class="grid cols-4" style="margin-bottom:16px;">
-        <div class="stat-tile"><div class="label">Prestige</div><div class="value">${school.prestige}</div><div class="sub">${Utils.ratingGrade(school.prestige)}</div></div>
+        <div class="stat-tile"><div class="label">All-Time Record</div><div class="value">${prog.wins}-${prog.losses}</div><div class="sub">${winPct}% winning pct</div></div>
+        <div class="stat-tile"><div class="label">Meet Wins</div><div class="value">${prog.meetWins}</div></div>
+        <div class="stat-tile"><div class="label">Best NCAA Finish</div><div class="value">${prog.bestFinish ? Utils.ordinal(prog.bestFinish) : '—'}</div><div class="sub">${prog.podiums} podiums</div></div>
+        <div class="stat-tile"><div class="label">Highest Ranking</div><div class="value">${prog.highestRank ? '#' + prog.highestRank : '—'}</div><div class="sub">prestige ${trendStr}</div></div>
+      </div>
+
+      <div class="grid cols-2">
+        <div class="card">
+          <h2>Championships & Honors</h2>
+          ${row('National Championships', prog.natTitles)}
+          ${row('Regional Championships', prog.regionalTitles)}
+          ${row('Conference Championships', prog.confTitles)}
+          ${row('NCAA Appearances', prog.ncaaAppearances)}
+          ${row('NCAA Podium Finishes', prog.podiums)}
+          ${row('Individual National Champions', prog.indivNatChamps)}
+          ${row('Individual Conference Champions', prog.indivConfChamps)}
+          ${row('All-Americans', prog.allAmericans)}
+          ${row('All-Conference Honors', prog.allConference)}
+        </div>
+        <div class="card">
+          <h2>Coaching History</h2>
+          ${prog.coaches.length ? prog.coaches.slice().reverse().map((c) => `
+            <div class="attr-row">
+              <span>${Utils.escapeHtml(c.name)}</span>
+              <span style="color:var(--text-dim);">${c.startYear}–${c.endYear || 'present'}</span>
+            </div>`).join('') : '<div style="color:var(--text-dim); font-size:13px;">Records begin with your arrival.</div>'}
+          <h3 style="margin-top:14px;">Top Recruiting Classes</h3>
+          ${prog.topClasses.length ? prog.topClasses.slice().sort((a, b) => a.rank - b.rank).slice(0, 8).map((c) => `
+            <div class="attr-row"><span>#${c.rank} national class</span><span style="color:var(--text-dim);">${c.year}</span></div>`).join('')
+          : '<div style="color:var(--text-dim); font-size:13px;">No ranked classes yet.</div>'}
+          <h3 style="margin-top:14px;">Prestige Trajectory</h3>
+          ${ph.length ? `<div style="display:flex; align-items:flex-end; gap:2px; height:52px;">
+            ${ph.slice(-20).map((p) => `<div title="${p.year}: ${p.prestige}" style="flex:1; background:var(--accent); opacity:0.75; border-radius:2px 2px 0 0; height:${Math.max(6, p.prestige * 0.52)}px;"></div>`).join('')}
+          </div>` : '<div style="color:var(--text-dim); font-size:13px;">Prestige history builds season by season.</div>'}
+        </div>
+      </div>`;
+  }
+
+  /* ---------------- Overview tab ---------------- */
+  function renderOverview(game, school, coach, container, outerContainer) {
+    const b = school.budget;
+    const h = school.historicalSuccess;
+    const rivals = school.rivalries.map((id) => game.getSchool(id)).filter(Boolean);
+    const repLevel = coach.reputationLevel || { label: 'Unknown', icon: '❔' };
+    const tendencies = (coach.tendencies || [])
+      .map((t) => (window.XCD.data.COACH_TENDENCIES.find((x) => x.key === t) || {}).label)
+      .filter(Boolean);
+
+    container.innerHTML = `
+      <div class="grid cols-4" style="margin-bottom:16px;">
+        <div class="stat-tile"><div class="label">Prestige</div><div class="value">${school.prestige}</div><div class="sub">${Utils.ratingGrade(school.prestige)} • ${(() => {
+          const ph = school.prestigeHistory || [];
+          if (ph.length < 2) return 'new era';
+          const d = ph[ph.length - 1].prestige - ph[Math.max(0, ph.length - 4)].prestige;
+          return d > 1 ? '📈 rising' : d < -1 ? '📉 falling' : 'steady';
+        })()}</div></div>
+        <div class="stat-tile"><div class="label">Coach Reputation</div><div class="value">${Math.round(coach.reputation || 0)}</div><div class="sub">${repLevel.icon} ${repLevel.label}</div></div>
         <div class="stat-tile"><div class="label">Academics</div><div class="value">${school.academics}</div><div class="sub">${Utils.ratingGrade(school.academics)}</div></div>
-        <div class="stat-tile"><div class="label">Campus Appeal</div><div class="value">${school.campusAppeal}</div><div class="sub">${Utils.ratingGrade(school.campusAppeal)}</div></div>
         <div class="stat-tile"><div class="label">Weather</div><div class="value">${school.weather.tempBase}°F</div><div class="sub">${school.weather.altitude} altitude • ${school.weather.humidity} humidity</div></div>
       </div>
 
       <div class="grid cols-2">
         <div class="card">
           <h2>${coach.portrait || '🧢'} Head Coach — ${Utils.escapeHtml(coach.fullName)}</h2>
-          <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">
+          <div style="color:var(--text-dim); font-size:13px; margin-bottom:6px;">
             Age ${coach.age} • ${Utils.escapeHtml(coach.archetype || '')} • Year ${coach.yearsAtSchool + 1} at ${Utils.escapeHtml(school.name)} • Overall ${coach.overallRating}
+          </div>
+          <div style="font-size:12.5px; margin-bottom:12px;">
+            <span title="National reputation — separate from school prestige. Feeds recruiting, the portal, and job offers.">${repLevel.icon} <strong>${repLevel.label}</strong> (${Math.round(coach.reputation || 0)}/99)</span>
+            ${tendencies.length ? `<span style="color:var(--text-dim);"> • ${tendencies.join(' • ')}</span>` : ''}
+            <span style="color:var(--text-dim);"> • Career ${coach.careerRecord.wins}-${coach.careerRecord.losses} (${coach.winPct}%)</span>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
             <span style="font-size:13px;">Upgrade Points: <strong style="color:${coach.upgradePoints ? 'var(--gold)' : 'var(--text-dim)'};">${coach.upgradePoints || 0}</strong></span>
@@ -134,7 +221,7 @@
         coach.upgradePoints -= 1;
         coach[key] = Math.min(99, coach[key] + 2);
         UI.toast(`${COACH_ATTRS.find(([k]) => k === key)[1]} improved to ${coach[key]}.`, 'success');
-        render(container);
+        render(outerContainer);
       });
     });
 
@@ -142,7 +229,7 @@
       btn.addEventListener('click', () => {
         const result = window.XCD.engine.Finances.upgradeFacility(game, school.id, btn.dataset.upg);
         UI.toast(result.message, result.ok ? 'success' : 'error');
-        if (result.ok) render(container);
+        if (result.ok) render(outerContainer);
       });
     });
     const fundBtn = container.querySelector('#btn-fundraise');
@@ -150,7 +237,7 @@
       fundBtn.addEventListener('click', () => {
         const result = window.XCD.engine.Finances.fundraise(game);
         UI.toast(result.message, result.ok ? 'success' : 'error');
-        if (result.ok) render(container);
+        if (result.ok) render(outerContainer);
       });
     }
   }

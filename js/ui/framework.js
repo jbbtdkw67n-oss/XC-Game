@@ -294,7 +294,7 @@
         // Advance until a week in which our team raced (guard: ~1.2 years).
         let raced = false;
         let rolledOver = false;
-        for (let i = 0; i < 18 && !raced; i++) {
+        for (let i = 0; i < 26 && !raced; i++) {
           const wk = game.week;
           const s = game.season;
           const hadMeet = s && (s.playerMeetByWeek[wk] ||

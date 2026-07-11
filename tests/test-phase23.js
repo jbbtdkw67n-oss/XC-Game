@@ -1,9 +1,9 @@
 // Phase 2+3 test: weekly planner UI, 7 workouts, 6 core attributes, development.
 const { chromium } = require('playwright');
-const { newDynasty, wireErrors } = require('./helpers');
+const { newDynasty, wireErrors, launchOpts } = require('./helpers');
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(launchOpts());
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message + '\n' + (e.stack || '')));
@@ -85,7 +85,7 @@ const { newDynasty, wireErrors } = require('./helpers');
 
   // Finish the year + one more full year
   const yearErr = await page.evaluate(() => {
-    try { const g = window.XCD.ui.state.game; for (let i = 0; i < 19; i++) g.advanceWeek(); return { week: g.week, year: g.year }; }
+    try { const g = window.XCD.ui.state.game; for (let i = 0; i < 33; i++) g.advanceWeek(); return { week: g.week, year: g.year }; }
     catch (e) { return { err: e.message + '\n' + e.stack }; }
   });
   if (yearErr.err) errors.push('YEAR SIM ERROR: ' + yearErr.err);

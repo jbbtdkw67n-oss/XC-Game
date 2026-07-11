@@ -114,7 +114,8 @@
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
       <div class="player-card-header">
         <div class="who">
-          <h2>${stars(rec.starRating)} ${Utils.escapeHtml(rec.fullName)}</h2>
+          <h2>${rec.generational ? '⭐ ' : ''}${stars(rec.starRating)} ${Utils.escapeHtml(rec.fullName)}</h2>
+          ${rec.generational ? '<div class="sub" style="color:var(--gold, #d4af37); font-weight:700;">GENERATIONAL RECRUIT — the story of this class</div>' : ''}
           <div class="sub">
             ${rec.gender === 'M' ? "Men's" : "Women's"} • ${rec.source}${rec.country !== 'USA' ? ` (${rec.country})` : ''} •
             ${Utils.escapeHtml(rec.hometownCity)}, ${rec.hometownState === 'INT' ? rec.country : rec.hometownState}
@@ -240,7 +241,7 @@
       columns: [
         { key: 'starRating', label: 'Stars', numeric: true, render: (r) => stars(r.starRating) },
         { key: 'nationalRank', label: 'Natl', numeric: true, render: (r) => `#${r.nationalRank}` },
-        { key: 'lastName', label: 'Name', render: (r) => `<strong>${Utils.escapeHtml(r.fullName)}</strong>${r.source !== 'HS' ? ` <span style="font-size:10px; color:var(--warning);">${r.source}</span>` : ''}` },
+        { key: 'lastName', label: 'Name', render: (r) => `${r.generational ? '<span title="Generational Recruit">⭐</span> ' : ''}<strong>${Utils.escapeHtml(r.fullName)}</strong>${r.source !== 'HS' ? ` <span style="font-size:10px; color:var(--warning);">${r.source}</span>` : ''}` },
         { key: 'hometownState', label: 'From', render: (r) => r.hometownState === 'INT' ? Utils.escapeHtml(r.country) : `${Utils.escapeHtml(r.hometownCity)}, ${r.hometownState}` },
         {
           key: 'dist', label: 'Dist', numeric: true,

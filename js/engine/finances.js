@@ -59,14 +59,16 @@
         if (confChamps[`${school.conference}-${g}`] === school.name) bonus += 15000;
       });
 
-      // Budgets track prestige slowly (booster enthusiasm).
-      const tierScale = { 1: 1.0, 2: 0.65, 3: 0.4, 4: 0.22 }[school.conferenceTier] || 0.4;
+      // Budgets track prestige slowly (booster enthusiasm), scaled by the
+      // school's division (Part 13): DII/DIII operate on far less money.
+      const division = window.XCD.data.divisionFor(school);
+      const tierScale = ({ 1: 1.0, 2: 0.65, 3: 0.4, 4: 0.22 }[school.conferenceTier] || 0.4) * division.budgetScale;
       const target = Math.round((300000 + school.prestige * 4000) * tierScale);
       school.budget.total = Math.round(school.budget.total * 0.85 + target * 0.15) + bonus;
       school.budget.recruiting = Math.round(school.budget.total * 0.16);
       school.budget.travel = Math.round(school.budget.total * 0.22);
-      school.budget.scholarships = Math.round(school.budget.total * 0.42);
-      school.budget.nil = Math.round(school.budget.total * 0.08 * (school.conferenceTier === 1 ? 2 : 1));
+      school.budget.scholarships = division.scholarshipModel === 'none' ? 0 : Math.round(school.budget.total * 0.42);
+      school.budget.nil = division.nil ? Math.round(school.budget.total * 0.08 * (school.conferenceTier === 1 ? 2 : 1)) : 0;
       school.budget.facilitiesFund = Math.min(
         school.budget.facilitiesFund + Math.round(school.budget.total * 0.12) + bonus,
         Math.round(school.budget.total * 0.5)
@@ -84,11 +86,8 @@
         }
       }
 
-      // Facilities move prestige over time: a program that out-builds its
-      // reputation gains standing; crumbling buildings drag it down.
-      const facOverall = school.facilitiesOverall;
-      if (facOverall > school.prestige + 10) school.prestige = Utils.clamp(school.prestige + 1, 0, 99);
-      else if (facOverall < school.prestige - 18) school.prestige = Utils.clamp(school.prestige - 1, 0, 99);
+      // (Facilities-driven prestige movement now lives in the dynamic
+      // PrestigeEngine — Part 3 — alongside every other prestige input.)
     });
   }
 

@@ -38,7 +38,9 @@
             const s = gameState.getSchool(t.schoolId);
             return s ? teamStrength(gameState, s, gender) : 40;
           }));
-          const typeWeight = meet.type === 'national' ? 2.2 : meet.type === 'regional' ? 1.5 : meet.type === 'conference' ? 1.3 : 1.0;
+          // Elite invitationals (Part 7) carry real poll weight.
+          const typeWeight = (meet.type === 'national' ? 2.2 : meet.type === 'regional' ? 1.5 : meet.type === 'conference' ? 1.3 : 1.0) *
+            (meet.elite || 1);
           res.teamScores.forEach((t) => {
             const placeScore = 1 - (t.place - 1) / (field - 1); // 1.0 for win, 0 for last
             const pts = placeScore * (quality / 62) * typeWeight;
@@ -57,7 +59,7 @@
           ? Utils.average(results) * 60
           : strength * 0.55; // preseason: strength carries the poll
         const score = strength * 0.55 + resultScore * 0.45;
-        return { schoolId: school.id, name: school.name, conference: school.conference, region: school.region, score: Math.round(score * 10) / 10 };
+        return { schoolId: school.id, name: school.name, conference: school.conference, region: school.region, division: school.division || 'DI', score: Math.round(score * 10) / 10 };
       });
       rows.sort((a, b) => b.score - a.score);
       const prev = gameState.rankings && gameState.rankings[gender];
@@ -67,6 +69,13 @@
         r.prevRank = old ? old.rank : null;
       });
       rankings[gender] = rows;
+
+      // Permanent program ledger: highest poll ranking ever (Part 8).
+      const Legacy = window.XCD.engine.Legacy;
+      rows.slice(0, 50).forEach((r) => {
+        const prog = Legacy.program(gameState, r.schoolId);
+        if (!prog.highestRank || r.rank < prog.highestRank) prog.highestRank = r.rank;
+      });
     });
 
     // --- Individual & freshman rankings (season-best pace) ------------

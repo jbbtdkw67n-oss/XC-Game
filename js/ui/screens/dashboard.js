@@ -116,7 +116,9 @@
           </div>
           ${game.jobOffers.offers.map((o) => `
             <div class="attr-row" style="padding:6px 0;">
-              <span><strong>${Utils.escapeHtml(o.schoolName)}</strong> <span style="color:var(--text-dim);">(${Utils.escapeHtml(o.conference)} • prestige ${o.prestige})</span></span>
+              <span>${o.kind === 'Dream job' ? '🌟 ' : ''}<strong>${Utils.escapeHtml(o.schoolName)}</strong>
+                <span style="color:var(--text-dim);">(${Utils.escapeHtml(o.conference)} • prestige ${o.prestige})</span>
+                ${o.kind ? `<span class="rating ${o.kind === 'Dream job' ? 'r-elite' : o.kind === 'Step up' ? 'r-great' : o.kind === 'Lateral move' ? 'r-avg' : 'r-poor'}" style="margin-left:6px;">${o.kind}</span>` : ''}</span>
               <button class="btn small primary" data-accept="${o.schoolId}">Accept Job</button>
             </div>`).join('')}
           <div style="margin-top:8px;"><button class="btn small danger" id="btn-decline-offers">Stay Loyal</button></div>
