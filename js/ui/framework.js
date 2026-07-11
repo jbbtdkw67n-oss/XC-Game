@@ -1,0 +1,232 @@
+/*
+ * UI framework: screen registry/routing, toasts, modals, and a reusable
+ * sortable/searchable table renderer. Screens register themselves in
+ * XCD.ui.screens and implement render(container).
+ */
+(function () {
+  const UI = window.XCD.ui;
+  const Utils = window.XCD.core.Utils;
+
+  UI.state = {
+    currentScreen: 'dashboard',
+    game: null // active GameState
+  };
+
+  /* ---------------- Toasts ---------------- */
+  UI.toast = function (message, type = 'info', duration = 3200) {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      document.body.appendChild(container);
+    }
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.transition = 'opacity 0.3s';
+      setTimeout(() => el.remove(), 320);
+    }, duration);
+  };
+
+  /* ---------------- Modals ---------------- */
+  UI.showModal = function (contentHtml, onMount) {
+    UI.closeModal();
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.id = 'active-modal';
+    backdrop.innerHTML = `<div class="modal">${contentHtml}</div>`;
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) UI.closeModal();
+    });
+    document.body.appendChild(backdrop);
+    const closeBtn = backdrop.querySelector('[data-modal-close]');
+    if (closeBtn) closeBtn.addEventListener('click', UI.closeModal);
+    if (onMount) onMount(backdrop.querySelector('.modal'));
+  };
+
+  UI.closeModal = function () {
+    const existing = document.getElementById('active-modal');
+    if (existing) existing.remove();
+  };
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') UI.closeModal();
+  });
+
+  /* ---------------- Rating badge helper ---------------- */
+  UI.ratingBadge = function (value) {
+    let cls = 'r-poor';
+    if (value >= 85) cls = 'r-elite';
+    else if (value >= 75) cls = 'r-great';
+    else if (value >= 62) cls = 'r-good';
+    else if (value >= 50) cls = 'r-avg';
+    return `<span class="rating ${cls}">${value}</span>`;
+  };
+
+  UI.meter = function (value, colorClass = '') {
+    return `<div class="meter ${colorClass}"><span style="width:${Utils.clamp(value, 0, 100)}%"></span></div>`;
+  };
+
+  /* ---------------- Sortable table ----------------
+   * config: {
+   *   columns: [{ key, label, numeric?, render?(row) -> html, sortValue?(row) }],
+   *   rows: [...], defaultSort: key, defaultDir: 'asc'|'desc',
+   *   onRowClick?(row), searchKeys?: [key,...]
+   * }
+   */
+  UI.renderSortableTable = function (container, config) {
+    const state = {
+      sortKey: config.defaultSort || config.columns[0].key,
+      sortDir: config.defaultDir || 'desc',
+      query: ''
+    };
+
+    function getSortValue(row, col) {
+      if (col.sortValue) return col.sortValue(row);
+      return row[col.key];
+    }
+
+    function draw() {
+      const col = config.columns.find((c) => c.key === state.sortKey) || config.columns[0];
+      let rows = config.rows.slice();
+
+      if (state.query && config.searchKeys) {
+        const q = state.query.toLowerCase();
+        rows = rows.filter((r) =>
+          config.searchKeys.some((k) => String(r[k] ?? '').toLowerCase().includes(q)));
+      }
+
+      rows.sort((a, b) => {
+        const va = getSortValue(a, col);
+        const vb = getSortValue(b, col);
+        let cmp;
+        if (typeof va === 'number' && typeof vb === 'number') cmp = va - vb;
+        else cmp = String(va ?? '').localeCompare(String(vb ?? ''));
+        return state.sortDir === 'asc' ? cmp : -cmp;
+      });
+
+      const thead = config.columns.map((c) => {
+        const sorted = c.key === state.sortKey ? ` sorted-${state.sortDir}` : '';
+        return `<th class="${c.numeric ? 'num' : ''}${sorted}" data-col="${c.key}">${c.label}</th>`;
+      }).join('');
+
+      const tbody = rows.map((row, i) => {
+        const tds = config.columns.map((c) => {
+          const content = c.render ? c.render(row, i) : Utils.escapeHtml(row[c.key]);
+          return `<td class="${c.numeric ? 'num' : ''}">${content}</td>`;
+        }).join('');
+        return `<tr class="${config.onRowClick ? 'clickable' : ''}" data-row="${i}">${tds}</tr>`;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr>${thead}</tr></thead>
+            <tbody>${tbody}</tbody>
+          </table>
+        </div>`;
+
+      container.querySelectorAll('th').forEach((th) => {
+        th.addEventListener('click', () => {
+          const key = th.dataset.col;
+          if (state.sortKey === key) {
+            state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+          } else {
+            state.sortKey = key;
+            const newCol = config.columns.find((c) => c.key === key);
+            state.sortDir = newCol && newCol.numeric ? 'desc' : 'asc';
+          }
+          draw();
+        });
+      });
+
+      if (config.onRowClick) {
+        container.querySelectorAll('tbody tr').forEach((tr) => {
+          tr.addEventListener('click', () => config.onRowClick(rows[Number(tr.dataset.row)]));
+        });
+      }
+    }
+
+    draw();
+    return {
+      setQuery(q) { state.query = q; draw(); },
+      refresh: draw
+    };
+  };
+
+  /* ---------------- Screen routing ---------------- */
+  const NAV_ITEMS = [
+    { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
+    { id: 'roster', label: 'Roster', icon: '👟' },
+    { id: 'school', label: 'My Program', icon: '🏫' },
+    { id: 'world', label: 'World', icon: '🌎' },
+    { id: 'news', label: 'News', icon: '📰' },
+    { id: 'saves', label: 'Save / Load', icon: '💾' }
+  ];
+
+  UI.navigate = function (screenId) {
+    UI.state.currentScreen = screenId;
+    UI.renderShell();
+  };
+
+  UI.renderShell = function () {
+    const game = UI.state.game;
+    const root = document.getElementById('root');
+    if (!game) {
+      UI.screens.menu.render(root);
+      return;
+    }
+
+    const school = game.getPlayerSchool();
+    root.innerHTML = `
+      <div id="app">
+        <nav id="sidebar">
+          <div class="brand">XC <span>Dynasty</span></div>
+          <div class="school-tag">${Utils.escapeHtml(school.name)} • ${Utils.escapeHtml(school.conference)}</div>
+          ${NAV_ITEMS.map((n) => `
+            <button class="nav-item ${UI.state.currentScreen === n.id ? 'active' : ''}" data-nav="${n.id}">
+              <span class="icon">${n.icon}</span>${n.label}
+            </button>`).join('')}
+          <div class="sidebar-footer">v${window.XCD.VERSION}</div>
+        </nav>
+        <div id="main">
+          <div id="topbar">
+            <div class="date-chip">
+              <strong>${Utils.formatDate(game.week, game.year)}</strong>
+              <span class="phase-pill">${game.seasonPhase}</span>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn primary" id="btn-advance-week">Advance Week ▸</button>
+            </div>
+          </div>
+          <div id="screen-container"></div>
+        </div>
+      </div>`;
+
+    root.querySelectorAll('[data-nav]').forEach((btn) => {
+      btn.addEventListener('click', () => UI.navigate(btn.dataset.nav));
+    });
+
+    document.getElementById('btn-advance-week').addEventListener('click', async () => {
+      game.advanceWeek();
+      try {
+        await window.XCD.engine.SaveManager.autoSave(game);
+      } catch (err) {
+        UI.toast('Autosave failed: ' + err.message, 'error');
+      }
+      UI.renderShell();
+      UI.toast(`Advanced to ${Utils.formatDate(game.week, game.year)}`, 'success', 1800);
+    });
+
+    const container = document.getElementById('screen-container');
+    const screen = UI.screens[UI.state.currentScreen] || UI.screens.dashboard;
+    container.innerHTML = '';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'screen';
+    container.appendChild(wrapper);
+    screen.render(wrapper);
+  };
+})();
