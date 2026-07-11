@@ -10,7 +10,19 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
-## Current Status — Phase 5 (Portal, Redshirts, News, Awards, History)
+## Version 1.0 — All Six Phases Complete
+
+The full dynasty loop is playable indefinitely: recruit → train → race → manage → develop → offseason → repeat, for 100+ seasons.
+
+### Phase 6 (Polish, Finances, Balancing)
+
+- **Facilities & finances**: upgrade all 8 facilities from a facilities fund that refills yearly and swells with championships; a once-a-year booster fundraiser scales with prestige and coach charisma; all 353 AI programs invest in their weakest facilities every offseason; budgets track prestige over time.
+- **Dashboard v2**: poll positions with weekly movement, trophy case, next-race card with conditions, and a Coach's Desk that flags injuries, over-fatigued squads, low morale, and portal departures.
+- **Sim to Race**: one click simulates ahead to your next race day and drops you into the broadcast.
+- **Balancing (10-season audit)**: 8 distinct national champions per decade, stable rating distributions (no inflation), ~5% injury rate, realistic winning times, Hall of Fame tightened to a few legends per class, offseason fatigue equilibrium tuned.
+- **Polish**: integer stat displays, race-center auto-gender fix, focus rings, hover states, animated transitions.
+
+### Phase 5 (Portal, Redshirts, News, Awards, History)
 
 - **Transfer portal**: after nationals, unhappy athletes enter with real reasons (playing time, coach departures, homesickness, prestige, facilities, academics, NIL, morale). AI programs make offers; athletes pick by fit; the player can pursue up to 3 transfers per cycle. Moves execute at the year rollover.
 - **Redshirts**: true redshirts (preseason choice, blocked once a runner has raced) and automatic medical redshirts for season-ending injuries — both preserve the year of eligibility inside the NCAA five-year clock. AI programs redshirt raw freshmen too.
@@ -19,7 +31,7 @@ Open `index.html` in any modern browser. That's it.
 - **Coach carousel**: hot seats build for underperforming AI coaches (fired after sustained failure), retirements continue, and roster exodus can follow a coaching change.
 - **History & Hall of Fame**: career ledger for your coaching résumé, season-by-season results, every champion, every award, all-time records, and a Hall of Fame that enshrines legendary careers at graduation.
 
-## Phase 4 (Races, Rankings, Championships, Stats)
+### Phase 4 (Races, Rankings, Championships, Stats)
 
 - **Full season schedule**: 5 invitationals (weeks 5/7/9/11/13, ~20-team fields covering all 354 schools), conference championships (wk 16), 8 regionals (wk 19), and the NCAA Championships (wk 21).
 - **Segment-based race simulation**: 8-leg races with adrenaline starts, hill segments, late-race fade vs. stamina/toughness, finishing kicks, pack-running drafting, day-form variance by consistency, and course conditions (heat/cold/rain/altitude/hills) filtered through each runner's ratings and preferences. Readiness from the training engine feeds directly into race performance.
@@ -29,7 +41,7 @@ Open `index.html` in any modern browser. That's it.
 - **Rankings**: weekly national/regional/conference team polls (strength + quality-weighted results), individual and freshman rankings.
 - **Stats**: career races/wins/top-5s and PRs on every player card, school record boards, all-time national records with news coverage.
 
-## Phase 3 (Training, Development, Fatigue, Injuries)
+### Phase 3 (Training, Development, Fatigue, Injuries)
 
 - **Weekly training plans** per squad: 10 workout types (mileage, intervals, tempo, long run, hills, strength, cross training, easy runs, recovery weeks, rest) with primary/secondary emphasis and three intensity levels; per-athlete load overrides (normal/reduced/rest).
 - **Development engine**: every athlete in the world develops weekly from coach development rating, facilities, potential gap, work ethic, coachability, morale, fatigue, age, and academics — routed into the specific attributes your plan trains. Hidden archetypes create early bloomers, late bloomers, and busts; stars plateau near their ceiling.
@@ -37,7 +49,7 @@ Open `index.html` in any modern browser. That's it.
 - **Injury system**: eight injury types with severity ranges, influenced by fatigue, injury resistance, durability, and plan risk; rehab time shortened by recovery facilities; injured runners rehab automatically and return.
 - **Training screen**: plan editor with live load preview, squad monitor (weekly/seasonal development deltas, fitness/fatigue/readiness/morale meters), and a program-wide injury report. AI programs train too, with plans derived from coach personality and the season calendar.
 
-## Phase 2 (Recruiting)
+### Phase 2 (Recruiting)
 
 - **National recruiting classes**: 2,400 new recruits per year (HS, JUCO, and international) with star ratings, national/state/regional rankings, hidden motivations, importance priorities, parents' influence, and decision timelines.
 - **Nine recruiting actions** (letters, calls, race scouting, assistant/home/campus visits, overnights, team meets, scholarship offers) with a weekly points economy and an annual dollar budget.
@@ -45,7 +57,7 @@ Open `index.html` in any modern browser. That's it.
 - **Living market**: all 353 AI programs build boards in their talent range with regional bias, push relationships weekly, and offer scholarships; recruits commit on their own timelines, flip, decommit, and rise late.
 - **Signing day** (week 24) locks classes, publishes national class rankings, and signees enroll as freshmen at the year rollover (JUCOs as sophomores).
 
-## Phase 1 (Foundation)
+### Phase 1 (Foundation)
 
 - **World generation**: 354 D1 schools across 31 real conferences, each with prestige, academics, campus appeal, facilities (8 types), budgets, weather/altitude profiles, program history, and in-state rivalries. Seeded RNG makes worlds reproducible.
 - **Coaches**: every school has an AI head coach with 8 ratings and a personality; coaches age and retire, and schools hire replacements.
@@ -67,6 +79,3 @@ js/ui/                UI framework (routing, tables, modals, toasts)
 js/ui/screens/        menu, dashboard, roster, program, world, news, saves
 ```
 
-## Roadmap
-
-- **Phase 6**: polish, animations, optimization, balancing, bug fixes

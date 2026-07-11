@@ -56,12 +56,26 @@
 
         <div class="card">
           <h2>Facilities — Overall ${school.facilitiesOverall}</h2>
-          ${Object.entries(FACILITY_LABELS).map(([key, label]) => `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-size:13px; color:var(--text-dim);">Facilities Fund: <strong style="color:var(--text);">$${school.budget.facilitiesFund.toLocaleString()}</strong></span>
+            <button class="btn small primary" id="btn-fundraise" ${game.fundraisedYear === game.year ? 'disabled title="Boosters already gave this year"' : ''}>💰 Fundraise</button>
+          </div>
+          ${Object.entries(FACILITY_LABELS).map(([key, label]) => {
+            const level = school.facilities[key];
+            const cost = window.XCD.engine.Finances.upgradeCost(level);
+            const afford = school.budget.facilitiesFund >= cost && level < 99;
+            return `
             <div class="attr-row" style="margin-bottom:6px;">
-              <span class="attr-name" style="min-width:140px;">${label}</span>
-              <div style="flex:1; margin:0 10px;">${UI.meter(school.facilities[key])}</div>
-              <span style="font-weight:700; font-size:12.5px;">${school.facilities[key]}</span>
-            </div>`).join('')}
+              <span class="attr-name" style="min-width:128px;">${label}</span>
+              <div style="flex:1; margin:0 10px;">${UI.meter(level)}</div>
+              <span style="font-weight:700; font-size:12.5px; min-width:24px;">${level}</span>
+              <button class="btn small" data-upg="${key}" ${afford ? '' : `disabled title="${level >= 99 ? 'World-class' : 'Costs $' + cost.toLocaleString()}"`}
+                style="margin-left:8px;" title="Upgrade +${window.XCD.engine.Finances.UPGRADE_STEP} for $${cost.toLocaleString()}">▲ $${Math.round(cost / 1000)}k</button>
+            </div>`;
+          }).join('')}
+          <div style="font-size:12px; color:var(--text-faint); margin-top:6px;">
+            Facilities boost development and recruiting. The fund refills each year — faster when you win.
+          </div>
         </div>
       </div>
 
@@ -99,6 +113,22 @@
             : '<div style="color:var(--text-dim); font-size:13px;">No records on the books yet — race!</div>'}
         </div>
       </div>`;
+
+    container.querySelectorAll('[data-upg]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const result = window.XCD.engine.Finances.upgradeFacility(game, school.id, btn.dataset.upg);
+        UI.toast(result.message, result.ok ? 'success' : 'error');
+        if (result.ok) render(container);
+      });
+    });
+    const fundBtn = container.querySelector('#btn-fundraise');
+    if (fundBtn) {
+      fundBtn.addEventListener('click', () => {
+        const result = window.XCD.engine.Finances.fundraise(game);
+        UI.toast(result.message, result.ok ? 'success' : 'error');
+        if (result.ok) render(container);
+      });
+    }
   }
 
   UI.screens.school = { render };

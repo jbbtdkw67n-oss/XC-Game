@@ -288,7 +288,10 @@
         if (assistant) assistant.age += 1;
       });
 
-      // 5) A brand-new national recruiting class appears.
+      // 5) Budgets refresh, boosters reward success, AI programs build.
+      window.XCD.engine.Finances.yearlyRefresh(this, rng);
+
+      // 5b) A brand-new national recruiting class appears.
       window.XCD.engine.Recruiting.resetForNewYear(this, rng);
 
       // 6) Season development counters reset; stale training overrides clear.
@@ -340,7 +343,8 @@
         rankings: this.rankings,
         lastPlayerMeetId: this.lastPlayerMeetId,
         portal: this.portal,
-        career: this.career
+        career: this.career,
+        fundraisedYear: this.fundraisedYear || null
       };
     }
 

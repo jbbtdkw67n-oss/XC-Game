@@ -168,7 +168,8 @@
     const h = athlete.honors || { allAmerican: 0, natChamp: 0, confChamp: 0, awards: [] };
     const score = athlete.careerStats.wins * 3 + athlete.careerStats.top5 +
       h.allAmerican * 8 + h.natChamp * 20 + h.confChamp * 4;
-    if (score < 42) return false;
+    // High bar: roughly multi-time All-Americans / champions only (~2-4 per class).
+    if (score < 70) return false;
     const school = gameState.getSchool(athlete.schoolId);
     gameState.history.hallOfFame = gameState.history.hallOfFame || [];
     gameState.history.hallOfFame.push({

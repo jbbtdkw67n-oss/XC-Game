@@ -35,7 +35,7 @@
     else if (week <= 4) { primary = 'mileage'; secondary = 'strength'; }               // summer base
     else if (week <= 14) { primary = 'intervals'; secondary = 'tempo'; }               // in-season
     else if (week <= 22) { primary = 'tempo'; secondary = 'easy'; intensity = 1; }     // championship taper
-    else { primary = 'mileage'; secondary = 'cross'; }                                 // offseason
+    else { primary = 'mileage'; secondary = 'cross'; intensity = 1; }                  // offseason: easy base
 
     if (coach) {
       if (coach.personality === 'Distance Specialist') { primary = week <= 14 && !MEET_WEEKS.has(week) ? 'longRun' : primary; }
@@ -171,10 +171,10 @@
 
     const before = athlete.currentOverall;
 
-    // Fatigue & fitness
+    // Fatigue & fitness (integers keep every display clean)
     const recoveryRate = 4 + athlete.recovery / 18 + school.facilities.recoveryCenter / 40;
-    athlete.fatigue = Utils.clamp(athlete.fatigue + planMeta.fatigue - recoveryRate, 0, 100);
-    athlete.fitness = Utils.clamp(athlete.fitness + planMeta.fitness - 1.8, 0, 100);
+    athlete.fatigue = Math.round(Utils.clamp(athlete.fatigue + planMeta.fatigue - recoveryRate, 0, 100));
+    athlete.fitness = Math.round(Utils.clamp(athlete.fitness + planMeta.fitness - 1.8, 0, 100));
 
     // Development
     athlete.devProgress = (athlete.devProgress || 0) + devPoints(athlete, coach, school, planMeta, rng);

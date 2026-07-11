@@ -22,6 +22,12 @@
     const game = UI.state.game;
     const meet = game.lastPlayerMeetId && game.season.meets[game.lastPlayerMeetId];
 
+    // If only one gender raced (e.g. a single squad made nationals), show it.
+    if (meet && !meet.results[activeGender]) {
+      const other = activeGender === 'M' ? 'W' : 'M';
+      if (meet.results[other]) activeGender = other;
+    }
+
     if (!meet || !meet.results[activeGender]) {
       container.innerHTML = `
         <div class="screen-header"><h1>Race Center</h1></div>

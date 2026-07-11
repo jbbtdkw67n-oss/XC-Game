@@ -214,6 +214,12 @@
               <span class="phase-pill">${game.seasonPhase}</span>
             </div>
             <div style="display:flex; gap:8px;">
+              ${(() => {
+                const s = game.season;
+                const racingNow = s && (s.playerMeetByWeek[game.week] ||
+                  (game.week === s.nationalWeek && (s.nationalsFieldIds.M?.includes(game.playerSchoolId) || s.nationalsFieldIds.W?.includes(game.playerSchoolId))));
+                return racingNow ? '' : '<button class="btn" id="btn-sim-race" title="Simulate weeks until your next race day">⏩ Sim to Race</button>';
+              })()}
               <button class="btn primary" id="btn-advance-week">${(() => {
                 const s = game.season;
                 if (!s) return 'Advance Week ▸';
@@ -247,6 +253,30 @@
       UI.renderShell();
       UI.toast(`Advanced to ${Utils.formatDate(game.week, game.year)}`, 'success', 1800);
     });
+
+    const simBtn = document.getElementById('btn-sim-race');
+    if (simBtn) {
+      simBtn.addEventListener('click', async () => {
+        // Advance until a week in which our team raced (guard: ~1.2 years).
+        let raced = false;
+        for (let i = 0; i < 40 && !raced; i++) {
+          const wk = game.week;
+          const s = game.season;
+          const hadMeet = s && (s.playerMeetByWeek[wk] ||
+            (wk === s.nationalWeek && (s.nationalsFieldIds.M?.includes(game.playerSchoolId) || s.nationalsFieldIds.W?.includes(game.playerSchoolId))));
+          game.advanceWeek();
+          if (hadMeet) raced = true;
+        }
+        try {
+          await window.XCD.engine.SaveManager.autoSave(game);
+        } catch (err) {
+          UI.toast('Autosave failed: ' + err.message, 'error');
+        }
+        if (raced) UI.state.currentScreen = 'racecenter';
+        UI.renderShell();
+        UI.toast(`Simulated ahead to ${Utils.formatDate(game.week, game.year)}`, 'success', 2200);
+      });
+    }
 
     const container = document.getElementById('screen-container');
     const screen = UI.screens[UI.state.currentScreen] || UI.screens.dashboard;
