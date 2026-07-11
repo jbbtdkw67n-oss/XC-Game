@@ -201,6 +201,6 @@
     CLASS_SIZE_PER_GENDER: 1200,
     SIGNING_WEEK: 12,       // national signing day (offseason)
     EARLY_COMMIT_WEEK: 2,   // earliest anyone verbals
-    AI_SIGNEES_TARGET: 4    // roster spots AI schools try to fill per gender
+    AI_SIGNEES_TARGET: 5    // roster spots AI schools try to fill per gender
   };
 })();

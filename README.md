@@ -10,6 +10,25 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 2.0 — Update 1: The Simulation Overhaul
+
+A ground-up gameplay overhaul: dynamic racing, a real weekly training planner, six core athlete ratings, a four-rating coach system with archetypes and progression, facilities that matter, and a tight 14-week yearly rhythm.
+
+### Update 1 highlights
+
+- **Live races that breathe**: a segment-by-segment race engine with pack formation, mid-race surges, lactate-threshold pace holding, energy reserves, late-race fades, and a final-800m kick. The Race Center broadcasts it all with a live event feed and position-movement arrows — runners genuinely pass each other all race long.
+- **The new season**: Wk 1 Meet · Wk 2 Training · Wk 3 Meet · Wk 4 Training · Wk 5 **Pre-Nationals** (elite field + invited mid-majors) · Wk 6 Training · Wk 7 Meet · Wk 8 Conference · Wk 9 Regionals · Wk 10 Nationals · Wk 11-14 Offseason (awards, portal, signing day). New seasons always open on the Dashboard.
+- **Weekly training planner**: assign one of seven workouts (Easy Run, Recovery Run, Long Run, Tempo, Hills, Intervals, Speed Development) to every day, Monday-Sunday. Balanced weeks develop athletes fastest; stacked hard days cause overtraining, fatigue, and injuries.
+- **Six core ratings**: VO₂ Max, Running Economy, Stamina, Injury Resistance, Lactate Threshold, Speed. Each workout trains specific ratings; races are computed straight from them (no more per-distance abilities).
+- **Coach creation & progression**: every dynasty starts by creating a coach — name, portrait, and one of four archetypes (Recruiter, Developer, Tactician, Players Coach). Coaches have exactly four ratings — Recruiting, Training, Peaking, Culture — and earn upgrade points from titles, champions, All-Americans, top classes, and beating expectations.
+- **The weekly coaching rhythm**: every week you plan training → recruit → advance, in that order, tracked in the top bar.
+- **Facilities with teeth**: recruiting pull, development speed, training effectiveness, recovery, injury prevention, and long-run prestige all flow from your buildings.
+- **14 + 14 rosters**: every program always fields 14 men and 14 women; shortfalls fill with weak walk-ons — and about 1 in 1,000 walk-ons is a secret future legend.
+- **True NCAA qualifying**: top-2 teams per regional plus at-larges make the 31-team Nationals field, and the top-10 regional finishers not on qualifying teams race Nationals as individuals.
+- **Fixed**: the World → Conferences crash in Safari (the filter no longer rebuilds the screen mid-dropdown-dismiss).
+
+Automated end-to-end tests live in `tests/` (Playwright; see `tests/README.md`), including a 20-season stress simulation.
+
 ## Version 1.1 — Career Mode & Team Culture
 
 The full dynasty loop is playable indefinitely: recruit → train → race → manage → develop → offseason → repeat, for 100+ seasons.

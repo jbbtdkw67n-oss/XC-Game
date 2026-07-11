@@ -207,8 +207,8 @@
   function baseTime(rating, gender, distanceM) {
     const km = distanceM / 1000;
     const perKm = gender === 'M'
-      ? (1800 - 5.2 * rating) / 8    // anchored at 8K
-      : (1500 - 3.4 * rating) / 6;   // anchored at 6K
+      ? (1800 - 4.6 * rating) / 8    // anchored at 8K (~23:00 elite)
+      : (1500 - 3.2 * rating) / 6;   // anchored at 6K (~19:45 elite)
     return perKm * km;
   }
 
