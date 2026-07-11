@@ -10,12 +10,24 @@
   const D = window.XCD.data;
   const Utils = window.XCD.core.Utils;
 
-  const RACE_WEEKS = [5, 7, 9, 11, 13];
-  const CONFERENCE_WEEK = 16;
-  const REGIONAL_WEEK = 19;
-  const NATIONAL_WEEK = 21;
+  /*
+   * The standard season (every year):
+   *   Wk 1 Regular Season Meet · Wk 2 Training · Wk 3 Regular Season Meet
+   *   Wk 4 Training · Wk 5 Pre-Nationals (elite + invited mid-majors;
+   *   everyone else runs a normal invitational) · Wk 6 Training
+   *   Wk 7 Regular Season Meet · Wk 8 Conference · Wk 9 Regionals
+   *   Wk 10 Nationals. Weeks 11-14 are the offseason (awards, portal,
+   *   signing day) before the year rolls over.
+   */
+  const RACE_WEEKS = [1, 3, 7];
+  const PRENATS_WEEK = 5;
+  const CONFERENCE_WEEK = 8;
+  const REGIONAL_WEEK = 9;
+  const NATIONAL_WEEK = 10;
   const SEGMENTS = 8;
   const NATIONALS_FIELD = 31;
+  const PRENATS_ELITE = 36;      // top-prestige programs auto-invited
+  const PRENATS_CAP = 60;        // field cap including mid-major invites
 
   /* ================================================================ *
    * Season schedule
@@ -23,22 +35,25 @@
   function newSeason(gameState, rng) {
     const season = {
       year: gameState.year,
-      raceWeeks: RACE_WEEKS.slice(),
+      raceWeeks: [...RACE_WEEKS, PRENATS_WEEK].sort((a, b) => a - b),
+      prenatsWeek: PRENATS_WEEK,
       conferenceWeek: CONFERENCE_WEEK,
       regionalWeek: REGIONAL_WEEK,
       nationalWeek: NATIONAL_WEEK,
       meets: {},
       byWeek: {},
       playerMeetByWeek: {},
-      nationalsFieldIds: { M: null, W: null } // set after regionals
+      nationalsFieldIds: { M: null, W: null }, // set after regionals
+      individualQualifiers: { M: [], W: [] }   // top-10 regional finishers not on qualifying teams
     };
 
     const schoolIds = gameState.world.schoolOrder.slice();
 
-    RACE_WEEKS.forEach((week) => {
-      const shuffled = rng.shuffle(schoolIds);
-      const meetCount = Math.ceil(shuffled.length / 20);
-      season.byWeek[week] = [];
+    // Groups a set of schools into ~20-team invitationals for one week.
+    function scheduleInvitationals(week, ids) {
+      const shuffled = rng.shuffle(ids);
+      const meetCount = Math.max(1, Math.ceil(shuffled.length / 20));
+      season.byWeek[week] = season.byWeek[week] || [];
       for (let i = 0; i < meetCount; i++) {
         const group = shuffled.filter((_, idx) => idx % meetCount === i);
         if (!group.length) continue;
@@ -54,7 +69,40 @@
         season.byWeek[week].push(meet.id);
         if (group.includes(gameState.playerSchoolId)) season.playerMeetByWeek[week] = meet.id;
       }
-    });
+    }
+
+    RACE_WEEKS.forEach((week) => scheduleInvitationals(week, schoolIds));
+
+    // --- Week 5: Pre-Nationals -----------------------------------------
+    // Elite programs are auto-invited; mid-majors occasionally get the call;
+    // everyone else runs a regular invitational the same week.
+    {
+      const byPrestige = schoolIds
+        .map((id) => gameState.getSchool(id))
+        .sort((a, b) => b.prestige - a.prestige);
+      const field = byPrestige.slice(0, PRENATS_ELITE).map((s) => s.id);
+      for (const s of byPrestige.slice(PRENATS_ELITE)) {
+        if (field.length >= PRENATS_CAP) break;
+        // Mid-major invites: stronger programs are likelier to hear back.
+        const tierChance = s.conferenceTier <= 2 ? 0.30 : s.conferenceTier === 3 ? 0.12 : 0.05;
+        if (rng.bool(tierChance)) field.push(s.id);
+      }
+      const host = gameState.getSchool(field[0]);
+      const prenats = buildMeet(gameState, rng, {
+        week: PRENATS_WEEK,
+        name: 'Pre-Nationals',
+        hostId: host.id,
+        schoolIds: field,
+        type: 'prenats'
+      });
+      season.meets[prenats.id] = prenats;
+      season.byWeek[PRENATS_WEEK] = [prenats.id];
+      season.prenatsMeetId = prenats.id;
+      if (field.includes(gameState.playerSchoolId)) season.playerMeetByWeek[PRENATS_WEEK] = prenats.id;
+
+      const rest = schoolIds.filter((id) => !field.includes(id));
+      scheduleInvitationals(PRENATS_WEEK, rest);
+    }
 
     // Conference championships
     const byConference = {};
@@ -119,7 +167,7 @@
 
   function buildMeet(gameState, rng, base) {
     const host = gameState.getSchool(base.hostId);
-    const distances = base.week >= CONFERENCE_WEEK
+    const distances = (base.week >= CONFERENCE_WEEK || base.type === 'prenats')
       ? { M: 8000, W: 6000 }
       : { M: 8000, W: 5000 };
     if (base.type === 'national') distances.M = 10000;
@@ -541,6 +589,10 @@
     window.XCD.engine.Rankings.compute(gameState);
   }
 
+  function isRaceWeek(season, week) {
+    return !!(season.byWeek[week] && season.byWeek[week].length);
+  }
+
   function buildNationalsFieldIfNeeded(gameState) {
     const season = gameState.season;
     if (!season.nationalsFieldIds.M || !season.nationalsFieldIds.M.length) {
@@ -569,7 +621,9 @@
     raceRating,
     formatTime,
     distKey,
+    isRaceWeek,
     RACE_WEEKS,
+    PRENATS_WEEK,
     CONFERENCE_WEEK,
     REGIONAL_WEEK,
     NATIONAL_WEEK,

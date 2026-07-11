@@ -9,7 +9,7 @@
 (function () {
   const Utils = window.XCD.core.Utils;
 
-  const OFFER_EXPIRY_WEEK = 27;
+  const OFFER_EXPIRY_WEEK = 13;
 
   /* ---------------- Player job offers ---------------- */
   function bestPlayerRank(gameState) {

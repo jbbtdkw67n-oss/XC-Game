@@ -125,9 +125,9 @@
     }
 
     const decisionStyleRoll = rng.next();
-    const decisionWeek = decisionStyleRoll < 0.2 ? rng.int(D.RECRUITING.EARLY_COMMIT_WEEK, 9)
-      : decisionStyleRoll < 0.7 ? rng.int(10, 18)
-      : rng.int(19, D.RECRUITING.SIGNING_WEEK);
+    const decisionWeek = decisionStyleRoll < 0.2 ? rng.int(D.RECRUITING.EARLY_COMMIT_WEEK, 5)
+      : decisionStyleRoll < 0.7 ? rng.int(6, 9)
+      : rng.int(10, D.RECRUITING.SIGNING_WEEK);
 
     const firstName = gender === 'M' ? rng.choice(D.FIRST_NAMES_M) : rng.choice(D.FIRST_NAMES_W);
 
@@ -545,7 +545,7 @@
       if (rec.signed) continue;
 
       // Late risers: a hidden breakout fires mid-season and bumps ratings.
-      if (rec.breakout && !rec.breakoutFired && week >= 8 && week <= 18 && rng.bool(0.12)) {
+      if (rec.breakout && !rec.breakoutFired && week >= 3 && week <= 9 && rng.bool(0.18)) {
         rec.breakoutFired = true;
         rec.potential = Utils.clamp(rec.potential + rng.int(5, 10), 25, 99);
         ['vo2Max', 'endurance', 'lactateThreshold', 'runningEconomy'].forEach((k) => {

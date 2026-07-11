@@ -1,6 +1,11 @@
 /*
  * World screen: browse all 350+ schools with search/filter/sort, view any
  * school's roster and coach.
+ *
+ * NOTE on the conference filter: WebKit (Safari) can crash if the <select>
+ * element is destroyed synchronously while its native dropdown is still
+ * dismissing. So a filter change must never rebuild the whole screen —
+ * only the table body is redrawn, and only after the event unwinds.
  */
 (function () {
   const UI = window.XCD.ui;
@@ -16,6 +21,7 @@
   }
 
   function showSchoolModal(game, school) {
+    if (!school) return;
     const coach = game.getCoach(school.coachId);
     const rosterM = game.getRoster(school.id, 'M').sort((a, b) => b.currentOverall - a.currentOverall);
     const rosterW = game.getRoster(school.id, 'W').sort((a, b) => b.currentOverall - a.currentOverall);
@@ -31,14 +37,14 @@
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
       <h2>${Utils.escapeHtml(school.name)}</h2>
       <div style="color:var(--text-dim); font-size:13px; margin-bottom:14px;">
-        ${Utils.escapeHtml(school.conference)} • ${school.region} • ${window.XCD.data.STATE_NAMES[school.state] || school.state}
+        ${Utils.escapeHtml(school.conference)} • ${school.region} • ${(window.XCD.data.STATE_NAMES || {})[school.state] || school.state}
         • Prestige ${school.prestige} • Facilities ${school.facilitiesOverall} • Academics ${school.academics}
       </div>
       <div class="card" style="padding:12px; margin-bottom:14px;">
         <h3>Head Coach</h3>
         <div class="attr-row">
           <span>${coach ? Utils.escapeHtml(coach.fullName) : 'Vacant'}</span>
-          <span class="attr-name">${coach ? `${Utils.escapeHtml(coach.personality)} • OVR ${coach.overallRating} • Age ${coach.age}` : ''}</span>
+          <span class="attr-name">${coach ? `${Utils.escapeHtml(coach.archetype || coach.personality || '')} • OVR ${coach.overallRating} • Age ${coach.age}` : ''}</span>
         </div>
       </div>
       <div class="grid cols-2">
@@ -53,20 +59,16 @@
       </div>
     `, (modal) => {
       modal.querySelectorAll('[data-ath]').forEach((tr) => {
-        tr.addEventListener('click', () => UI.showPlayerCard(game.getAthlete(tr.dataset.ath), game));
+        tr.addEventListener('click', () => {
+          const a = game.getAthlete(tr.dataset.ath);
+          if (a) UI.showPlayerCard(a, game);
+        });
       });
     });
   }
 
-  function render(container) {
-    const game = UI.state.game;
-    const schools = Object.values(game.world.schools);
-    const conferences = ['All', ...Object.keys(window.XCD.data.CONFERENCES)
-      .filter((c) => schools.some((s) => s.conference === c))
-      .sort()];
-
-    // Precompute display rows (strength computation is per-render, cached in row objects).
-    const rows = schools
+  function buildRows(game, schools) {
+    return schools
       .filter((s) => conferenceFilter === 'All' || s.conference === conferenceFilter)
       .map((s) => ({
         school: s,
@@ -79,44 +81,69 @@
         strengthW: teamStrength(game, s, 'W'),
         coachName: game.getCoach(s.coachId)?.fullName || 'Vacant'
       }));
+  }
+
+  function render(container) {
+    const game = UI.state.game;
+    const schools = Object.values(game.world.schools);
+    const conferences = ['All', ...[...new Set(schools.map((s) => s.conference))].sort()];
+    if (!conferences.includes(conferenceFilter)) conferenceFilter = 'All';
 
     container.innerHTML = `
       <div class="screen-header">
         <h1>World — ${schools.length} Schools</h1>
         <div class="actions">
           <select class="search-input" id="conf-filter" style="min-width:160px;">
-            ${conferences.map((c) => `<option value="${c}" ${c === conferenceFilter ? 'selected' : ''}>${c}</option>`).join('')}
+            ${conferences.map((c) => `<option value="${Utils.escapeHtml(c)}" ${c === conferenceFilter ? 'selected' : ''}>${Utils.escapeHtml(c)}</option>`).join('')}
           </select>
           <input class="search-input" id="world-search" placeholder="Search schools...">
         </div>
       </div>
       <div class="card"><div id="world-table"></div></div>`;
 
-    const table = UI.renderSortableTable(container.querySelector('#world-table'), {
-      rows,
-      defaultSort: 'prestige',
-      defaultDir: 'desc',
-      searchKeys: ['name', 'conference', 'state', 'coachName'],
-      onRowClick: (row) => showSchoolModal(game, row.school),
-      columns: [
-        {
-          key: 'name', label: 'School',
-          render: (r) => `<strong>${Utils.escapeHtml(r.name)}</strong>${r.school.id === game.playerSchoolId ? ' <span style="color:var(--accent);">★</span>' : ''}`
-        },
-        { key: 'conference', label: 'Conference' },
-        { key: 'state', label: 'State' },
-        { key: 'prestige', label: 'Prestige', numeric: true, render: (r) => UI.ratingBadge(r.prestige) },
-        { key: 'strengthM', label: "Men", numeric: true, render: (r) => UI.ratingBadge(r.strengthM) },
-        { key: 'strengthW', label: "Women", numeric: true, render: (r) => UI.ratingBadge(r.strengthW) },
-        { key: 'facilities', label: 'Facilities', numeric: true },
-        { key: 'coachName', label: 'Head Coach' }
-      ]
+    let query = '';
+
+    // Draws (or redraws) only the table; the header + filter select stay put.
+    function drawTable() {
+      const tableEl = container.querySelector('#world-table');
+      if (!tableEl) return; // navigated away
+      const table = UI.renderSortableTable(tableEl, {
+        rows: buildRows(game, schools),
+        defaultSort: 'prestige',
+        defaultDir: 'desc',
+        searchKeys: ['name', 'conference', 'state', 'coachName'],
+        onRowClick: (row) => showSchoolModal(game, row.school),
+        columns: [
+          {
+            key: 'name', label: 'School',
+            render: (r) => `<strong>${Utils.escapeHtml(r.name)}</strong>${r.school.id === game.playerSchoolId ? ' <span style="color:var(--accent);">★</span>' : ''}`
+          },
+          { key: 'conference', label: 'Conference' },
+          { key: 'state', label: 'State' },
+          { key: 'prestige', label: 'Prestige', numeric: true, render: (r) => UI.ratingBadge(r.prestige) },
+          { key: 'strengthM', label: "Men", numeric: true, render: (r) => UI.ratingBadge(r.strengthM) },
+          { key: 'strengthW', label: "Women", numeric: true, render: (r) => UI.ratingBadge(r.strengthW) },
+          { key: 'facilities', label: 'Facilities', numeric: true },
+          { key: 'coachName', label: 'Head Coach' }
+        ]
+      });
+      if (query) table.setQuery(query);
+      return table;
+    }
+
+    let table = drawTable();
+
+    container.querySelector('#world-search').addEventListener('input', (e) => {
+      query = e.target.value;
+      if (table) table.setQuery(query);
     });
 
-    container.querySelector('#world-search').addEventListener('input', (e) => table.setQuery(e.target.value));
     container.querySelector('#conf-filter').addEventListener('change', (e) => {
       conferenceFilter = e.target.value;
-      render(container);
+      // Defer the redraw so the select's native menu fully dismisses first
+      // (synchronously touching the DOM here crashes Safari), and never
+      // rebuild the select itself.
+      setTimeout(() => { table = drawTable(); }, 0);
     });
   }
 

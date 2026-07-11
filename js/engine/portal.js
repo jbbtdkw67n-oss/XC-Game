@@ -15,8 +15,9 @@
   const Utils = window.XCD.core.Utils;
   const D = window.XCD.data;
 
-  const ENTRY_WEEK = 23;
-  const DECISION_WEEK = 29;
+  const ENTRY_WEEK = 11;      // the week after nationals
+  const DECISION_WEEK = 13;   // portal closes before the year rolls over
+  const SEASON_END_WEEK = 10; // nationals week
   const PLAYER_OFFER_LIMIT = 3;
 
   /* ================================================================ *
@@ -29,7 +30,7 @@
   function canRedshirt(gameState, athlete) {
     if (athlete.redshirt !== 'None') return { ok: false, why: 'Redshirt already used or active.' };
     if (athlete.seasonRaces > 0) return { ok: false, why: 'Has already raced this season.' };
-    if (gameState.week > 14) return { ok: false, why: 'Too late in the season.' };
+    if (gameState.week > 6) return { ok: false, why: 'Too late in the season.' };
     if (athlete.yearsOnCampus >= 5) return { ok: false, why: 'Five-year clock expired.' };
     return { ok: true };
   }
@@ -70,10 +71,10 @@
 
   // Season-ending injuries earn a medical redshirt (keeps the year).
   function medicalRedshirtScan(gameState) {
-    if (gameState.week < 5 || gameState.week > 21) return;
+    if (gameState.week < 2 || gameState.week > SEASON_END_WEEK) return;
     Object.values(gameState.world.athletes).forEach((a) => {
       if (!a.injury || a.redshirt !== 'None' || a.seasonRaces > 2) return;
-      if (a.injury.totalWeeks >= 5 && gameState.week + a.injury.weeksRemaining > 21) {
+      if (a.injury.totalWeeks >= 4 && gameState.week + a.injury.weeksRemaining > SEASON_END_WEEK) {
         a.redshirt = 'Medical';
         if (a.schoolId === gameState.playerSchoolId) {
           gameState.logNews(`${a.fullName} is granted a medical redshirt — the season is lost, but the year of eligibility is saved.`);
@@ -295,7 +296,7 @@
    * ================================================================ */
   function processWeek(gameState, rng) {
     const week = gameState.week;
-    if (week === 3) aiRedshirts(gameState, rng);
+    if (week === 2) aiRedshirts(gameState, rng);
     medicalRedshirtScan(gameState);
     if (week === ENTRY_WEEK) openPortal(gameState, rng);
     if (week > ENTRY_WEEK && week < DECISION_WEEK) {

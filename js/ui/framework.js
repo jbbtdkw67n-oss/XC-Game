@@ -250,6 +250,11 @@
       if (meet && meet.week === weekBefore && meet.results.M) {
         UI.state.currentScreen = 'racecenter';
       }
+      // A new season always starts on the Dashboard.
+      if (game.week < weekBefore) {
+        UI.state.currentScreen = 'dashboard';
+        UI.toast(`Welcome to the ${game.year} season!`, 'success', 2600);
+      }
       UI.renderShell();
       UI.toast(`Advanced to ${Utils.formatDate(game.week, game.year)}`, 'success', 1800);
     });
@@ -259,12 +264,14 @@
       simBtn.addEventListener('click', async () => {
         // Advance until a week in which our team raced (guard: ~1.2 years).
         let raced = false;
-        for (let i = 0; i < 40 && !raced; i++) {
+        let rolledOver = false;
+        for (let i = 0; i < 18 && !raced; i++) {
           const wk = game.week;
           const s = game.season;
           const hadMeet = s && (s.playerMeetByWeek[wk] ||
             (wk === s.nationalWeek && (s.nationalsFieldIds.M?.includes(game.playerSchoolId) || s.nationalsFieldIds.W?.includes(game.playerSchoolId))));
           game.advanceWeek();
+          if (game.week < wk) rolledOver = true;
           if (hadMeet) raced = true;
         }
         try {
@@ -273,6 +280,7 @@
           UI.toast('Autosave failed: ' + err.message, 'error');
         }
         if (raced) UI.state.currentScreen = 'racecenter';
+        if (rolledOver) UI.state.currentScreen = 'dashboard'; // new seasons start at home
         UI.renderShell();
         UI.toast(`Simulated ahead to ${Utils.formatDate(game.week, game.year)}`, 'success', 2200);
       });

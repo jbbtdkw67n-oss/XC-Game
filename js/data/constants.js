@@ -190,11 +190,11 @@
     { type: 'bust',   weight: 12 }   // never quite gets there
   ];
 
-  // Recruiting calendar (within the 34-week year)
+  // Recruiting calendar (within the 14-week year)
   D.RECRUITING = {
     CLASS_SIZE_PER_GENDER: 1200,
-    SIGNING_WEEK: 24,       // national signing day
-    EARLY_COMMIT_WEEK: 4,   // earliest anyone verbals
+    SIGNING_WEEK: 12,       // national signing day (offseason)
+    EARLY_COMMIT_WEEK: 2,   // earliest anyone verbals
     AI_SIGNEES_TARGET: 4    // roster spots AI schools try to fill per gender
   };
 })();

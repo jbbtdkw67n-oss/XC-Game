@@ -22,8 +22,8 @@
     return { intensity: 2, primary: 'mileage', secondary: 'strength' };
   }
 
-  // Weeks in which meets run (invites + championship rounds).
-  const MEET_WEEKS = new Set([5, 7, 9, 11, 13, 16, 19, 21]);
+  // Weeks in which meets run (invites + pre-nats + championship rounds).
+  const MEET_WEEKS = new Set([1, 3, 5, 7, 8, 9, 10]);
 
   // AI plan: personality picks the flavor, calendar picks the emphasis.
   // Race weeks are absorb-the-race weeks: light legs going in.
@@ -32,13 +32,11 @@
     let primary, secondary, intensity = 2;
 
     if (MEET_WEEKS.has(week)) { primary = 'easy'; secondary = 'tempo'; intensity = 1; } // race week: stay fresh
-    else if (week <= 4) { primary = 'mileage'; secondary = 'strength'; }               // summer base
-    else if (week <= 14) { primary = 'intervals'; secondary = 'tempo'; }               // in-season
-    else if (week <= 22) { primary = 'tempo'; secondary = 'easy'; intensity = 1; }     // championship taper
+    else if (week <= 10) { primary = 'intervals'; secondary = 'tempo'; }               // in-season
     else { primary = 'mileage'; secondary = 'cross'; intensity = 1; }                  // offseason: easy base
 
     if (coach) {
-      if (coach.personality === 'Distance Specialist') { primary = week <= 14 && !MEET_WEEKS.has(week) ? 'longRun' : primary; }
+      if (coach.personality === 'Distance Specialist') { primary = week <= 10 && !MEET_WEEKS.has(week) ? 'longRun' : primary; }
       if (coach.personality === 'Development Guru') { secondary = MEET_WEEKS.has(week) ? secondary : 'strength'; }
       if (!MEET_WEEKS.has(week)) {
         if (coach.discipline >= 75) intensity = Math.min(3, intensity + 1);

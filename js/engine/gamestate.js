@@ -12,14 +12,21 @@
   const M = window.XCD.models;
   const D = window.XCD.data;
 
-  const WEEKS_PER_YEAR = 34;
+  /*
+   * The standard year: a 10-week season (Wk 1-10) plus a 4-week offseason.
+   *   Wk 1 Meet · Wk 2 Training · Wk 3 Meet · Wk 4 Training ·
+   *   Wk 5 Pre-Nationals · Wk 6 Training · Wk 7 Meet ·
+   *   Wk 8 Conference · Wk 9 Regionals · Wk 10 Nationals ·
+   *   Wk 11-14 Offseason (awards, transfer portal, signing day).
+   */
+  const WEEKS_PER_YEAR = 14;
+  const AWARDS_WEEK = 11; // the week after nationals
   const SEASON_PHASES = [
-    { upTo: 4, label: 'Summer Training' },
-    { upTo: 14, label: 'Regular Season' },
-    { upTo: 17, label: 'Conference Championships' },
-    { upTo: 20, label: 'Regional Championships' },
-    { upTo: 22, label: 'National Championships' },
-    { upTo: 34, label: 'Offseason' }
+    { upTo: 7, label: 'Regular Season' },
+    { upTo: 8, label: 'Conference Championships' },
+    { upTo: 9, label: 'Regional Championships' },
+    { upTo: 10, label: 'National Championships' },
+    { upTo: 14, label: 'Offseason' }
   ];
 
   function phaseForWeek(week) {
@@ -185,7 +192,7 @@
       window.XCD.engine.Races.postWeekHousekeeping(this);
 
       // Awards ceremony the week after nationals; ADs start calling.
-      if (this.week === 22) {
+      if (this.week === AWARDS_WEEK) {
         window.XCD.engine.Awards.processPostNationals(this, rng);
         window.XCD.engine.Careers.generateOffers(this, rng);
       }
@@ -404,7 +411,11 @@
       gs.career.stops = gs.career.stops || [{ school: gs.getPlayerSchool().name, startYear: 2026 }];
       gs.culture = obj.culture || { captains: { M: [], W: [] } };
       gs.jobOffers = obj.jobOffers || null;
-      if (!gs.season || gs.season.year !== gs.year) {
+      // Saves from before the 14-week calendar: clamp into the new year shape
+      // and rebuild the season so every week reference is valid.
+      if (gs.week > WEEKS_PER_YEAR) gs.week = WEEKS_PER_YEAR;
+      if (!gs.season || gs.season.year !== gs.year ||
+          gs.season.nationalWeek !== window.XCD.engine.Races.NATIONAL_WEEK) {
         const seasonRng = new window.XCD.core.SeededRNG((gs.seed + gs.year * 977) >>> 0);
         window.XCD.engine.Races.newSeason(gs, seasonRng);
       }
