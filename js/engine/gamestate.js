@@ -61,10 +61,11 @@
         recruitingClasses: {} // year -> ranked class list
       };
 
-      // Weekly training plans for the player's squads + per-athlete loads.
+      // Weekly training plans: 7 workout keys (Mon-Sun) per squad,
+      // plus per-athlete load overrides.
       this.training = {
-        M: { intensity: 2, primary: 'mileage', secondary: 'strength' },
-        W: { intensity: 2, primary: 'mileage', secondary: 'strength' },
+        M: D.DEFAULT_WEEK_PLAN.slice(),
+        W: D.DEFAULT_WEEK_PLAN.slice(),
         overrides: {} // athleteId -> 'reduced' | 'rest'
       };
 
@@ -395,10 +396,13 @@
         board: { M: [], W: [] }, aiBoards: {}, classYear: null
       };
       gs.history = obj.history || { recruitingClasses: {} };
-      gs.training = obj.training || {
-        M: { intensity: 2, primary: 'mileage', secondary: 'strength' },
-        W: { intensity: 2, primary: 'mileage', secondary: 'strength' },
-        overrides: {}
+      // Day-planner training; saves from the old primary/secondary system
+      // fall back to the default balanced week.
+      const savedTraining = obj.training || {};
+      gs.training = {
+        M: Array.isArray(savedTraining.M) ? savedTraining.M : D.DEFAULT_WEEK_PLAN.slice(),
+        W: Array.isArray(savedTraining.W) ? savedTraining.W : D.DEFAULT_WEEK_PLAN.slice(),
+        overrides: savedTraining.overrides || {}
       };
       gs.season = obj.season || null;
       gs.rankings = obj.rankings || null;

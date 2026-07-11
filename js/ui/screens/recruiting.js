@@ -82,9 +82,9 @@
     }).join('');
 
     const physical = [
-      ['vo2Max', 'VO2 Max'], ['endurance', 'Endurance'], ['lactateThreshold', 'Lactate Thr.'],
-      ['rawSpeed', 'Raw Speed'], ['kickSpeed', 'Kick Speed'], ['runningEconomy', 'Economy'],
-      ['stamina', 'Stamina'], ['hillRunning', 'Hills'], ['mentalToughness', 'Toughness']
+      ['vo2Max', 'VO₂ Max'], ['runningEconomy', 'Economy'], ['stamina', 'Stamina'],
+      ['lactateThreshold', 'Lactate Thr.'], ['speed', 'Speed'], ['injuryResistance', 'Injury Res.'],
+      ['mentalToughness', 'Toughness'], ['raceIQ', 'Race IQ'], ['consistency', 'Consistency']
     ];
 
     const statusLine = rec.signed

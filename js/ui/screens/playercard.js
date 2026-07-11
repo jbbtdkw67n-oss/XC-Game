@@ -6,14 +6,8 @@
   const Utils = window.XCD.core.Utils;
 
   const PHYSICAL_ATTRS = [
-    ['vo2Max', 'VO2 Max'], ['lactateThreshold', 'Lactate Threshold'], ['endurance', 'Endurance'],
-    ['rawSpeed', 'Raw Speed'], ['kickSpeed', 'Kick Speed'], ['acceleration', 'Acceleration'],
-    ['runningEconomy', 'Running Economy'], ['strength', 'Strength'], ['recovery', 'Recovery'],
-    ['stamina', 'Stamina'], ['packRunning', 'Pack Running'], ['hillRunning', 'Hill Running'],
-    ['downhillRunning', 'Downhill Running'], ['trackSpeed', 'Track Speed'],
-    ['fiveKAbility', '5K Ability'], ['eightKAbility', '8K Ability'], ['tenKAbility', '10K Ability'],
-    ['weatherPerformance', 'Weather Perf.'], ['altitudePerformance', 'Altitude Perf.'],
-    ['injuryResistance', 'Injury Resist.'], ['durability', 'Durability']
+    ['vo2Max', 'VO₂ Max'], ['runningEconomy', 'Running Economy'], ['stamina', 'Stamina'],
+    ['lactateThreshold', 'Lactate Threshold'], ['speed', 'Speed'], ['injuryResistance', 'Injury Resistance']
   ];
 
   const MENTAL_ATTRS = [

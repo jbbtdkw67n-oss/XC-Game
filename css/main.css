@@ -426,3 +426,92 @@ table.data td.num, table.data th.num { text-align: right; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
 ::-webkit-scrollbar-thumb:hover { background: #38445a; }
+
+/* ---------------- Weekly training planner (Update 1) ---------------- */
+.week-planner {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+@media (max-width: 1100px) { .week-planner { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 640px) { .week-planner { grid-template-columns: repeat(2, 1fr); } }
+.day-slot {
+  background: var(--bg-inset, rgba(255,255,255,0.03));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.day-slot .day-name {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.day-select {
+  width: 100%;
+  background: var(--bg, #10151f);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 4px;
+  font-size: 12px;
+}
+.day-select.hard { border-color: var(--warning); }
+.day-slot .day-hint {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  line-height: 1.35;
+  min-height: 40px;
+}
+
+/* Weekly flow steps in the topbar */
+.flow-steps { display: flex; gap: 6px; align-items: center; }
+.flow-step {
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.flow-step.done { border-color: var(--success); color: var(--success); }
+.flow-step.current { border-color: var(--accent); color: var(--accent-hover); font-weight: 700; }
+
+/* Race center broadcast ticker */
+.race-ticker {
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.race-ticker .tick { color: var(--text-dim); padding: 1px 0; }
+.race-ticker .tick.hot { color: var(--warning); }
+.race-ticker .tick.mine { color: var(--accent-hover); font-weight: 600; }
+.pos-move { font-size: 10px; min-width: 26px; display: inline-block; }
+.pos-move.up { color: var(--success); }
+.pos-move.down { color: var(--danger); }
+
+/* Coach creation */
+.archetype-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 10px 0; }
+.archetype-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.archetype-card:hover { border-color: var(--accent); }
+.archetype-card.selected { border-color: var(--accent); background: var(--accent-soft); }
+.archetype-card .arch-name { font-weight: 700; margin-bottom: 4px; }
+.archetype-card .arch-desc { font-size: 12px; color: var(--text-dim); line-height: 1.4; }
+.portrait-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 2px; }
+.portrait-pick {
+  font-size: 22px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 10px; cursor: pointer; background: transparent;
+}
+.portrait-pick.selected { border-color: var(--accent); background: var(--accent-soft); }

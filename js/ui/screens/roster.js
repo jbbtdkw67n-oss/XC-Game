@@ -41,9 +41,9 @@
         { key: 'hometownState', label: 'From', render: (a) => `${Utils.escapeHtml(a.hometownCity)}, ${a.hometownState}` },
         { key: 'currentOverall', label: 'OVR', numeric: true, render: (a) => UI.ratingBadge(a.currentOverall) },
         { key: 'potential', label: 'POT', numeric: true, render: (a) => UI.ratingBadge(a.potential) },
-        { key: 'endurance', label: 'END', numeric: true, render: (a) => UI.ratingBadge(a.endurance) },
-        { key: 'rawSpeed', label: 'SPD', numeric: true, render: (a) => UI.ratingBadge(a.rawSpeed) },
-        { key: 'kickSpeed', label: 'KICK', numeric: true, render: (a) => UI.ratingBadge(a.kickSpeed) },
+        { key: 'vo2Max', label: 'VO₂', numeric: true, render: (a) => UI.ratingBadge(a.vo2Max) },
+        { key: 'stamina', label: 'STA', numeric: true, render: (a) => UI.ratingBadge(a.stamina) },
+        { key: 'speed', label: 'SPD', numeric: true, render: (a) => UI.ratingBadge(a.speed) },
         { key: 'fatigue', label: 'FTG', numeric: true, render: (a) => `<div style="min-width:60px;">${UI.meter(a.fatigue, a.fatigue > 70 ? 'red' : a.fatigue > 40 ? 'yellow' : 'green')}</div>` },
         { key: 'morale', label: 'MOR', numeric: true, render: (a) => `<div style="min-width:60px;">${UI.meter(a.morale, a.morale < 40 ? 'red' : a.morale < 65 ? 'yellow' : 'green')}</div>` },
         {

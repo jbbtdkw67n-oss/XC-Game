@@ -188,11 +188,19 @@
   /* ================================================================ *
    * Race simulation
    * ================================================================ */
+  /*
+   * Race rating from the six core physical ratings (plus a little mental
+   * makeup). Distance shifts the weights: longer races lean on Stamina,
+   * shorter races reward raw Speed.
+   */
   function raceRating(a, distanceM) {
-    const distKey = distanceM >= 9000 ? 'tenKAbility' : distanceM >= 7000 ? 'eightKAbility' : 'fiveKAbility';
-    return a.vo2Max * 0.16 + a.lactateThreshold * 0.13 + a.endurance * 0.13 + a.runningEconomy * 0.11 +
-      a.stamina * 0.09 + a[distKey] * 0.14 + a.mentalToughness * 0.06 + a.raceIQ * 0.05 +
-      a.kickSpeed * 0.05 + a.rawSpeed * 0.04 + a.consistency * 0.04;
+    const long = distanceM >= 9000;
+    const short = distanceM <= 6000;
+    const wStamina = long ? 0.22 : short ? 0.14 : 0.18;
+    const wSpeed = long ? 0.06 : short ? 0.14 : 0.10;
+    return a.vo2Max * 0.24 + a.lactateThreshold * 0.18 + a.runningEconomy * 0.17 +
+      a.stamina * wStamina + a.speed * wSpeed +
+      a.mentalToughness * 0.06 + a.raceIQ * 0.04 + a.consistency * 0.03;
   }
 
   // Rating -> total seconds for gender/distance, before conditions/noise.
@@ -204,12 +212,18 @@
     return perKm * km;
   }
 
-  function conditionsMultiplier(a, meet, gender) {
+  // How well an athlete handles hilly courses (hidden hill adaptation from
+  // Hills training + economy + strength-speed).
+  function hillAbility(a) {
+    return (a.hillAdaptation ?? 40) * 0.45 + a.runningEconomy * 0.35 + a.speed * 0.20;
+  }
+
+  function conditionsMultiplier(gameState, a, meet, gender) {
     const c = meet.conditions;
     let mult = 1;
 
-    // Heat & cold, softened by weather performance and climate preference
-    const weatherSkill = a.weatherPerformance / 100;
+    // Heat & cold: tough, consistent runners handle bad days better.
+    const weatherSkill = (a.mentalToughness * 0.6 + a.consistency * 0.4) / 100;
     if (c.tempF > 65) {
       let heat = (c.tempF - 65) * 0.0006 * (1.4 - weatherSkill);
       if (a.preferredClimate === 'Warm') heat *= 0.5;
@@ -221,15 +235,23 @@
     }
     if (c.rain) mult += 0.004 * (1.3 - weatherSkill);
 
-    // Altitude
-    if (c.altitude === 'High') mult += 0.022 * (1.5 - a.altitudePerformance / 100);
-    else if (c.altitude === 'Medium') mult += 0.008 * (1.5 - a.altitudePerformance / 100);
+    // Altitude: a big aerobic engine copes best up high.
+    if (c.altitude === 'High') mult += 0.020 * (1.5 - a.vo2Max / 100);
+    else if (c.altitude === 'Medium') mult += 0.007 * (1.5 - a.vo2Max / 100);
 
     // Readiness (training state) and morale
     const TE = window.XCD.engine.Training;
     const ready = TE.readiness(a);
     mult += Utils.clamp((62 - ready) * 0.00075, -0.008, 0.035);
     mult += Utils.clamp((65 - a.morale) * 0.0002, -0.004, 0.008);
+
+    // Peaking: a great tactician has athletes flying for championship races.
+    if (meet.type === 'conference' || meet.type === 'regional' || meet.type === 'national') {
+      const school = gameState.getSchool(a.schoolId);
+      const coach = school && gameState.getCoach(school.coachId);
+      const peaking = coach ? (coach.peaking ?? coach.raceStrategy ?? 55) : 55;
+      mult -= (peaking - 50) * 0.00016; // ±0.8% swing at the extremes
+    }
 
     return mult;
   }
@@ -261,31 +283,31 @@
     const hillFactor = meet.conditions.hilliness / 100;
     const runners = entries.map(({ athlete: a, schoolId }) => {
       const rating = raceRating(a, distanceM);
-      let total = baseTime(rating, gender, distanceM) * conditionsMultiplier(a, meet, gender);
+      let total = baseTime(rating, gender, distanceM) * conditionsMultiplier(gameState, a, meet, gender);
       // Team chemistry travels with the squad on race day (±~0.9%).
       const chem = gameState.getSchool(schoolId)?.chemistry?.[gender];
       if (chem !== undefined) total *= 1 + (55 - chem) * 0.0002;
-      // Course hills slow everyone; hill runners lose less.
-      total *= 1 + hillFactor * 0.03 * (1.35 - (a.hillRunning * 0.7 + a.strength * 0.3) / 100);
+      // Course hills slow everyone; hill-adapted runners lose less.
+      total *= 1 + hillFactor * 0.03 * (1.35 - hillAbility(a) / 100);
       // Day form: consistent runners have narrower swings.
       const swing = 0.016 * (1.45 - a.consistency / 100);
       total *= 1 + rng.gaussian(0, swing);
 
       // Segment pacing profile: fast start, mid steady, late fade vs toughness, kick.
       const fade = 0.012 * (1.5 - (a.stamina * 0.5 + a.mentalToughness * 0.5) / 70);
-      const kick = 0.030 * ((a.kickSpeed * 0.6 + a.trackSpeed * 0.25 + a.confidence * 0.15) / 100 - 0.5);
+      const kick = 0.030 * ((a.speed * 0.6 + a.runningEconomy * 0.25 + a.confidence * 0.15) / 100 - 0.5);
       const segTimes = [];
       const segBase = total / SEGMENTS;
       for (let s = 0; s < SEGMENTS; s++) {
         let t = segBase;
         if (s === 0) t *= 0.985;                        // adrenaline start
         if (s >= 5) t *= 1 + fade * (s - 4);            // the grind
-        if (hillSegs.has(s)) t *= 1 + hillFactor * 0.02 * (1.3 - a.hillRunning / 100);
+        if (hillSegs.has(s)) t *= 1 + hillFactor * 0.02 * (1.3 - hillAbility(a) / 100);
         if (s === SEGMENTS - 1) t *= 1 - Utils.clamp(kick, -0.02, 0.02); // finishing kick
         t *= 1 + rng.gaussian(0, 0.004 * (1.4 - a.consistency / 100));
         segTimes.push(t);
       }
-      return { athlete: a, schoolId, segTimes, cum: [], packBonus: a.packRunning };
+      return { athlete: a, schoolId, segTimes, cum: [], packBonus: a.raceIQ };
     });
 
     // Pack running: segment by segment, runners in groups tow each other.

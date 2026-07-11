@@ -148,12 +148,10 @@
       potential,
       peakOverall: potential,
 
-      vo2Max: statFor(), lactateThreshold: statFor(), endurance: statFor(), rawSpeed: statFor(),
-      kickSpeed: statFor(), acceleration: statFor(), runningEconomy: statFor(), strength: statFor(),
-      recovery: statFor(), stamina: statFor(), packRunning: statFor(), hillRunning: statFor(),
-      downhillRunning: statFor(), trackSpeed: statFor(), fiveKAbility: statFor(), eightKAbility: statFor(),
-      tenKAbility: statFor(), weatherPerformance: statFor(), altitudePerformance: statFor(),
-      injuryResistance: statFor(), durability: statFor(),
+      vo2Max: statFor(), lactateThreshold: statFor(), runningEconomy: statFor(),
+      stamina: statFor(), speed: statFor(),
+      injuryResistance: rng.gaussianRange(58, 14, 15, 99), // mostly innate, barely trainable
+      hillAdaptation: rng.gaussianRange(40, 12, 10, 85),
 
       fatigue: rng.int(5, 20),
       fitness: Math.round(Utils.clamp(statMean - rng.int(0, 15), 10, 90)),

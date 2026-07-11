@@ -162,12 +162,10 @@
       potential,
       peakOverall: potential,
 
-      vo2Max: statFor(), lactateThreshold: statFor(), endurance: statFor(), rawSpeed: statFor(),
-      kickSpeed: statFor(), acceleration: statFor(), runningEconomy: statFor(), strength: statFor(),
-      recovery: statFor(), stamina: statFor(), packRunning: statFor(), hillRunning: statFor(),
-      downhillRunning: statFor(), trackSpeed: statFor(), fiveKAbility: statFor(), eightKAbility: statFor(),
-      tenKAbility: statFor(), weatherPerformance: statFor(), altitudePerformance: statFor(),
-      injuryResistance: statFor(), durability: statFor(),
+      vo2Max: statFor(), lactateThreshold: statFor(), runningEconomy: statFor(),
+      stamina: statFor(), speed: statFor(),
+      injuryResistance: rng.gaussianRange(58, 14, 15, 99),
+      hillAdaptation: rng.gaussianRange(38, 12, 10, 80),
 
       fatigue: rng.int(0, 15),
       fitness: Math.round(Utils.clamp(statMean - rng.int(0, 10), 10, 85)),
@@ -548,7 +546,7 @@
       if (rec.breakout && !rec.breakoutFired && week >= 3 && week <= 9 && rng.bool(0.18)) {
         rec.breakoutFired = true;
         rec.potential = Utils.clamp(rec.potential + rng.int(5, 10), 25, 99);
-        ['vo2Max', 'endurance', 'lactateThreshold', 'runningEconomy'].forEach((k) => {
+        ['vo2Max', 'stamina', 'lactateThreshold', 'runningEconomy'].forEach((k) => {
           rec[k] = Utils.clamp(rec[k] + rng.int(4, 9), 8, 97);
         });
         rec.recalculateOverall();

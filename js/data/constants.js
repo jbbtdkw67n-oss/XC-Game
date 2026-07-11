@@ -147,28 +147,26 @@
    * ------------------------------------------------------------------ */
 
   /*
-   * Workout types. attrs = which ratings this work develops (relative
-   * weights); fatigue = weekly fatigue load at normal intensity;
-   * injury = injury-risk multiplier; fitness = fitness build rate.
+   * The seven workout types (the ONLY workouts in the game).
+   * attrs   = which of the six core ratings a day of this work develops
+   * fatigue = fatigue cost of one day (negative = restorative)
+   * injury  = injury-risk factor of one day
+   * hard    = counts as a quality/hard day for plan-balance math
    */
   D.WORKOUTS = {
-    mileage:   { label: 'High Mileage',   attrs: { endurance: 3, stamina: 2, vo2Max: 1, runningEconomy: 1 },              fatigue: 14, injury: 1.3, fitness: 3.0 },
-    intervals: { label: 'Intervals',      attrs: { vo2Max: 3, rawSpeed: 2, kickSpeed: 2, acceleration: 1, trackSpeed: 1 }, fatigue: 16, injury: 1.5, fitness: 3.0 },
-    tempo:     { label: 'Tempo',          attrs: { lactateThreshold: 3, runningEconomy: 2, stamina: 1, raceIQ: 1 },        fatigue: 12, injury: 1.1, fitness: 3.0 },
-    longRun:   { label: 'Long Run',       attrs: { endurance: 3, stamina: 2, mentalToughness: 1, tenKAbility: 1 },         fatigue: 13, injury: 1.2, fitness: 2.8 },
-    hills:     { label: 'Hill Repeats',   attrs: { hillRunning: 3, strength: 2, downhillRunning: 1, acceleration: 1 },     fatigue: 14, injury: 1.4, fitness: 2.8 },
-    strength:  { label: 'Strength Work',  attrs: { strength: 3, durability: 2, injuryResistance: 1, kickSpeed: 1 },        fatigue: 8,  injury: 0.8, fitness: 1.5 },
-    cross:     { label: 'Cross Training', attrs: { recovery: 2, endurance: 1, durability: 1 },                             fatigue: 5,  injury: 0.6, fitness: 1.5 },
-    easy:      { label: 'Easy Runs',      attrs: { runningEconomy: 2, recovery: 1, packRunning: 1 },                       fatigue: 6,  injury: 0.7, fitness: 2.0 },
-    recovery:  { label: 'Recovery Week',  attrs: { recovery: 1 },                                                          fatigue: -10, injury: 0.4, fitness: 0.8 },
-    rest:      { label: 'Rest Days',      attrs: {},                                                                       fatigue: -18, injury: 0.2, fitness: 0 }
+    easy:      { label: 'Easy Run',          short: 'Easy',  fatigue: 4,  injury: 0.6, hard: false, attrs: { stamina: 1.0 } },
+    recovery:  { label: 'Recovery Run',      short: 'Rec',   fatigue: -7, injury: 0.3, hard: false, attrs: { stamina: 0.25 } },
+    long:      { label: 'Long Run',          short: 'Long',  fatigue: 10, injury: 1.1, hard: true,  attrs: { stamina: 3.0, vo2Max: 1.0 } },
+    tempo:     { label: 'Tempo',             short: 'Tempo', fatigue: 9,  injury: 1.0, hard: true,  attrs: { lactateThreshold: 3.0, stamina: 1.0 } },
+    hills:     { label: 'Hills',             short: 'Hills', fatigue: 11, injury: 1.4, hard: true,  attrs: { vo2Max: 2.0, speed: 2.0, runningEconomy: 2.0 } },
+    intervals: { label: 'Intervals',         short: 'Int',   fatigue: 12, injury: 1.3, hard: true,  attrs: { vo2Max: 3.0, speed: 1.0 } },
+    speed:     { label: 'Speed Development', short: 'Spd',   fatigue: 8,  injury: 1.2, hard: true,  attrs: { speed: 3.0, runningEconomy: 2.0 } }
   };
 
-  D.INTENSITIES = [
-    { value: 1, label: 'Low',    mult: 0.7 },
-    { value: 2, label: 'Normal', mult: 1.0 },
-    { value: 3, label: 'High',   mult: 1.3 }
-  ];
+  D.DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  // A sensible balanced starting week (Mon → Sun).
+  D.DEFAULT_WEEK_PLAN = ['easy', 'intervals', 'recovery', 'tempo', 'easy', 'long', 'recovery'];
 
   // Injury table: name + base weeks out [min, max]
   D.INJURIES = [

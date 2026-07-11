@@ -43,12 +43,17 @@
         currentOverall: 50,
         peakOverall: 60,
 
-        // Physical ratings (0-100)
-        vo2Max: 55, lactateThreshold: 55, endurance: 55, rawSpeed: 55, kickSpeed: 55,
-        acceleration: 55, runningEconomy: 55, strength: 55, recovery: 55, stamina: 55,
-        packRunning: 55, hillRunning: 55, downhillRunning: 55, trackSpeed: 55,
-        fiveKAbility: 55, eightKAbility: 55, tenKAbility: 55,
-        weatherPerformance: 55, altitudePerformance: 55, injuryResistance: 55, durability: 55,
+        // The six core physical ratings (0-100). Race performance is
+        // computed from these — there are no per-distance abilities.
+        vo2Max: 55,
+        runningEconomy: 55,
+        stamina: 55,
+        injuryResistance: 55,
+        lactateThreshold: 55,
+        speed: 55,
+        // Hidden: hill-course adaptation, built through Hills training.
+        hillAdaptation: 40,
+        isWalkOn: false,
 
         // Status
         fatigue: 10,       // 0 fresh - 100 exhausted
@@ -73,19 +78,36 @@
 
         ...data
       });
+      this.migrateLegacyRatings(data);
       this.recalculateOverall();
     }
 
     get fullName() { return `${this.firstName} ${this.lastName}`; }
 
-    // Weighted overall rating from the physical ratings that matter most
-    // for distance running, gently pulled toward potential based on class year.
+    // Saves from before the six-rating overhaul carry the old attribute
+    // set; fold the meaningful ones into the new ratings and drop the rest.
+    migrateLegacyRatings(data) {
+      if (!data || data.rawSpeed === undefined) return;
+      if (data.speed === undefined) {
+        this.speed = Math.round((data.rawSpeed + (data.kickSpeed ?? data.rawSpeed)) / 2);
+      }
+      if (data.endurance !== undefined) {
+        this.stamina = Math.round(((data.stamina ?? data.endurance) + data.endurance) / 2);
+      }
+      if (data.hillRunning !== undefined && data.hillAdaptation === undefined) {
+        this.hillAdaptation = data.hillRunning;
+      }
+      ['endurance', 'rawSpeed', 'kickSpeed', 'acceleration', 'strength', 'recovery',
+        'packRunning', 'hillRunning', 'downhillRunning', 'trackSpeed',
+        'fiveKAbility', 'eightKAbility', 'tenKAbility',
+        'weatherPerformance', 'altitudePerformance', 'durability'].forEach((k) => { delete this[k]; });
+    }
+
+    // Weighted overall rating from the six core physical ratings.
     recalculateOverall() {
       const weights = {
-        vo2Max: 0.14, lactateThreshold: 0.12, endurance: 0.12, runningEconomy: 0.10,
-        stamina: 0.08, mentalToughness: 0.08, raceIQ: 0.06, kickSpeed: 0.06,
-        hillRunning: 0.05, packRunning: 0.05, rawSpeed: 0.05, recovery: 0.05,
-        injuryResistance: 0.04
+        vo2Max: 0.24, lactateThreshold: 0.18, runningEconomy: 0.18,
+        stamina: 0.18, speed: 0.14, injuryResistance: 0.08
       };
       let total = 0;
       for (const key in weights) total += this[key] * weights[key];

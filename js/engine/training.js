@@ -1,49 +1,152 @@
 /*
- * TrainingEngine — Phase 3.
+ * TrainingEngine — Update 1.
  *
- * Every week, for every athlete in the world:
- *  - apply the team's training plan (fatigue, fitness, injury risk)
- *  - run the development engine (attribute growth driven by coach,
- *    facilities, potential, work ethic, morale, fatigue, and each
- *    athlete's hidden development archetype)
- *  - tick injuries and morale
+ * Training is a true weekly planner: seven days (Mon-Sun), each assigned
+ * one of the seven workout types. The weekly combination drives fitness,
+ * fatigue, injury risk, and attribute growth:
  *
- * The player sets plans per squad on the Training screen; AI programs
- * derive plans from their coach's personality and the season phase.
+ *   Easy Run     → small Stamina gains, light load
+ *   Recovery Run → sheds fatigue, tiny Stamina gains
+ *   Long Run     → large Stamina gains, small VO2 Max gains
+ *   Tempo        → Lactate Threshold, small Stamina gains
+ *   Intervals    → VO2 Max, small Speed gains
+ *   Hills        → VO2 Max, Speed, Running Economy (and hill adaptation)
+ *   Speed Dev.   → Speed, Running Economy
+ *
+ * Balanced plans (2-3 quality days, a long run, real recovery) develop
+ * athletes fastest. Stacking hard days causes overtraining: fatigue piles
+ * up, injuries spike, and development slows. Injury Resistance is mostly
+ * innate and is not trained by any workout.
  */
 (function () {
   const D = window.XCD.data;
   const Utils = window.XCD.core.Utils;
 
+  const HARD_KEYS = Object.keys(D.WORKOUTS).filter((k) => D.WORKOUTS[k].hard);
+
   /* ================================================================ *
    * Plans
    * ================================================================ */
   function defaultPlan() {
-    return { intensity: 2, primary: 'mileage', secondary: 'strength' };
+    return D.DEFAULT_WEEK_PLAN.slice();
+  }
+
+  function normalizePlan(plan) {
+    const days = Array.isArray(plan) ? plan.slice(0, 7) : [];
+    while (days.length < 7) days.push('easy');
+    return days.map((k) => (D.WORKOUTS[k] ? k : 'easy'));
   }
 
   // Weeks in which meets run (invites + pre-nats + championship rounds).
   const MEET_WEEKS = new Set([1, 3, 5, 7, 8, 9, 10]);
 
-  // AI plan: personality picks the flavor, calendar picks the emphasis.
-  // Race weeks are absorb-the-race weeks: light legs going in.
+  // AI weekly plans: the calendar picks the template, the coach's Training
+  // rating nudges quality-day count.
+  const AI_TEMPLATES = {
+    race:      ['easy', 'tempo', 'recovery', 'easy', 'recovery', 'easy', 'recovery'],       // taper into the meet
+    build:     ['easy', 'intervals', 'recovery', 'tempo', 'easy', 'long', 'recovery'],      // classic in-season week
+    sharpen:   ['easy', 'speed', 'recovery', 'intervals', 'easy', 'long', 'recovery'],      // late-season sharpening
+    strength:  ['easy', 'hills', 'recovery', 'tempo', 'easy', 'long', 'recovery'],          // hill/strength emphasis
+    offseason: ['easy', 'easy', 'recovery', 'tempo', 'easy', 'long', 'recovery']            // aerobic base
+  };
+
   function aiPlan(gameState, coach) {
     const week = gameState.week;
-    let primary, secondary, intensity = 2;
+    if (MEET_WEEKS.has(week)) return AI_TEMPLATES.race.slice();
+    if (week > 10) return AI_TEMPLATES.offseason.slice();
+    if (week >= 6) return AI_TEMPLATES.sharpen.slice();
+    const t = coach && (coach.archetype === 'Developer') ? AI_TEMPLATES.strength : AI_TEMPLATES.build;
+    return t.slice();
+  }
 
-    if (MEET_WEEKS.has(week)) { primary = 'easy'; secondary = 'tempo'; intensity = 1; } // race week: stay fresh
-    else if (week <= 10) { primary = 'intervals'; secondary = 'tempo'; }               // in-season
-    else { primary = 'mileage'; secondary = 'cross'; intensity = 1; }                  // offseason: easy base
+  /* ================================================================ *
+   * Weekly plan analysis
+   * ================================================================ */
 
-    if (coach) {
-      if (coach.personality === 'Distance Specialist') { primary = week <= 10 && !MEET_WEEKS.has(week) ? 'longRun' : primary; }
-      if (coach.personality === 'Development Guru') { secondary = MEET_WEEKS.has(week) ? secondary : 'strength'; }
-      if (!MEET_WEEKS.has(week)) {
-        if (coach.discipline >= 75) intensity = Math.min(3, intensity + 1);
-        else if (coach.discipline < 40) intensity = Math.max(1, intensity - 1);
-      }
+  /*
+   * Turn a 7-day plan into weekly effects. Returned meta:
+   *   fatigue     — net weekly fatigue load (before recovery rate)
+   *   fitness     — weekly fitness build
+   *   injuryMult  — injury-risk multiplier
+   *   devMult     — development multiplier (balanced plans peak)
+   *   attrWeights — which core ratings this week develops
+   *   hardDays, hasLong, quality — for the UI
+   */
+  function planMetaFor(plan, override) {
+    if (override === 'rest') {
+      return {
+        fatigue: -16, fitness: 0, injuryMult: 0.2, devMult: 0.15,
+        attrWeights: {}, hardDays: 0, hasLong: false,
+        quality: { label: 'Resting', tone: 'warn' }, hillsDays: 0
+      };
     }
-    return { intensity, primary, secondary };
+    const loadMult = override === 'reduced' ? 0.55 : 1;
+
+    const days = normalizePlan(plan);
+    let fatigue = 0;
+    let injurySum = 0;
+    let hardDays = 0;
+    let easyDays = 0;
+    let hillsDays = 0;
+    const attrWeights = {};
+
+    days.forEach((key) => {
+      const w = D.WORKOUTS[key];
+      fatigue += w.fatigue;
+      injurySum += w.injury;
+      if (w.hard) hardDays++;
+      if (key === 'recovery' || key === 'easy') easyDays++;
+      if (key === 'hills') hillsDays++;
+      for (const [attr, wt] of Object.entries(w.attrs)) {
+        attrWeights[attr] = (attrWeights[attr] || 0) + wt;
+      }
+    });
+
+    // Back-to-back quality days pound the legs.
+    let backToBack = 0;
+    for (let i = 1; i < 7; i++) {
+      if (D.WORKOUTS[days[i]].hard && D.WORKOUTS[days[i - 1]].hard) backToBack++;
+    }
+
+    let injuryMult = (injurySum / 7) * (1 + backToBack * 0.18);
+    const recoveryDays = days.filter((d) => d === 'recovery').length;
+    if (recoveryDays === 0) { injuryMult *= 1.25; fatigue += 4; } // no true recovery all week
+
+    // Development quality: 2-3 hard days is the sweet spot; more is
+    // overtraining, fewer is undertraining.
+    let devMult;
+    switch (hardDays) {
+      case 0: devMult = 0.40; break;
+      case 1: devMult = 0.75; break;
+      case 2: devMult = 1.05; break;
+      case 3: devMult = 1.15; break;
+      case 4: devMult = 0.95; break;
+      case 5: devMult = 0.78; break;
+      default: devMult = 0.60;
+    }
+    const hasLong = days.includes('long');
+    const hardVariety = new Set(days.filter((d) => D.WORKOUTS[d].hard)).size;
+    const balanced = hardDays >= 2 && hardDays <= 3 && hasLong && easyDays >= 3;
+    if (balanced) devMult += 0.12;               // the reward for a textbook week
+    if (hardVariety >= 3) devMult += 0.05;       // varied stimulus
+    if (hardDays >= 5) fatigue += 6;             // overtraining tax
+
+    let quality;
+    if (hardDays >= 5) quality = { label: 'Overtraining — injuries & burnout likely', tone: 'bad' };
+    else if (hardDays === 4) quality = { label: 'Very heavy — watch fatigue closely', tone: 'warn' };
+    else if (balanced) quality = { label: 'Balanced — optimal development', tone: 'good' };
+    else if (hardDays >= 2) quality = { label: 'Solid training week', tone: 'good' };
+    else if (hardDays === 1) quality = { label: 'Light — slow development', tone: 'warn' };
+    else quality = { label: 'Recovery week — fitness will fade', tone: 'warn' };
+
+    return {
+      fatigue: fatigue * 0.42 * loadMult,
+      fitness: (1.2 + hardDays * 0.55 + (hasLong ? 0.35 : 0)) * loadMult,
+      injuryMult: injuryMult * loadMult,
+      devMult: devMult * loadMult,
+      attrWeights,
+      hardDays, hasLong, hillsDays, quality
+    };
   }
 
   /* ================================================================ *
@@ -58,44 +161,42 @@
       case 'early': return age <= 19 ? 1.5 : age <= 20 ? 0.9 : 0.5;
       case 'late':  return age <= 19 ? 0.5 : age <= 20 ? 0.9 : 1.6;
       case 'bust':  return 0.45;
+      case 'legend': return 1.9; // the 1-in-1000 walk-on who becomes a star
       default:      return 1.0;
     }
   }
 
   /*
-   * Weekly development points for one athlete. ~0.2-1.2 typical; a point
-   * converts into +1 on a plan-weighted attribute via the fractional
-   * devProgress accumulator.
+   * Weekly development points for one athlete. A point converts into +1 on
+   * a plan-weighted attribute via the fractional devProgress accumulator.
    */
   function devPoints(athlete, coach, school, planMeta, rng) {
     const gap = athlete.potential - athlete.currentOverall;
     const gapFactor = Utils.clamp(gap / 22, 0.06, 1.25);   // stars plateau near their ceiling
-    const coachFactor = coach ? 0.55 + coach.development / 110 : 0.9;
-    const facFactor = 0.6 + (school.facilities.trainingCenter + school.facilities.sportsScienceLab) / 320;
+    const coachSkill = coach ? (coach.training ?? coach.development ?? 55) : 50;
+    const coachFactor = 0.55 + coachSkill / 110;
+    // Facilities matter: training center + sports science drive development.
+    const facFactor = 0.55 + (school.facilities.trainingCenter + school.facilities.sportsScienceLab) / 290;
     const makeupFactor = 0.55 + (athlete.workEthic + athlete.coachability) / 320;
     const moraleFactor = 0.75 + athlete.morale / 280;
-    const fatiguePenalty = athlete.fatigue > 75 ? 0.55 : athlete.fatigue > 55 ? 0.85 : 1.0;
+    const fatiguePenalty = athlete.fatigue > 75 ? 0.50 : athlete.fatigue > 55 ? 0.85 : 1.0;
     const ageFactor = athlete.age <= 19 ? 1.15 : athlete.age <= 21 ? 1.0 : 0.8;
-    const academicStress = athlete.academics < 45 ? 0.85 : 1.0;  // struggling in class costs training focus
+    const academicStress = athlete.academics < 45 ? 0.85 : 1.0;
     const noise = 0.75 + rng.next() * 0.5;
 
-    // Base of ~3.4 attribute-points/week (before factors): a high-ceiling
-    // freshman gains roughly 5-8 overall per season, a senior near his
-    // ceiling barely moves. (Overall is a weighted average, so one
-    // attribute point ≈ +0.08 overall.)
     return 3.4 * planMeta.devMult * gapFactor * coachFactor * facFactor * makeupFactor *
       moraleFactor * fatiguePenalty * ageFactor * academicStress *
       devProfileMult(athlete) * noise;
   }
 
   // Spend accumulated development on attributes weighted by the plan.
+  // Injury Resistance is never in attrWeights — it's essentially innate.
   function applyDevelopment(athlete, attrWeights, rng) {
     const keys = Object.keys(attrWeights);
     if (!keys.length) return;
     while (athlete.devProgress >= 1) {
       athlete.devProgress -= 1;
       const key = rng.weightedChoice(keys, (k) => attrWeights[k]);
-      // Physical ceilings track potential: nobody trains 40-potential legs to 99.
       const cap = Math.min(97, athlete.potential + 8);
       if (athlete[key] < cap) athlete[key] += 1;
     }
@@ -108,14 +209,15 @@
     const base = 0.010; // ~1% per athlete-week at neutral settings
     const fatigueMult = 1 + Math.max(0, athlete.fatigue - 60) / 45;
     const resistMult = 1.6 - athlete.injuryResistance / 100;
-    const duraMult = 1.35 - athlete.durability / 200;
-    const chance = base * planMeta.injuryMult * fatigueMult * resistMult * duraMult;
+    // Sports science and the weight room keep runners healthy.
+    const facilityMult = 1.12 - (school.facilities.sportsScienceLab + school.facilities.weightRoom) / 800;
+    const chance = base * planMeta.injuryMult * fatigueMult * resistMult * facilityMult;
     if (!rng.bool(Utils.clamp(chance, 0.0005, 0.20))) return null;
 
     const injury = rng.weightedChoice(D.INJURIES, (i) => i.weight);
     let weeks = rng.int(injury.weeks[0], injury.weeks[1]);
-    // Good recovery centers and personal recovery shorten layoffs.
-    const rehab = 1.15 - athlete.recovery / 400 - school.facilities.recoveryCenter / 500;
+    // Good recovery centers and natural resilience shorten layoffs.
+    const rehab = 1.15 - athlete.injuryResistance / 500 - school.facilities.recoveryCenter / 450;
     weeks = Math.max(1, Math.round(weeks * rehab));
     return { type: injury.type, weeksRemaining: weeks, totalWeeks: weeks };
   }
@@ -123,34 +225,6 @@
   /* ================================================================ *
    * Weekly processing
    * ================================================================ */
-  function planMetaFor(plan, override) {
-    const primary = D.WORKOUTS[plan.primary] || D.WORKOUTS.mileage;
-    const secondary = D.WORKOUTS[plan.secondary] || D.WORKOUTS.easy;
-    const intensity = (D.INTENSITIES.find((i) => i.value === plan.intensity) || D.INTENSITIES[1]).mult;
-
-    let loadMult = 1;
-    if (override === 'reduced') loadMult = 0.55;
-    if (override === 'rest') return {
-      fatigue: D.WORKOUTS.rest.fatigue,
-      fitness: 0,
-      injuryMult: D.WORKOUTS.rest.injury,
-      devMult: 0.15,
-      attrWeights: {}
-    };
-
-    const attrWeights = {};
-    for (const [k, w] of Object.entries(primary.attrs)) attrWeights[k] = (attrWeights[k] || 0) + w * 0.65;
-    for (const [k, w] of Object.entries(secondary.attrs)) attrWeights[k] = (attrWeights[k] || 0) + w * 0.35;
-
-    return {
-      fatigue: (primary.fatigue * 0.65 + secondary.fatigue * 0.35) * intensity * loadMult,
-      fitness: (primary.fitness * 0.65 + secondary.fitness * 0.35) * intensity * loadMult,
-      injuryMult: (primary.injury * 0.65 + secondary.injury * 0.35) * intensity * loadMult,
-      devMult: intensity * loadMult,
-      attrWeights
-    };
-  }
-
   function processAthlete(gameState, athlete, coach, school, planMeta, rng, isPlayerSchool, culture) {
     // Injured athletes rehab instead of training.
     if (athlete.injury) {
@@ -169,10 +243,24 @@
 
     const before = athlete.currentOverall;
 
-    // Fatigue & fitness (integers keep every display clean)
-    const recoveryRate = 4 + athlete.recovery / 18 + school.facilities.recoveryCenter / 40;
+    // Fatigue & fitness. Recovery rate scales with innate resilience and
+    // the program's recovery/nutrition facilities.
+    const recoveryRate = 4 + athlete.injuryResistance / 30 +
+      school.facilities.recoveryCenter / 40 + school.facilities.nutrition / 80;
     athlete.fatigue = Math.round(Utils.clamp(athlete.fatigue + planMeta.fatigue - recoveryRate, 0, 100));
     athlete.fitness = Math.round(Utils.clamp(athlete.fitness + planMeta.fitness - 1.8, 0, 100));
+
+    // Chronic exhaustion erodes stamina — the cost of overtraining.
+    if (athlete.fatigue > 85 && rng.bool(0.35) && athlete.stamina > 20) {
+      athlete.stamina -= 1;
+    }
+
+    // Hills adaptation: builds with hill work, slowly fades without it.
+    if (planMeta.hillsDays > 0) {
+      athlete.hillAdaptation = Utils.clamp((athlete.hillAdaptation || 40) + 1.2 * planMeta.hillsDays, 0, 95);
+    } else {
+      athlete.hillAdaptation = Math.max(30, (athlete.hillAdaptation || 40) - 0.3);
+    }
 
     // Development — chemistry lifts everyone; strong captains mentor freshmen.
     let dev = devPoints(athlete, coach, school, planMeta, rng);
@@ -182,6 +270,10 @@
     }
     athlete.devProgress = (athlete.devProgress || 0) + dev;
     applyDevelopment(athlete, planMeta.attrWeights, rng);
+
+    // Tiny chance of a durability gain — Injury Resistance barely moves.
+    if (rng.bool(0.01) && athlete.injuryResistance < 95) athlete.injuryResistance += 1;
+
     athlete.recalculateOverall();
     athlete.lastDelta = athlete.currentOverall - before;
     athlete.seasonDev = (athlete.seasonDev || 0) + athlete.lastDelta;
@@ -209,11 +301,8 @@
   }
 
   /*
-   * Team culture: captains lead, chemistry binds. Captains are the
-   * player's picks (or the highest-leadership upperclassmen for AI /
-   * unset squads). Chemistry blends squad morale, discipline, captain
-   * leadership, and the coach's culture rating — and feeds both weekly
-   * development and race day.
+   * Team culture: captains lead, chemistry binds. Chemistry blends squad
+   * morale, discipline, captain leadership, and the coach's Culture rating.
    */
   function squadCulture(gameState, school, gender, coach) {
     const roster = (gender === 'M' ? school.rosterM : school.rosterW)
@@ -277,7 +366,7 @@
     }
   }
 
-  // Race readiness (used by the race engine in Phase 4, shown in UI now).
+  // Race readiness (used by the race engine, shown in the UI).
   function readiness(athlete) {
     return Math.round(Utils.clamp(athlete.fitness * 0.62 + (100 - athlete.fatigue) * 0.38, 0, 100));
   }
@@ -285,9 +374,11 @@
   window.XCD.engine.Training = {
     processWeek,
     defaultPlan,
+    normalizePlan,
     aiPlan,
     planMetaFor,
     readiness,
-    devProfileMult
+    devProfileMult,
+    MEET_WEEKS
   };
 })();
