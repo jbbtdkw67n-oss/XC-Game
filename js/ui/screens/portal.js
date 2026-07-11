@@ -1,0 +1,120 @@
+/*
+ * Transfer Portal screen: browse entries, scout them, and pursue up to
+ * three transfers per cycle. Also shows your own departures.
+ */
+(function () {
+  const UI = window.XCD.ui;
+  const Utils = window.XCD.core.Utils;
+  const Portal = () => window.XCD.engine.Portal;
+
+  let activeGender = 'M';
+
+  function render(container) {
+    const game = UI.state.game;
+    const portal = game.portal;
+
+    if (!portal) {
+      const lastSummary = game.history.portalSummaries &&
+        game.history.portalSummaries[game.year - 1];
+      container.innerHTML = `
+        <div class="screen-header"><h1>Transfer Portal</h1></div>
+        <div class="card" style="color:var(--text-dim);">
+          The portal window opens after nationals (Week ${Portal().ENTRY_WEEK}) and closes at
+          Week ${Portal().DECISION_WEEK}. ${lastSummary ? `Last cycle: ${lastSummary.entries} entries, ${lastSummary.moved} transfers.` : ''}
+        </div>`;
+      return;
+    }
+
+    const entries = portal.entries
+      .map((e) => ({ e, a: game.getAthlete(e.athleteId) }))
+      .filter((x) => x.a && x.a.gender === activeGender);
+
+    const myOffers = portal.entries.filter((e) => !e.destination && e.offers.includes(game.playerSchoolId)).length;
+    const myDepartures = portal.entries.filter((e) => e.fromSchoolId === game.playerSchoolId);
+
+    container.innerHTML = `
+      <div class="screen-header">
+        <h1>Transfer Portal — ${portal.open ? 'OPEN' : 'Closed'}</h1>
+        <div class="actions">
+          <span class="phase-pill" style="padding:5px 14px;">Pursuing ${myOffers}/${Portal().PLAYER_OFFER_LIMIT}</span>
+          <div class="pill-tabs">
+            <button id="g-m" class="${activeGender === 'M' ? 'active' : ''}">Men</button>
+            <button id="g-w" class="${activeGender === 'W' ? 'active' : ''}">Women</button>
+          </div>
+          <input class="search-input" id="portal-search" placeholder="Search portal...">
+        </div>
+      </div>
+
+      ${myDepartures.length ? `
+        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--danger);">
+          <h2>Leaving Your Program</h2>
+          ${myDepartures.map((e) => {
+            const a = game.getAthlete(e.athleteId);
+            if (!a) return '';
+            return `<div class="attr-row"><span><strong>${Utils.escapeHtml(a.fullName)}</strong> (${a.currentOverall} OVR, ${a.classYear})</span>
+              <span style="color:var(--text-dim);">${Utils.escapeHtml(e.reason)}</span>
+              <span>${e.destination ? '→ ' + Utils.escapeHtml(game.getSchool(e.destination)?.name || '?') : (portal.open ? 'Deciding...' : 'Staying')}</span></div>`;
+          }).join('')}
+        </div>` : ''}
+
+      <div class="card"><div id="portal-table"></div></div>`;
+
+    const table = UI.renderSortableTable(container.querySelector('#portal-table'), {
+      rows: entries.map(({ e, a }) => ({
+        e, a,
+        name: a.fullName,
+        lastName: a.lastName,
+        firstName: a.firstName,
+        overall: a.currentOverall,
+        potential: a.potential,
+        classYear: a.classYear,
+        from: game.getSchool(e.fromSchoolId)?.name || '?',
+        reason: e.reason,
+        offers: e.offers.length,
+        status: e.destination ? 2 : e.offers.includes(game.playerSchoolId) ? 1 : 0
+      })),
+      defaultSort: 'overall',
+      defaultDir: 'desc',
+      searchKeys: ['name', 'from', 'reason', 'classYear'],
+      onRowClick: (row) => UI.showPlayerCard(row.a, game),
+      columns: [
+        { key: 'name', label: 'Runner', render: (r) => `<strong>${Utils.escapeHtml(r.name)}</strong>` },
+        { key: 'classYear', label: 'Class' },
+        { key: 'overall', label: 'OVR', numeric: true, render: (r) => UI.ratingBadge(r.overall) },
+        { key: 'potential', label: 'POT', numeric: true, render: (r) => UI.ratingBadge(r.potential) },
+        { key: 'from', label: 'From' },
+        { key: 'reason', label: 'Why' },
+        { key: 'offers', label: 'Offers', numeric: true },
+        {
+          key: 'status', label: 'Status',
+          render: (r) => {
+            if (r.e.destination) {
+              const to = game.getSchool(r.e.destination);
+              const mine = r.e.destination === game.playerSchoolId;
+              return `<span style="color:${mine ? 'var(--success)' : 'var(--text-dim)'};">→ ${Utils.escapeHtml(to?.name || '?')}</span>`;
+            }
+            if (r.e.fromSchoolId === game.playerSchoolId) return '<span style="color:var(--danger);">Your player</span>';
+            if (!portal.open) return '<span style="color:var(--text-faint);">Stayed</span>';
+            const offered = r.e.offers.includes(game.playerSchoolId);
+            return `<button class="btn small ${offered ? 'danger' : 'primary'}" data-offer="${r.a.id}">${offered ? 'Withdraw' : 'Pursue'}</button>`;
+          }
+        }
+      ]
+    });
+
+    container.querySelector('#portal-search').addEventListener('input', (e) => table.setQuery(e.target.value));
+    container.querySelector('#portal-table').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-offer]');
+      if (!btn) return;
+      e.stopPropagation();
+      const result = Portal().playerOffer(game, btn.dataset.offer);
+      UI.toast(result.message, result.ok ? 'success' : 'error');
+      if (result.ok) render(container);
+    }, true);
+
+    container.querySelector('#g-m').addEventListener('click', () => { activeGender = 'M'; render(container); });
+    container.querySelector('#g-w').addEventListener('click', () => { activeGender = 'W'; render(container); });
+  }
+
+  UI.screens.portal = { render };
+})();

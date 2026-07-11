@@ -161,6 +161,7 @@
       devProfile: rng.weightedChoice(D.DEV_PROFILES, (p) => p.weight).type,
 
       eligibilityRemaining: { Freshman: 4, Sophomore: 3, Junior: 2, Senior: 1, Graduate: 1 }[classYear],
+      yearsOnCampus: { Freshman: 1, Sophomore: 2, Junior: 3, Senior: 4, Graduate: 5 }[classYear],
       schoolId: school.id
     });
     athlete.recalculateOverall();

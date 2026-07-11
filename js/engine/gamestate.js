@@ -64,6 +64,13 @@
       this.season = null;    // current season schedule + results (Races engine)
       this.rankings = null;  // latest polls (Rankings engine)
       this.lastPlayerMeetId = null; // for the race center replay
+      this.portal = null;    // active transfer portal window
+
+      // The player's coaching career ledger
+      this.career = {
+        seasons: 0, conferenceTitles: 0, nationalTitles: 0,
+        nationalsAppearances: 0, podiums: 0, bestFinish: null, awards: []
+      };
     }
 
     /*
@@ -112,6 +119,7 @@
       // Build the season schedule and preseason polls.
       window.XCD.engine.Races.newSeason(gs, rng);
       window.XCD.engine.Rankings.compute(gs);
+      gs.capturePreseasonRanks();
       return gs;
     }
 
@@ -133,6 +141,13 @@
     }
 
     get seasonPhase() { return phaseForWeek(this.week); }
+
+    capturePreseasonRanks() {
+      if (!this.season || !this.rankings) return;
+      const snap = { M: {}, W: {} };
+      ['M', 'W'].forEach((g) => this.rankings[g].forEach((r) => { snap[g][r.schoolId] = r.rank; }));
+      this.season.preseasonRanks = snap;
+    }
 
     // --- Game loop -------------------------------------------------
     advanceWeek() {
@@ -163,6 +178,15 @@
       // Post-week: build the nationals field once regionals wrap.
       window.XCD.engine.Races.postWeekHousekeeping(this);
 
+      // Awards ceremony the week after nationals.
+      if (this.week === 22) window.XCD.engine.Awards.processPostNationals(this, rng);
+
+      // Redshirts + the transfer portal window.
+      window.XCD.engine.Portal.processWeek(this, rng);
+
+      // Beat writers file their stories.
+      window.XCD.engine.News.processWeek(this, rng);
+
       // Fresh weekly recruiting points/limits for the player.
       window.XCD.engine.Recruiting.startNewWeek(this);
     }
@@ -171,7 +195,12 @@
       const D_ORDER = D.CLASS_YEARS; // Freshman..Graduate
       const rng = new window.XCD.core.SeededRNG((this.seed + this.year) >>> 0);
 
-      // 1) Age everyone; seniors graduate off rosters.
+      // 0) Transfers move to their new programs before anything else.
+      const transferCount = window.XCD.engine.Portal.applyTransfers(this);
+      if (transferCount) this.logNews(`Transfer portal closes: ${transferCount} athletes changed schools this cycle.`);
+
+      // 1) Age everyone; redshirt years preserve eligibility and class;
+      //    graduates leave (Hall of Fame careers get enshrined).
       Object.values(this.world.schools).forEach((school) => {
         ['rosterM', 'rosterW'].forEach((rosterKey) => {
           const survivors = [];
@@ -179,13 +208,33 @@
             const athlete = this.world.athletes[athId];
             if (!athlete) return;
             athlete.age += 1;
-            const idx = D_ORDER.indexOf(athlete.classYear);
-            if (athlete.classYear === 'Senior' || athlete.classYear === 'Graduate' || athlete.eligibilityRemaining <= 1) {
+            athlete.yearsOnCampus = (athlete.yearsOnCampus || 1) + 1;
+            athlete.seasonRaces = 0;
+
+            const redshirted = athlete.redshirt === 'True' || athlete.redshirt === 'Medical';
+            if (redshirted) {
+              // The season didn't burn eligibility; athletic class holds.
+              athlete.redshirt = 'Used';
+              if (athlete.yearsOnCampus > 5) { // five-year clock still expires
+                window.XCD.engine.Awards.considerHallOfFame(this, athlete);
+                athlete.schoolId = null;
+                athlete.health = 'Graduated';
+                delete this.world.athletes[athId];
+                return;
+              }
+              survivors.push(athId);
+              return;
+            }
+
+            if (athlete.eligibilityRemaining <= 1 || athlete.yearsOnCampus > 5 ||
+                athlete.classYear === 'Graduate') {
+              window.XCD.engine.Awards.considerHallOfFame(this, athlete);
               athlete.schoolId = null;
               athlete.health = 'Graduated';
               delete this.world.athletes[athId];
               return;
             }
+            const idx = D_ORDER.indexOf(athlete.classYear);
             athlete.classYear = D_ORDER[Math.min(idx + 1, 3)];
             athlete.eligibilityRemaining = Math.max(0, athlete.eligibilityRemaining - 1);
             survivors.push(athId);
@@ -228,6 +277,7 @@
             const replacement = window.XCD.engine.WorldGenerator.buildReplacementCoach(rng, school);
             this.world.coaches[replacement.id] = replacement;
             school.coachId = replacement.id;
+            school.coachChangedYear = this.year; // transfers may follow the old coach out
             this.logNews(`${school.name} hires ${replacement.fullName} as head coach after a retirement.`);
           }
         } else if (coach) {
@@ -264,6 +314,7 @@
       const seasonRng = new window.XCD.core.SeededRNG((this.seed + this.year * 977) >>> 0);
       window.XCD.engine.Races.newSeason(this, seasonRng);
       window.XCD.engine.Rankings.compute(this);
+      this.capturePreseasonRanks();
       this.lastPlayerMeetId = null;
 
       this.logNews(`A new academic year begins: ${this.year}.`);
@@ -287,7 +338,9 @@
         training: this.training,
         season: this.season,
         rankings: this.rankings,
-        lastPlayerMeetId: this.lastPlayerMeetId
+        lastPlayerMeetId: this.lastPlayerMeetId,
+        portal: this.portal,
+        career: this.career
       };
     }
 
@@ -319,6 +372,11 @@
       gs.season = obj.season || null;
       gs.rankings = obj.rankings || null;
       gs.lastPlayerMeetId = obj.lastPlayerMeetId || null;
+      gs.portal = obj.portal || null;
+      gs.career = obj.career || {
+        seasons: 0, conferenceTitles: 0, nationalTitles: 0,
+        nationalsAppearances: 0, podiums: 0, bestFinish: null, awards: []
+      };
       if (!gs.season || gs.season.year !== gs.year) {
         const seasonRng = new window.XCD.core.SeededRNG((gs.seed + gs.year * 977) >>> 0);
         window.XCD.engine.Races.newSeason(gs, seasonRng);

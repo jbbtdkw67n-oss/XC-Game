@@ -62,6 +62,9 @@
         injury: null,      // { type, weeksRemaining }
         redshirt: 'None',  // None | True | Medical | Used
         eligibilityRemaining: 4,
+        yearsOnCampus: 1,  // NCAA five-year clock
+        seasonRaces: 0,    // races run this season (blocks redshirting)
+        honors: { allAmerican: 0, natChamp: 0, confChamp: 0, awards: [] },
 
         schoolId: null,
         isRecruit: false,

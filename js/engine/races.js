@@ -202,7 +202,7 @@
       if (!school) return;
       const squad = (gender === 'M' ? school.rosterM : school.rosterW)
         .map((id) => gameState.world.athletes[id])
-        .filter((a) => a && !a.injury)
+        .filter((a) => a && !a.injury && a.redshirt !== 'True' && a.redshirt !== 'Medical')
         .sort((a, b) => (raceRating(b, distanceM) + b.fitness * 0.1) - (raceRating(a, distanceM) + a.fitness * 0.1))
         .slice(0, 7);
       squad.forEach((a) => entries.push({ athlete: a, schoolId }));
@@ -339,6 +339,7 @@
       const a = gameState.world.athletes[f.athleteId];
       if (!a) return;
       a.careerStats.races += 1;
+      a.seasonRaces = (a.seasonRaces || 0) + 1;
       if (f.place === 1) a.careerStats.wins += 1;
       if (f.place <= 5) a.careerStats.top5 += 1;
       const pr = a.careerStats.personalBests[key];

@@ -51,9 +51,32 @@
           render: (a) => a.health === 'Healthy'
             ? '<span style="color:var(--success);">Healthy</span>'
             : `<span style="color:var(--danger);">${Utils.escapeHtml(a.injury ? a.injury.type : a.health)}</span>`
+        },
+        {
+          key: 'redshirt', label: 'Redshirt',
+          sortValue: (a) => a.redshirt,
+          render: (a) => {
+            if (a.redshirt === 'True' || a.redshirt === 'Medical') {
+              return `<button class="btn small" data-rs="${a.id}" ${a.redshirt === 'Medical' ? 'disabled title="Medical redshirt"' : ''} style="border-color:var(--warning); color:var(--warning);">${a.redshirt === 'Medical' ? 'Medical RS' : 'Redshirting ✕'}</button>`;
+            }
+            if (a.redshirt === 'Used') return '<span style="color:var(--text-faint); font-size:12px;">Used</span>';
+            const chk = window.XCD.engine.Portal.canRedshirt(UI.state.game, a);
+            return `<button class="btn small" data-rs="${a.id}" ${chk.ok ? '' : `disabled title="${chk.why}"`}>Redshirt</button>`;
+          }
         }
       ]
     });
+
+    // Capturing delegate: survives table re-sorts and beats the row-click
+    // handler that would otherwise open the player card.
+    container.querySelector('#roster-table').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-rs]');
+      if (!btn || btn.disabled) return;
+      e.stopPropagation();
+      const result = window.XCD.engine.Portal.toggleRedshirt(UI.state.game, btn.dataset.rs);
+      UI.toast(result.message, result.ok ? 'success' : 'error');
+      if (result.ok) render(container);
+    }, true);
 
     container.querySelector('#roster-search').addEventListener('input', (e) => table.setQuery(e.target.value));
     container.querySelector('#tab-m').addEventListener('click', () => { activeGender = 'M'; render(container); });

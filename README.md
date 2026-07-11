@@ -10,7 +10,16 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
-## Current Status — Phase 4 (Races, Rankings, Championships, Stats)
+## Current Status — Phase 5 (Portal, Redshirts, News, Awards, History)
+
+- **Transfer portal**: after nationals, unhappy athletes enter with real reasons (playing time, coach departures, homesickness, prestige, facilities, academics, NIL, morale). AI programs make offers; athletes pick by fit; the player can pursue up to 3 transfers per cycle. Moves execute at the year rollover.
+- **Redshirts**: true redshirts (preseason choice, blocked once a runner has raced) and automatic medical redshirts for season-ending injuries — both preserve the year of eligibility inside the NCAA five-year clock. AI programs redshirt raw freshmen too.
+- **News engine**: upsets, poll surges, new #1s, championship previews, milestone wins, portal entries/commitments, firings, hirings, records, injuries, and award announcements.
+- **Awards**: Runner/Freshman/Coach of the Year, 40 All-Americans per gender, conference runners of the year, Academic All-Americans — all archived forever.
+- **Coach carousel**: hot seats build for underperforming AI coaches (fired after sustained failure), retirements continue, and roster exodus can follow a coaching change.
+- **History & Hall of Fame**: career ledger for your coaching résumé, season-by-season results, every champion, every award, all-time records, and a Hall of Fame that enshrines legendary careers at graduation.
+
+## Phase 4 (Races, Rankings, Championships, Stats)
 
 - **Full season schedule**: 5 invitationals (weeks 5/7/9/11/13, ~20-team fields covering all 354 schools), conference championships (wk 16), 8 regionals (wk 19), and the NCAA Championships (wk 21).
 - **Segment-based race simulation**: 8-leg races with adrenaline starts, hill segments, late-race fade vs. stamina/toughness, finishing kicks, pack-running drafting, day-form variance by consistency, and course conditions (heat/cold/rain/altitude/hills) filtered through each runner's ratings and preferences. Readiness from the training engine feeds directly into race performance.
@@ -60,5 +69,4 @@ js/ui/screens/        menu, dashboard, roster, program, world, news, saves
 
 ## Roadmap
 
-- **Phase 5**: transfer portal, redshirts, news engine, awards, historical records
-- **Phase 6**: polish, animations, balancing
+- **Phase 6**: polish, animations, optimization, balancing, bug fixes

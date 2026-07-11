@@ -174,7 +174,9 @@
     { id: 'roster', label: 'Roster', icon: '👟' },
     { id: 'training', label: 'Training', icon: '📋' },
     { id: 'recruiting', label: 'Recruiting', icon: '🎯' },
+    { id: 'portal', label: 'Portal', icon: '🔄' },
     { id: 'school', label: 'My Program', icon: '🏫' },
+    { id: 'history', label: 'History', icon: '🏛' },
     { id: 'world', label: 'World', icon: '🌎' },
     { id: 'news', label: 'News', icon: '📰' },
     { id: 'saves', label: 'Save / Load', icon: '💾' }
