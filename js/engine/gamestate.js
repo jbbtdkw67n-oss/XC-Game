@@ -74,6 +74,9 @@
       this.lastPlayerMeetId = null; // for the race center replay
       this.portal = null;    // active transfer portal window
 
+      // The weekly coaching rhythm: plan training -> recruit -> advance.
+      this.weeklyFlow = { trainingConfirmed: false, recruitingDone: false };
+
       // The player's coaching career ledger
       this.career = {
         seasons: 0, conferenceTitles: 0, nationalTitles: 0,
@@ -211,6 +214,9 @@
 
       // Fresh weekly recruiting points/limits for the player.
       window.XCD.engine.Recruiting.startNewWeek(this);
+
+      // A new week begins: plan training first, then recruit, then advance.
+      this.weeklyFlow = { trainingConfirmed: false, recruitingDone: false };
     }
 
     rolloverYear() {
@@ -272,20 +278,18 @@
         this.logNews(`${playerClass.length} signees arrive on campus: ${playerClass.map((r) => r.fullName).join(', ')}.`);
       }
 
-      // 3) Thin rosters top up with unheralded walk-ons.
+      // 3) Every program must field 14 men and 14 women. If recruiting
+      //    left a roster short, walk-ons fill the gap — weak, low-ceiling
+      //    runners, except the ~0.1% hidden legend.
+      let playerWalkOns = 0;
       Object.values(this.world.schools).forEach((school) => {
         ['rosterM', 'rosterW'].forEach((rosterKey) => {
           const gender = rosterKey === 'rosterM' ? 'M' : 'W';
-          while (school[rosterKey].length < 10) {
-            const walkOn = window.XCD.engine.WorldGenerator.buildAthlete(rng, school, gender);
-            walkOn.classYear = 'Freshman';
-            walkOn.age = 18 + rng.int(0, 1);
-            walkOn.eligibilityRemaining = 4;
-            // Walk-ons are a clear notch below scholarship talent.
-            walkOn.potential = Math.min(walkOn.potential, rng.int(35, 62));
-            walkOn.recalculateOverall();
+          while (school[rosterKey].length < 14) {
+            const walkOn = window.XCD.engine.WorldGenerator.buildWalkOn(rng, school, gender);
             this.world.athletes[walkOn.id] = walkOn;
             school[rosterKey].push(walkOn.id);
+            if (school.id === this.playerSchoolId) playerWalkOns++;
           }
         });
 
@@ -309,6 +313,9 @@
         const assistant = this.world.coaches[school.assistantId];
         if (assistant) assistant.age += 1;
       });
+      if (playerWalkOns) {
+        this.logNews(`${playerWalkOns} walk-on${playerWalkOns > 1 ? 's' : ''} join your program to fill the roster to 14 per squad.`);
+      }
 
       // 4b) Elite programs raid successful small-school coaches.
       window.XCD.engine.Careers.aiPoaching(this, rng);
@@ -376,7 +383,8 @@
         career: this.career,
         fundraisedYear: this.fundraisedYear || null,
         culture: this.culture,
-        jobOffers: this.jobOffers
+        jobOffers: this.jobOffers,
+        weeklyFlow: this.weeklyFlow
       };
     }
 
@@ -419,6 +427,7 @@
       gs.career.stops = gs.career.stops || [{ school: gs.getPlayerSchool().name, startYear: 2026 }];
       gs.culture = obj.culture || { captains: { M: [], W: [] } };
       gs.jobOffers = obj.jobOffers || null;
+      gs.weeklyFlow = obj.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
       // Saves from before the 14-week calendar: clamp into the new year shape
       // and rebuild the season so every week reference is valid.
       if (gs.week > WEEKS_PER_YEAR) gs.week = WEEKS_PER_YEAR;

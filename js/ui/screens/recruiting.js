@@ -349,6 +349,9 @@
             <button data-tab="commits" class="${activeTab === 'commits' ? 'active' : ''}">Commitments</button>
             <button data-tab="rankings" class="${activeTab === 'rankings' ? 'active' : ''}">Class Rankings</button>
           </div>
+          <button class="btn ${game.weeklyFlow?.recruitingDone ? '' : 'primary'}" id="btn-finish-recruiting">
+            ${game.weeklyFlow?.recruitingDone ? '✓ Recruiting Done' : '✓ Done Recruiting'}
+          </button>
         </div>
       </div>
 
@@ -363,6 +366,20 @@
 
     container.querySelectorAll('[data-tab]').forEach((btn) => {
       btn.addEventListener('click', () => { activeTab = btn.dataset.tab; render(container); });
+    });
+
+    container.querySelector('#btn-finish-recruiting').addEventListener('click', () => {
+      game.weeklyFlow = game.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
+      if (!game.weeklyFlow.trainingConfirmed) {
+        UI.toast('Set your training plan first (Step 1).', 'error');
+        UI.navigate('training');
+        return;
+      }
+      game.weeklyFlow.recruitingDone = true;
+      UI.toast(R.pointsLeft > 0
+        ? `Recruiting wrapped with ${R.pointsLeft} point${R.pointsLeft > 1 ? 's' : ''} unspent. Ready to advance.`
+        : 'Recruiting wrapped. Ready to advance the week.', 'success');
+      UI.renderShell();
     });
 
     const body = container.querySelector('#tab-body');

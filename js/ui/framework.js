@@ -213,6 +213,18 @@
               <strong>${Utils.formatDate(game.week, game.year)}</strong>
               <span class="phase-pill">${game.seasonPhase}</span>
             </div>
+            ${(() => {
+              const f = game.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
+              const step = !f.trainingConfirmed ? 1 : !f.recruitingDone ? 2 : 3;
+              const cls = (n, done) => `flow-step ${done ? 'done' : step === n ? 'current' : ''}`;
+              return `<div class="flow-steps" title="The weekly coaching rhythm: plan training, then recruit, then advance.">
+                <button class="${cls(1, f.trainingConfirmed)}" data-flow-nav="training" style="cursor:pointer;">${f.trainingConfirmed ? '✓' : '1'} Training Plan</button>
+                <span style="color:var(--text-faint);">→</span>
+                <button class="${cls(2, f.recruitingDone)}" data-flow-nav="recruiting" style="cursor:pointer;">${f.recruitingDone ? '✓' : '2'} Recruiting</button>
+                <span style="color:var(--text-faint);">→</span>
+                <span class="${cls(3, false)}">3 Advance</span>
+              </div>`;
+            })()}
             <div style="display:flex; gap:8px;">
               ${(() => {
                 const s = game.season;
@@ -237,7 +249,24 @@
       btn.addEventListener('click', () => UI.navigate(btn.dataset.nav));
     });
 
+    root.querySelectorAll('[data-flow-nav]').forEach((btn) => {
+      btn.addEventListener('click', () => UI.navigate(btn.dataset.flowNav));
+    });
+
     document.getElementById('btn-advance-week').addEventListener('click', async () => {
+      // The weekly rhythm is mandatory: training plan, then recruiting,
+      // then the week advances.
+      const flow = game.weeklyFlow || (game.weeklyFlow = { trainingConfirmed: false, recruitingDone: false });
+      if (!flow.trainingConfirmed) {
+        UI.toast('Step 1: set and confirm this week\'s training plan first.', 'error');
+        UI.navigate('training');
+        return;
+      }
+      if (!flow.recruitingDone) {
+        UI.toast('Step 2: wrap up recruiting before advancing.', 'error');
+        UI.navigate('recruiting');
+        return;
+      }
       const weekBefore = game.week;
       game.advanceWeek();
       try {

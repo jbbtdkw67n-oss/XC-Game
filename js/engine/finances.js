@@ -83,6 +83,12 @@
           school.facilities[weakest[0]] = Utils.clamp(weakest[1] + UPGRADE_STEP, 0, 99);
         }
       }
+
+      // Facilities move prestige over time: a program that out-builds its
+      // reputation gains standing; crumbling buildings drag it down.
+      const facOverall = school.facilitiesOverall;
+      if (facOverall > school.prestige + 10) school.prestige = Utils.clamp(school.prestige + 1, 0, 99);
+      else if (facOverall < school.prestige - 18) school.prestige = Utils.clamp(school.prestige - 1, 0, 99);
     });
   }
 

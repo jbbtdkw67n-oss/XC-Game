@@ -111,7 +111,7 @@
     const importance = {
       playingTime: imp(50), development: imp(55), prestige: imp(50),
       location: international ? imp(25) : imp(50), nil: imp(30),
-      academics: imp(45), facilities: imp(45)
+      academics: imp(45), facilities: imp(55) // facilities sell — every recruit notices
     };
     // Motivations pull the visible importance sliders in their direction.
     if (motivations.includes('homebody')) importance.location = Utils.clamp(importance.location + 30, 15, 100);
@@ -301,6 +301,10 @@
 
     // Climate preference (visible) folds in lightly.
     fit += (climateScore(school, recruit) - 60) * 0.1;
+
+    // Facilities are a universal draw beyond personal importance: elite
+    // buildings turn heads, run-down ones cost you visits.
+    fit += (school.facilitiesOverall - 55) * 0.09;
 
     return Utils.clamp(fit, 5, 99);
   }

@@ -248,7 +248,9 @@
     const recoveryRate = 4 + athlete.injuryResistance / 30 +
       school.facilities.recoveryCenter / 40 + school.facilities.nutrition / 80;
     athlete.fatigue = Math.round(Utils.clamp(athlete.fatigue + planMeta.fatigue - recoveryRate, 0, 100));
-    athlete.fitness = Math.round(Utils.clamp(athlete.fitness + planMeta.fitness - 1.8, 0, 100));
+    // Training effectiveness: a modern training center makes every week count.
+    const fitnessMult = 0.85 + school.facilities.trainingCenter / 300;
+    athlete.fitness = Math.round(Utils.clamp(athlete.fitness + planMeta.fitness * fitnessMult - 1.8, 0, 100));
 
     // Chronic exhaustion erodes stamina — the cost of overtraining.
     if (athlete.fatigue > 85 && rng.bool(0.35) && athlete.stamina > 20) {

@@ -42,7 +42,7 @@
           </div>
           <div class="sub">
             ${school ? Utils.escapeHtml(school.name) + ' • ' : ''}Major: ${Utils.escapeHtml(athlete.major)} •
-            ${Utils.escapeHtml(athlete.personality)}
+            ${Utils.escapeHtml(athlete.personality)}${athlete.isWalkOn ? ' • <span style="color:var(--text-faint);">Walk-On</span>' : ''}
           </div>
         </div>
         <div style="text-align:right;">

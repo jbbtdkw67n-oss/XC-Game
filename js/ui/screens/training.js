@@ -69,6 +69,9 @@
           <div style="display:flex; gap:8px;">
             <button class="btn small" id="btn-copy-plan">Copy to ${activeGender === 'M' ? 'Women' : 'Men'}</button>
             <button class="btn small" id="btn-balanced">Reset to Balanced Week</button>
+            <button class="btn small ${game.weeklyFlow?.trainingConfirmed ? '' : 'primary'}" id="btn-confirm-plan">
+              ${game.weeklyFlow?.trainingConfirmed ? '✓ Plan Confirmed' : '✓ Confirm Weekly Plan'}
+            </button>
           </div>
         </div>
         ${raceThisWeek ? `<div style="margin:8px 0 0; padding:8px 12px; background:var(--accent-soft); border-radius:8px; font-size:13px;">
@@ -167,6 +170,13 @@
         if (hint) hint.textContent = WORKOUT_HINTS[sel.value];
         preview();
       });
+    });
+
+    container.querySelector('#btn-confirm-plan').addEventListener('click', () => {
+      game.weeklyFlow = game.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
+      game.weeklyFlow.trainingConfirmed = true;
+      UI.toast('Training plan locked in. Next: recruiting.', 'success');
+      UI.navigate('recruiting');
     });
 
     container.querySelector('#btn-balanced').addEventListener('click', () => {

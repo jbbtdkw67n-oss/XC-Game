@@ -667,9 +667,13 @@
   }
 
   function buildNationalsField(gameState) {
-    // Auto qualifiers: top 2 teams per regional; at-large: best-ranked rest.
+    // Team qualifiers: top 2 teams per regional auto-qualify; the rest of
+    // the 31-team field fills with the best-ranked remaining teams.
+    // Individual qualifiers: the top 10 finishers at each regional who are
+    // NOT on a qualifying team also advance to Nationals.
     const season = gameState.season;
     const rankings = gameState.rankings || {};
+    season.individualQualifiers = season.individualQualifiers || { M: [], W: [] };
     ['M', 'W'].forEach((gender) => {
       const auto = [];
       (season.byWeek[REGIONAL_WEEK] || []).forEach((meetId) => {
@@ -684,9 +688,30 @@
         if (!field.includes(sid)) field.push(sid);
       }
       season.nationalsFieldIds[gender] = field;
+
+      // Individuals: top-10 at each regional not on a qualifying team.
+      const fieldSet = new Set(field);
+      const individuals = [];
+      (season.byWeek[REGIONAL_WEEK] || []).forEach((meetId) => {
+        const meet = season.meets[meetId];
+        const res = meet.results[gender];
+        if (!res) return;
+        res.finishers.slice(0, 10).forEach((f) => {
+          if (!fieldSet.has(f.schoolId)) individuals.push(f.athleteId);
+        });
+      });
+      season.individualQualifiers[gender] = individuals;
+
       if (field.includes(gameState.playerSchoolId)) {
         const wasAuto = auto.includes(gameState.playerSchoolId);
         gameState.logNews(`Your ${gender === 'M' ? 'men' : 'women'} are headed to the NCAA Championships${wasAuto ? ' as automatic qualifiers' : ' with an at-large bid'}!`);
+      } else {
+        const mine = individuals
+          .map((id) => gameState.world.athletes[id])
+          .filter((a) => a && a.schoolId === gameState.playerSchoolId);
+        if (mine.length) {
+          gameState.logNews(`${mine.map((a) => a.fullName).join(' and ')} punch${mine.length === 1 ? 'es' : ''} an individual ticket to the NCAA Championships (top-10 at regionals)!`);
+        }
       }
     });
   }
@@ -744,13 +769,17 @@
       const isPlayerMeet = meet.schoolIds.includes(gameState.playerSchoolId) ||
         (meet.type === 'national' &&
           (season.nationalsFieldIds.M?.includes(gameState.playerSchoolId) ||
-           season.nationalsFieldIds.W?.includes(gameState.playerSchoolId)));
+           season.nationalsFieldIds.W?.includes(gameState.playerSchoolId) ||
+           ['M', 'W'].some((g) => (season.individualQualifiers?.[g] || [])
+             .some((id) => gameState.world.athletes[id]?.schoolId === gameState.playerSchoolId))));
       const detailed = isPlayerMeet || meet.type === 'national';
 
       ['M', 'W'].forEach((gender) => {
         if (meet.type === 'national') {
           meet.fieldByGender = meet.fieldByGender || {};
           meet.fieldByGender[gender] = season.nationalsFieldIds[gender] || [];
+          // Individually-qualified runners toe the line too.
+          meet.individualEntries = season.individualQualifiers || { M: [], W: [] };
           const saved = meet.schoolIds;
           meet.schoolIds = meet.fieldByGender[gender];
           meet.results[gender] = simulateRace(gameState, meet, gender, rng, detailed);

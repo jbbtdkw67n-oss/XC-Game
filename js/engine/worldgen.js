@@ -209,10 +209,40 @@
     });
   }
 
+  /*
+   * Walk-ons: fill roster spots below the 14-per-gender requirement.
+   * Clearly weaker than scholarship athletes with poor ceilings — but
+   * roughly 1 in 1000 is a hidden legend who blossoms into a star.
+   */
+  function buildWalkOn(rng, school, gender) {
+    const athlete = buildAthlete(rng, school, gender);
+    athlete.classYear = 'Freshman';
+    athlete.age = 18 + rng.int(0, 1);
+    athlete.eligibilityRemaining = 4;
+    athlete.yearsOnCampus = 1;
+    athlete.isWalkOn = true;
+
+    athlete.potential = rng.int(25, 45);
+    ['vo2Max', 'runningEconomy', 'stamina', 'lactateThreshold', 'speed'].forEach((k) => {
+      athlete[k] = rng.gaussianRange(30, 6, 12, 45);
+    });
+    athlete.devProfile = rng.weightedChoice(
+      [{ t: 'normal', w: 50 }, { t: 'bust', w: 35 }, { t: 'late', w: 15 }], (p) => p.w).t;
+
+    // The legend roll: ~0.1% of walk-ons secretly have superstar ceilings.
+    if (rng.bool(0.001)) {
+      athlete.potential = rng.int(88, 99);
+      athlete.devProfile = 'legend';
+      athlete.workEthic = rng.int(85, 99);
+    }
+    athlete.recalculateOverall();
+    return athlete;
+  }
+
   function generate(seed, options = {}) {
     const rng = new window.XCD.core.SeededRNG(seed);
-    const rosterMin = options.rosterMin ?? 10;
-    const rosterMax = options.rosterMax ?? 15;
+    const rosterMin = options.rosterMin ?? 14;
+    const rosterMax = options.rosterMax ?? 14;
 
     const schools = {};
     const coaches = {};
@@ -253,6 +283,7 @@
   window.XCD.engine.WorldGenerator = {
     generate,
     buildAthlete,
+    buildWalkOn,
     buildReplacementCoach: (rng, school) => buildCoach(rng, school, false)
   };
 })();
