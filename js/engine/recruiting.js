@@ -172,6 +172,7 @@
       fatigue: rng.int(0, 15),
       fitness: Math.round(Utils.clamp(statMean - rng.int(0, 10), 10, 85)),
       morale: rng.int(60, 90),
+      devProfile: rng.weightedChoice(D.DEV_PROFILES, (p) => p.weight).type,
       eligibilityRemaining: source === 'JUCO' ? 3 : 4,
 
       source,

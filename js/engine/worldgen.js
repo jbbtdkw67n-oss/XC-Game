@@ -158,6 +158,7 @@
       fatigue: rng.int(5, 20),
       fitness: Math.round(Utils.clamp(statMean - rng.int(0, 15), 10, 90)),
       morale: rng.int(55, 85),
+      devProfile: rng.weightedChoice(D.DEV_PROFILES, (p) => p.weight).type,
 
       eligibilityRemaining: { Freshman: 4, Sophomore: 3, Junior: 2, Senior: 1, Graduate: 1 }[classYear],
       schoolId: school.id

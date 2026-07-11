@@ -54,6 +54,10 @@
         fatigue: 10,       // 0 fresh - 100 exhausted
         fitness: 50,       // 0-100 current fitness level built from training
         morale: 70,        // 0-100
+        devProfile: 'normal', // hidden archetype: normal | early | late | bust
+        devProgress: 0,    // fractional development accumulator
+        lastDelta: 0,      // overall change last week (UI)
+        seasonDev: 0,      // overall gained this season (UI)
         health: 'Healthy', // Healthy | Injured | Recovering
         injury: null,      // { type, weeksRemaining }
         redshirt: 'None',  // None | True | Medical | Used

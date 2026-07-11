@@ -169,6 +169,7 @@
   const NAV_ITEMS = [
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
     { id: 'roster', label: 'Roster', icon: '👟' },
+    { id: 'training', label: 'Training', icon: '📋' },
     { id: 'recruiting', label: 'Recruiting', icon: '🎯' },
     { id: 'school', label: 'My Program', icon: '🏫' },
     { id: 'world', label: 'World', icon: '🌎' },

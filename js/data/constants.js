@@ -142,6 +142,54 @@
   // Weekly cap on actions per recruit (prevents interest-dumping).
   D.MAX_ACTIONS_PER_RECRUIT_WEEK = 2;
 
+  /* ------------------------------------------------------------------ *
+   * Training
+   * ------------------------------------------------------------------ */
+
+  /*
+   * Workout types. attrs = which ratings this work develops (relative
+   * weights); fatigue = weekly fatigue load at normal intensity;
+   * injury = injury-risk multiplier; fitness = fitness build rate.
+   */
+  D.WORKOUTS = {
+    mileage:   { label: 'High Mileage',   attrs: { endurance: 3, stamina: 2, vo2Max: 1, runningEconomy: 1 },              fatigue: 14, injury: 1.3, fitness: 3.0 },
+    intervals: { label: 'Intervals',      attrs: { vo2Max: 3, rawSpeed: 2, kickSpeed: 2, acceleration: 1, trackSpeed: 1 }, fatigue: 16, injury: 1.5, fitness: 3.0 },
+    tempo:     { label: 'Tempo',          attrs: { lactateThreshold: 3, runningEconomy: 2, stamina: 1, raceIQ: 1 },        fatigue: 12, injury: 1.1, fitness: 3.0 },
+    longRun:   { label: 'Long Run',       attrs: { endurance: 3, stamina: 2, mentalToughness: 1, tenKAbility: 1 },         fatigue: 13, injury: 1.2, fitness: 2.8 },
+    hills:     { label: 'Hill Repeats',   attrs: { hillRunning: 3, strength: 2, downhillRunning: 1, acceleration: 1 },     fatigue: 14, injury: 1.4, fitness: 2.8 },
+    strength:  { label: 'Strength Work',  attrs: { strength: 3, durability: 2, injuryResistance: 1, kickSpeed: 1 },        fatigue: 8,  injury: 0.8, fitness: 1.5 },
+    cross:     { label: 'Cross Training', attrs: { recovery: 2, endurance: 1, durability: 1 },                             fatigue: 5,  injury: 0.6, fitness: 1.5 },
+    easy:      { label: 'Easy Runs',      attrs: { runningEconomy: 2, recovery: 1, packRunning: 1 },                       fatigue: 6,  injury: 0.7, fitness: 2.0 },
+    recovery:  { label: 'Recovery Week',  attrs: { recovery: 1 },                                                          fatigue: -10, injury: 0.4, fitness: 0.8 },
+    rest:      { label: 'Rest Days',      attrs: {},                                                                       fatigue: -18, injury: 0.2, fitness: 0 }
+  };
+
+  D.INTENSITIES = [
+    { value: 1, label: 'Low',    mult: 0.7 },
+    { value: 2, label: 'Normal', mult: 1.0 },
+    { value: 3, label: 'High',   mult: 1.3 }
+  ];
+
+  // Injury table: name + base weeks out [min, max]
+  D.INJURIES = [
+    { type: 'Shin Splints',        weeks: [1, 3],  weight: 22 },
+    { type: 'Illness',             weeks: [1, 2],  weight: 20 },
+    { type: 'Foot Injury',         weeks: [2, 4],  weight: 14 },
+    { type: 'Hamstring Strain',    weeks: [2, 5],  weight: 13 },
+    { type: 'IT Band Syndrome',    weeks: [2, 5],  weight: 10 },
+    { type: 'Achilles Tendinitis', weeks: [3, 7],  weight: 9 },
+    { type: 'Overtraining Fatigue',weeks: [2, 4],  weight: 6 },
+    { type: 'Stress Fracture',     weeks: [6, 12], weight: 6 }
+  ];
+
+  // Hidden development archetypes (assigned at generation, never shown raw)
+  D.DEV_PROFILES = [
+    { type: 'normal', weight: 55 },
+    { type: 'early',  weight: 15 },  // freshman-year surger, plateaus sooner
+    { type: 'late',   weight: 18 },  // slow start, junior/senior leap
+    { type: 'bust',   weight: 12 }   // never quite gets there
+  ];
+
   // Recruiting calendar (within the 34-week year)
   D.RECRUITING = {
     CLASS_SIZE_PER_GENDER: 1200,

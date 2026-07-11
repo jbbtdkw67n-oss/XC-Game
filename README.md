@@ -10,7 +10,15 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
-## Current Status — Phase 2 (Recruiting)
+## Current Status — Phase 3 (Training, Development, Fatigue, Injuries)
+
+- **Weekly training plans** per squad: 10 workout types (mileage, intervals, tempo, long run, hills, strength, cross training, easy runs, recovery weeks, rest) with primary/secondary emphasis and three intensity levels; per-athlete load overrides (normal/reduced/rest).
+- **Development engine**: every athlete in the world develops weekly from coach development rating, facilities, potential gap, work ethic, coachability, morale, fatigue, age, and academics — routed into the specific attributes your plan trains. Hidden archetypes create early bloomers, late bloomers, and busts; stars plateau near their ceiling.
+- **Fatigue system**: training load vs. recovery (athlete recovery rating + recovery center facility); overtraining tanks development and spikes injuries.
+- **Injury system**: eight injury types with severity ranges, influenced by fatigue, injury resistance, durability, and plan risk; rehab time shortened by recovery facilities; injured runners rehab automatically and return.
+- **Training screen**: plan editor with live load preview, squad monitor (weekly/seasonal development deltas, fitness/fatigue/readiness/morale meters), and a program-wide injury report. AI programs train too, with plans derived from coach personality and the season calendar.
+
+## Phase 2 (Recruiting)
 
 - **National recruiting classes**: 2,400 new recruits per year (HS, JUCO, and international) with star ratings, national/state/regional rankings, hidden motivations, importance priorities, parents' influence, and decision timelines.
 - **Nine recruiting actions** (letters, calls, race scouting, assistant/home/campus visits, overnights, team meets, scholarship offers) with a weekly points economy and an annual dollar budget.
@@ -42,7 +50,6 @@ js/ui/screens/        menu, dashboard, roster, program, world, news, saves
 
 ## Roadmap
 
-- **Phase 3**: weekly training plans, development engine, fatigue & injury systems
 - **Phase 4**: live race simulation, NCAA team scoring, rankings, championships
 - **Phase 5**: transfer portal, news engine, awards, historical records
 - **Phase 6**: polish, animations, balancing

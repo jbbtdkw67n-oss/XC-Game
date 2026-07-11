@@ -53,6 +53,13 @@
       this.history = {
         recruitingClasses: {} // year -> ranked class list
       };
+
+      // Weekly training plans for the player's squads + per-athlete loads.
+      this.training = {
+        M: { intensity: 2, primary: 'mileage', secondary: 'strength' },
+        W: { intensity: 2, primary: 'mileage', secondary: 'strength' },
+        overrides: {} // athleteId -> 'reduced' | 'rest'
+      };
     }
 
     /*
@@ -127,18 +134,9 @@
       // Recruiting: AI schools work their boards, recruits decide.
       window.XCD.engine.Recruiting.processWeek(this, rng);
 
-      Object.values(this.world.athletes).forEach((a) => {
-        if (!a.schoolId) return;
-        a.fatigue = Utils.clamp(a.fatigue - Utils.clamp(8 - Math.round(a.recovery / 20), 2, 8), 0, 100);
-        a.morale = Utils.clamp(a.morale + (a.morale < 70 ? 1 : -1) + Utils.clamp(Math.round((70 - a.morale) / 20), -2, 2), 0, 100);
-        if (a.injury) {
-          a.injury.weeksRemaining -= 1;
-          if (a.injury.weeksRemaining <= 0) {
-            a.injury = null;
-            a.health = 'Healthy';
-          }
-        }
-      });
+      // Training & development: every athlete in the world trains,
+      // develops, fatigues, and risks injury.
+      window.XCD.engine.Training.processWeek(this, rng);
 
       this.week += 1;
       if (this.week > WEEKS_PER_YEAR) {
@@ -225,6 +223,12 @@
       // 5) A brand-new national recruiting class appears.
       window.XCD.engine.Recruiting.resetForNewYear(this, rng);
 
+      // 6) Season development counters reset; stale training overrides clear.
+      Object.values(this.world.athletes).forEach((a) => { a.seasonDev = 0; });
+      Object.keys(this.training.overrides).forEach((id) => {
+        if (!this.world.athletes[id]) delete this.training.overrides[id];
+      });
+
       this.logNews(`A new academic year begins: ${this.year}.`);
     }
 
@@ -242,7 +246,8 @@
         newsLog: this.newsLog,
         createdAt: this.createdAt,
         recruiting: this.recruiting,
-        history: this.history
+        history: this.history,
+        training: this.training
       };
     }
 
@@ -266,6 +271,11 @@
         board: { M: [], W: [] }, aiBoards: {}, classYear: null
       };
       gs.history = obj.history || { recruitingClasses: {} };
+      gs.training = obj.training || {
+        M: { intensity: 2, primary: 'mileage', secondary: 'strength' },
+        W: { intensity: 2, primary: 'mileage', secondary: 'strength' },
+        overrides: {}
+      };
       if (!Object.keys(recruits).length) {
         const rng = new window.XCD.core.SeededRNG((gs.seed ^ 0xA11CE) >>> 0);
         gs.recruiting.budgetLeft = gs.getPlayerSchool().budget.recruiting;
