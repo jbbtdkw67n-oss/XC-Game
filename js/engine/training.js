@@ -153,7 +153,7 @@
     };
   }
 
-  function processAthlete(gameState, athlete, coach, school, planMeta, rng, isPlayerSchool) {
+  function processAthlete(gameState, athlete, coach, school, planMeta, rng, isPlayerSchool, culture) {
     // Injured athletes rehab instead of training.
     if (athlete.injury) {
       athlete.injury.weeksRemaining -= 1;
@@ -176,8 +176,13 @@
     athlete.fatigue = Math.round(Utils.clamp(athlete.fatigue + planMeta.fatigue - recoveryRate, 0, 100));
     athlete.fitness = Math.round(Utils.clamp(athlete.fitness + planMeta.fitness - 1.8, 0, 100));
 
-    // Development
-    athlete.devProgress = (athlete.devProgress || 0) + devPoints(athlete, coach, school, planMeta, rng);
+    // Development — chemistry lifts everyone; strong captains mentor freshmen.
+    let dev = devPoints(athlete, coach, school, planMeta, rng);
+    if (culture) {
+      dev *= 0.88 + culture.chemistry / 450; // 0.88–1.10
+      if (athlete.classYear === 'Freshman' && culture.captainLeadership >= 75) dev *= 1.10;
+    }
+    athlete.devProgress = (athlete.devProgress || 0) + dev;
     applyDevelopment(athlete, planMeta.attrWeights, rng);
     athlete.recalculateOverall();
     athlete.lastDelta = athlete.currentOverall - before;
@@ -205,12 +210,51 @@
     athlete.morale = Utils.clamp(athlete.morale + moraleShift, 0, 100);
   }
 
+  /*
+   * Team culture: captains lead, chemistry binds. Captains are the
+   * player's picks (or the highest-leadership upperclassmen for AI /
+   * unset squads). Chemistry blends squad morale, discipline, captain
+   * leadership, and the coach's culture rating — and feeds both weekly
+   * development and race day.
+   */
+  function squadCulture(gameState, school, gender, coach) {
+    const roster = (gender === 'M' ? school.rosterM : school.rosterW)
+      .map((id) => gameState.world.athletes[id])
+      .filter(Boolean);
+    if (!roster.length) return { chemistry: 50, captainLeadership: 50 };
+
+    let captains = [];
+    if (school.id === gameState.playerSchoolId && gameState.culture) {
+      captains = (gameState.culture.captains[gender] || [])
+        .map((id) => gameState.world.athletes[id])
+        .filter((a) => a && a.schoolId === school.id);
+    }
+    if (!captains.length) {
+      captains = roster
+        .filter((a) => ['Junior', 'Senior', 'Graduate'].includes(a.classYear))
+        .sort((a, b) => b.leadership - a.leadership)
+        .slice(0, 2);
+    }
+    const captainLeadership = captains.length
+      ? Math.round(Utils.average(captains.map((a) => a.leadership)))
+      : 45;
+
+    const chemistry = Math.round(Utils.clamp(
+      Utils.average(roster.map((a) => a.morale)) * 0.40 +
+      Utils.average(roster.map((a) => a.discipline)) * 0.20 +
+      captainLeadership * 0.25 +
+      (coach ? coach.culture : 50) * 0.15,
+      0, 100));
+    return { chemistry, captainLeadership };
+  }
+
   function processWeek(gameState, rng) {
     const playerId = gameState.playerSchoolId;
 
     for (const school of Object.values(gameState.world.schools)) {
       const coach = gameState.getCoach(school.coachId);
       const isPlayer = school.id === playerId;
+      school.chemistry = school.chemistry || {};
 
       ['M', 'W'].forEach((gender) => {
         const plan = isPlayer
@@ -218,6 +262,8 @@
           : aiPlan(gameState, coach);
         const baseMeta = planMetaFor(plan);
         const roster = gender === 'M' ? school.rosterM : school.rosterW;
+        const culture = squadCulture(gameState, school, gender, coach);
+        school.chemistry[gender] = culture.chemistry;
 
         roster.forEach((id) => {
           const athlete = gameState.world.athletes[id];
@@ -227,7 +273,7 @@
             const override = gameState.training.overrides[id];
             if (override) meta = planMetaFor(plan, override);
           }
-          processAthlete(gameState, athlete, coach, school, meta, rng, isPlayer);
+          processAthlete(gameState, athlete, coach, school, meta, rng, isPlayer, culture);
         });
       });
     }

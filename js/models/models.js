@@ -65,6 +65,7 @@
         yearsOnCampus: 1,  // NCAA five-year clock
         seasonRaces: 0,    // races run this season (blocks redshirting)
         honors: { allAmerican: 0, natChamp: 0, confChamp: 0, awards: [] },
+        raceLog: [],       // last 8 results: {y, w, m, p, t, d}
 
         schoolId: null,
         isRecruit: false,

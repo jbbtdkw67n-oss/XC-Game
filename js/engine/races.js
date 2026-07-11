@@ -214,6 +214,9 @@
     const runners = entries.map(({ athlete: a, schoolId }) => {
       const rating = raceRating(a, distanceM);
       let total = baseTime(rating, gender, distanceM) * conditionsMultiplier(a, meet, gender);
+      // Team chemistry travels with the squad on race day (±~0.9%).
+      const chem = gameState.getSchool(schoolId)?.chemistry?.[gender];
+      if (chem !== undefined) total *= 1 + (55 - chem) * 0.0002;
       // Course hills slow everyone; hill runners lose less.
       total *= 1 + hillFactor * 0.03 * (1.35 - (a.hillRunning * 0.7 + a.strength * 0.3) / 100);
       // Day form: consistent runners have narrower swings.
@@ -340,6 +343,9 @@
       if (!a) return;
       a.careerStats.races += 1;
       a.seasonRaces = (a.seasonRaces || 0) + 1;
+      a.raceLog = a.raceLog || [];
+      a.raceLog.unshift({ y: gameState.year, w: meet.week, m: meet.name, p: f.place, t: f.time, d: key });
+      if (a.raceLog.length > 8) a.raceLog.length = 8;
       if (f.place === 1) a.careerStats.wins += 1;
       if (f.place <= 5) a.careerStats.top5 += 1;
       const pr = a.careerStats.personalBests[key];
@@ -397,6 +403,8 @@
     const champId = res.teamScores[0].schoolId;
     const school = gameState.getSchool(champId);
     school.historicalSuccess[gender === 'M' ? 'conferenceTitlesM' : 'conferenceTitlesW'] += 1;
+    const confCoach = gameState.getCoach(school.coachId);
+    if (confCoach) confCoach.careerRecord.conferenceTitles += 1;
 
     const H = gameState.history;
     H.conferenceChampions = H.conferenceChampions || {};
@@ -443,6 +451,8 @@
     const school = gameState.getSchool(champId);
     school.historicalSuccess[gender === 'M' ? 'nationalTitlesM' : 'nationalTitlesW'] += 1;
     school.prestige = Utils.clamp(school.prestige + 2, 0, 99);
+    const natCoach = gameState.getCoach(school.coachId);
+    if (natCoach) natCoach.careerRecord.nationalTitles += 1;
     res.teamScores.slice(1, 4).forEach((t) => {
       const s = gameState.getSchool(t.schoolId);
       if (s) s.prestige = Utils.clamp(s.prestige + 1, 0, 99);

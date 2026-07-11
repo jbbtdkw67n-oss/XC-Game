@@ -90,6 +90,24 @@
         </div>
       </div>
 
+      ${athlete.raceLog && athlete.raceLog.length ? `
+      <div class="card" style="padding:12px; margin-bottom:14px;">
+        <h3>Recent Races</h3>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>When</th><th>Meet</th><th></th><th class="num">Place</th><th class="num">Time</th></tr></thead>
+          <tbody>
+            ${athlete.raceLog.map((r) => `
+              <tr>
+                <td>Wk ${r.w}, ${r.y}</td>
+                <td>${Utils.escapeHtml(r.m)}</td>
+                <td>${r.d}</td>
+                <td class="num">${r.p === 1 ? '🥇 1' : r.p}</td>
+                <td class="num">${window.XCD.engine.Races.formatTime(r.t)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table></div>
+      </div>` : ''}
+
       <div class="card" style="padding:12px; margin-bottom:14px;">
         <h3>Physical Ratings</h3>
         <div class="attr-grid">${attrRows(PHYSICAL_ATTRS)}</div>

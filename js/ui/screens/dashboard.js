@@ -108,6 +108,20 @@
         </div>
       </div>
 
+      ${game.jobOffers && game.jobOffers.offers.length ? `
+        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent);">
+          <h2>📞 Athletic Directors Are Calling</h2>
+          <div style="color:var(--text-dim); font-size:13px; margin-bottom:10px;">
+            Offers expire Week ${game.jobOffers.expiresWeek}. Leaving resets your recruiting board relationships and team culture.
+          </div>
+          ${game.jobOffers.offers.map((o) => `
+            <div class="attr-row" style="padding:6px 0;">
+              <span><strong>${Utils.escapeHtml(o.schoolName)}</strong> <span style="color:var(--text-dim);">(${Utils.escapeHtml(o.conference)} • prestige ${o.prestige})</span></span>
+              <button class="btn small primary" data-accept="${o.schoolId}">Accept Job</button>
+            </div>`).join('')}
+          <div style="margin-top:8px;"><button class="btn small danger" id="btn-decline-offers">Stay Loyal</button></div>
+        </div>` : ''}
+
       ${nextMeet ? `
         <div class="card" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <div>
@@ -143,6 +157,36 @@
     });
     const schedBtn = container.querySelector('#btn-to-schedule');
     if (schedBtn) schedBtn.addEventListener('click', () => UI.navigate('schedule'));
+
+    container.querySelectorAll('[data-accept]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const target = game.getSchool(btn.dataset.accept);
+        UI.showModal(`
+          <h2>Take the ${Utils.escapeHtml(target.name)} job?</h2>
+          <p style="color:var(--text-dim); margin-bottom:16px;">
+            You'll leave ${Utils.escapeHtml(game.getPlayerSchool().name)} immediately. Your career record
+            travels with you; your roster, recruits, and captains stay behind.
+          </p>
+          <div style="display:flex; gap:10px;">
+            <button class="btn primary" id="confirm-move">Accept — Let's Build</button>
+            <button class="btn" data-modal-close>Cancel</button>
+          </div>
+        `, (modal) => {
+          modal.querySelector('#confirm-move').addEventListener('click', () => {
+            const result = window.XCD.engine.Careers.acceptOffer(game, btn.dataset.accept);
+            UI.closeModal();
+            UI.toast(result.message, result.ok ? 'success' : 'error');
+            if (result.ok) UI.renderShell();
+          });
+        });
+      });
+    });
+    const declineBtn = container.querySelector('#btn-decline-offers');
+    if (declineBtn) declineBtn.addEventListener('click', () => {
+      window.XCD.engine.Careers.declineOffers(game);
+      UI.toast('You recommit to the program.', 'success');
+      render(container);
+    });
   }
 
   UI.screens.dashboard = { render };

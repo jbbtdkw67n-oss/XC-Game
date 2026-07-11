@@ -53,6 +53,17 @@
             : `<span style="color:var(--danger);">${Utils.escapeHtml(a.injury ? a.injury.type : a.health)}</span>`
         },
         {
+          key: 'captain', label: 'Capt',
+          sortValue: (a) => UI.state.game.culture.captains[activeGender].includes(a.id) ? 1 : 0,
+          render: (a) => {
+            const isCapt = UI.state.game.culture.captains[activeGender].includes(a.id);
+            const eligible = ['Junior', 'Senior', 'Graduate'].includes(a.classYear);
+            if (isCapt) return `<button class="btn small" data-capt="${a.id}" style="border-color:var(--gold); color:var(--gold);">⭐ C</button>`;
+            if (!eligible) return '<span style="color:var(--text-faint); font-size:11px;">—</span>';
+            return `<button class="btn small" data-capt="${a.id}" title="Name captain (leadership ${a.leadership})">C?</button>`;
+          }
+        },
+        {
           key: 'redshirt', label: 'Redshirt',
           sortValue: (a) => a.redshirt,
           render: (a) => {
@@ -70,12 +81,33 @@
     // Capturing delegate: survives table re-sorts and beats the row-click
     // handler that would otherwise open the player card.
     container.querySelector('#roster-table').addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-rs]');
-      if (!btn || btn.disabled) return;
-      e.stopPropagation();
-      const result = window.XCD.engine.Portal.toggleRedshirt(UI.state.game, btn.dataset.rs);
-      UI.toast(result.message, result.ok ? 'success' : 'error');
-      if (result.ok) render(container);
+      const rsBtn = e.target.closest('[data-rs]');
+      if (rsBtn && !rsBtn.disabled) {
+        e.stopPropagation();
+        const result = window.XCD.engine.Portal.toggleRedshirt(UI.state.game, rsBtn.dataset.rs);
+        UI.toast(result.message, result.ok ? 'success' : 'error');
+        if (result.ok) render(container);
+        return;
+      }
+      const cBtn = e.target.closest('[data-capt]');
+      if (cBtn) {
+        e.stopPropagation();
+        const game = UI.state.game;
+        const captains = game.culture.captains[activeGender];
+        const id = cBtn.dataset.capt;
+        const a = game.getAthlete(id);
+        if (captains.includes(id)) {
+          captains.splice(captains.indexOf(id), 1);
+          UI.toast(`${a.lastName} is no longer a captain.`);
+        } else if (captains.length >= 2) {
+          UI.toast('Only two captains per squad — remove one first.', 'error');
+          return;
+        } else {
+          captains.push(id);
+          UI.toast(`${a.fullName} named team captain.`, 'success');
+        }
+        render(container);
+      }
     }, true);
 
     container.querySelector('#roster-search').addEventListener('input', (e) => table.setQuery(e.target.value));

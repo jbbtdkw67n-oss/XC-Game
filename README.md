@@ -10,9 +10,16 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
-## Version 1.0 — All Six Phases Complete
+## Version 1.1 — Career Mode & Team Culture
 
 The full dynasty loop is playable indefinitely: recruit → train → race → manage → develop → offseason → repeat, for 100+ seasons.
+
+### v1.1 (Careers & Culture)
+
+- **The coaching ladder**: overachieve at a small program and athletic directors call — accept a job offer to move up (career record travels; the roster stays behind). Elite AI programs also poach breakout small-school coaches, so the whole carousel is alive.
+- **Team culture**: name up to two captains per squad; chemistry (morale + discipline + captain leadership + coach culture) feeds weekly development and race-day performance, and high-leadership captains mentor freshmen.
+- **Coach rankings**: a national coach leaderboard (titles + polls + résumé) — the scoreboard for becoming the greatest coach in NCAA history.
+- **Race logs**: every athlete's last 8 races on their player card.
 
 ### Phase 6 (Polish, Finances, Balancing)
 

@@ -69,8 +69,13 @@
       // The player's coaching career ledger
       this.career = {
         seasons: 0, conferenceTitles: 0, nationalTitles: 0,
-        nationalsAppearances: 0, podiums: 0, bestFinish: null, awards: []
+        nationalsAppearances: 0, podiums: 0, bestFinish: null, awards: [],
+        stops: [] // coaching stops: { school, startYear }
       };
+
+      // Team culture: player-selected captains per squad
+      this.culture = { captains: { M: [], W: [] } };
+      this.jobOffers = null; // outside interest after strong seasons
     }
 
     /*
@@ -107,6 +112,7 @@
       school.coachId = playerCoach.id;
       gs.playerCoachId = playerCoach.id;
 
+      gs.career.stops.push({ school: school.name, startYear: gs.year });
       gs.logNews(`${coachFirstName} ${coachLastName} takes over as head coach at ${school.name}.`);
 
       // Spin up the first recruiting cycle.
@@ -178,8 +184,12 @@
       // Post-week: build the nationals field once regionals wrap.
       window.XCD.engine.Races.postWeekHousekeeping(this);
 
-      // Awards ceremony the week after nationals.
-      if (this.week === 22) window.XCD.engine.Awards.processPostNationals(this, rng);
+      // Awards ceremony the week after nationals; ADs start calling.
+      if (this.week === 22) {
+        window.XCD.engine.Awards.processPostNationals(this, rng);
+        window.XCD.engine.Careers.generateOffers(this, rng);
+      }
+      window.XCD.engine.Careers.expireOffers(this);
 
       // Redshirts + the transfer portal window.
       window.XCD.engine.Portal.processWeek(this, rng);
@@ -288,6 +298,14 @@
         if (assistant) assistant.age += 1;
       });
 
+      // 4b) Elite programs raid successful small-school coaches.
+      window.XCD.engine.Careers.aiPoaching(this, rng);
+
+      // 4c) Captains who graduated fall off the leadership group.
+      ['M', 'W'].forEach((g) => {
+        this.culture.captains[g] = this.culture.captains[g].filter((id) => this.world.athletes[id]);
+      });
+
       // 5) Budgets refresh, boosters reward success, AI programs build.
       window.XCD.engine.Finances.yearlyRefresh(this, rng);
 
@@ -344,7 +362,9 @@
         lastPlayerMeetId: this.lastPlayerMeetId,
         portal: this.portal,
         career: this.career,
-        fundraisedYear: this.fundraisedYear || null
+        fundraisedYear: this.fundraisedYear || null,
+        culture: this.culture,
+        jobOffers: this.jobOffers
       };
     }
 
@@ -381,6 +401,9 @@
         seasons: 0, conferenceTitles: 0, nationalTitles: 0,
         nationalsAppearances: 0, podiums: 0, bestFinish: null, awards: []
       };
+      gs.career.stops = gs.career.stops || [{ school: gs.getPlayerSchool().name, startYear: 2026 }];
+      gs.culture = obj.culture || { captains: { M: [], W: [] } };
+      gs.jobOffers = obj.jobOffers || null;
       if (!gs.season || gs.season.year !== gs.year) {
         const seasonRng = new window.XCD.core.SeededRNG((gs.seed + gs.year * 977) >>> 0);
         window.XCD.engine.Races.newSeason(gs, seasonRng);

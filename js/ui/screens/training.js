@@ -54,7 +54,7 @@
         <div class="stat-tile"><div class="label">Squad Fitness</div><div class="value">${avgFitness}</div>${UI.meter(avgFitness)}</div>
         <div class="stat-tile"><div class="label">Squad Fatigue</div><div class="value">${avgFatigue}</div>${UI.meter(avgFatigue, avgFatigue > 60 ? 'red' : avgFatigue > 40 ? 'yellow' : 'green')}</div>
         <div class="stat-tile"><div class="label">Race Readiness</div><div class="value">${avgReadiness}</div>${UI.meter(avgReadiness, 'green')}</div>
-        <div class="stat-tile"><div class="label">Injured (Team)</div><div class="value">${injured.length}</div><div class="sub">${game.seasonPhase}</div></div>
+        <div class="stat-tile"><div class="label">Team Chemistry</div><div class="value">${school.chemistry?.[activeGender] ?? '—'}</div><div class="sub">${injured.length} injured • captains lead the room</div></div>
       </div>
 
       <div class="card" style="margin-bottom:16px;">

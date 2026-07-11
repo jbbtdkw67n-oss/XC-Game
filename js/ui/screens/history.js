@@ -48,6 +48,15 @@
         <div class="stat-tile"><div class="label">National Titles</div><div class="value">${c.nationalTitles}</div><div class="sub">${c.podiums} podiums</div></div>
         <div class="stat-tile"><div class="label">Nationals Trips</div><div class="value">${c.nationalsAppearances}</div><div class="sub">best finish: ${c.bestFinish ? Utils.ordinal(c.bestFinish) : '—'}</div></div>
       </div>
+      ${(c.stops || []).length ? `
+        <div class="card" style="margin-bottom:16px;">
+          <h2>Coaching Stops</h2>
+          ${c.stops.map((s, i) => `
+            <div class="attr-row">
+              <span>${i + 1}. ${Utils.escapeHtml(s.school)}</span>
+              <span style="color:var(--text-dim);">${s.startYear}${i < c.stops.length - 1 ? '–' + (c.stops[i + 1].startYear - 1) : '–present'}</span>
+            </div>`).join('')}
+        </div>` : ''}
       ${c.awards.length ? `
         <div class="card" style="margin-bottom:16px;">
           <h2>Personal Honors</h2>

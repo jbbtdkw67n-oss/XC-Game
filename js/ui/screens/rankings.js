@@ -32,6 +32,7 @@
             <button data-tab="conference" class="${activeTab === 'conference' ? 'active' : ''}">Conference</button>
             <button data-tab="individual" class="${activeTab === 'individual' ? 'active' : ''}">Individuals</button>
             <button data-tab="freshman" class="${activeTab === 'freshman' ? 'active' : ''}">Freshmen</button>
+            <button data-tab="coaches" class="${activeTab === 'coaches' ? 'active' : ''}">Coaches</button>
           </div>
           <div class="pill-tabs">
             <button id="g-m" class="${activeGender === 'M' ? 'active' : ''}">Men</button>
@@ -43,7 +44,30 @@
 
     const body = container.querySelector('#rank-body');
 
-    if (activeTab === 'individual' || activeTab === 'freshman') {
+    if (activeTab === 'coaches') {
+      const all = window.XCD.engine.Careers.coachRankings(game);
+      const rows = all.slice(0, 50);
+      const me = all.find((r) => r.isPlayer);
+      if (me && me.rank > 50) rows.push(me); // always show yourself
+      body.innerHTML = `
+        <h2>National Coach Rankings</h2>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Rank</th><th>Coach</th><th>School</th><th>Style</th><th class="num">Natl Titles</th><th class="num">Conf Titles</th><th class="num">Best Poll</th><th class="num">Score</th></tr></thead>
+          <tbody>
+            ${rows.map((r) => `
+              <tr ${r.isPlayer ? 'style="background:var(--accent-soft);"' : ''}>
+                <td>#${r.rank}</td>
+                <td><strong>${Utils.escapeHtml(r.name)}</strong>${r.isPlayer ? ' <span style="color:var(--accent);">(You)</span>' : ''}</td>
+                <td>${Utils.escapeHtml(r.school)}</td>
+                <td style="font-size:12px; color:var(--text-dim);">${Utils.escapeHtml(r.personality)}</td>
+                <td class="num">${r.natTitles}</td>
+                <td class="num">${r.confTitles}</td>
+                <td class="num">${r.bestRank <= 354 ? '#' + r.bestRank : '—'}</td>
+                <td class="num">${r.score}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table></div>`;
+    } else if (activeTab === 'individual' || activeTab === 'freshman') {
       const list = activeTab === 'individual' ? R.individuals[activeGender] : R.freshmen[activeGender];
       body.innerHTML = list.length ? `
         <div class="table-wrap"><table class="data">
