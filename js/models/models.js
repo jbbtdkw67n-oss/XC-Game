@@ -168,6 +168,7 @@
 
         historicalSuccess: { conferenceTitlesM: 0, conferenceTitlesW: 0, nationalTitlesM: 0, nationalTitlesW: 0 },
         rivalries: [],
+        records: {}, // "M-8K" -> { time, name, year }
 
         coachId: null,
         assistantId: null,

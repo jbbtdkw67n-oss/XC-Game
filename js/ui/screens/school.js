@@ -89,6 +89,14 @@
           ${rivals.length
             ? rivals.map((r) => `<div class="attr-row"><span>${Utils.escapeHtml(r.name)}</span><span class="attr-name">${Utils.escapeHtml(r.conference)}</span></div>`).join('')
             : '<div style="color:var(--text-dim); font-size:13px;">No established rivals.</div>'}
+          <h3 style="margin-top:14px;">School Records</h3>
+          ${school.records && Object.keys(school.records).length
+            ? Object.entries(school.records).sort().map(([key, rec]) => `
+                <div class="attr-row">
+                  <span class="attr-name">${key.replace('M-', "Men's ").replace('W-', "Women's ")}</span>
+                  <span>${window.XCD.engine.Races.formatTime(rec.time)} — ${Utils.escapeHtml(rec.name)} ('${String(rec.year).slice(2)})</span>
+                </div>`).join('')
+            : '<div style="color:var(--text-dim); font-size:13px;">No records on the books yet — race!</div>'}
         </div>
       </div>`;
   }

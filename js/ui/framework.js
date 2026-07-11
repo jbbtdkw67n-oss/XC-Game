@@ -168,6 +168,9 @@
   /* ---------------- Screen routing ---------------- */
   const NAV_ITEMS = [
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
+    { id: 'schedule', label: 'Schedule', icon: '📅' },
+    { id: 'racecenter', label: 'Race Center', icon: '📺' },
+    { id: 'rankings', label: 'Rankings', icon: '🏅' },
     { id: 'roster', label: 'Roster', icon: '👟' },
     { id: 'training', label: 'Training', icon: '📋' },
     { id: 'recruiting', label: 'Recruiting', icon: '🎯' },
@@ -209,7 +212,13 @@
               <span class="phase-pill">${game.seasonPhase}</span>
             </div>
             <div style="display:flex; gap:8px;">
-              <button class="btn primary" id="btn-advance-week">Advance Week ▸</button>
+              <button class="btn primary" id="btn-advance-week">${(() => {
+                const s = game.season;
+                if (!s) return 'Advance Week ▸';
+                const racing = s.playerMeetByWeek[game.week] ||
+                  (game.week === s.nationalWeek && (s.nationalsFieldIds.M?.includes(game.playerSchoolId) || s.nationalsFieldIds.W?.includes(game.playerSchoolId)));
+                return racing ? '🏁 Race & Advance ▸' : 'Advance Week ▸';
+              })()}</button>
             </div>
           </div>
           <div id="screen-container"></div>
@@ -221,11 +230,17 @@
     });
 
     document.getElementById('btn-advance-week').addEventListener('click', async () => {
+      const weekBefore = game.week;
       game.advanceWeek();
       try {
         await window.XCD.engine.SaveManager.autoSave(game);
       } catch (err) {
         UI.toast('Autosave failed: ' + err.message, 'error');
+      }
+      // If our team just raced, cut straight to the broadcast.
+      const meet = game.lastPlayerMeetId && game.season && game.season.meets[game.lastPlayerMeetId];
+      if (meet && meet.week === weekBefore && meet.results.M) {
+        UI.state.currentScreen = 'racecenter';
       }
       UI.renderShell();
       UI.toast(`Advanced to ${Utils.formatDate(game.week, game.year)}`, 'success', 1800);

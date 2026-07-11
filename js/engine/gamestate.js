@@ -60,6 +60,10 @@
         W: { intensity: 2, primary: 'mileage', secondary: 'strength' },
         overrides: {} // athleteId -> 'reduced' | 'rest'
       };
+
+      this.season = null;    // current season schedule + results (Races engine)
+      this.rankings = null;  // latest polls (Rankings engine)
+      this.lastPlayerMeetId = null; // for the race center replay
     }
 
     /*
@@ -104,6 +108,10 @@
       gs.recruiting.budgetLeft = school.budget.recruiting;
       window.XCD.engine.Recruiting.generateClass(gs, rng);
       window.XCD.engine.Recruiting.startNewWeek(gs);
+
+      // Build the season schedule and preseason polls.
+      window.XCD.engine.Races.newSeason(gs, rng);
+      window.XCD.engine.Rankings.compute(gs);
       return gs;
     }
 
@@ -134,6 +142,13 @@
       // Recruiting: AI schools work their boards, recruits decide.
       window.XCD.engine.Recruiting.processWeek(this, rng);
 
+      // Race day: every meet in the country runs this week's races.
+      const meetBefore = this.season && this.season.playerMeetByWeek[this.week];
+      window.XCD.engine.Races.processWeek(this, rng);
+      this.lastPlayerMeetId = meetBefore ||
+        (this.season && this.week === this.season.nationalWeek ? this.season.nationalsMeetId : null) ||
+        this.lastPlayerMeetId;
+
       // Training & development: every athlete in the world trains,
       // develops, fatigues, and risks injury.
       window.XCD.engine.Training.processWeek(this, rng);
@@ -144,6 +159,9 @@
         this.year += 1;
         this.rolloverYear();
       }
+
+      // Post-week: build the nationals field once regionals wrap.
+      window.XCD.engine.Races.postWeekHousekeeping(this);
 
       // Fresh weekly recruiting points/limits for the player.
       window.XCD.engine.Recruiting.startNewWeek(this);
@@ -229,6 +247,25 @@
         if (!this.world.athletes[id]) delete this.training.overrides[id];
       });
 
+      // 7) Archive last season's player results, then build the new season.
+      if (this.season) {
+        const summary = [];
+        Object.values(this.season.meets).forEach((meet) => {
+          ['M', 'W'].forEach((gender) => {
+            const res = meet.results[gender];
+            if (!res) return;
+            const mine = res.teamScores.find((t) => t.schoolId === this.playerSchoolId);
+            if (mine) summary.push({ week: meet.week, meet: meet.name, gender, place: mine.place, teams: res.teamScores.length, points: mine.points });
+          });
+        });
+        this.history.seasonSummaries = this.history.seasonSummaries || {};
+        this.history.seasonSummaries[this.season.year] = summary;
+      }
+      const seasonRng = new window.XCD.core.SeededRNG((this.seed + this.year * 977) >>> 0);
+      window.XCD.engine.Races.newSeason(this, seasonRng);
+      window.XCD.engine.Rankings.compute(this);
+      this.lastPlayerMeetId = null;
+
       this.logNews(`A new academic year begins: ${this.year}.`);
     }
 
@@ -247,7 +284,10 @@
         createdAt: this.createdAt,
         recruiting: this.recruiting,
         history: this.history,
-        training: this.training
+        training: this.training,
+        season: this.season,
+        rankings: this.rankings,
+        lastPlayerMeetId: this.lastPlayerMeetId
       };
     }
 
@@ -276,6 +316,14 @@
         W: { intensity: 2, primary: 'mileage', secondary: 'strength' },
         overrides: {}
       };
+      gs.season = obj.season || null;
+      gs.rankings = obj.rankings || null;
+      gs.lastPlayerMeetId = obj.lastPlayerMeetId || null;
+      if (!gs.season || gs.season.year !== gs.year) {
+        const seasonRng = new window.XCD.core.SeededRNG((gs.seed + gs.year * 977) >>> 0);
+        window.XCD.engine.Races.newSeason(gs, seasonRng);
+      }
+      if (!gs.rankings) window.XCD.engine.Rankings.compute(gs);
       if (!Object.keys(recruits).length) {
         const rng = new window.XCD.core.SeededRNG((gs.seed ^ 0xA11CE) >>> 0);
         gs.recruiting.budgetLeft = gs.getPlayerSchool().budget.recruiting;

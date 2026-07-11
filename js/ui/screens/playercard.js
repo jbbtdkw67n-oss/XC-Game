@@ -74,11 +74,13 @@
 
       <div class="grid cols-2" style="margin-bottom:14px;">
         <div class="card" style="padding:12px;">
-          <h3>Status</h3>
+          <h3>Status &amp; Career</h3>
           <div class="attr-row"><span class="attr-name">Health</span><span>${Utils.escapeHtml(athlete.health)}${athlete.injury ? ` — ${Utils.escapeHtml(athlete.injury.type)} (${athlete.injury.weeksRemaining} wk)` : ''}</span></div>
           <div class="attr-row"><span class="attr-name">Eligibility Left</span><span>${athlete.eligibilityRemaining} yr</span></div>
           <div class="attr-row"><span class="attr-name">Redshirt</span><span>${athlete.redshirt}</span></div>
-          <div class="attr-row"><span class="attr-name">Career Races</span><span>${athlete.careerStats.races}</span></div>
+          <div class="attr-row"><span class="attr-name">Races / Wins / Top-5s</span><span>${athlete.careerStats.races} / ${athlete.careerStats.wins} / ${athlete.careerStats.top5}</span></div>
+          ${Object.entries(athlete.careerStats.personalBests || {}).map(([k, t]) =>
+            `<div class="attr-row"><span class="attr-name">PR ${k}</span><span>${window.XCD.engine.Races ? window.XCD.engine.Races.formatTime(t) : t}</span></div>`).join('')}
         </div>
         <div class="card" style="padding:12px;">
           <h3>Preferences</h3>

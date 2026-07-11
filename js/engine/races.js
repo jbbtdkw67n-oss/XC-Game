@@ -1,0 +1,567 @@
+/*
+ * RaceEngine — Phase 4.
+ *
+ * Season scheduling, segment-based race simulation with pack dynamics,
+ * NCAA team scoring (top 5 score, 6-7 displace, incomplete teams removed,
+ * 6th-runner tiebreak), championships (conference → regional → national
+ * with auto + at-large bids), and statistics/records bookkeeping.
+ */
+(function () {
+  const D = window.XCD.data;
+  const Utils = window.XCD.core.Utils;
+
+  const RACE_WEEKS = [5, 7, 9, 11, 13];
+  const CONFERENCE_WEEK = 16;
+  const REGIONAL_WEEK = 19;
+  const NATIONAL_WEEK = 21;
+  const SEGMENTS = 8;
+  const NATIONALS_FIELD = 31;
+
+  /* ================================================================ *
+   * Season schedule
+   * ================================================================ */
+  function newSeason(gameState, rng) {
+    const season = {
+      year: gameState.year,
+      raceWeeks: RACE_WEEKS.slice(),
+      conferenceWeek: CONFERENCE_WEEK,
+      regionalWeek: REGIONAL_WEEK,
+      nationalWeek: NATIONAL_WEEK,
+      meets: {},
+      byWeek: {},
+      playerMeetByWeek: {},
+      nationalsFieldIds: { M: null, W: null } // set after regionals
+    };
+
+    const schoolIds = gameState.world.schoolOrder.slice();
+
+    RACE_WEEKS.forEach((week) => {
+      const shuffled = rng.shuffle(schoolIds);
+      const meetCount = Math.ceil(shuffled.length / 20);
+      season.byWeek[week] = [];
+      for (let i = 0; i < meetCount; i++) {
+        const group = shuffled.filter((_, idx) => idx % meetCount === i);
+        if (!group.length) continue;
+        const host = gameState.getSchool(group[0]);
+        const meet = buildMeet(gameState, rng, {
+          week,
+          name: `${host.name} Invitational`,
+          hostId: host.id,
+          schoolIds: group,
+          type: 'invite'
+        });
+        season.meets[meet.id] = meet;
+        season.byWeek[week].push(meet.id);
+        if (group.includes(gameState.playerSchoolId)) season.playerMeetByWeek[week] = meet.id;
+      }
+    });
+
+    // Conference championships
+    const byConference = {};
+    schoolIds.forEach((id) => {
+      const s = gameState.getSchool(id);
+      (byConference[s.conference] = byConference[s.conference] || []).push(id);
+    });
+    season.byWeek[CONFERENCE_WEEK] = [];
+    Object.entries(byConference).forEach(([conf, ids]) => {
+      const host = gameState.getSchool(rng.choice(ids));
+      const meet = buildMeet(gameState, rng, {
+        week: CONFERENCE_WEEK,
+        name: `${conf} Championships`,
+        hostId: host.id,
+        schoolIds: ids,
+        type: 'conference',
+        conference: conf
+      });
+      season.meets[meet.id] = meet;
+      season.byWeek[CONFERENCE_WEEK].push(meet.id);
+      if (ids.includes(gameState.playerSchoolId)) season.playerMeetByWeek[CONFERENCE_WEEK] = meet.id;
+    });
+
+    // Regionals (NCAA-style regions from our geography)
+    const byRegion = {};
+    schoolIds.forEach((id) => {
+      const s = gameState.getSchool(id);
+      (byRegion[s.region] = byRegion[s.region] || []).push(id);
+    });
+    season.byWeek[REGIONAL_WEEK] = [];
+    Object.entries(byRegion).forEach(([region, ids]) => {
+      const host = gameState.getSchool(rng.choice(ids));
+      const meet = buildMeet(gameState, rng, {
+        week: REGIONAL_WEEK,
+        name: `${region} Regional`,
+        hostId: host.id,
+        schoolIds: ids,
+        type: 'regional',
+        region
+      });
+      season.meets[meet.id] = meet;
+      season.byWeek[REGIONAL_WEEK].push(meet.id);
+      if (ids.includes(gameState.playerSchoolId)) season.playerMeetByWeek[REGIONAL_WEEK] = meet.id;
+    });
+
+    // Nationals shell (field determined after regionals)
+    const natHost = gameState.getSchool(rng.choice(schoolIds));
+    const natMeet = buildMeet(gameState, rng, {
+      week: NATIONAL_WEEK,
+      name: 'NCAA Championships',
+      hostId: natHost.id,
+      schoolIds: [], // filled post-regionals per gender
+      type: 'national'
+    });
+    season.meets[natMeet.id] = natMeet;
+    season.byWeek[NATIONAL_WEEK] = [natMeet.id];
+    season.nationalsMeetId = natMeet.id;
+
+    gameState.season = season;
+    return season;
+  }
+
+  function buildMeet(gameState, rng, base) {
+    const host = gameState.getSchool(base.hostId);
+    const distances = base.week >= CONFERENCE_WEEK
+      ? { M: 8000, W: 6000 }
+      : { M: 8000, W: 5000 };
+    if (base.type === 'national') distances.M = 10000;
+    return {
+      id: Utils.generateId('meet'),
+      ...base,
+      distances,
+      conditions: {
+        tempF: Math.round(host.weather.tempBase + rng.int(-10, 12) - (base.week - 5) * 1.1),
+        hilliness: rng.int(10, 85),
+        altitude: host.weather.altitude,
+        rain: rng.bool(0.18)
+      },
+      results: { M: null, W: null }
+    };
+  }
+
+  /* ================================================================ *
+   * Race simulation
+   * ================================================================ */
+  function raceRating(a, distanceM) {
+    const distKey = distanceM >= 9000 ? 'tenKAbility' : distanceM >= 7000 ? 'eightKAbility' : 'fiveKAbility';
+    return a.vo2Max * 0.16 + a.lactateThreshold * 0.13 + a.endurance * 0.13 + a.runningEconomy * 0.11 +
+      a.stamina * 0.09 + a[distKey] * 0.14 + a.mentalToughness * 0.06 + a.raceIQ * 0.05 +
+      a.kickSpeed * 0.05 + a.rawSpeed * 0.04 + a.consistency * 0.04;
+  }
+
+  // Rating -> total seconds for gender/distance, before conditions/noise.
+  function baseTime(rating, gender, distanceM) {
+    const km = distanceM / 1000;
+    const perKm = gender === 'M'
+      ? (1800 - 5.2 * rating) / 8    // anchored at 8K
+      : (1500 - 3.4 * rating) / 6;   // anchored at 6K
+    return perKm * km;
+  }
+
+  function conditionsMultiplier(a, meet, gender) {
+    const c = meet.conditions;
+    let mult = 1;
+
+    // Heat & cold, softened by weather performance and climate preference
+    const weatherSkill = a.weatherPerformance / 100;
+    if (c.tempF > 65) {
+      let heat = (c.tempF - 65) * 0.0006 * (1.4 - weatherSkill);
+      if (a.preferredClimate === 'Warm') heat *= 0.5;
+      mult += Utils.clamp(heat, 0, 0.03);
+    } else if (c.tempF < 38) {
+      let cold = (38 - c.tempF) * 0.0005 * (1.4 - weatherSkill);
+      if (a.preferredClimate === 'Cold') cold *= 0.5;
+      mult += Utils.clamp(cold, 0, 0.02);
+    }
+    if (c.rain) mult += 0.004 * (1.3 - weatherSkill);
+
+    // Altitude
+    if (c.altitude === 'High') mult += 0.022 * (1.5 - a.altitudePerformance / 100);
+    else if (c.altitude === 'Medium') mult += 0.008 * (1.5 - a.altitudePerformance / 100);
+
+    // Readiness (training state) and morale
+    const TE = window.XCD.engine.Training;
+    const ready = TE.readiness(a);
+    mult += Utils.clamp((62 - ready) * 0.00075, -0.008, 0.035);
+    mult += Utils.clamp((65 - a.morale) * 0.0002, -0.004, 0.008);
+
+    return mult;
+  }
+
+  /*
+   * Simulate one gender's race at a meet. Returns a result object:
+   * { finishers, teamScores, splits (optional) }
+   */
+  function simulateRace(gameState, meet, gender, rng, detailed) {
+    const distanceM = meet.distances[gender];
+    const km = distanceM / 1000;
+    const hillSegs = new Set([2, 5]); // segments with the course's hills
+
+    // Field: top 7 healthy runners per team, readiness-weighted selection.
+    const entries = [];
+    meet.schoolIds.forEach((schoolId) => {
+      const school = gameState.getSchool(schoolId);
+      if (!school) return;
+      const squad = (gender === 'M' ? school.rosterM : school.rosterW)
+        .map((id) => gameState.world.athletes[id])
+        .filter((a) => a && !a.injury)
+        .sort((a, b) => (raceRating(b, distanceM) + b.fitness * 0.1) - (raceRating(a, distanceM) + a.fitness * 0.1))
+        .slice(0, 7);
+      squad.forEach((a) => entries.push({ athlete: a, schoolId }));
+    });
+    if (!entries.length) return null;
+
+    // Per-runner race plan
+    const hillFactor = meet.conditions.hilliness / 100;
+    const runners = entries.map(({ athlete: a, schoolId }) => {
+      const rating = raceRating(a, distanceM);
+      let total = baseTime(rating, gender, distanceM) * conditionsMultiplier(a, meet, gender);
+      // Course hills slow everyone; hill runners lose less.
+      total *= 1 + hillFactor * 0.03 * (1.35 - (a.hillRunning * 0.7 + a.strength * 0.3) / 100);
+      // Day form: consistent runners have narrower swings.
+      const swing = 0.016 * (1.45 - a.consistency / 100);
+      total *= 1 + rng.gaussian(0, swing);
+
+      // Segment pacing profile: fast start, mid steady, late fade vs toughness, kick.
+      const fade = 0.012 * (1.5 - (a.stamina * 0.5 + a.mentalToughness * 0.5) / 70);
+      const kick = 0.030 * ((a.kickSpeed * 0.6 + a.trackSpeed * 0.25 + a.confidence * 0.15) / 100 - 0.5);
+      const segTimes = [];
+      const segBase = total / SEGMENTS;
+      for (let s = 0; s < SEGMENTS; s++) {
+        let t = segBase;
+        if (s === 0) t *= 0.985;                        // adrenaline start
+        if (s >= 5) t *= 1 + fade * (s - 4);            // the grind
+        if (hillSegs.has(s)) t *= 1 + hillFactor * 0.02 * (1.3 - a.hillRunning / 100);
+        if (s === SEGMENTS - 1) t *= 1 - Utils.clamp(kick, -0.02, 0.02); // finishing kick
+        t *= 1 + rng.gaussian(0, 0.004 * (1.4 - a.consistency / 100));
+        segTimes.push(t);
+      }
+      return { athlete: a, schoolId, segTimes, cum: [], packBonus: a.packRunning };
+    });
+
+    // Pack running: segment by segment, runners in groups tow each other.
+    const cums = new Array(runners.length).fill(0);
+    for (let s = 0; s < SEGMENTS; s++) {
+      if (s >= 1 && s <= SEGMENTS - 2) {
+        // Who is packed up entering this segment?
+        const order = runners.map((r, i) => ({ i, t: cums[i] })).sort((a, b) => a.t - b.t);
+        for (let k = 0; k < order.length; k++) {
+          let packmates = 0;
+          for (let j = Math.max(0, k - 3); j <= Math.min(order.length - 1, k + 3); j++) {
+            if (j !== k && Math.abs(order[j].t - order[k].t) < 4) packmates++;
+          }
+          if (packmates >= 2) {
+            const r = runners[order[k].i];
+            r.segTimes[s] *= 1 - 0.0022 * (r.packBonus / 100); // drafting/company
+          }
+        }
+      }
+      runners.forEach((r, i) => {
+        cums[i] += r.segTimes[s];
+        r.cum.push(Math.round(cums[i] * 10) / 10);
+      });
+    }
+
+    // Finish order
+    const finishers = runners
+      .map((r) => ({
+        athleteId: r.athlete.id,
+        name: r.athlete.fullName,
+        schoolId: r.schoolId,
+        classYear: r.athlete.classYear,
+        time: r.cum[SEGMENTS - 1]
+      }))
+      .sort((a, b) => a.time - b.time);
+    finishers.forEach((f, i) => { f.place = i + 1; });
+
+    const teamScores = scoreRace(finishers);
+
+    const result = {
+      distanceM,
+      finishers: detailed ? finishers : finishers.slice(0, 15),
+      finisherCount: finishers.length,
+      teamScores
+    };
+    if (detailed) {
+      result.splits = {};
+      runners.forEach((r) => { result.splits[r.athlete.id] = r.cum; });
+    }
+
+    // Post-race bookkeeping: stats, PRs, records, fatigue, morale.
+    applyRaceEffects(gameState, meet, gender, finishers, teamScores, distanceM);
+
+    return result;
+  }
+
+  /* NCAA team scoring */
+  function scoreRace(finishers) {
+    const byTeam = {};
+    finishers.forEach((f) => { (byTeam[f.schoolId] = byTeam[f.schoolId] || []).push(f); });
+
+    // Teams need 5 finishers; runners 8+ per team are excluded from scoring.
+    const eligible = new Set(Object.keys(byTeam).filter((id) => byTeam[id].length >= 5));
+    const scoringRunners = finishers.filter((f) => {
+      if (!eligible.has(f.schoolId)) return false;
+      const teamIdx = byTeam[f.schoolId].indexOf(f);
+      return teamIdx < 7;
+    });
+    scoringRunners.forEach((f, i) => { f.scoringPlace = i + 1; });
+
+    const teams = [...eligible].map((schoolId) => {
+      const team = scoringRunners.filter((f) => f.schoolId === schoolId);
+      const top5 = team.slice(0, 5);
+      const points = top5.reduce((s, f) => s + f.scoringPlace, 0);
+      return {
+        schoolId,
+        points,
+        scorers: top5.map((f) => f.scoringPlace),
+        sixth: team[5] ? team[5].scoringPlace : Infinity,
+        finishers: team.length
+      };
+    });
+
+    teams.sort((a, b) => (a.points - b.points) || (a.sixth - b.sixth));
+    teams.forEach((t, i) => { t.place = i + 1; });
+    return teams;
+  }
+
+  function distKey(distanceM) { return `${distanceM / 1000}K`; }
+
+  function formatTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = (sec - m * 60).toFixed(1);
+    return `${m}:${s.padStart(4, '0')}`;
+  }
+
+  function applyRaceEffects(gameState, meet, gender, finishers, teamScores, distanceM) {
+    const key = distKey(distanceM);
+    const isChampionship = meet.type !== 'invite';
+
+    finishers.forEach((f) => {
+      const a = gameState.world.athletes[f.athleteId];
+      if (!a) return;
+      a.careerStats.races += 1;
+      if (f.place === 1) a.careerStats.wins += 1;
+      if (f.place <= 5) a.careerStats.top5 += 1;
+      const pr = a.careerStats.personalBests[key];
+      if (!pr || f.time < pr) a.careerStats.personalBests[key] = f.time;
+
+      // Race fatigue + morale swing
+      a.fatigue = Utils.clamp(a.fatigue + 8, 0, 100);
+      if (f.place === 1) a.morale = Utils.clamp(a.morale + 5, 0, 100);
+      else if (f.place <= 10) a.morale = Utils.clamp(a.morale + 2, 0, 100);
+      else if (f.place > finishers.length * 0.8) a.morale = Utils.clamp(a.morale - 2, 0, 100);
+
+      // Race experience nudges race IQ for young runners
+      if (a.careerStats.races % 6 === 0 && a.raceIQ < 90) a.raceIQ += 1;
+
+      // School records
+      const school = gameState.getSchool(f.schoolId);
+      if (school) {
+        school.records = school.records || {};
+        const rKey = `${gender}-${key}`;
+        const rec = school.records[rKey];
+        if (!rec || f.time < rec.time) {
+          school.records[rKey] = { time: f.time, name: f.name, year: gameState.year };
+          if (f.schoolId === gameState.playerSchoolId) {
+            gameState.logNews(`SCHOOL RECORD: ${f.name} runs ${formatTime(f.time)} for ${key} — fastest in ${school.name} history.`);
+          }
+        }
+      }
+
+      // National all-time record
+      const nKey = `${gender}-${key}`;
+      gameState.history.records = gameState.history.records || {};
+      const nrec = gameState.history.records[nKey];
+      if (!nrec || f.time < nrec.time) {
+        gameState.history.records[nKey] = {
+          time: f.time, name: f.name,
+          school: gameState.getSchool(f.schoolId)?.name || '?', year: gameState.year
+        };
+        if (nrec) gameState.logNews(`NATIONAL RECORD: ${f.name} (${gameState.getSchool(f.schoolId)?.name}) runs ${formatTime(f.time)} for ${key}!`);
+      }
+    });
+
+    // Team morale for meet winners
+    if (teamScores[0]) {
+      const winners = gameState.getRoster(teamScores[0].schoolId, gender);
+      winners.forEach((a) => { a.morale = Utils.clamp(a.morale + (isChampionship ? 4 : 2), 0, 100); });
+    }
+  }
+
+  /* ================================================================ *
+   * Championships bookkeeping
+   * ================================================================ */
+  function recordConferenceChampions(gameState, meet, gender) {
+    const res = meet.results[gender];
+    if (!res || !res.teamScores.length) return;
+    const champId = res.teamScores[0].schoolId;
+    const school = gameState.getSchool(champId);
+    school.historicalSuccess[gender === 'M' ? 'conferenceTitlesM' : 'conferenceTitlesW'] += 1;
+
+    const H = gameState.history;
+    H.conferenceChampions = H.conferenceChampions || {};
+    H.conferenceChampions[gameState.year] = H.conferenceChampions[gameState.year] || {};
+    H.conferenceChampions[gameState.year][`${meet.conference}-${gender}`] = school.name;
+
+    if (champId === gameState.playerSchoolId) {
+      gameState.logNews(`🏆 CONFERENCE CHAMPIONS! Your ${gender === 'M' ? 'men' : 'women'} win the ${meet.conference} title!`);
+      school.prestige = Utils.clamp(school.prestige + 1, 0, 99);
+    } else if (meet.conference === gameState.getPlayerSchool().conference) {
+      gameState.logNews(`${school.name} wins the ${meet.conference} ${gender === 'M' ? "men's" : "women's"} title.`);
+    }
+  }
+
+  function buildNationalsField(gameState) {
+    // Auto qualifiers: top 2 teams per regional; at-large: best-ranked rest.
+    const season = gameState.season;
+    const rankings = gameState.rankings || {};
+    ['M', 'W'].forEach((gender) => {
+      const auto = [];
+      (season.byWeek[REGIONAL_WEEK] || []).forEach((meetId) => {
+        const meet = season.meets[meetId];
+        const res = meet.results[gender];
+        if (res) res.teamScores.slice(0, 2).forEach((t) => auto.push(t.schoolId));
+      });
+      const ranked = (rankings[gender] || []).map((r) => r.schoolId);
+      const field = [...auto];
+      for (const sid of ranked) {
+        if (field.length >= NATIONALS_FIELD) break;
+        if (!field.includes(sid)) field.push(sid);
+      }
+      season.nationalsFieldIds[gender] = field;
+      if (field.includes(gameState.playerSchoolId)) {
+        const wasAuto = auto.includes(gameState.playerSchoolId);
+        gameState.logNews(`Your ${gender === 'M' ? 'men' : 'women'} are headed to the NCAA Championships${wasAuto ? ' as automatic qualifiers' : ' with an at-large bid'}!`);
+      }
+    });
+  }
+
+  function recordNationalChampions(gameState, meet, gender) {
+    const res = meet.results[gender];
+    if (!res || !res.teamScores.length) return;
+    const champId = res.teamScores[0].schoolId;
+    const school = gameState.getSchool(champId);
+    school.historicalSuccess[gender === 'M' ? 'nationalTitlesM' : 'nationalTitlesW'] += 1;
+    school.prestige = Utils.clamp(school.prestige + 2, 0, 99);
+    res.teamScores.slice(1, 4).forEach((t) => {
+      const s = gameState.getSchool(t.schoolId);
+      if (s) s.prestige = Utils.clamp(s.prestige + 1, 0, 99);
+    });
+
+    const indiv = res.finishers[0];
+    const H = gameState.history;
+    H.nationalChampions = H.nationalChampions || {};
+    H.nationalChampions[gameState.year] = H.nationalChampions[gameState.year] || {};
+    H.nationalChampions[gameState.year][gender] = {
+      team: school.name,
+      teamId: champId,
+      individual: indiv ? indiv.name : '?',
+      individualSchool: indiv ? (gameState.getSchool(indiv.schoolId)?.name || '?') : '?',
+      individualTime: indiv ? indiv.time : 0
+    };
+
+    const label = gender === 'M' ? "men's" : "women's";
+    if (champId === gameState.playerSchoolId) {
+      gameState.logNews(`🏆🏆 NATIONAL CHAMPIONS! Your ${label} team wins the NCAA title!`);
+    } else {
+      gameState.logNews(`${school.name} wins the ${label} NCAA team title. ${indiv ? `${indiv.name} takes the individual crown in ${formatTime(indiv.time)}.` : ''}`);
+    }
+  }
+
+  /* ================================================================ *
+   * Weekly driver
+   * ================================================================ */
+  function processWeek(gameState, rng) {
+    const season = gameState.season;
+    if (!season || season.year !== gameState.year) return;
+    const week = gameState.week;
+
+    if (week === NATIONAL_WEEK) buildNationalsFieldIfNeeded(gameState);
+
+    const meetIds = season.byWeek[week];
+    if (!meetIds || !meetIds.length) return;
+
+    meetIds.forEach((meetId) => {
+      const meet = season.meets[meetId];
+      if (!meet) return;
+      const isPlayerMeet = meet.schoolIds.includes(gameState.playerSchoolId) ||
+        (meet.type === 'national' &&
+          (season.nationalsFieldIds.M?.includes(gameState.playerSchoolId) ||
+           season.nationalsFieldIds.W?.includes(gameState.playerSchoolId)));
+      const detailed = isPlayerMeet || meet.type === 'national';
+
+      ['M', 'W'].forEach((gender) => {
+        if (meet.type === 'national') {
+          meet.fieldByGender = meet.fieldByGender || {};
+          meet.fieldByGender[gender] = season.nationalsFieldIds[gender] || [];
+          const saved = meet.schoolIds;
+          meet.schoolIds = meet.fieldByGender[gender];
+          meet.results[gender] = simulateRace(gameState, meet, gender, rng, detailed);
+          meet.schoolIds = saved.length ? saved : meet.fieldByGender[gender];
+        } else {
+          meet.results[gender] = simulateRace(gameState, meet, gender, rng, detailed);
+        }
+
+        if (meet.type === 'conference') recordConferenceChampions(gameState, meet, gender);
+        if (meet.type === 'national') recordNationalChampions(gameState, meet, gender);
+      });
+
+      // Player meet headline
+      if (isPlayerMeet && meet.type !== 'national') {
+        ['M', 'W'].forEach((gender) => {
+          const res = meet.results[gender];
+          if (!res) return;
+          const mine = res.teamScores.find((t) => t.schoolId === gameState.playerSchoolId);
+          if (mine) {
+            gameState.logNews(`${meet.name}: your ${gender === 'M' ? 'men' : 'women'} finish ${Utils.ordinal(mine.place)} of ${res.teamScores.length} (${mine.points} pts).`);
+          }
+        });
+      }
+    });
+
+    // Upset headlines from around the country
+    meetIds.slice(0, 4).forEach((meetId) => {
+      const meet = season.meets[meetId];
+      const res = meet && meet.results.M;
+      if (!res || !res.teamScores.length || meet.type !== 'invite') return;
+      // handled lightly — big news engine arrives in Phase 5
+    });
+
+    // Refresh polls after every race week
+    window.XCD.engine.Rankings.compute(gameState);
+  }
+
+  function buildNationalsFieldIfNeeded(gameState) {
+    const season = gameState.season;
+    if (!season.nationalsFieldIds.M || !season.nationalsFieldIds.M.length) {
+      buildNationalsField(gameState);
+    }
+  }
+
+  // Regionals happen at week 19; field building right after.
+  function postWeekHousekeeping(gameState) {
+    if (gameState.week === REGIONAL_WEEK + 1 || gameState.week === REGIONAL_WEEK) {
+      const season = gameState.season;
+      if (season && (!season.nationalsFieldIds.M || !season.nationalsFieldIds.M.length)) {
+        const regionalsDone = (season.byWeek[REGIONAL_WEEK] || [])
+          .every((id) => season.meets[id] && season.meets[id].results.M);
+        if (regionalsDone) buildNationalsField(gameState);
+      }
+    }
+  }
+
+  window.XCD.engine.Races = {
+    newSeason,
+    processWeek,
+    postWeekHousekeeping,
+    simulateRace,
+    scoreRace,
+    raceRating,
+    formatTime,
+    distKey,
+    RACE_WEEKS,
+    CONFERENCE_WEEK,
+    REGIONAL_WEEK,
+    NATIONAL_WEEK,
+    SEGMENTS
+  };
+})();

@@ -22,21 +22,28 @@
     return { intensity: 2, primary: 'mileage', secondary: 'strength' };
   }
 
+  // Weeks in which meets run (invites + championship rounds).
+  const MEET_WEEKS = new Set([5, 7, 9, 11, 13, 16, 19, 21]);
+
   // AI plan: personality picks the flavor, calendar picks the emphasis.
+  // Race weeks are absorb-the-race weeks: light legs going in.
   function aiPlan(gameState, coach) {
     const week = gameState.week;
     let primary, secondary, intensity = 2;
 
-    if (week <= 4) { primary = 'mileage'; secondary = 'strength'; }               // summer base
-    else if (week <= 14) { primary = 'intervals'; secondary = 'tempo'; }          // in-season
-    else if (week <= 22) { primary = 'tempo'; secondary = 'easy'; intensity = 1; } // championship taper
-    else { primary = 'mileage'; secondary = 'cross'; }                            // offseason
+    if (MEET_WEEKS.has(week)) { primary = 'easy'; secondary = 'tempo'; intensity = 1; } // race week: stay fresh
+    else if (week <= 4) { primary = 'mileage'; secondary = 'strength'; }               // summer base
+    else if (week <= 14) { primary = 'intervals'; secondary = 'tempo'; }               // in-season
+    else if (week <= 22) { primary = 'tempo'; secondary = 'easy'; intensity = 1; }     // championship taper
+    else { primary = 'mileage'; secondary = 'cross'; }                                 // offseason
 
     if (coach) {
-      if (coach.personality === 'Distance Specialist') { primary = week <= 14 ? 'longRun' : primary; }
-      if (coach.personality === 'Development Guru') { secondary = 'strength'; }
-      if (coach.discipline >= 75) intensity = Math.min(3, intensity + 1);
-      else if (coach.discipline < 40) intensity = Math.max(1, intensity - 1);
+      if (coach.personality === 'Distance Specialist') { primary = week <= 14 && !MEET_WEEKS.has(week) ? 'longRun' : primary; }
+      if (coach.personality === 'Development Guru') { secondary = MEET_WEEKS.has(week) ? secondary : 'strength'; }
+      if (!MEET_WEEKS.has(week)) {
+        if (coach.discipline >= 75) intensity = Math.min(3, intensity + 1);
+        else if (coach.discipline < 40) intensity = Math.max(1, intensity - 1);
+      }
     }
     return { intensity, primary, secondary };
   }

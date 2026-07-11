@@ -10,7 +10,17 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
-## Current Status — Phase 3 (Training, Development, Fatigue, Injuries)
+## Current Status — Phase 4 (Races, Rankings, Championships, Stats)
+
+- **Full season schedule**: 5 invitationals (weeks 5/7/9/11/13, ~20-team fields covering all 354 schools), conference championships (wk 16), 8 regionals (wk 19), and the NCAA Championships (wk 21).
+- **Segment-based race simulation**: 8-leg races with adrenaline starts, hill segments, late-race fade vs. stamina/toughness, finishing kicks, pack-running drafting, day-form variance by consistency, and course conditions (heat/cold/rain/altitude/hills) filtered through each runner's ratings and preferences. Readiness from the training engine feeds directly into race performance.
+- **NCAA team scoring**: top 5 score, runners 6-7 displace, 8+ excluded, incomplete teams removed, 6th-runner tiebreaks.
+- **Championships**: conference titles, regional auto-qualifiers (top 2) plus at-large bids to a 31-team nationals; team & individual national champions recorded forever; prestige moves with results.
+- **Race Center**: your meets are broadcast as animated replays — progress bars, live leaderboard, projected team scores, speed controls, final results with per-leg splits for your squad.
+- **Rankings**: weekly national/regional/conference team polls (strength + quality-weighted results), individual and freshman rankings.
+- **Stats**: career races/wins/top-5s and PRs on every player card, school record boards, all-time national records with news coverage.
+
+## Phase 3 (Training, Development, Fatigue, Injuries)
 
 - **Weekly training plans** per squad: 10 workout types (mileage, intervals, tempo, long run, hills, strength, cross training, easy runs, recovery weeks, rest) with primary/secondary emphasis and three intensity levels; per-athlete load overrides (normal/reduced/rest).
 - **Development engine**: every athlete in the world develops weekly from coach development rating, facilities, potential gap, work ethic, coachability, morale, fatigue, age, and academics — routed into the specific attributes your plan trains. Hidden archetypes create early bloomers, late bloomers, and busts; stars plateau near their ceiling.
@@ -50,6 +60,5 @@ js/ui/screens/        menu, dashboard, roster, program, world, news, saves
 
 ## Roadmap
 
-- **Phase 4**: live race simulation, NCAA team scoring, rankings, championships
-- **Phase 5**: transfer portal, news engine, awards, historical records
+- **Phase 5**: transfer portal, redshirts, news engine, awards, historical records
 - **Phase 6**: polish, animations, balancing
