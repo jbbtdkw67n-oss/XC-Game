@@ -167,6 +167,27 @@
       }
     }
 
+    // Pre-Nationals invitation (Update 3): accept for the course preview and
+    // ranking boost, or decline to rest / stay in a training block.
+    let preNatsHtml = '';
+    const pn = season.preNationals;
+    if (pn && pn.playerInvited && game.week < pn.week) {
+      preNatsHtml = `
+        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent);">
+          <h2>✉️ Pre-Nationals Invitation — Week ${pn.week}</h2>
+          <div style="color:var(--text-dim); font-size:13px; margin-bottom:10px;">
+            A Division I-only elite invitational on the NCAA Championship course. Accepting previews the terrain
+            (a small familiarity edge at Nationals) and — with a strong run — boosts your national ranking, prestige,
+            and recruiting visibility. Declining rests your athletes and protects a high-mileage block.
+            <strong> Status: ${pn.playerAccepted ? '<span style="color:var(--success);">Accepted</span>' : '<span style="color:var(--warning);">Declined</span>'}</strong>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn ${pn.playerAccepted ? 'primary' : ''}" id="btn-pn-accept" ${pn.playerAccepted ? 'disabled' : ''}>Accept Invitation</button>
+            <button class="btn ${!pn.playerAccepted ? 'danger' : ''}" id="btn-pn-decline" ${!pn.playerAccepted ? 'disabled' : ''}>Decline & Rest</button>
+          </div>
+        </div>`;
+    }
+
     container.innerHTML = `
       <div class="screen-header">
         <h1>Season Schedule — ${season.year}</h1>
@@ -176,6 +197,7 @@
             ? '<button class="btn primary" id="btn-race-center">📺 Race Center (last meet)</button>' : ''}
         </div>
       </div>
+      ${preNatsHtml}
       <div class="card">
         <div class="table-wrap"><table class="data">
           <thead><tr><th>Week</th><th>Meet</th><th>Field</th><th>Conditions</th><th>Result</th></tr></thead>
@@ -194,6 +216,16 @@
 
     const rcBtn = container.querySelector('#btn-race-center');
     if (rcBtn) rcBtn.addEventListener('click', () => UI.navigate('racecenter'));
+
+    const pnAccept = container.querySelector('#btn-pn-accept');
+    const pnDecline = container.querySelector('#btn-pn-decline');
+    const pnDecide = (accept) => {
+      const r = Races().setPreNationalsDecision(game, accept);
+      UI.toast(r.message, r.ok ? 'success' : 'error');
+      if (r.ok) render(container);
+    };
+    if (pnAccept) pnAccept.addEventListener('click', () => pnDecide(true));
+    if (pnDecline) pnDecline.addEventListener('click', () => pnDecide(false));
   }
 
   UI.screens.schedule = { render };

@@ -229,9 +229,26 @@
     { week: 6,  name: 'Joe Piane Invitational',  size: 28, weight: 1.2 },
     { week: 6,  name: 'Roy Griak Invitational',  size: 28, weight: 1.15 },
     { week: 8,  name: 'Nuttycombe Invitational', size: 34, weight: 1.3 },
-    { week: 8,  name: 'Pre-Nationals',           size: 42, weight: 1.25 },
-    { week: 10, name: 'Wisconsin Invitational',  size: 34, weight: 1.2 }
+    { week: 8,  name: 'Wisconsin Invitational',  size: 34, weight: 1.2 },
+    // Pre-Nationals (Update 3): a Division I-only elite invitational late in
+    // the regular season, contested on the NCAA DI Championship course. Built
+    // specially by the race engine (invite/decline, course familiarity) — not
+    // through the generic prestige-field path, so it carries no `size` here.
+    { week: 10, name: 'Pre-Nationals', preNationals: true, weight: 1.45 }
   ];
+
+  /*
+   * Pre-Nationals Invitational (Update 3). Division I only. Racing it earns a
+   * small, non-decisive familiarity edge on the same course at NCAA Nationals.
+   */
+  D.PRE_NATIONALS = {
+    name: 'Pre-Nationals Invitational',
+    week: 10,                 // 3 weeks before conference (wk 13)
+    fieldSize: 40,            // invited DI programs (before declines)
+    atLargeSlots: 6,          // rising mid-majors having exceptional seasons
+    familiarityBonus: 0.006,  // ~0.6% faster at Nationals on the same course
+    pollWeight: 1.45          // one of the most influential regular-season meets
+  };
 
   // Recruiting calendar (within the 21-week year)
   D.RECRUITING = {

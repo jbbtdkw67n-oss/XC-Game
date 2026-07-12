@@ -81,6 +81,16 @@
   function previewStories(gameState) {
     const season = gameState.season;
     const week = gameState.week;
+
+    // Pre-Nationals preview (Update 3): the marquee DI regular-season meet.
+    const pn = season.preNationals;
+    if (pn && week === pn.week - 1 && pn.accepted && pn.accepted.length) {
+      const favs = (gameState.rankings.M || [])
+        .filter((r) => pn.accepted.includes(r.schoolId))
+        .slice(0, 3).map((r) => r.name);
+      gameState.logNews(`📰 PRE-NATIONALS PREVIEW: ${pn.accepted.length} Division I programs race the NCAA Championship course next week. ${favs.length ? favs.join(', ') + ' headline the field.' : ''} Results will reshape the national title picture.`);
+    }
+
     if (week === season.conferenceWeek - 1) {
       gameState.logNews(`Championship season begins: conference titles are decided next week.`);
     } else if (week === season.regionalWeek - 1) {

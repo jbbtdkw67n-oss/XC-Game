@@ -123,16 +123,24 @@
   }
 
   function renderSchoolSelect(root, seed, world, coach) {
+    const D = window.XCD.data;
     const schools = Object.values(world.schools)
       .sort((a, b) => a.name.localeCompare(b.name));
 
     let selectedId = null;
+    let divFilter = 'DI'; // most players start in the division they know
+
+    const DIV_TABS = [['DI', 'Division I'], ['DII', 'Division II'], ['DIII', 'Division III']]
+      .filter(([k]) => D.divisionFor(k).active);
 
     root.innerHTML = `
       <div id="menu-root">
         <div class="menu-panel" style="width:min(640px,94vw);">
           <h1 style="font-size:22px;">Choose Your <span>School</span></h1>
-          <p class="tagline">Step 2 of 2 — Coach ${Utils.escapeHtml(coach.first)} ${Utils.escapeHtml(coach.last)} (${Utils.escapeHtml(coach.archetype)}). Smaller programs mean a harder, longer climb.</p>
+          <p class="tagline">Step 2 of 2 — Coach ${Utils.escapeHtml(coach.first)} ${Utils.escapeHtml(coach.last)} (${Utils.escapeHtml(coach.archetype)}). Coach in any of the three divisions — smaller programs mean a harder, longer climb.</p>
+          <div class="pill-tabs" id="div-tabs" style="margin-bottom:10px;">
+            ${DIV_TABS.map(([k, label]) => `<button data-div="${k}" class="${divFilter === k ? 'active' : ''}">${label}</button>`).join('')}
+          </div>
           <div class="field">
             <label>Search Schools</label>
             <input id="school-search" placeholder="Search by name, conference, or state...">
@@ -151,7 +159,8 @@
     function drawList(query = '') {
       const q = query.toLowerCase();
       const filtered = schools.filter((s) =>
-        !q || s.name.toLowerCase().includes(q) || s.conference.toLowerCase().includes(q) || s.state.toLowerCase().includes(q));
+        (s.division || 'DI') === divFilter &&
+        (!q || s.name.toLowerCase().includes(q) || s.conference.toLowerCase().includes(q) || s.state.toLowerCase().includes(q)));
       listEl.innerHTML = filtered.slice(0, 400).map((s) => `
         <div class="school-pick ${s.id === selectedId ? 'selected' : ''}" data-id="${s.id}">
           <div>
@@ -174,6 +183,13 @@
     }
     drawList();
 
+    root.querySelectorAll('[data-div]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        divFilter = btn.dataset.div;
+        root.querySelectorAll('[data-div]').forEach((n) => n.classList.toggle('active', n.dataset.div === divFilter));
+        drawList(root.querySelector('#school-search').value);
+      });
+    });
     root.querySelector('#school-search').addEventListener('input', (e) => drawList(e.target.value));
     root.querySelector('#btn-back').addEventListener('click', () => renderCoachCreation(root, seed, world, coach));
 
