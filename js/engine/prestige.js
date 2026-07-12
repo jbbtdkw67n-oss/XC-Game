@@ -17,7 +17,8 @@
   function yearlyUpdate(gameState, rng) {
     const year = gameState.year - 1; // the season that just ended
     const rankings = gameState.rankings;
-    const total = rankings ? rankings.M.length : 354;
+    const divSize = (d) => (rankings && rankings.divisionSizes && rankings.divisionSizes[d]) ||
+      (rankings ? rankings.M.length : 354);
     const rankIndex = { M: {}, W: {} };
     if (rankings) {
       ['M', 'W'].forEach((g) => rankings[g].forEach((r) => { rankIndex[g][r.schoolId] = r.rank; }));
@@ -33,7 +34,9 @@
       const coach = gameState.getCoach(school.coachId);
       let score = 0; // season evidence, roughly -3 .. +3
 
-      // 1) National standing vs where the prestige says you should be.
+      // 1) National standing vs where the prestige says you should be
+      //    (measured within the school's own division).
+      const total = divSize(division);
       const best = Math.min(rankIndex.M[school.id] || total, rankIndex.W[school.id] || total);
       const expected = Math.round((1 - school.prestige / 100) * total * 0.92) + 4;
       score += Utils.clamp((expected - best) / 55, -1.4, 1.4);

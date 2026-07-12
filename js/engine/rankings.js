@@ -22,7 +22,11 @@
 
   function compute(gameState) {
     const season = gameState.season;
-    const rankings = { computedWeek: gameState.week, M: [], W: [], individuals: { M: [], W: [] }, freshmen: { M: [], W: [] } };
+    const rankings = {
+      computedWeek: gameState.week, M: [], W: [],
+      individuals: { M: [], W: [] }, freshmen: { M: [], W: [] },
+      divisionSizes: { DI: 0, DII: 0, DIII: 0 }
+    };
 
     // --- Season results score per team --------------------------------
     const resultPoints = { M: {}, W: {} };
@@ -51,6 +55,7 @@
       });
     }
 
+    const DIV_ORDER = { DI: 0, DII: 1, DIII: 2 };
     ['M', 'W'].forEach((gender) => {
       const rows = Object.values(gameState.world.schools).map((school) => {
         const strength = teamStrength(gameState, school, gender);
@@ -61,24 +66,41 @@
         const score = strength * 0.55 + resultScore * 0.45;
         return { schoolId: school.id, name: school.name, conference: school.conference, region: school.region, division: school.division || 'DI', score: Math.round(score * 10) / 10 };
       });
-      rows.sort((a, b) => b.score - a.score);
-      const prev = gameState.rankings && gameState.rankings[gender];
-      rows.forEach((r, i) => {
-        r.rank = i + 1;
-        const old = prev && prev.find((p) => p.schoolId === r.schoolId);
-        r.prevRank = old ? old.rank : null;
-      });
-      rankings[gender] = rows;
 
-      // Permanent program ledger: highest poll ranking ever (Part 8).
+      // Rank is WITHIN a division (Update 3): each division runs its own
+      // poll, so a DIII #1 is #1 in DIII — never buried under DI. Rows are
+      // ordered DI→DII→DIII then by rank so lookups (.find by id) return the
+      // school's standing among its true peers.
+      const byDivision = {};
+      rows.forEach((r) => { (byDivision[r.division] = byDivision[r.division] || []).push(r); });
+      const prev = gameState.rankings && gameState.rankings[gender];
       const Legacy = window.XCD.engine.Legacy;
-      rows.slice(0, 50).forEach((r) => {
-        const prog = Legacy.program(gameState, r.schoolId);
-        if (!prog.highestRank || r.rank < prog.highestRank) prog.highestRank = r.rank;
-      });
+      const ordered = [];
+      Object.keys(byDivision)
+        .sort((a, b) => (DIV_ORDER[a] ?? 9) - (DIV_ORDER[b] ?? 9))
+        .forEach((division) => {
+          const list = byDivision[division].sort((a, b) => b.score - a.score);
+          rankings.divisionSizes[division] = list.length;
+          list.forEach((r, i) => {
+            r.rank = i + 1;
+            r.divisionSize = list.length;
+            const old = prev && prev.find((p) => p.schoolId === r.schoolId);
+            r.prevRank = old ? old.rank : null;
+            // Permanent program ledger: highest poll ranking ever (Part 8).
+            if (r.rank <= 50) {
+              const prog = Legacy.program(gameState, r.schoolId);
+              if (!prog.highestRank || r.rank < prog.highestRank) prog.highestRank = r.rank;
+            }
+            ordered.push(r);
+          });
+        });
+      rankings[gender] = ordered;
     });
 
     // --- Individual & freshman rankings (season-best pace) ------------
+    // Ranked within division: a DIII runner competes for DIII honors, not
+    // against DI paces. Each row carries its division so the UI and awards
+    // can filter to the relevant division.
     ['M', 'W'].forEach((gender) => {
       const rows = [];
       Object.values(gameState.world.schools).forEach((school) => {
@@ -97,14 +119,28 @@
           rows.push({
             athleteId: a.id, name: a.fullName, classYear: a.classYear,
             schoolId: school.id, school: school.name,
+            division: school.division || 'DI',
             pace: Math.round(bestPace * 10) / 10,
             wins: a.careerStats.wins
           });
         });
       });
       rows.sort((a, b) => (a.pace - b.pace) || (b.wins - a.wins));
-      rankings.individuals[gender] = rows.slice(0, 100).map((r, i) => ({ ...r, rank: i + 1 }));
-      rankings.freshmen[gender] = rows.filter((r) => r.classYear === 'Freshman').slice(0, 50).map((r, i) => ({ ...r, rank: i + 1 }));
+      const indivByDiv = {};
+      const freshByDiv = {};
+      const indiv = [];
+      const fresh = [];
+      rows.forEach((r) => {
+        const d = r.division;
+        indivByDiv[d] = (indivByDiv[d] || 0) + 1;
+        if (indivByDiv[d] <= 100) indiv.push({ ...r, rank: indivByDiv[d] });
+        if (r.classYear === 'Freshman') {
+          freshByDiv[d] = (freshByDiv[d] || 0) + 1;
+          if (freshByDiv[d] <= 50) fresh.push({ ...r, rank: freshByDiv[d] });
+        }
+      });
+      rankings.individuals[gender] = indiv;
+      rankings.freshmen[gender] = fresh;
     });
 
     gameState.rankings = rankings;

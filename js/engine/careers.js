@@ -36,7 +36,7 @@
     const coach = gameState.getPlayerCoach();
     const rep = coach.reputation || 25;
     const rank = bestPlayerRank(gameState);
-    const total = gameState.rankings ? gameState.rankings.M.length : 354;
+    const total = window.XCD.engine.Coaching.divisionSize(gameState, school.division);
 
     // Vacant chairs (fired this week, or already open).
     const vacancies = Object.values(gameState.world.schools).filter((s) =>

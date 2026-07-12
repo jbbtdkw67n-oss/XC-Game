@@ -40,7 +40,7 @@
     DII: {
       key: 'DII',
       label: 'Division II',
-      active: false, // foundation only — schools arrive in Update 3
+      active: true, // Update 3: fully populated with real schools
       scholarships: { M: 12.6, W: 12.6 },
       scholarshipModel: 'partial',
       nil: false,
@@ -63,7 +63,7 @@
     DIII: {
       key: 'DIII',
       label: 'Division III',
-      active: false, // foundation only — schools arrive in Update 3
+      active: true, // Update 3: fully populated with real schools
       scholarships: { M: 0, W: 0 },
       scholarshipModel: 'none',
       nil: false,

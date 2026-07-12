@@ -20,20 +20,49 @@
   }
 
   /*
-   * Runs at week 22, right after nationals. Awards, All-Americans,
-   * coach hot seats/firings, and the player's career ledger.
+   * Runs at awards week, right after nationals. Every division's championship
+   * hands out its own honors (Update 3) — runner/freshman/coach of the year,
+   * All-Americans, academic All-Americans — so all three divisions build
+   * decades of history independently. The player's division is mirrored to
+   * the top-level M/W keys for the awards screen.
    */
   function processPostNationals(gameState, rng) {
     const season = gameState.season;
-    const natMeet = season && season.meets[season.nationalsMeetId];
-    if (!natMeet || !natMeet.results.M) return;
+    if (!season) return;
+    const natWeek = window.XCD.engine.Races.NATIONAL_WEEK;
+    const natMeetIds = (season.byWeek[natWeek] || [])
+      .filter((id) => { const m = season.meets[id]; return m && m.type === 'national' && m.results.M; });
+    if (!natMeetIds.length) return;
 
-    const yearAwards = { M: {}, W: {} };
+    const playerDivision = (gameState.getPlayerSchool() && gameState.getPlayerSchool().division) || 'DI';
+    const byDivision = {};
+    natMeetIds.forEach((id) => {
+      const natMeet = season.meets[id];
+      const division = natMeet.division || 'DI';
+      byDivision[division] = computeDivisionAwards(gameState, season, natMeet, division);
+    });
+
+    // Top-level M/W = the player's division (backward-compatible UI);
+    // `divisions` holds every division's full award slate.
+    const playerAwards = byDivision[playerDivision] || byDivision.DI || { M: {}, W: {} };
+    gameState.history.awards = gameState.history.awards || {};
+    gameState.history.awards[gameState.year] = Object.assign({}, playerAwards, { divisions: byDivision });
+
+    updatePlayerCareer(gameState);
+    awardCoachUpgradePoints(gameState, rng);
+    coachFirings(gameState, rng);
+  }
+
+  function computeDivisionAwards(gameState, season, natMeet, division) {
+    const yearAwards = { M: {}, W: {}, division };
+    const divRankings = (gender) => (gameState.rankings[gender] || []).filter(
+      (r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DI') === division);
 
     ['M', 'W'].forEach((gender) => {
       const res = natMeet.results[gender];
       if (!res) return;
       const label = gender === 'M' ? "men's" : "women's";
+      const divLabel = window.XCD.data.divisionFor(division).label;
 
       // Runner of the Year: the national champion.
       const champ = res.finishers[0];
@@ -41,12 +70,14 @@
         yearAwards[gender].runnerOfYear = { name: champ.name, school: gameState.getSchool(champ.schoolId)?.name || '?' };
         addHonor(gameState, champ.athleteId, 'natChamp');
         addHonor(gameState, champ.athleteId, 'Runner of the Year');
-        gameState.logNews(`🏅 ${champ.name} (${yearAwards[gender].runnerOfYear.school}) is the ${label} National Runner of the Year.`);
+        if (division === (gameState.getPlayerSchool().division || 'DI')) {
+          gameState.logNews(`🏅 ${champ.name} (${yearAwards[gender].runnerOfYear.school}) is the ${label} ${divLabel} Runner of the Year.`);
+        }
       }
 
-      // Freshman of the Year: top frosh at nationals, else the frosh poll leader.
+      // Freshman of the Year: top frosh at nationals, else the division's frosh poll leader.
       const frosh = res.finishers.find((f) => f.classYear === 'Freshman') ||
-        (gameState.rankings.freshmen[gender][0] || null);
+        ((gameState.rankings.freshmen[gender] || []).find((r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DI') === division) || null);
       if (frosh) {
         const name = frosh.name;
         const schoolName = frosh.schoolId ? (gameState.getSchool(frosh.schoolId)?.name || '?') : frosh.school;
@@ -55,14 +86,13 @@
       }
 
       // All-Americans: the division's count (DI: top 40 at nationals).
-      const aaCount = window.XCD.data.divisionFor(natMeet.division || 'DI').championship.allAmericans;
+      const aaCount = window.XCD.data.divisionFor(division).championship.allAmericans;
       const allAmericans = res.finishers.slice(0, aaCount);
       yearAwards[gender].allAmericans = allAmericans.map((f) => ({
         place: f.place, name: f.name, school: gameState.getSchool(f.schoolId)?.name || '?'
       }));
       allAmericans.forEach((f) => {
         addHonor(gameState, f.athleteId, 'allAmerican');
-        // Permanent ledgers: the program and the coach both get credit.
         window.XCD.engine.Legacy.program(gameState, f.schoolId).allAmericans += 1;
         const c = gameState.getCoach(gameState.getSchool(f.schoolId)?.coachId);
         if (c) c.careerRecord.allAmericans = (c.careerRecord.allAmericans || 0) + 1;
@@ -72,11 +102,11 @@
         gameState.logNews(`${mine.length} of your ${label} runners earn All-America honors: ${mine.map((f) => f.name).join(', ')}.`);
       }
 
-      // Coach of the Year: biggest climb from preseason to final poll.
+      // Coach of the Year: biggest climb from preseason to final poll, within division.
       const pre = season.preseasonRanks && season.preseasonRanks[gender];
       if (pre) {
         let best = null;
-        gameState.rankings[gender].slice(0, 40).forEach((r) => {
+        divRankings(gender).slice(0, 40).forEach((r) => {
           const preRank = pre[r.schoolId] || 200;
           const climb = preRank - r.rank;
           if (!best || climb > best.climb) best = { schoolId: r.schoolId, climb, finalRank: r.rank };
@@ -86,29 +116,20 @@
           const coach = gameState.getCoach(school.coachId);
           yearAwards[gender].coachOfYear = { name: coach ? coach.fullName : '?', school: school.name };
           if (coach && coach.isPlayer) {
-            gameState.logNews(`🏅 YOU are the ${label} National Coach of the Year (preseason #${(pre[best.schoolId] || '—')} → final #${best.finalRank})!`);
+            gameState.logNews(`🏅 YOU are the ${label} ${divLabel} Coach of the Year (preseason #${(pre[best.schoolId] || '—')} → final #${best.finalRank})!`);
             gameState.career.awards.push(`${label} Coach of the Year (${gameState.year})`);
           }
         }
       }
 
-      // (Individual conference champions + All-Conference honors are
-      //  recorded at the conference meets themselves — see races.js.)
-
-      // Academic All-Americans: best students among the top 100 runners.
-      const scholars = gameState.rankings.individuals[gender]
+      // Academic All-Americans: best students among the division's top runners.
+      const scholars = divRankings(gender)
         .map((r) => ({ r, a: gameState.world.athletes[r.athleteId] }))
         .filter((x) => x.a && x.a.academics >= 80)
         .slice(0, 10);
       yearAwards[gender].academicAllAmericans = scholars.map((x) => ({ name: x.r.name, school: x.r.school }));
     });
-
-    gameState.history.awards = gameState.history.awards || {};
-    gameState.history.awards[gameState.year] = yearAwards;
-
-    updatePlayerCareer(gameState);
-    awardCoachUpgradePoints(gameState, rng);
-    coachFirings(gameState, rng);
+    return yearAwards;
   }
 
   /*
@@ -227,7 +248,7 @@
   function coachFirings(gameState, rng) {
     const rankIndex = { M: {}, W: {} };
     ['M', 'W'].forEach((g) => gameState.rankings[g].forEach((r) => { rankIndex[g][r.schoolId] = r.rank; }));
-    const total = gameState.rankings.M.length;
+    const divSize = (d) => window.XCD.engine.Coaching.divisionSize(gameState, d);
     let fired = 0;
 
     Object.values(gameState.world.schools).forEach((school) => {
@@ -235,7 +256,8 @@
       if (!coach || coach.isPlayer) return;
 
       // Expectation scales with the division's pressure and the school's
-      // prestige: blue-blood chairs are hot by default.
+      // prestige, measured against the school's own division field.
+      const total = divSize(school.division);
       const pressure = window.XCD.data.divisionFor(school).expectations || 1;
       const expectedPct = 1 - school.prestige / 100;
       const actualPct = ((rankIndex.M[school.id] || total) + (rankIndex.W[school.id] || total)) / (2 * total);

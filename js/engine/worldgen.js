@@ -20,8 +20,27 @@
   const CLASS_DEV_FACTOR = { Freshman: 0.55, Sophomore: 0.68, Junior: 0.80, Senior: 0.92, Graduate: 0.97 };
   const CLASS_AGE_BASE = { Freshman: 18, Sophomore: 19, Junior: 20, Senior: 21, Graduate: 22 };
 
-  function tierPrestigeRange(tier) {
-    switch (tier) {
+  // Prestige ranges are absolute and national (one scale across all three
+  // divisions), so combined regular-season polls sort naturally: DI powers
+  // on top, DII/DIII below — while a strong DII flagship still overlaps the
+  // weakest DI programs (and can beat them in cross-division meets). Within
+  // its own division a school is still judged against its peers.
+  function tierPrestigeRange(tier, division) {
+    if (division === 'DII') {
+      switch (tier) {
+        case 1: return [42, 64];
+        case 2: return [32, 54];
+        default: return [24, 46];
+      }
+    }
+    if (division === 'DIII') {
+      switch (tier) {
+        case 1: return [34, 54];
+        case 2: return [26, 46];
+        default: return [20, 40];
+      }
+    }
+    switch (tier) { // Division I
       case 1: return [62, 92];
       case 2: return [48, 76];
       case 3: return [34, 64];
@@ -29,12 +48,13 @@
     }
   }
 
-  function buildSchool(rng, raw) {
+  function buildSchool(rng, raw, division = 'DI') {
     const [name, state, conference] = raw;
     const region = D.STATE_REGION[state] || 'Midwest';
     const tier = (D.CONFERENCES[conference] || { tier: 3 }).tier;
-    const [pMin, pMax] = tierPrestigeRange(tier);
+    const [pMin, pMax] = tierPrestigeRange(tier, division);
     const prestige = rng.int(pMin, pMax);
+    const divRules = D.divisionFor(division);
 
     let academics = rng.int(35, 78) + (tier === 1 ? 6 : 0);
     if (ELITE_ACADEMICS.has(name)) academics += rng.int(12, 20);
@@ -54,14 +74,16 @@
       sportsScienceLab: Utils.clamp(fBase - 15 + rng.int(-15, 15), 5, 95)
     };
 
-    const budgetScale = { 1: 1.0, 2: 0.65, 3: 0.4, 4: 0.22 }[tier];
+    // Budgets scale by conference tier AND by division: DII operates on a
+    // fraction of DI money, DIII on far less (data-driven via divisionFor).
+    const budgetScale = ({ 1: 1.0, 2: 0.65, 3: 0.4, 4: 0.22 }[tier]) * divRules.budgetScale;
     const budgetTotal = Math.round((300000 + prestige * 4000) * budgetScale);
     const budget = {
       total: budgetTotal,
       recruiting: Math.round(budgetTotal * 0.16),
       travel: Math.round(budgetTotal * 0.22),
-      scholarships: Math.round(budgetTotal * 0.42),
-      nil: Math.round(budgetTotal * 0.08 * (tier === 1 ? 2 : 1)),
+      scholarships: divRules.scholarshipModel === 'none' ? 0 : Math.round(budgetTotal * 0.42),
+      nil: divRules.nil ? Math.round(budgetTotal * 0.08 * (tier === 1 ? 2 : 1)) : 0,
       facilitiesFund: Math.round(budgetTotal * 0.12)
     };
 
@@ -79,7 +101,7 @@
 
     return new M.School({
       name, state, region, conference, conferenceTier: tier,
-      division: 'DI', // the generated world is DI today; DII/DIII arrive as data
+      division,
       prestige, academics, campusAppeal, facilities, budget,
       weather: { tempBase: weatherProfile.tempBase + rng.int(-4, 4), altitude, humidity: weatherProfile.humidity },
       historicalSuccess
@@ -173,14 +195,19 @@
     const gender = rng.bool(0.75) ? 'M' : 'W';
     const firstName = gender === 'M' ? rng.choice(D.FIRST_NAMES_M) : rng.choice(D.FIRST_NAMES_W);
     const tierBonus = { 1: 14, 2: 6, 3: 0, 4: -6 }[school.conferenceTier];
+    // Lower divisions employ less-established coaches on average — but the
+    // division-agnostic ladder still lets the great ones climb.
+    const divPenalty = { DI: 0, DII: 6, DIII: 10 }[school.division || 'DI'] || 0;
     const rolePenalty = role === 'Assistant' ? 8 : 0;
-    const statFor = () => rng.gaussianRange(56 + tierBonus - rolePenalty, 13, 20, 99);
+    const statFor = () => rng.gaussianRange(56 + tierBonus - rolePenalty - divPenalty, 13, 20, 99);
 
     const archetype = rng.choice(D.COACH_ARCHETYPES);
+    // Initial dynasty (Update 3): coaches span 25-75 so the world starts with
+    // a realistic age spread; future generated coaches start younger.
     const coach = new M.Coach({
       firstName,
       lastName: rng.choice(D.LAST_NAMES),
-      age: role === 'Assistant' ? rng.int(26, 50) : rng.int(32, 64),
+      age: role === 'Assistant' ? rng.int(25, 52) : rng.int(25, 75),
       role,
       archetype: archetype.key,
       portrait: rng.choice(D.COACH_PORTRAITS),
@@ -191,8 +218,10 @@
       retireAge: 75 + rng.int(0, 8), // retirement is random, always 75+
       schoolId: school.id,
       isPlayer,
-      yearsAtSchool: isPlayer ? 0 : rng.int(0, 14)
+      yearsAtSchool: 0
     });
+    // Tenure can't exceed a plausible career length for the coach's age.
+    if (!isPlayer) coach.yearsAtSchool = Math.min(rng.int(0, 14), Math.max(0, coach.age - 26));
     // Archetypes matter: a real bump to the signature rating.
     coach[archetype.rating] = Utils.clamp(coach[archetype.rating] + 12, 20, 99);
 
@@ -211,7 +240,7 @@
     // Reputation (Part 1): seeded from stature — most coaches start as
     // regional names; a handful of blue-blood veterans arrive established.
     coach.reputation = Utils.clamp(Math.round(
-      coach.overallRating * 0.5 + tierBonus + coach.yearsAtSchool * 0.8 + rng.int(-8, 8) - (role === 'Assistant' ? 15 : 0)
+      coach.overallRating * 0.5 + tierBonus - divPenalty + coach.yearsAtSchool * 0.8 + rng.int(-8, 8) - (role === 'Assistant' ? 15 : 0)
     ), 3, 78);
 
     coach.stints = [{ schoolId: school.id, school: school.name, division: school.division || 'DI', startYear: 2026 - coach.yearsAtSchool, endYear: null }];
@@ -276,30 +305,42 @@
     const athletes = {};
     const schoolOrder = [];
 
-    D.RAW_SCHOOLS.forEach((raw) => {
-      const school = buildSchool(rng, raw);
-      const coach = buildCoach(rng, school, false);
-      school.coachId = coach.id;
-      const assistant = buildCoach(rng, school, false, 'Assistant');
-      school.assistantId = assistant.id;
-      coaches[assistant.id] = assistant;
+    // Every active division populates from its own real-school roster. The
+    // three divisions coexist in one world; postseason stays separate, while
+    // regular-season invitationals may mix them (handled by the race engine).
+    const divisionRosters = [
+      ['DI', D.RAW_SCHOOLS],
+      ['DII', D.RAW_SCHOOLS_DII || []],
+      ['DIII', D.RAW_SCHOOLS_DIII || []]
+    ];
 
-      const rosterSizeM = rng.int(rosterMin, rosterMax);
-      const rosterSizeW = rng.int(rosterMin, rosterMax);
-      for (let i = 0; i < rosterSizeM; i++) {
-        const athlete = buildAthlete(rng, school, 'M');
-        athletes[athlete.id] = athlete;
-        school.rosterM.push(athlete.id);
-      }
-      for (let i = 0; i < rosterSizeW; i++) {
-        const athlete = buildAthlete(rng, school, 'W');
-        athletes[athlete.id] = athlete;
-        school.rosterW.push(athlete.id);
-      }
+    divisionRosters.forEach(([division, raws]) => {
+      if (!D.divisionFor(division).active) return;
+      raws.forEach((raw) => {
+        const school = buildSchool(rng, raw, division);
+        const coach = buildCoach(rng, school, false);
+        school.coachId = coach.id;
+        const assistant = buildCoach(rng, school, false, 'Assistant');
+        school.assistantId = assistant.id;
+        coaches[assistant.id] = assistant;
 
-      schools[school.id] = school;
-      coaches[coach.id] = coach;
-      schoolOrder.push(school.id);
+        const rosterSizeM = rng.int(rosterMin, rosterMax);
+        const rosterSizeW = rng.int(rosterMin, rosterMax);
+        for (let i = 0; i < rosterSizeM; i++) {
+          const athlete = buildAthlete(rng, school, 'M');
+          athletes[athlete.id] = athlete;
+          school.rosterM.push(athlete.id);
+        }
+        for (let i = 0; i < rosterSizeW; i++) {
+          const athlete = buildAthlete(rng, school, 'W');
+          athletes[athlete.id] = athlete;
+          school.rosterW.push(athlete.id);
+        }
+
+        schools[school.id] = school;
+        coaches[coach.id] = coach;
+        schoolOrder.push(school.id);
+      });
     });
 
     assignRivalries(Object.values(schools));

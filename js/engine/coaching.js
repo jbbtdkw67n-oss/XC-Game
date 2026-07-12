@@ -20,6 +20,14 @@
   const SECONDARY = ['talentEval', 'motivation', 'transferRecruiting',
     'internationalRecruiting', 'media', 'staffManagement', 'relationships'];
 
+  // Field size of a division's poll (Update 3): every expectation-vs-result
+  // calculation is scaled to the division the school actually competes in.
+  function divisionSize(gameState, division) {
+    const ds = gameState.rankings && gameState.rankings.divisionSizes;
+    const n = ds && ds[division || 'DI'];
+    return n || (gameState.rankings ? gameState.rankings.M.length : 354);
+  }
+
   /* ---------------- Reputation ---------------- */
   function bestRank(gameState, schoolId) {
     const r = gameState.rankings;
@@ -35,7 +43,8 @@
    */
   function updateReputation(gameState, coach, school, rng) {
     const year = gameState.year - 1; // the season that just ended
-    const total = gameState.rankings ? gameState.rankings.M.length : 354;
+    // Judge a coach against their own division's field, not the whole NCAA.
+    const total = divisionSize(gameState, school.division);
     const rank = bestRank(gameState, school.id);
     let delta = 0;
 
@@ -174,6 +183,7 @@
     preferredMileage,
     mediaPull,
     bestRank,
+    divisionSize,
     CORE_RATINGS: CORE,
     SECONDARY_RATINGS: SECONDARY
   };
