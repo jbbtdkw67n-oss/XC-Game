@@ -12,6 +12,7 @@
   let activeGender = 'M';
   let starFilter = 0;
   let sourceFilter = 'All';
+  let classRankDiv = null; // division filter for class rankings (null = player's)
 
   const STAR_OPTIONS = [0, 2, 3, 4, 5];
   const SOURCE_OPTIONS = ['All', 'HS', 'JUCO', 'International'];
@@ -125,8 +126,9 @@
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
       <div class="player-card-header">
         <div class="who">
-          <h2>${rec.generational ? '⭐ ' : ''}${stars(rec.starRating)} ${Utils.escapeHtml(rec.fullName)}</h2>
+          <h2>${rec.generational ? '⭐ ' : ''}${stars(rec.starRating)} ${Utils.escapeHtml(rec.fullName)}${rec.nxn && rec.nxn.champion ? ' <span title="NXN Champion">👟</span>' : rec.nxn && rec.nxn.allAmerican ? ' <span title="NXN All-American">🎽</span>' : ''}</h2>
           ${rec.generational ? '<div class="sub" style="color:var(--gold, #d4af37); font-weight:700;">GENERATIONAL RECRUIT — the story of this class</div>' : ''}
+          ${rec.nxn && (rec.nxn.champion || rec.nxn.allAmerican) ? `<div class="sub" style="color:var(--accent); font-weight:600;">${rec.nxn.champion ? '👟 NXN Champion' : '🎽 NXN All-American'} (${rec.nxn.champion || rec.nxn.allAmerican}) — a decorated prep runner</div>` : ''}
           <div class="sub">
             ${rec.gender === 'M' ? "Men's" : "Women's"} • ${rec.source}${rec.country !== 'USA' ? ` (${rec.country})` : ''} •
             ${Utils.escapeHtml(rec.hometownCity)}, ${rec.hometownState === 'INT' ? rec.country : rec.hometownState}
@@ -260,7 +262,7 @@
       columns: [
         { key: 'starRating', label: 'Stars', numeric: true, render: (r) => stars(r.starRating) },
         { key: 'nationalRank', label: 'Natl', numeric: true, render: (r) => `#${r.nationalRank}` },
-        { key: 'lastName', label: 'Name', render: (r) => `${r.generational ? '<span title="Generational Recruit">⭐</span> ' : ''}<strong>${Utils.escapeHtml(r.fullName)}</strong>${r.source !== 'HS' ? ` <span style="font-size:10px; color:var(--warning);">${r.source}</span>` : ''}` },
+        { key: 'lastName', label: 'Name', render: (r) => `${r.generational ? '<span title="Generational Recruit">⭐</span> ' : ''}${r.nxn && r.nxn.champion ? '<span title="NXN Champion">👟</span> ' : r.nxn && r.nxn.allAmerican ? '<span title="NXN All-American">🎽</span> ' : ''}<strong>${Utils.escapeHtml(r.fullName)}</strong>${r.source !== 'HS' ? ` <span style="font-size:10px; color:var(--warning);">${r.source}</span>` : ''}` },
         { key: 'hometownState', label: 'From', render: (r) => r.hometownState === 'INT' ? Utils.escapeHtml(r.country) : `${Utils.escapeHtml(r.hometownCity)}, ${r.hometownState}` },
         {
           key: 'dist', label: 'Dist', numeric: true,
@@ -337,20 +339,43 @@
         Class rankings publish on Signing Day (Week ${D.RECRUITING.SIGNING_WEEK}).</div>`;
       return;
     }
-    el.innerHTML = years.map((year) => `
+    // Division-separated recruiting rankings (Update 5, Part 11): each
+    // division has its own recruiting race. Default to the player's division.
+    if (!classRankDiv) classRankDiv = (game.getPlayerSchool().division) || 'DI';
+    const DIV_TABS = [['DI', 'Division I'], ['DII', 'Division II'], ['DIII', 'Division III']]
+      .filter(([k]) => D.divisionFor(k).active);
+
+    const tabs = `<div class="pill-tabs" id="crank-div" style="margin-bottom:12px;">
+      ${DIV_TABS.map(([k, label]) => `<button data-crdiv="${k}" class="${classRankDiv === k ? 'active' : ''}">${label}</button>`).join('')}
+    </div>`;
+
+    el.innerHTML = tabs + years.map((year) => {
+      // Old saves stored a flat national list without division tags; treat a
+      // missing division as DI so historical classes still render.
+      const rows = game.history.recruitingClasses[year]
+        .filter((e) => (e.division || 'DI') === classRankDiv)
+        .slice(0, 25);
+      if (!rows.length) return '';
+      return `
       <div class="card">
-        <h2>Class of ${Number(year) + 1} — Final Rankings</h2>
+        <h2>Class of ${Number(year) + 1} — ${D.divisionFor(classRankDiv).label} Rankings</h2>
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>Rank</th><th>School</th><th class="num">Signees</th><th class="num">Avg ★</th><th class="num">Score</th></tr></thead>
+          <thead><tr><th>Rank</th><th>School</th><th class="num">Signees</th><th class="num">Avg ★</th><th class="num">Natl</th><th class="num">Score</th></tr></thead>
           <tbody>
-            ${game.history.recruitingClasses[year].slice(0, 25).map((e) => `
+            ${rows.map((e, i) => `
               <tr ${e.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
-                <td>#${e.rank}</td><td>${Utils.escapeHtml(e.schoolName)}</td>
-                <td class="num">${e.count}</td><td class="num">${e.avgStars}</td><td class="num">${e.score}</td>
+                <td>#${e.divisionRank || (i + 1)}</td><td>${Utils.escapeHtml(e.schoolName)}</td>
+                <td class="num">${e.count}</td><td class="num">${e.avgStars}</td>
+                <td class="num" style="color:var(--text-faint);">#${e.rank}</td><td class="num">${e.score}</td>
               </tr>`).join('')}
           </tbody>
         </table></div>
-      </div>`).join('');
+      </div>`;
+    }).join('') || '<div class="card" style="color:var(--text-dim);">No classes recorded for this division yet.</div>';
+
+    el.querySelectorAll('[data-crdiv]').forEach((btn) => {
+      btn.addEventListener('click', () => { classRankDiv = btn.dataset.crdiv; renderClassRankings(game, el); });
+    });
   }
 
   /* ---------------- Main render ---------------- */

@@ -37,6 +37,64 @@
     return `${tierLabel} · ${div.label}. Expected to ${goals.join(', ')}.${budgetNote}${histNote}${confNote}`;
   }
 
+  // Season W/L from the player's completed meets (dual-meet-style ledger).
+  function seasonRecord(game) {
+    const s = game.season;
+    let w = 0, l = 0;
+    if (!s) return { w, l };
+    Object.values(s.meets).forEach((meet) => {
+      if (!meet.results) return;
+      ['M', 'W'].forEach((g) => {
+        const res = meet.results[g];
+        if (!res || !res.teamScores) return;
+        const mine = res.teamScores.find((t) => t.schoolId === game.playerSchoolId);
+        if (!mine) return;
+        w += res.teamScores.length - mine.place;
+        l += mine.place - 1;
+      });
+    });
+    return { w, l };
+  }
+
+  // Where the player sits among same-conference programs in the poll.
+  function confStanding(game, gender) {
+    const list = game.rankings && game.rankings[gender];
+    if (!list) return null;
+    const school = game.getPlayerSchool();
+    const conf = list
+      .filter((r) => { const s = game.getSchool(r.schoolId); return s && s.conference === school.conference; })
+      .sort((a, b) => a.rank - b.rank);
+    const idx = conf.findIndex((r) => r.schoolId === game.playerSchoolId);
+    return idx >= 0 ? { pos: idx + 1, of: conf.length } : null;
+  }
+
+  // Ordered list of the player's meets this season (regular + championships).
+  function playerMeets(game) {
+    const s = game.season;
+    if (!s) return [];
+    const weeks = Object.keys(s.playerMeetByWeek).map(Number).sort((a, b) => a - b);
+    const meets = weeks.map((w) => s.meets[s.playerMeetByWeek[w]]).filter(Boolean);
+    // Nationals: included when the player qualified.
+    const natId = s.nationalsMeetId;
+    if (natId && s.meets[natId] && !meets.some((m) => m.id === natId)) {
+      const inField = (s.nationalsFieldIds && (
+        (s.nationalsFieldIds.M || []).includes(game.playerSchoolId) ||
+        (s.nationalsFieldIds.W || []).includes(game.playerSchoolId)));
+      if (inField) meets.push(s.meets[natId]);
+    }
+    return meets.sort((a, b) => a.week - b.week);
+  }
+
+  function playerPlace(game, meet) {
+    if (!meet.results) return null;
+    const places = ['M', 'W'].map((g) => {
+      const res = meet.results[g];
+      const mine = res && res.teamScores && res.teamScores.find((t) => t.schoolId === game.playerSchoolId);
+      return mine ? mine.place : null;
+    }).filter((p) => p != null);
+    return places.length ? Math.min(...places) : null;
+  }
+
   function rankTile(game, gender) {
     const list = game.rankings && game.rankings[gender];
     if (!list) return { rank: '—', move: '' };
@@ -106,6 +164,31 @@
           </tbody>
         </table></div>
       </div>`;
+
+    // Season overview widget data (Update 5, Part 13).
+    const meets = playerMeets(game);
+    const completed = meets.filter((m) => playerPlace(game, m) != null);
+    const upcoming = meets.filter((m) => playerPlace(game, m) == null && m.week >= game.week);
+    const recent = completed.slice(-3).reverse();
+    const rec = seasonRecord(game);
+    const csM = confStanding(game, 'M');
+    const csW = confStanding(game, 'W');
+    // Next opponent: the strongest OTHER program in the next meet's field.
+    let nextOpponent = null;
+    const nextField = upcoming[0];
+    if (nextField && nextField.schoolIds) {
+      const rankOf = (sid) => {
+        const m = game.rankings && game.rankings.M.find((r) => r.schoolId === sid);
+        const w = game.rankings && game.rankings.W.find((r) => r.schoolId === sid);
+        return Math.min(m ? m.rank : 999, w ? w.rank : 999);
+      };
+      const rivals = nextField.schoolIds
+        .filter((sid) => sid !== game.playerSchoolId)
+        .map((sid) => ({ sid, school: game.getSchool(sid), rank: rankOf(sid) }))
+        .filter((x) => x.school)
+        .sort((a, b) => a.rank - b.rank);
+      nextOpponent = rivals[0] || null;
+    }
 
     // Program expectations & the player's job security (Update 5, Part 5).
     const expectations = expectationsFor(school);
@@ -193,6 +276,40 @@
           </div>
         </div>` : ''}
 
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+          <h2 style="margin:0;">📅 Season Overview — ${game.year}</h2>
+          <button class="btn small" id="btn-to-schedule">Full Schedule →</button>
+        </div>
+        <div class="grid cols-4" style="margin-bottom:12px;">
+          <div class="stat-tile"><div class="label">Record (W–L)</div><div class="value">${rec.w}–${rec.l}</div><div class="sub">${completed.length} meet${completed.length === 1 ? '' : 's'} raced</div></div>
+          <div class="stat-tile"><div class="label">National Rank</div><div class="value">${rm.rank}<span style="font-size:13px; color:var(--text-faint);"> M</span> · ${rw.rank}<span style="font-size:13px; color:var(--text-faint);"> W</span></div><div class="sub">${window.XCD.data.divisionFor(school).label}</div></div>
+          <div class="stat-tile"><div class="label">Conf. Standing</div><div class="value">${csM ? '#' + csM.pos : '—'}<span style="font-size:13px; color:var(--text-faint);"> M</span> · ${csW ? '#' + csW.pos : '—'}<span style="font-size:13px; color:var(--text-faint);"> W</span></div><div class="sub">${Utils.escapeHtml(school.conference)}</div></div>
+          <div class="stat-tile"><div class="label">Next Opponent</div><div class="value" style="font-size:15px;">${nextOpponent ? (nextOpponent.rank < 999 ? '#' + nextOpponent.rank + ' ' : '') + Utils.escapeHtml(nextOpponent.school.name) : '—'}</div><div class="sub">${nextField ? 'Wk ' + nextField.week + ' field' : 'season complete'}</div></div>
+        </div>
+        <div class="grid cols-2">
+          <div>
+            <h3>Upcoming Meets</h3>
+            ${upcoming.length ? upcoming.slice(0, 4).map((m) => `
+              <div class="attr-row" style="cursor:pointer;" data-meet-nav="1">
+                <span><strong>Wk ${m.week}</strong> ${Utils.escapeHtml(m.name)}${m.week === game.week ? ' <span style="color:var(--warning); font-size:11px;">THIS WEEK</span>' : ''}</span>
+                <span style="color:var(--text-faint); font-size:12px;">${m.conditions.tempF}°F${m.conditions.rain ? ' · rain' : ''} · hills ${m.conditions.hilliness}</span>
+              </div>`).join('') : '<div style="color:var(--text-dim); font-size:13px;">No meets remaining — the regular season is done.</div>'}
+          </div>
+          <div>
+            <h3>Recent Results</h3>
+            ${recent.length ? recent.map((m) => {
+              const p = playerPlace(game, m);
+              const color = p === 1 ? 'var(--gold)' : p <= 3 ? 'var(--success)' : 'var(--text-dim)';
+              return `<div class="attr-row" data-meet="${m.id}" style="cursor:pointer;">
+                <span><strong>Wk ${m.week}</strong> ${Utils.escapeHtml(m.name)}</span>
+                <span style="color:${color}; font-weight:600;">${p === 1 ? '🥇 1st' : p ? p + (p === 2 ? 'nd' : p === 3 ? 'rd' : 'th') : '—'}</span>
+              </div>`;
+            }).join('') : '<div style="color:var(--text-dim); font-size:13px;">No results yet this season.</div>'}
+          </div>
+        </div>
+      </div>
+
       ${nextMeet ? `
         <div class="card" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <div>
@@ -201,7 +318,7 @@
               ${nextMeet.conditions.tempF}°F${nextMeet.conditions.rain ? ' · rain' : ''} · hills ${nextMeet.conditions.hilliness}/100 · ${nextMeet.conditions.altitude} altitude
             </span>
           </div>
-          <button class="btn" id="btn-to-schedule">View Schedule →</button>
+          <button class="btn" id="btn-to-schedule-2">View Schedule →</button>
         </div>` : ''}
 
       ${warnings.length ? `
@@ -226,8 +343,9 @@
     container.querySelectorAll('[data-ath]').forEach((tr) => {
       tr.addEventListener('click', () => UI.showPlayerCard(game.getAthlete(tr.dataset.ath), game));
     });
-    const schedBtn = container.querySelector('#btn-to-schedule');
-    if (schedBtn) schedBtn.addEventListener('click', () => UI.navigate('schedule'));
+    container.querySelectorAll('#btn-to-schedule, #btn-to-schedule-2, [data-meet], [data-meet-nav]').forEach((el) => {
+      el.addEventListener('click', () => UI.navigate('schedule'));
+    });
 
     container.querySelectorAll('[data-accept]').forEach((btn) => {
       btn.addEventListener('click', () => {

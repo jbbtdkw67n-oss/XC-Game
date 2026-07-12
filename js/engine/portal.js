@@ -155,6 +155,25 @@
     // Championship aspirations: stars stuck outside the national picture.
     if (a.currentOverall > school.prestige + 18) add(20, R.contender);
 
+    // Lower-division stars drawing higher-division interest (Update 5,
+    // Section 1). Exceptionally decorated DII/DIII athletes — national
+    // champions, multi-time All-Americans, dominant conference champions —
+    // occasionally get the itch to test themselves a level up. Kept UNCOMMON
+    // (a modest nudge, not a guarantee) so many elite lower-division athletes
+    // stay loyal, and their coach/team bonds (below) can anchor them home.
+    if ((school.division === 'DII' || school.division === 'DIII') && a.eligibilityRemaining >= 2) {
+      const hy = a.honorYears || {};
+      const champ = (hy.natChamp || []).length;
+      const aa = (hy.allAmerican || []).length;
+      const conf = (hy.confChamp || []).length;
+      let decorated = 0;
+      if (champ) decorated = 2;
+      else if (aa >= 2) decorated = 1.5;
+      else if (aa >= 1) decorated = 1;
+      else if (conf && a.currentOverall > school.prestige + 10) decorated = 0.7;
+      if (decorated) add(decorated * 6, R.moveUp);
+    }
+
     // Training fit (Part 6 interplay): fragile bodies on crushing volume,
     // or speed merchants ground down by a mileage-heavy program.
     const teamMiles = TE.aiMileage ? TE.aiMileage(gameState, coach, a.gender) : 70;
@@ -322,6 +341,20 @@
         candidates.push(s);
         if (candidates.length >= 3) break;
       }
+
+      // Lower-division stars climbing (Update 5, Section 1): a decorated
+      // DII/DIII athlete who entered chasing higher-division competition
+      // should actually draw a higher-division suitor, not just lateral ones.
+      const fromSchool = gameState.getSchool(entry.fromSchoolId);
+      const divRank = (d) => (d === 'DI' ? 3 : d === 'DII' ? 2 : 1);
+      if (fromSchool && entry.reason === window.XCD.data.PORTAL_REASONS.moveUp) {
+        const higher = needy.filter((s) =>
+          divRank(s.division || 'DI') > divRank(fromSchool.division || 'DI') &&
+          !entry.offers.includes(s.id) && s.id !== entry.fromSchoolId &&
+          Math.abs(a.currentOverall - (30 + s.prestige * 0.55)) <= 26);
+        if (higher.length) candidates.push(rng.choice(higher));
+      }
+
       if (candidates.length && rng.bool(0.55)) {
         entry.offers.push(rng.choice(candidates).id);
       }

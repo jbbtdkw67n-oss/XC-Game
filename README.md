@@ -53,10 +53,27 @@ talent is guaranteed to keep flowing so Year 30 feels as strong as Year 1.
 - **Recruiting rating pays off.** A coach's **Recruiting** rating now directly
   buys weekly recruiting points, so elite recruiters meaningfully out-work weak
   ones over many cycles.
+- **Nike Cross Nationals (NXN).** A full high-school national championship runs
+  the same week as NCAA Nationals. Top prep recruits earn **👟 NXN Champion**
+  and **🎽 NXN All-American** honors that stay on their profile forever and are
+  carried into college when they enroll — richer recruiting stories, and a
+  reason to chase the decorated names.
+- **Season Overview dashboard widget.** A season-at-a-glance card: current
+  **W–L record**, **national ranking** (M/W), **conference standing**, **next
+  opponent**, upcoming meets, and recent results — the player's primary season
+  overview.
+- **Division-separated recruiting rankings.** D1, D2, and D3 each run their own
+  recruiting race, with a within-division rank alongside the national rank, so a
+  DII program's #1 DII class is the achievement it should be (and coach
+  "best class" ledgers are judged in-division).
+- **Lower-division stars can climb.** Exceptionally decorated DII/DIII athletes —
+  national champions, multi-time All-Americans, dominant conference champions —
+  occasionally draw higher-division interest and may transfer up. Kept uncommon,
+  and strong coach/team bonds keep many elite lower-division runners loyal.
 
 Saves upgrade automatically: coaches gain a role, athletes gain their coach/team
 relationship attributes (seeded from morale), and every pre-Update-5 dynasty
-starts as a Head Coach.
+starts as a Head Coach. Older recruiting-class history renders under Division I.
 
 ## Version 5.0 — Update 4: Identity, History & Prestige
 

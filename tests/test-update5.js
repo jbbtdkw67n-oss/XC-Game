@@ -165,6 +165,65 @@ async function run() {
   });
   ok(altitude.hasHighAltitude, 'no high-altitude program exists in the world');
 
+  // ---- 7) Dashboard Season Overview widget (Section 13) ----
+  const dashWidget = await page.evaluate(() => document.querySelector('#screen-container').textContent);
+  ok(/Season Overview/i.test(dashWidget), 'dashboard Season Overview widget missing');
+  ok(/Next Opponent/i.test(dashWidget), 'dashboard Next Opponent missing');
+  ok(/Conf\. Standing/i.test(dashWidget), 'dashboard conference standing missing');
+
+  // ---- 8) Nike Cross Nationals (Section 9) ----
+  const nxn = await page.evaluate(() => {
+    const g = window.XCD.ui.state.game;
+    const rng = new window.XCD.core.SeededRNG(777);
+    window.XCD.engine.Awards.runNXN(g, rng);
+    const champs = Object.values(g.world.recruits).filter((x) => x.nxn && x.nxn.champion);
+    const champ = champs[0];
+    let carried = false, badge = false;
+    if (champ) {
+      champ.signed = true; champ.committedTo = g.playerSchoolId;
+      window.XCD.engine.Recruiting.enrollSignees(g);
+      const ath = g.world.athletes[champ.id];
+      carried = !!(ath && ath.honorYears.nxnChampion && ath.honorYears.nxnChampion.length &&
+        ath.accolades.some((a) => a.type === 'nxnChampion'));
+      badge = window.XCD.engine.Legacy.badgesFor(ath).some((b) => b.key === 'nxnChampion');
+    }
+    return {
+      stored: !!(g.season.nxn && g.season.nxn.M.length && g.season.nxn.W.length),
+      champCount: champs.length, carried, badge
+    };
+  });
+  ok(nxn.stored, 'NXN results not stored on season');
+  ok(nxn.champCount >= 2, 'NXN did not crown a champion per gender');
+  ok(nxn.carried, 'NXN honors did not carry into the enrolled athlete');
+  ok(nxn.badge, 'NXN badge not shown for enrolled champion');
+
+  // ---- 9) Division-separated recruiting rankings (Section 11) ----
+  const divRank = await page.evaluate(() => {
+    const g = window.XCD.ui.state.game;
+    // Fast-forward through a full year so a signing day publishes classes.
+    g.recruiting.auto = true;
+    for (let i = 0; i < 21; i++) {
+      g.weeklyFlow.recruitingDone = true;
+      if (g.controlsTraining()) g.weeklyFlow.trainingConfirmed = true;
+      g.advanceWeek();
+    }
+    const years = Object.keys(g.history.recruitingClasses);
+    const anyYear = years[years.length - 1];
+    const list = anyYear ? g.history.recruitingClasses[anyYear] : [];
+    const hasDiv = list.length && list.every((e) => e.division && typeof e.divisionRank === 'number');
+    // Each division should restart its rank at 1.
+    const byDiv = {};
+    list.forEach((e) => { byDiv[e.division] = Math.min(byDiv[e.division] ?? 99, e.divisionRank); });
+    const eachStartsAt1 = Object.values(byDiv).every((v) => v === 1);
+    return { hasDiv: !!hasDiv, eachStartsAt1, divisions: Object.keys(byDiv) };
+  });
+  ok(divRank.hasDiv, 'recruiting classes lack division / divisionRank');
+  ok(divRank.eachStartsAt1, 'each division ranking should start at #1');
+
+  // ---- 10) Lower-division star transfer-up reason exists (Section 1) ----
+  const moveUp = await page.evaluate(() => !!window.XCD.data.PORTAL_REASONS.moveUp);
+  ok(moveUp, 'lower-division move-up portal reason missing');
+
   await browser.close();
 
   if (errors.length) { console.log('PAGE ERRORS:\n' + errors.join('\n')); process.exit(1); }

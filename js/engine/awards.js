@@ -390,5 +390,65 @@
     return true;
   }
 
-  window.XCD.engine.Awards = { processPostNationals, considerHallOfFame, addHonor };
+  /*
+   * Nike Cross Nationals (NXN) — Update 5, Part 9. The high-school national
+   * championship, contested the same week as NCAA Nationals over the current
+   * recruiting class. Top prep athletes earn NXN Champion and NXN
+   * All-American honors that live on their profile forever — carried into
+   * college when they enroll, so recruiting has richer stories.
+   */
+  function runNXN(gameState, rng) {
+    const recruits = Object.values(gameState.world.recruits || {});
+    if (!recruits.length || !gameState.season) return;
+    const Legacy = window.XCD.engine.Legacy;
+    const year = gameState.year;
+    const AA_PER_GENDER = 15; // champion + All-Americans
+    const result = { M: [], W: [], year };
+
+    ['M', 'W'].forEach((gender) => {
+      // Domestic high-schoolers contest NXN.
+      const field = recruits.filter((r) => r.gender === gender && r.source === 'HS');
+      if (field.length < 10) return;
+      // A race score: ability plus genuine race-day variance so upsets happen
+      // and it isn't simply the highest-rated recruit every time.
+      const scored = field.map((r) => ({
+        r,
+        score: (r.currentOverall * 0.6 + r.potential * 0.4) + rng.gaussian(0, 6) +
+               ((r.mentalToughness || 60) - 60) * 0.05
+      })).sort((a, b) => b.score - a.score);
+
+      const top = scored.slice(0, 30);
+      top.forEach((entry, i) => {
+        result[gender].push({ recruitId: entry.r.id, name: entry.r.fullName, place: i + 1, state: entry.r.hometownState });
+      });
+
+      top.slice(0, AA_PER_GENDER).forEach((entry, i) => {
+        const rec = entry.r;
+        const isChamp = i === 0;
+        const key = isChamp ? 'nxnChampion' : 'nxnAllAmerican';
+        Legacy.athleteHonor(gameState, rec, key);
+        Legacy.recordAccolade(rec, {
+          year, division: null, conference: null,
+          type: key, label: isChamp ? 'NXN Champion' : 'NXN All-American'
+        });
+        rec.nxn = rec.nxn || {};
+        if (isChamp) rec.nxn.champion = year;
+        else rec.nxn.allAmerican = year;
+      });
+
+      const champ = top[0].r;
+      gameState.logNews(`👟 NIKE CROSS NATIONALS: ${champ.fullName} (${champ.hometownState === 'INT' ? champ.country : champ.hometownState}) wins the ${gender === 'M' ? "boys'" : "girls'"} NXN title — an instant recruiting prize.`);
+      // Call out any NXN standouts the player is already recruiting.
+      top.slice(0, AA_PER_GENDER).forEach((entry) => {
+        const st = entry.r.interests && entry.r.interests[gameState.playerSchoolId];
+        if (st && (st.offered || st.interest > 40) && entry.r.id !== champ.id) {
+          gameState.logNews(`👟 NXN All-American ${entry.r.fullName} — on your recruiting board — turns heads at Nike Cross Nationals.`);
+        }
+      });
+    });
+
+    gameState.season.nxn = result;
+  }
+
+  window.XCD.engine.Awards = { processPostNationals, considerHallOfFame, addHonor, runNXN };
 })();

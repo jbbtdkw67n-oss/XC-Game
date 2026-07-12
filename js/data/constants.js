@@ -512,6 +512,7 @@
     trainingFit:  'Poor training fit',
     relationship: 'Low coach relationship',
     teamChem:     'Disconnected from teammates',
+    moveUp:       'Chasing higher-division competition',
     nil:          'NIL opportunities',
     style:        'Playing style mismatch',
     overtraining: 'Overtraining',

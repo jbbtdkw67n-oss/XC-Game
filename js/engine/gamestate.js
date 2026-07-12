@@ -246,6 +246,12 @@
         (this.season && this.week === this.season.nationalWeek ? this.season.nationalsMeetId : null) ||
         this.lastPlayerMeetId;
 
+      // Nike Cross Nationals runs the same week as NCAA Nationals (Update 5,
+      // Part 9): the high-school class crowns its champions, once per year.
+      if (this.season && this.week === this.season.nationalWeek && !(this.season.nxn && this.season.nxn.year === this.year)) {
+        window.XCD.engine.Awards.runNXN(this, rng);
+      }
+
       // Training & development: every athlete in the world trains,
       // develops, fatigues, and risks injury.
       window.XCD.engine.Training.processWeek(this, rng);

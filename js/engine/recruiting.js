@@ -829,14 +829,28 @@
     const ranking = Object.entries(classes)
       .map(([sid, recs]) => ({
         schoolId: sid,
+        division: (gameState.getSchool(sid) || {}).division || 'DI',
         score: Math.round(recs.reduce((sum, r) => sum + Math.pow(r.starRating, 2.2) * 10 + recruitComposite(r) / 4, 0)),
         count: recs.length,
         stars: Math.round(recs.reduce((s, r) => s + r.starRating, 0) / recs.length * 10) / 10
       }))
       .sort((a, b) => b.score - a.score);
 
-    gameState.history.recruitingClasses[gameState.year] = ranking.slice(0, 50).map((entry, i) => ({
-      rank: i + 1,
+    // Division-separated recruiting rankings (Update 5, Part 11): each
+    // division runs its own recruiting race, so a DII program's #1 DII class
+    // is a genuine achievement rather than being buried under DI. Every entry
+    // carries both its national rank and its within-division rank.
+    const divCounters = {};
+    ranking.forEach((entry, i) => {
+      entry.rank = i + 1; // national
+      divCounters[entry.division] = (divCounters[entry.division] || 0) + 1;
+      entry.divisionRank = divCounters[entry.division];
+    });
+
+    gameState.history.recruitingClasses[gameState.year] = ranking.slice(0, 120).map((entry) => ({
+      rank: entry.rank,
+      divisionRank: entry.divisionRank,
+      division: entry.division,
       schoolId: entry.schoolId,
       schoolName: gameState.getSchool(entry.schoolId)?.name || '?',
       score: entry.score,
@@ -844,10 +858,12 @@
       avgStars: entry.stars
     }));
 
-    // Permanent ledgers (Parts 8-9): top classes per program, best class per coach.
+    // Permanent ledgers (Parts 8-9): top classes per program, best class per
+    // coach. Recorded by within-division rank (Update 5, Part 11) so a strong
+    // DII/DIII class counts as the achievement it is.
     const Legacy = window.XCD.engine.Legacy;
-    ranking.forEach((entry, i) => {
-      const rank = i + 1;
+    ranking.forEach((entry) => {
+      const rank = entry.divisionRank;
       Legacy.recordClassRank(gameState, entry.schoolId, gameState.year, rank);
       const coach = gameState.getCoach(gameState.getSchool(entry.schoolId)?.coachId);
       if (coach && (!coach.careerRecord.bestClassRank || rank < coach.careerRecord.bestClassRank)) {
@@ -866,15 +882,19 @@
     const top = ranking[0] && gameState.getSchool(ranking[0].schoolId);
     if (top) gameState.logNews(`SIGNING DAY: ${top.name} hauls in the nation's #1 recruiting class (${ranking[0].count} signees).`);
 
-    const playerRank = ranking.findIndex((e) => e.schoolId === gameState.playerSchoolId);
+    const playerEntry = ranking.find((e) => e.schoolId === gameState.playerSchoolId);
+    // Judge the player against their own division's recruiting race (Part 11).
+    const playerRank = playerEntry ? playerEntry.divisionRank - 1 : -1; // 0-indexed within division
+    const playerDiv = (gameState.getPlayerSchool().division) || 'DI';
+    const divLabel = window.XCD.data.divisionFor(gameState.getPlayerSchool()).label;
     const playerClass = classes[gameState.playerSchoolId] || [];
     if (playerClass.length) {
-      gameState.logNews(`Your ${playerClass.length}-runner class signs — ranked #${playerRank + 1} nationally.`);
+      gameState.logNews(`Your ${playerClass.length}-runner class signs — ranked #${playerRank + 1} in ${divLabel} (#${playerEntry.rank} nationally).`);
       const coach = gameState.getPlayerCoach();
       // Elite recruiting hauls feed coach progression.
       if (playerRank >= 0 && playerRank < 10 && coach) {
         coach.upgradePoints = (coach.upgradePoints || 0) + 1;
-        gameState.logNews(`📋 Top-10 recruiting class: +1 coach upgrade point.`);
+        gameState.logNews(`📋 Top-10 ${playerDiv} recruiting class: +1 coach upgrade point.`);
       }
       // Building a recruiting reputation is an assistant's whole career arc
       // (Update 5, Part 4): strong classes make them a head-coach candidate.
@@ -886,7 +906,7 @@
         else if (playerRank < 45) repGain = 1;
         if (repGain) {
           coach.reputation = window.XCD.core.Utils.clamp((coach.reputation || 12) + repGain, 1, 99);
-          gameState.logNews(`📈 Coach ${coach.lastName} builds a name as a recruiter — reputation rising after a #${playerRank + 1} class.`);
+          gameState.logNews(`📈 Coach ${coach.lastName} builds a name as a recruiter — reputation rising after a #${playerRank + 1} ${playerDiv} class.`);
         }
       }
     } else {

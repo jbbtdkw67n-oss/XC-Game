@@ -129,7 +129,11 @@
       ['natChamp', '🏆', 'National Champion'],
       ['allAmerican', '🇺🇸', 'All-American'],
       ['confChamp', '🥇', 'Conference Champion'],
-      ['allConference', '🏅', 'All-Conference']
+      ['allConference', '🏅', 'All-Conference'],
+      // Nike Cross Nationals prep honors (Update 5, Part 9) — permanent, and
+      // carried into college when the recruit enrolls.
+      ['nxnChampion', '👟', 'NXN Champion'],
+      ['nxnAllAmerican', '🎽', 'NXN All-American']
     ];
     const badges = defs
       .filter(([k]) => hy[k] && hy[k].length)
