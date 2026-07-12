@@ -12,6 +12,7 @@
   const Utils = window.XCD.core.Utils;
 
   let conferenceFilter = 'All';
+  let divisionFilter = 'All';
 
   function teamStrength(game, school, gender) {
     const roster = game.getRoster(school.id, gender)
@@ -42,8 +43,8 @@
       </div>
       <div class="card" style="padding:12px; margin-bottom:14px;">
         <h3>Head Coach</h3>
-        <div class="attr-row">
-          <span>${coach ? Utils.escapeHtml(coach.fullName) : 'Vacant'}</span>
+        <div class="attr-row ${coach ? 'clickable' : ''}" ${coach ? 'id="school-coach-row" style="cursor:pointer;"' : ''}>
+          <span>${coach ? Utils.escapeHtml(coach.fullName) : 'Vacant'}${coach ? ' <span style="color:var(--text-faint); font-size:11px;">(view profile)</span>' : ''}</span>
           <span class="attr-name">${coach ? `${Utils.escapeHtml(coach.archetype || coach.personality || '')} • OVR ${coach.overallRating} • Age ${coach.age}` : ''}</span>
         </div>
       </div>
@@ -64,16 +65,20 @@
           if (a) UI.showPlayerCard(a, game);
         });
       });
+      const coachRow = modal.querySelector('#school-coach-row');
+      if (coachRow && coach) coachRow.addEventListener('click', () => UI.showCoachCard(coach, game));
     });
   }
 
   function buildRows(game, schools) {
     return schools
+      .filter((s) => divisionFilter === 'All' || (s.division || 'DI') === divisionFilter)
       .filter((s) => conferenceFilter === 'All' || s.conference === conferenceFilter)
       .map((s) => ({
         school: s,
         name: s.name,
         conference: s.conference,
+        division: s.division || 'DI',
         state: s.state,
         prestige: s.prestige,
         facilities: s.facilitiesOverall,
@@ -93,6 +98,9 @@
       <div class="screen-header">
         <h1>World — ${schools.length} Schools</h1>
         <div class="actions">
+          <select class="search-input" id="div-filter" style="min-width:110px;">
+            ${['All', 'DI', 'DII', 'DIII'].map((d) => `<option value="${d}" ${d === divisionFilter ? 'selected' : ''}>${d === 'All' ? 'All Divisions' : d}</option>`).join('')}
+          </select>
           <select class="search-input" id="conf-filter" style="min-width:160px;">
             ${conferences.map((c) => `<option value="${Utils.escapeHtml(c)}" ${c === conferenceFilter ? 'selected' : ''}>${Utils.escapeHtml(c)}</option>`).join('')}
           </select>
@@ -118,6 +126,7 @@
             key: 'name', label: 'School',
             render: (r) => `<strong>${Utils.escapeHtml(r.name)}</strong>${r.school.id === game.playerSchoolId ? ' <span style="color:var(--accent);">★</span>' : ''}`
           },
+          { key: 'division', label: 'Div' },
           { key: 'conference', label: 'Conference' },
           { key: 'state', label: 'State' },
           { key: 'prestige', label: 'Prestige', numeric: true, render: (r) => UI.ratingBadge(r.prestige) },
@@ -143,6 +152,11 @@
       // Defer the redraw so the select's native menu fully dismisses first
       // (synchronously touching the DOM here crashes Safari), and never
       // rebuild the select itself.
+      setTimeout(() => { table = drawTable(); }, 0);
+    });
+
+    container.querySelector('#div-filter').addEventListener('change', (e) => {
+      divisionFilter = e.target.value;
       setTimeout(() => { table = drawTable(); }, 0);
     });
   }

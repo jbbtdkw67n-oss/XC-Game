@@ -68,7 +68,10 @@
           </tbody>
         </table></div>`;
     } else if (activeTab === 'individual' || activeTab === 'freshman') {
-      const list = activeTab === 'individual' ? R.individuals[activeGender] : R.freshmen[activeGender];
+      const playerDiv = school.division || 'DI';
+      const raw = activeTab === 'individual' ? R.individuals[activeGender] : R.freshmen[activeGender];
+      // Scope to the player's division (per-division rankings, Update 3).
+      const list = raw.filter((r) => (r.division || 'DI') === playerDiv);
       body.innerHTML = list.length ? `
         <div class="table-wrap"><table class="data">
           <thead><tr><th>Rank</th><th>Runner</th><th>Class</th><th>School</th><th class="num">Best Pace/km</th><th class="num">Wins</th></tr></thead>
@@ -86,11 +89,14 @@
         </table></div>`
         : '<div style="color:var(--text-dim);">No race results yet this season — rankings publish after the first meets.</div>';
     } else {
-      let rows = R[activeGender];
-      let heading = 'AP-Style National Poll';
+      const playerDiv = school.division || 'DI';
+      const divLabel = window.XCD.data.divisionFor(playerDiv).label;
+      // Every poll is scoped to the player's division (Update 3).
+      let rows = R[activeGender].filter((r) => (r.division || 'DI') === playerDiv);
+      let heading = `${divLabel} National Poll`;
       if (activeTab === 'region') {
         rows = rows.filter((r) => r.region === school.region);
-        heading = `${school.region} Regional Rankings`;
+        heading = `${divLabel} · ${school.region} Regional Rankings`;
       } else if (activeTab === 'conference') {
         rows = rows.filter((r) => r.conference === school.conference);
         heading = `${school.conference} Standings`;
@@ -104,7 +110,7 @@
           <tbody>
             ${rows.map((r, i) => `
               <tr ${r.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
-                <td>#${activeTab === 'national' ? r.rank : i + 1}${activeTab !== 'national' ? ` <span style="color:var(--text-faint); font-size:11px;">(natl #${r.rank})</span>` : ''}</td>
+                <td>#${activeTab === 'national' ? r.rank : i + 1}${activeTab !== 'national' ? ` <span style="color:var(--text-faint); font-size:11px;">(div #${r.rank})</span>` : ''}</td>
                 <td>${arrow(r)}</td>
                 <td><strong>${Utils.escapeHtml(r.name)}</strong></td>
                 <td>${Utils.escapeHtml(r.conference)}</td>
