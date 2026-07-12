@@ -580,9 +580,15 @@
     const isChampMeet = meet.type === 'conference' || meet.type === 'regional' || meet.type === 'national';
     const Morale = window.XCD.engine.Morale;
     const teamForm = {};
+    const teamTactic = {}; // per-school race philosophy (Update 4, Part 3)
     (meet.schoolIds || []).forEach((sid) => {
       teamForm[sid] = Morale ? Morale.teamForm(gameState, sid, isChampMeet, rng) : 0;
+      const s = gameState.getSchool(sid);
+      const c = s && gameState.getCoach(s.coachId);
+      teamTactic[sid] = D.racePhilosophy(c ? c.racePhilosophy : 'even').tactic;
     });
+    const defaultTactic = D.racePhilosophy('even').tactic;
+    const tacticFor = (sid) => teamTactic[sid] || defaultTactic;
 
     // --- Per-runner race state -----------------------------------------
     const runners = entries.map(({ athlete: a, schoolId, individual }) => {
@@ -591,13 +597,18 @@
       if (teamForm[schoolId]) total *= 1 + teamForm[schoolId];
       const chem = gameState.getSchool(schoolId)?.chemistry?.[gender];
       if (chem !== undefined) total *= 1 + (55 - chem) * 0.0002;
-      // Day form: consistent runners have narrower swings.
-      total *= 1 + rng.gaussian(0, 0.015 * (1.45 - a.consistency / 100));
+      const tactic = tacticFor(schoolId);
+      // Day form: consistent runners have narrower swings. Even-pace and
+      // pack-running staffs damp the swing further (steadier team scoring).
+      const evennessDamp = tactic.evenness ? 0.72 : tactic.teamPack ? 0.82 : 1;
+      total *= 1 + rng.gaussian(0, 0.015 * (1.45 - a.consistency / 100) * evennessDamp);
 
       // The energy tank: Stamina + current fitness + freshness. A 12-segment
       // race costs ~66-78 depending on Lactate Threshold, so tired or
-      // low-stamina runners run out before the finish and fade.
-      const reserve = 35 + a.stamina * 0.35 + a.fitness * 0.20 + (100 - a.fatigue) * 0.16;
+      // low-stamina runners run out before the finish and fade. Energy-saving
+      // philosophies (sit-and-kick, conservative) bank a little extra.
+      const reserve = (35 + a.stamina * 0.35 + a.fitness * 0.20 + (100 - a.fatigue) * 0.16) *
+        (1 + (tactic.reserveBonus || 0));
 
       return {
         athlete: a, schoolId, individual: !!individual,
@@ -609,7 +620,8 @@
         surges: 0,
         aggression: a.confidence * 0.5 + a.raceIQ * 0.5,
         hill: hillAbility(a),
-        kicked: false
+        kicked: false,
+        tactic
       };
     });
 
@@ -644,35 +656,47 @@
 
       runners.forEach((r, i) => {
         const a = r.athlete;
+        const tac = r.tactic || defaultTactic;
         let t = r.segBase;
 
         // Cost of covering this segment (drained from the tank). A strong
         // threshold makes hard running cheaper.
         let cost = 6.6 - a.lactateThreshold * 0.016;
 
+        // Race philosophy shifts pack discipline: sit-and-kick / pack runners
+        // tuck in tighter (blend toward the group), aggressive front-runners
+        // run their own harder pace.
+        const packBias = Utils.clamp((tac.packBias || 0), -0.25, 0.25);
+
         if (s === 0) {
-          // The gun: adrenaline + the field goes out together.
+          // The gun: adrenaline + the field goes out together. Aggressive
+          // staffs go out harder; conservative ones bank energy early.
           t = t * 0.5 + fieldPace * 0.5;
-          t *= 0.985;
+          t *= 0.985 * (tac.earlyPace || 1);
         } else if (isEarly) {
           // Pack formation: everyone tucks into a group. Hanging with a
           // pack that's quicker than you costs energy you'll miss later.
-          t = t * 0.45 + localPace[i] * 0.55;
+          const w = Utils.clamp(0.55 + packBias, 0.30, 0.80);
+          t = t * (1 - w) + localPace[i] * w;
+          t *= (tac.earlyPace || 1) < 1 ? (0.5 + (tac.earlyPace || 1) * 0.5) : 1; // aggressive push
         } else if (isMid) {
           // Packs still matter mid-race, but the elastic starts stretching.
-          t = t * 0.55 + localPace[i] * 0.45;
+          const w = Utils.clamp(0.45 + packBias, 0.25, 0.70);
+          t = t * (1 - w) + localPace[i] * w;
         }
         if (s > 0 && (isEarly || isMid) && localPace[i] < r.segBase) {
           const overreach = (r.segBase - localPace[i]) / r.segBase; // running above your head
-          cost += overreach * 150;
+          // Conservative staffs waste less energy chasing an early pace.
+          cost += overreach * 150 * (tac.earlyPace > 1 ? 0.8 : 1);
         }
 
         if (isMid) {
           // Mid-race drift: weak thresholds leak time as the pace tells.
           t *= 1 + 0.010 * (1.35 - a.lactateThreshold / 100) * ((s - 2) / 5);
 
-          // Surges: confident, race-smart runners attack mid-race.
-          const surgeChance = 0.05 + (r.aggression / 100) * 0.10;
+          // Surges: confident, race-smart runners attack mid-race — how often
+          // is shaped by the coach's race philosophy.
+          const surgeChance = (0.05 + (r.aggression / 100) * 0.10) * (tac.surge || 1);
           if (!r.surgedLastSeg && r.reserve > 30 && rng.bool(surgeChance)) {
             t *= 0.972;
             cost += 7;
@@ -696,17 +720,21 @@
 
         if (isLate) {
           // The grind: pace held by stamina + toughness. This is where
-          // strong distance runners move up through the field.
+          // strong distance runners move up through the field. Conservative
+          // staffs grind up harder late (having saved early).
           const grind = 0.016 * (1.45 - (a.stamina * 0.6 + a.mentalToughness * 0.4) / 100) * (s - 7);
           t *= 1 + grind;
+          if (tac.lateGrind && r.reserve > 15) t *= 1 - (tac.lateGrind - 1) * 0.02;
         }
 
         if (kickPhase && !r.faded && r.reserve > 10) {
           // The final 800-1000m: Speed + Running Economy + whatever's left.
+          // Sit-and-kick philosophies unleash a bigger finish; aggressive
+          // front-runners have less left to give.
           const kickPower = Utils.clamp(
-            ((a.speed * 0.50 + a.runningEconomy * 0.30 + a.confidence * 0.20) / 100 - 0.40) * 0.095 +
-            Utils.clamp((r.reserve - 10) / 300, 0, 0.018),
-            -0.015, 0.065) * (s === SEGMENTS - 1 ? 1 : 0.5);
+            (((a.speed * 0.50 + a.runningEconomy * 0.30 + a.confidence * 0.20) / 100 - 0.40) * 0.095 +
+            Utils.clamp((r.reserve - 10) / 300, 0, 0.018)) * (tac.kick || 1),
+            -0.015, 0.07) * (s === SEGMENTS - 1 ? 1 : 0.5);
           t *= 1 - kickPower;
           cost += 2.5;
           if (s === SEGMENTS - 1) {
@@ -944,16 +972,20 @@
     H.conferenceChampions[gameState.year][`${meet.conference}-${gender}`] = school.name;
 
     // Individual conference champion + All-Conference honors (division rules)
-    const allConfCount = D.divisionFor(meet.division || 'DI').championship.allConference;
+    const division = meet.division || 'DI';
+    const allConfCount = D.divisionFor(division).championship.allConference;
     res.finishers.slice(0, allConfCount).forEach((f, idx) => {
       const a = gameState.world.athletes[f.athleteId];
       if (!a) return;
       Legacy.athleteHonor(gameState, a, 'allConference');
+      // Full-context accolade: division + conference + year, never overwritten.
+      Legacy.recordAccolade(a, { year: gameState.year, division, conference: meet.conference, type: 'allConference', label: 'First Team All-Conference' });
       Legacy.program(gameState, f.schoolId).allConference += 1;
       const acCoach = gameState.getCoach(gameState.getSchool(f.schoolId)?.coachId);
       if (acCoach) acCoach.careerRecord.allConference = (acCoach.careerRecord.allConference || 0) + 1;
       if (idx === 0) {
         Legacy.athleteHonor(gameState, a, 'confChamp');
+        Legacy.recordAccolade(a, { year: gameState.year, division, conference: meet.conference, type: 'confChamp', label: 'Conference Champion' });
         a.honors.confChamp += 1;
         Legacy.program(gameState, f.schoolId).indivConfChamps += 1;
         const c = gameState.getCoach(gameState.getSchool(f.schoolId)?.coachId);
@@ -1077,10 +1109,23 @@
       if (!prog.bestFinish || t.place < prog.bestFinish) prog.bestFinish = t.place;
     });
 
+    // Team national title → a permanent accolade for every scoring runner
+    // on the winning squad (the top 7 who toed the line for the title).
+    const champScorers = res.finishers
+      .filter((f) => f.schoolId === champId)
+      .slice(0, 7);
+    champScorers.forEach((f) => {
+      const a = gameState.world.athletes[f.athleteId];
+      if (a) Legacy.recordAccolade(a, { year: gameState.year, division, conference: null, type: 'natChampTeam', label: 'Team National Champion' });
+    });
+
     const indiv = res.finishers[0];
     if (indiv) {
       const a = gameState.world.athletes[indiv.athleteId];
-      if (a) Legacy.athleteHonor(gameState, a, 'natChamp');
+      if (a) {
+        Legacy.athleteHonor(gameState, a, 'natChamp');
+        Legacy.recordAccolade(a, { year: gameState.year, division, conference: null, type: 'natChampIndiv', label: 'Individual National Champion' });
+      }
       Legacy.program(gameState, indiv.schoolId).indivNatChamps += 1;
       const c = gameState.getCoach(gameState.getSchool(indiv.schoolId)?.coachId);
       if (c) c.careerRecord.indivNatChamps += 1;
@@ -1096,8 +1141,11 @@
       team: school.name,
       teamId: champId,
       division,
+      conference: school.conference,
       individual: indiv ? indiv.name : '?',
+      individualId: indiv ? indiv.athleteId : null,
       individualSchool: indiv ? (gameState.getSchool(indiv.schoolId)?.name || '?') : '?',
+      individualSchoolId: indiv ? indiv.schoolId : null,
       individualTime: indiv ? indiv.time : 0
     };
 

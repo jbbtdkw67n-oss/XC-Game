@@ -31,7 +31,8 @@
     const moraleColor = athlete.morale < 40 ? 'red' : athlete.morale < 65 ? 'yellow' : 'green';
 
     // Permanent award badges (Part 10) — earned years, displayed for life.
-    const badges = window.XCD.engine.Legacy ? window.XCD.engine.Legacy.badgesFor(athlete) : [];
+    const Legacy = window.XCD.engine.Legacy;
+    const badges = Legacy ? Legacy.badgesFor(athlete) : [];
     const badgesHtml = badges.length ? `
       <div style="display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px;">
         ${badges.map((b) => `
@@ -39,6 +40,37 @@
             title="${b.label}${b.years.length ? ' — ' + b.years.join(', ') : ''}">
             ${b.icon} ${b.label}${b.years.length ? ` <span style="color:var(--text-dim);">${b.years.join(' · ')}</span>` : ''}
           </span>`).join('')}
+      </div>` : '';
+
+    // Full career accolade ledger (Update 4, Part 1): every honor with its
+    // division, conference, and year — a complete historical record that
+    // preserves honors earned across multiple divisions/conferences.
+    const accolades = Legacy ? Legacy.accoladesFor(athlete) : [];
+    const ACC_ICON = {
+      natChampTeam: '🏆', natChampIndiv: '🥇', runnerOfYear: '🏅', allAmerican: '🇺🇸',
+      freshmanOfYear: '🌱', confChamp: '🥇', confRunnerOfYear: '🏅', confFreshmanOfYear: '🌱',
+      allConference: '🏅', academicAllAmerican: '📚'
+    };
+    const accoladesHtml = accolades.length ? `
+      <div class="card" style="padding:12px; margin-bottom:14px;">
+        <h3>Career Accolades — ${accolades.length}</h3>
+        <div style="max-height:220px; overflow-y:auto;">
+          ${accolades.map((acc) => `
+            <div class="attr-row" style="padding:4px 0;">
+              <span>${ACC_ICON[acc.type] || '🎖'} ${Utils.escapeHtml(Legacy.accoladeLabel(acc))}</span>
+            </div>`).join('')}
+        </div>
+      </div>` : '';
+
+    // Career overall progression (Update 4, Part 10).
+    const oh = athlete.overallHistory || [];
+    const progressHtml = oh.length >= 2 ? `
+      <div class="card" style="padding:12px; margin-bottom:14px;">
+        <h3>Career Progression</h3>
+        <div style="display:flex; align-items:flex-end; gap:3px; height:48px;">
+          ${oh.slice(-8).map((h) => `<div title="${h.year}: ${h.overall} OVR" style="flex:1; background:var(--accent); opacity:0.75; border-radius:2px 2px 0 0; height:${Math.max(6, h.overall * 0.48)}px;"></div>`).join('')}
+        </div>
+        <div style="font-size:11.5px; color:var(--text-faint); margin-top:4px;">${oh[0].year} (${oh[0].overall}) → ${oh[oh.length - 1].year} (${oh[oh.length - 1].overall})</div>
       </div>` : '';
 
     UI.showModal(`
@@ -118,6 +150,9 @@
           </tbody>
         </table></div>
       </div>` : ''}
+
+      ${accoladesHtml}
+      ${progressHtml}
 
       <div class="card" style="padding:12px; margin-bottom:14px;">
         <h3>Physical Ratings</h3>

@@ -31,6 +31,39 @@
     'MAAC': { tier: 4 }, 'NEC': { tier: 4 }, 'OVC': { tier: 4 }, 'Independent': { tier: 4 }
   };
 
+  /*
+   * Real-world program heritage (Update 4, Part 8). Historically successful
+   * cross country programs start with elevated prestige AND a `heritage`
+   * value that gives resilience: a blue blood must have several poor seasons
+   * before its standing truly collapses, while unlisted programs can still
+   * climb into the elite tier through sustained success. Prestige is always
+   * relative to division — an elite DII program's number sits below an elite
+   * DI program's on the shared national scale.
+   *
+   * Value = starting prestige floor for that program (worldgen seeds prestige
+   * from it, and the prestige engine uses `heritage` as slow-decaying gravity).
+   */
+  D.PRESTIGE_SEEDS = {
+    // Division I blue bloods of distance running
+    'Northern Arizona': 96, 'Oklahoma State': 92, 'BYU': 92, 'Stanford': 90,
+    'Oregon': 90, 'Colorado': 90, 'Washington': 86, 'Wisconsin': 85,
+    'Arkansas': 86, 'Notre Dame': 84, 'Syracuse': 83, 'Iowa State': 83,
+    'New Mexico': 82, 'Providence': 81, 'Michigan': 82, 'Georgetown': 81,
+    'Portland': 80, 'Villanova': 82, 'North Carolina State': 80, 'NC State': 80,
+    'Alabama': 80, 'Texas': 79, 'Ole Miss': 80, 'Furman': 78,
+    // Division II powers
+    'Adams State': 63, 'Colorado Mines': 62, 'Grand Valley State': 62,
+    'Western Colorado': 58, 'Chico State': 57, 'Augustana (SD)': 56,
+    'Colorado Christian': 55, 'Simon Fraser': 55, 'U-Mary': 55,
+    'Grand Canyon': 54, 'Cal Poly Pomona': 53,
+    // Division III powers
+    'North Central (IL)': 53, 'UW-La Crosse': 52, 'UW-Oshkosh': 51,
+    'Williams': 51, 'MIT': 50, 'Carleton': 50, 'Johns Hopkins': 50,
+    'Washington U. (MO)': 50, 'Middlebury': 49, 'Wheaton (IL)': 49,
+    'Calvin': 49, 'St. Olaf': 48, 'Amherst': 48, 'Pomona': 48,
+    'Haverford': 47, 'RPI': 46
+  };
+
   D.CLASS_YEARS = ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate'];
 
   D.GENDERS = ['M', 'W'];
@@ -47,6 +80,115 @@
   ];
 
   D.COACH_PORTRAITS = ['🧢', '😤', '🧔', '👩‍🦰', '👨‍🦲', '🕶', '👴', '🧑‍🏫'];
+
+  /*
+   * Training Philosophy (Update 4, Part 2). A permanent identity chosen at
+   * coach creation — it can NEVER change. It is separate from the coach's four
+   * ratings: its effectiveness scales with the coach's Training attribute
+   * (higher Training = better execution), but it is never "upgraded" directly.
+   *
+   * Effects are deliberately balanced trade-offs so every philosophy is
+   * viable and none is objectively best. Effects feed the training engine:
+   *   attrMult   — multipliers on which core ratings a week develops
+   *   devMult    — flat development-rate multiplier
+   *   fatigueMult— weekly fatigue accumulation multiplier
+   *   injuryMult — overtraining/injury-risk multiplier
+   *   durability — tiny bonus chance to build Injury Resistance
+   * The magnitude of every bonus/penalty scales with Training via
+   * Training.philosophyEffect(coach).
+   */
+  D.TRAINING_PHILOSOPHIES = [
+    {
+      key: 'norwegian', label: 'Norwegian Method', icon: '🇳🇴',
+      short: 'Threshold-driven, controlled, low-risk.',
+      desc: 'Double-threshold work and tight pace control. Threshold sessions land harder, aerobic development gets a bump, and disciplined intensity reduces overtraining risk.',
+      effects: { attrMult: { lactateThreshold: 1.22, vo2Max: 1.06, stamina: 1.05 }, devMult: 1.04, fatigueMult: 0.94, injuryMult: 0.86 }
+    },
+    {
+      key: 'high-mileage', label: 'High Mileage', icon: '🛣️',
+      short: 'Relentless aerobic volume.',
+      desc: 'Big weeks build enormous engines. Easy runs and long runs pay off more and endurance soars — at the cost of extra fatigue.',
+      effects: { attrMult: { stamina: 1.28, vo2Max: 1.08 }, devMult: 1.03, fatigueMult: 1.14, injuryMult: 1.06 }
+    },
+    {
+      key: 'polarized', label: 'Polarized Training', icon: '🎿',
+      short: 'Easy days easy, hard days hard.',
+      desc: 'Most running truly easy, the rest genuinely hard. Easy days become more productive, hard workouts more impactful, and fatigue is well managed.',
+      effects: { attrMult: { vo2Max: 1.16, stamina: 1.12, lactateThreshold: 1.08 }, devMult: 1.05, fatigueMult: 0.9, injuryMult: 0.95 }
+    },
+    {
+      key: 'threshold', label: 'Threshold Focus', icon: '⏱️',
+      short: 'Tempo and lactate threshold.',
+      desc: 'Tempo work is the centerpiece. Lactate threshold develops noticeably faster and race-pace strength comes early.',
+      effects: { attrMult: { lactateThreshold: 1.3, runningEconomy: 1.08 }, devMult: 1.02, fatigueMult: 1.0, injuryMult: 0.96 }
+    },
+    {
+      key: 'speed', label: 'Speed Development', icon: '⚡',
+      short: 'Sharp legs and a finishing kick.',
+      desc: 'Interval and speed sessions cut deeper. Raw speed, economy, and the finishing kick sharpen faster — endurance builds a touch slower.',
+      effects: { attrMult: { speed: 1.32, runningEconomy: 1.12, vo2Max: 1.06, stamina: 0.95 }, devMult: 1.02, fatigueMult: 1.02, injuryMult: 1.0 }
+    },
+    {
+      key: 'strength-endurance', label: 'Strength Endurance', icon: '⛰️',
+      short: 'Hills, strength, late-race power.',
+      desc: 'Hill work and strength sessions matter more. Late-race strength and durability improve, so your runners are still moving up when others fade.',
+      effects: { attrMult: { runningEconomy: 1.18, stamina: 1.12, speed: 1.06 }, devMult: 1.02, fatigueMult: 1.0, injuryMult: 0.9, durability: 1.6 }
+    },
+    {
+      key: 'balanced', label: 'Balanced', icon: '⚖️',
+      short: 'A little of everything, no weaknesses.',
+      desc: 'Small, steady improvements across every workout type. No glaring strengths, but no weaknesses either — supremely dependable.',
+      effects: { attrMult: { vo2Max: 1.06, stamina: 1.06, lactateThreshold: 1.06, runningEconomy: 1.06, speed: 1.06 }, devMult: 1.05, fatigueMult: 0.97, injuryMult: 0.97 }
+    }
+  ];
+
+  D.trainingPhilosophy = function (key) {
+    return D.TRAINING_PHILOSOPHIES.find((p) => p.key === key) ||
+      D.TRAINING_PHILOSOPHIES.find((p) => p.key === 'balanced');
+  };
+
+  /*
+   * Race Philosophy (Update 4, Part 3). Unlike Training Philosophy this CAN be
+   * changed after creation (on the My Program screen). It shapes how a coach's
+   * athletes behave in a race — pack discipline, energy conservation, surging,
+   * and the finish. Every option is a genuine trade-off; none dominates.
+   * The race engine reads these `tactic` weights per runner.
+   */
+  D.RACE_PHILOSOPHIES = [
+    {
+      key: 'sit-and-kick', label: 'Sit &amp; Kick', icon: '🏹',
+      desc: 'Stay tucked in the pack, conserve energy, and unleash a decisive kick over the final stretch.',
+      tactic: { packBias: 0.18, reserveBonus: 0.10, surge: 0.6, kick: 1.35, earlyPace: 0.99 }
+    },
+    {
+      key: 'aggressive', label: 'Aggressive Front Running', icon: '🔥',
+      desc: 'Push the pace from the gun and try to break the field early. High reward, higher fade risk.',
+      tactic: { packBias: -0.16, reserveBonus: -0.06, surge: 1.7, kick: 0.85, earlyPace: 0.975 }
+    },
+    {
+      key: 'conservative', label: 'Conservative', icon: '🧊',
+      desc: 'Avoid early burnout and grind steadily through the field in the second half.',
+      tactic: { packBias: 0.08, reserveBonus: 0.12, surge: 0.75, kick: 1.05, earlyPace: 1.012, lateGrind: 1.18 }
+    },
+    {
+      key: 'even', label: 'Even Pace', icon: '📏',
+      desc: 'Run metronomic, evenly-paced efforts. Fewer highs and lows, very consistent finishes.',
+      tactic: { packBias: 0.02, reserveBonus: 0.05, surge: 0.55, kick: 1.0, earlyPace: 1.0, evenness: 1.0 }
+    },
+    {
+      key: 'pack', label: 'Pack Running', icon: '🐺',
+      desc: 'Teammates run together as long as possible for stronger, more consistent team scoring.',
+      tactic: { packBias: 0.22, reserveBonus: 0.06, surge: 0.7, kick: 1.08, earlyPace: 1.0, teamPack: 1.0 }
+    }
+  ];
+
+  D.racePhilosophy = function (key) {
+    return D.RACE_PHILOSOPHIES.find((p) => p.key === key) ||
+      D.RACE_PHILOSOPHIES.find((p) => p.key === 'even');
+  };
+
+  // Short division tags for accolade labels (DI → D1, etc.).
+  D.DIVISION_SHORT = { DI: 'D1', DII: 'D2', DIII: 'D3' };
 
   D.ATHLETE_PERSONALITIES = [
     'Grinder', 'Confident', 'Laid Back', 'Fiery Competitor', 'Team-First', 'Individualist',

@@ -120,7 +120,7 @@
         defaultSort: 'prestige',
         defaultDir: 'desc',
         searchKeys: ['name', 'conference', 'state', 'coachName'],
-        onRowClick: (row) => showSchoolModal(game, row.school),
+        onRowClick: (row) => (UI.showSchoolCard ? UI.showSchoolCard(row.school, game) : showSchoolModal(game, row.school)),
         columns: [
           {
             key: 'name', label: 'School',

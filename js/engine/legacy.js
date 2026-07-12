@@ -57,6 +57,72 @@
     }
   };
 
+  /* ---------------- Rich accolade ledger (Update 4, Part 1) ----------- *
+   * Every honor an athlete earns is recorded here with full context —
+   * division, conference (when applicable), and year — and nothing is ever
+   * overwritten. Honors from different divisions/conferences (via transfers
+   * or realignment) all coexist, forming a complete career record.
+   */
+  const DIV_SHORT = () => window.XCD.data.DIVISION_SHORT || { DI: 'D1', DII: 'D2', DIII: 'D3' };
+
+  // Human-readable one-line label, e.g. "2029 SEC First Team All-Conference"
+  // or "2030 D3 Team National Champion".
+  Legacy.accoladeLabel = function (acc) {
+    const div = (DIV_SHORT())[acc.division] || acc.division || '';
+    const parts = [acc.year];
+    if (acc.conference) parts.push(acc.conference);
+    else if (div) parts.push(div);
+    parts.push(acc.label);
+    return parts.filter(Boolean).join(' ');
+  };
+
+  // Sort key so profiles read chronologically then by prestige of the honor.
+  const ACC_ORDER = {
+    natChampTeam: 0, natChampIndiv: 1, runnerOfYear: 2, allAmerican: 3,
+    freshmanOfYear: 4, confChamp: 5, confRunnerOfYear: 6, confFreshmanOfYear: 7,
+    allConference: 8, academicAllAmerican: 9
+  };
+
+  Legacy.recordAccolade = function (athlete, acc) {
+    if (!athlete) return;
+    athlete.accolades = athlete.accolades || [];
+    const conf = acc.conference || null;
+    const dup = athlete.accolades.some((x) =>
+      x.year === acc.year && x.type === acc.type &&
+      (x.division || null) === (acc.division || null) &&
+      (x.conference || null) === conf);
+    if (!dup) athlete.accolades.push({ ...acc, conference: conf });
+  };
+
+  // Ordered accolade list for display (newest year first, best honor first).
+  Legacy.accoladesFor = function (athlete) {
+    const list = (athlete && athlete.accolades) ? athlete.accolades.slice() : [];
+    list.sort((a, b) => (b.year - a.year) ||
+      ((ACC_ORDER[a.type] ?? 99) - (ACC_ORDER[b.type] ?? 99)));
+    return list;
+  };
+
+  // One-time backfill for pre-Update-4 saves: reconstruct accolades from the
+  // year-stamped honor ledger (division/conference context is unknown for old
+  // honors, so they carry the athlete's current program context as a best
+  // effort — new honors are always fully stamped).
+  Legacy.backfillAccolades = function (athlete) {
+    const hy = athlete.honorYears || {};
+    const defs = [
+      ['natChamp', 'natChampIndiv', 'Individual National Champion'],
+      ['allAmerican', 'allAmerican', 'All-American'],
+      ['confChamp', 'confChamp', 'Conference Champion'],
+      ['allConference', 'allConference', 'All-Conference']
+    ];
+    athlete.accolades = athlete.accolades || [];
+    if (athlete.accolades.length) return;
+    defs.forEach(([hkey, type, label]) => {
+      (hy[hkey] || []).forEach((year) => {
+        athlete.accolades.push({ year, division: null, conference: null, type, label });
+      });
+    });
+  };
+
   Legacy.badgesFor = function (athlete) {
     const hy = athlete.honorYears || {};
     const defs = [
@@ -102,6 +168,11 @@
       generational: !!athlete.generational,
       genProfile: athlete.genProfile || null,
       badges: Legacy.badgesFor(athlete),
+      // The full career accolade ledger travels into the alumni record, so a
+      // graduated athlete's profile still shows every division/conference honor.
+      accolades: (athlete.accolades || []).slice(),
+      overallHistory: (athlete.overallHistory || []).slice(),
+      classYear: athlete.classYear,
       stats: {
         races: athlete.careerStats.races,
         wins: athlete.careerStats.wins,
@@ -115,6 +186,26 @@
         (b.badges.length * 10 + b.stats.wins) - (a.badges.length * 10 + a.stats.wins));
       gameState.history.alumni.length = 600;
     }
+  };
+
+  /* ---------------- Coach accolades (Update 4, Part 6) ---------------- */
+  // National/conference Coach-of-the-Year and other coach honors, stamped
+  // with division/conference/year and never overwritten.
+  Legacy.recordCoachAccolade = function (coach, acc) {
+    if (!coach) return;
+    coach.coachAccolades = coach.coachAccolades || [];
+    const conf = acc.conference || null;
+    const dup = coach.coachAccolades.some((x) =>
+      x.year === acc.year && x.type === acc.type &&
+      (x.division || null) === (acc.division || null) &&
+      (x.conference || null) === conf);
+    if (!dup) coach.coachAccolades.push({ ...acc, conference: conf });
+  };
+
+  Legacy.coachAccoladesFor = function (coach) {
+    const list = (coach && coach.coachAccolades) ? coach.coachAccolades.slice() : [];
+    list.sort((a, b) => (b.year - a.year));
+    return list;
   };
 
   /* ---------------- Coach history (Part 9) ---------------- */
@@ -156,6 +247,9 @@
       careerRecord: { ...coach.careerRecord },
       winPct: coach.winPct,
       stints: (coach.stints || []).map((s) => ({ ...s, endYear: s.endYear || gameState.year })),
+      trainingPhilosophy: coach.trainingPhilosophy || 'balanced',
+      racePhilosophy: coach.racePhilosophy || 'even',
+      coachAccolades: (coach.coachAccolades || []).slice(),
       isPlayer: !!coach.isPlayer
     });
   };

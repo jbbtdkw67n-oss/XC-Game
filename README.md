@@ -10,6 +10,57 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 5.0 — Update 4: Identity, History & Prestige
+
+Update 4 deepens the dynasty: coaches gain distinct identities, every athlete
+carries a complete career record, programs feel like living institutions with
+real heritage, and profiles are reachable from nearly everywhere.
+
+- **Expanded athlete accolades.** Every honor is now a permanent, richly
+  labeled record — division, conference (when applicable), and year — e.g.
+  *2028 D1 Individual National Champion*, *2029 SEC First Team All-Conference*,
+  *2031 RMAC Runner of the Year*. Honors earned across multiple divisions or
+  conferences (via transfers/realignment) all coexist; nothing is ever
+  overwritten. Athlete profiles show the full accolade ledger and a career
+  overall-progression chart, and it all survives graduation in the alumni ledger.
+- **Coach Training Philosophy (permanent).** Chosen at coach creation and never
+  changed — its effectiveness instead scales with the coach's **Training**
+  rating. Seven real-world-inspired schools: Norwegian Method, High Mileage,
+  Polarized, Threshold Focus, Speed Development, Strength Endurance, and
+  Balanced. Each is a genuine trade-off (which attributes develop, fatigue,
+  overtraining risk), so none is objectively best. AI coaches receive varied
+  philosophies, creating natural coaching diversity across the sim.
+- **Coach Race Philosophy (changeable).** Sit & Kick, Aggressive Front Running,
+  Conservative, Even Pace, and Pack Running each visibly shape in-race behavior
+  — pack discipline, energy conservation, surging, late-race grind, and the
+  finishing kick. Changeable anytime on the My Program screen.
+- **Custom race scheduling.** A new preseason phase: choose which meets to
+  attend each regular-season week, with **eligibility gated by prestige** —
+  elite invitationals only invite high-prestige programs, so a rebuild races
+  regionals until it earns its way up. Rest a week to bank a training block.
+- **Dynamic prestige with real-world heritage.** Historically great programs
+  (NAU, Oklahoma State, BYU, Stanford, Oregon… Adams State, Colorado Mines,
+  Grand Valley State… North Central, UW–La Crosse, MIT…) start elevated and
+  carry *heritage* — resilience that resists collapse until several poor
+  seasons pile up, while weak programs can still build into national powers
+  over time. Heritage itself is dynamic.
+- **Preseason individual rankings** projected from returning ability, fitness,
+  and expected development, so favorites return near the top.
+- **Champions & Awards, all divisions.** Champions page spans D1/D2/D3 team and
+  individual champions plus conference champions grouped by division →
+  conference. Awards page carries national awards per division and conference
+  awards (Runner of the Year, Freshman of the Year, Coach of the Year) for
+  every conference — all permanent history, shown on athlete and coach profiles.
+- **Universal profile navigation.** Athletes, coaches, and programs are
+  clickable almost everywhere — rankings, standings, champions, awards, meet
+  results, schedules, the world table. Program profiles show prestige, coach,
+  conference, division, roster, team ratings, season schedule/results, and
+  historical achievements; every popup fails gracefully if data is missing.
+
+Saves upgrade automatically (**save v4 → v5**): coaches gain philosophies,
+athletes gain their accolade ledger, and programs pick up heritage — all
+without disturbing existing rosters, careers, or history.
+
 ## Version 4.0 — Update 3: The Three-Division NCAA
 
 Update 3 completes the multi-division architecture: Divisions I, II, and III

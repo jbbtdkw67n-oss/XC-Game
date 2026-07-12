@@ -55,7 +55,7 @@
           <thead><tr><th>Rank</th><th>Coach</th><th>School</th><th>Style</th><th class="num">Natl Titles</th><th class="num">Conf Titles</th><th class="num">Best Poll</th><th class="num">Score</th></tr></thead>
           <tbody>
             ${rows.map((r) => `
-              <tr ${r.isPlayer ? 'style="background:var(--accent-soft);"' : ''}>
+              <tr class="clickable" data-coach="${r.coachId}" ${r.isPlayer ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>#${r.rank}</td>
                 <td><strong>${Utils.escapeHtml(r.name)}</strong>${r.isPlayer ? ' <span style="color:var(--accent);">(You)</span>' : ''}</td>
                 <td>${Utils.escapeHtml(r.school)}</td>
@@ -71,19 +71,31 @@
       const playerDiv = school.division || 'DI';
       const raw = activeTab === 'individual' ? R.individuals[activeGender] : R.freshmen[activeGender];
       // Scope to the player's division (per-division rankings, Update 3).
-      const list = raw.filter((r) => (r.division || 'DI') === playerDiv);
+      let list = raw.filter((r) => (r.division || 'DI') === playerDiv);
+      // Preseason fallback (Update 4, Part 9): before any results exist, show
+      // the projected favorites driven by returning ability + development.
+      let preseason = false;
+      if (!list.length && game.season && game.season.preseasonIndividuals) {
+        preseason = true;
+        list = (game.season.preseasonIndividuals[activeGender] || [])
+          .filter((r) => (r.division || 'DI') === playerDiv)
+          .filter((r) => activeTab === 'individual' || r.classYear === 'Freshman')
+          .slice(0, 100)
+          .map((r, i) => ({ ...r, rank: i + 1 }));
+      }
       body.innerHTML = list.length ? `
+        ${preseason ? '<div style="color:var(--text-dim); font-size:12.5px; margin-bottom:10px;">📊 <strong>Preseason projections</strong> — favorites by returning ability, fitness, and expected development. Real rankings publish once racing begins.</div>' : ''}
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>Rank</th><th>Runner</th><th>Class</th><th>School</th><th class="num">Best Pace/km</th><th class="num">Wins</th></tr></thead>
+          <thead><tr><th>Rank</th><th>Runner</th><th>Class</th><th>School</th><th class="num">${preseason ? 'Projection' : 'Best Pace/km'}</th><th class="num">${preseason ? '' : 'Wins'}</th></tr></thead>
           <tbody>
             ${list.map((r) => `
-              <tr ${r.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
+              <tr class="clickable" data-ath="${r.athleteId}" ${r.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>#${r.rank}</td>
-                <td><strong>${Utils.escapeHtml(r.name)}</strong></td>
+                <td><strong>${r.generational ? '⭐ ' : ''}${Utils.escapeHtml(r.name)}</strong></td>
                 <td>${r.classYear}</td>
-                <td>${Utils.escapeHtml(r.school)}</td>
-                <td class="num">${window.XCD.engine.Races.formatTime(r.pace)}</td>
-                <td class="num">${r.wins}</td>
+                <td class="clickable-school" data-school="${r.schoolId}" style="cursor:pointer;">${Utils.escapeHtml(r.school)}</td>
+                <td class="num">${preseason ? r.proj : window.XCD.engine.Races.formatTime(r.pace)}</td>
+                <td class="num">${preseason ? '' : r.wins}</td>
               </tr>`).join('')}
           </tbody>
         </table></div>`
@@ -109,7 +121,7 @@
           <thead><tr><th>Rank</th><th></th><th>Team</th><th>Conference</th><th>Region</th><th class="num">Score</th></tr></thead>
           <tbody>
             ${rows.map((r, i) => `
-              <tr ${r.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
+              <tr class="clickable" data-school="${r.schoolId}" ${r.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>#${activeTab === 'national' ? r.rank : i + 1}${activeTab !== 'national' ? ` <span style="color:var(--text-faint); font-size:11px;">(div #${r.rank})</span>` : ''}</td>
                 <td>${arrow(r)}</td>
                 <td><strong>${Utils.escapeHtml(r.name)}</strong></td>
@@ -120,6 +132,28 @@
           </tbody>
         </table></div>`;
     }
+
+    // Universal profile navigation (Update 4, Part 4): every row opens a profile.
+    body.querySelectorAll('[data-school]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const s = game.getSchool(el.dataset.school);
+        if (s && UI.showSchoolCard) UI.showSchoolCard(s, game);
+      });
+    });
+    body.querySelectorAll('[data-ath]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const a = game.getAthlete(el.dataset.ath);
+        if (a) UI.showPlayerCard(a, game);
+      });
+    });
+    body.querySelectorAll('[data-coach]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const c = game.getCoach(el.dataset.coach);
+        if (c) UI.showCoachCard(c, game);
+      });
+    });
 
     container.querySelectorAll('[data-tab]').forEach((btn) => {
       btn.addEventListener('click', () => { activeTab = btn.dataset.tab; render(container); });

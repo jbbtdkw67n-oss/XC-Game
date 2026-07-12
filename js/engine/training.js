@@ -251,6 +251,49 @@
   }
 
   /* ================================================================ *
+   * Training philosophy (Update 4, Part 2)
+   * ================================================================ *
+   * A coach's permanent training philosophy shapes HOW a program develops.
+   * Effectiveness scales with the coach's Training rating: a great trainer
+   * executes the philosophy near its full potential, a poor one realizes
+   * only a fraction of its bonuses. The scaling is centered so an average
+   * (55) trainer runs the philosophy at ~85% strength. Every philosophy is a
+   * balanced trade-off, so none is objectively best.
+   */
+  function philosophyEffect(coach) {
+    const def = D.trainingPhilosophy(coach ? coach.trainingPhilosophy : 'balanced');
+    // Execution strength 0.55 (weak trainer) → ~1.05 (elite trainer).
+    const training = coach ? (coach.training ?? 55) : 55;
+    const strength = Utils.clamp(0.55 + training / 130, 0.55, 1.1);
+    const e = def.effects || {};
+    // Scale each multiplier's DISTANCE from 1.0 by execution strength, so a
+    // weak trainer barely realizes the philosophy and an elite one fully does.
+    const scaleMult = (m) => 1 + ((m ?? 1) - 1) * strength;
+    const attrMult = {};
+    Object.entries(e.attrMult || {}).forEach(([k, v]) => { attrMult[k] = scaleMult(v); });
+    return {
+      key: def.key,
+      attrMult,
+      devMult: scaleMult(e.devMult),
+      fatigueMult: scaleMult(e.fatigueMult),
+      injuryMult: scaleMult(e.injuryMult),
+      durability: (e.durability || 1),
+      strength
+    };
+  }
+
+  // Apply a philosophy's attribute emphasis to a plan's dev weights.
+  function applyPhilosophyWeights(attrWeights, philo) {
+    if (!philo || !philo.attrMult) return attrWeights;
+    const w = { ...attrWeights };
+    Object.entries(philo.attrMult).forEach(([k, mult]) => {
+      if (w[k] !== undefined) w[k] *= mult;
+      else if (mult > 1) w[k] = (mult - 1) * 1.5; // introduce a small bias even if the plan omits it
+    });
+    return w;
+  }
+
+  /* ================================================================ *
    * Development
    * ================================================================ */
 
@@ -329,13 +372,13 @@
   /* ================================================================ *
    * Injuries
    * ================================================================ */
-  function rollInjury(athlete, school, planMeta, mMeta, rng) {
+  function rollInjury(athlete, school, planMeta, mMeta, rng, philoInjuryMult = 1) {
     const base = 0.010; // ~1% per athlete-week at neutral settings
     const fatigueMult = 1 + Math.max(0, athlete.fatigue - 60) / 45;
     const resistMult = 1.6 - athlete.injuryResistance / 100;
     // Sports science and the weight room keep runners healthy.
     const facilityMult = 1.12 - (school.facilities.sportsScienceLab + school.facilities.weightRoom) / 800;
-    let chance = base * planMeta.injuryMult * fatigueMult * resistMult * facilityMult;
+    let chance = base * planMeta.injuryMult * fatigueMult * resistMult * facilityMult * philoInjuryMult;
 
     // Mileage abuse (Update 3): the further past a body's durable limit the
     // volume goes, the sharper the breakdown risk — and the more it skews to
@@ -367,7 +410,8 @@
   /* ================================================================ *
    * Weekly processing
    * ================================================================ */
-  function processAthlete(gameState, athlete, coach, school, planMeta, mMeta, rng, isPlayerSchool, culture) {
+  function processAthlete(gameState, athlete, coach, school, planMeta, mMeta, rng, isPlayerSchool, culture, philo) {
+    philo = philo || philosophyEffect(coach);
     // Injured athletes rehab instead of training.
     if (athlete.injury) {
       athlete.injury.weeksRemaining -= 1;
@@ -391,7 +435,10 @@
     // with innate resilience and the program's recovery facilities.
     const recoveryRate = 4 + athlete.injuryResistance / 30 +
       school.facilities.recoveryCenter / 40 + school.facilities.nutrition / 80;
-    const weeklyFatigue = planMeta.fatigue + mMeta.fatigueAdd * (planMeta.loadMult ?? 1);
+    let weeklyFatigue = planMeta.fatigue + mMeta.fatigueAdd * (planMeta.loadMult ?? 1);
+    // Training philosophy shifts how much fatigue the work accumulates (only
+    // the load side — recovery is unaffected).
+    if (weeklyFatigue > 0) weeklyFatigue *= philo.fatigueMult;
     athlete.fatigue = Math.round(Utils.clamp(athlete.fatigue + weeklyFatigue - recoveryRate, 0, 100));
     // Training effectiveness: a modern training center makes every week count.
     const fitnessMult = (0.85 + school.facilities.trainingCenter / 300) * mMeta.fitnessMult;
@@ -453,13 +500,16 @@
       if (athlete.classYear === 'Freshman' && culture.captainLeadership >= 75) dev *= 1.10;
     }
     dev *= 0.94 + (school.teamMorale ?? 65) / 1100; // ~0.96–1.03 by team morale
+    dev *= philo.devMult; // the coach's training philosophy, executed to skill
     athlete.devProgress = (athlete.devProgress || 0) + dev;
     if (athlete.devProgress >= 1) {
-      applyDevelopment(athlete, mileageAttrWeights(planMeta.attrWeights, mMeta.mileage), rng);
+      const weights = applyPhilosophyWeights(mileageAttrWeights(planMeta.attrWeights, mMeta.mileage), philo);
+      applyDevelopment(athlete, weights, rng);
     }
 
     // Tiny chance of a durability gain — Injury Resistance barely moves.
-    if (rng.bool(0.01) && athlete.injuryResistance < 95) athlete.injuryResistance += 1;
+    // Strength-Endurance philosophies build fatigue resistance a bit faster.
+    if (rng.bool(0.01 * (philo.durability || 1)) && athlete.injuryResistance < 95) athlete.injuryResistance += 1;
 
     athlete.recalculateOverall();
     athlete.lastDelta = athlete.currentOverall - before;
@@ -469,8 +519,9 @@
       gameState.logNews(`${athlete.fullName} is making a leap in training (+${athlete.lastDelta} overall this week).`);
     }
 
-    // Injury roll
-    const injury = rollInjury(athlete, school, planMeta, mMeta, rng);
+    // Injury roll (philosophy adjusts overtraining risk — Norwegian/
+    // strength-endurance staffs manage load better).
+    const injury = rollInjury(athlete, school, planMeta, mMeta, rng, philo.injuryMult);
     if (injury) {
       athlete.injury = injury;
       athlete.health = 'Injured';
@@ -529,6 +580,7 @@
       const coach = gameState.getCoach(school.coachId);
       const isPlayer = school.id === playerId;
       school.chemistry = school.chemistry || {};
+      const philo = philosophyEffect(coach);
 
       ['M', 'W'].forEach((gender) => {
         const plan = isPlayer
@@ -549,7 +601,7 @@
           }
           const miles = mileageFor(gameState, school, gender, athlete, coach);
           const mMeta = mileageMeta(miles, athlete.chronicMileage);
-          processAthlete(gameState, athlete, coach, school, meta, mMeta, rng, isPlayer, culture);
+          processAthlete(gameState, athlete, coach, school, meta, mMeta, rng, isPlayer, culture, philo);
         });
       });
     }
@@ -570,6 +622,7 @@
     Object.values(gameState.world.schools).forEach((school) => {
       const coach = gameState.getCoach(school.coachId);
       const coachSkill = coach ? coach.training : 50;
+      const philo = philosophyEffect(coach);
       ['rosterM', 'rosterW'].forEach((key) => {
         school[key].forEach((id) => {
           const a = gameState.world.athletes[id];
@@ -581,6 +634,7 @@
           pts *= 0.55 + a.workEthic / 140;                  // summer is unsupervised
           pts *= 0.70 + coachSkill / 180;                   // the program's summer plan
           pts *= devProfileMult(a);                         // late bloomers pop here
+          pts *= philo.devMult;                             // the coach's philosophy
           pts *= 0.85 + a.consistency / 400;
           if (a.morale < 45) pts *= 0.75;                   // shaken confidence
           else if (a.morale > 78) pts *= 1.1;
@@ -596,9 +650,11 @@
           if (a.fatigue > 82 && rng.bool(0.3)) loss += 1;
 
           const attrs = ['vo2Max', 'runningEconomy', 'stamina', 'lactateThreshold', 'speed'];
+          // The philosophy biases WHICH attributes summer gains land on.
+          const attrWeight = (k) => (philo.attrMult && philo.attrMult[k]) || 1;
           const gain = Math.round(pts);
           for (let i = 0; i < gain; i++) {
-            const k = rng.choice(attrs);
+            const k = rng.weightedChoice(attrs, attrWeight);
             const cap = Math.min(97, a.potential + 8);
             if (a[k] < cap) a[k] += 1;
           }
@@ -610,6 +666,10 @@
           const before = a.currentOverall;
           a.recalculateOverall();
           const delta = a.currentOverall - before;
+          // Season-by-season career progression ledger (Update 4, Part 10).
+          a.overallHistory = a.overallHistory || [];
+          a.overallHistory.push({ year: gameState.year, overall: a.currentOverall });
+          if (a.overallHistory.length > 8) a.overallHistory.shift();
 
           // Summer reset: rested legs, refreshed heads, race rust.
           a.fatigue = Utils.clamp(a.fatigue - 35, 0, 100);
@@ -656,6 +716,7 @@
     planMetaFor,
     readiness,
     devProfileMult,
+    philosophyEffect,
     MEET_WEEKS
   };
 })();

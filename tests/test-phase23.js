@@ -33,7 +33,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     return { days: sels.length, options: sels[0] ? sels[0].options.length : 0 };
   });
   if (planner.days !== 7) errors.push('Planner days: ' + planner.days);
-  if (planner.options !== 7) errors.push('Workout options: ' + planner.options);
+  if (planner.options !== 8) errors.push('Workout options: ' + planner.options); // 8 incl. Rest Day (Update 3)
 
   // Change Tuesday to Hills via the UI, verify plan state updates
   await page.selectOption('[data-day="1"]', 'hills');

@@ -56,6 +56,8 @@
     const D = window.XCD.data;
     let archetype = prev.archetype || null;
     let portrait = prev.portrait || D.COACH_PORTRAITS[0];
+    let trainingPhilo = prev.trainingPhilosophy || 'balanced';
+    let racePhilo = prev.racePhilosophy || 'even';
 
     root.innerHTML = `
       <div id="menu-root">
@@ -74,7 +76,7 @@
                 <button type="button" class="portrait-pick ${p === portrait ? 'selected' : ''}" data-portrait="${p}">${p}</button>`).join('')}
             </div>
           </div>
-          <div class="field" style="margin-bottom:0;">
+          <div class="field">
             <label>Coaching Archetype</label>
             <div class="archetype-grid">
               ${D.COACH_ARCHETYPES.map((a) => `
@@ -82,6 +84,23 @@
                   <div class="arch-name">${a.icon} ${a.key}</div>
                   <div class="arch-desc">${a.desc}</div>
                 </div>`).join('')}
+            </div>
+          </div>
+          <div class="field">
+            <label>Training Philosophy <span style="color:var(--text-faint); font-weight:400;">— permanent; its effectiveness scales with your Training rating</span></label>
+            <div class="archetype-grid" id="tp-grid" style="max-height:190px; overflow-y:auto;">
+              ${D.TRAINING_PHILOSOPHIES.map((tp) => `
+                <div class="archetype-card ${trainingPhilo === tp.key ? 'selected' : ''}" data-tp="${tp.key}">
+                  <div class="arch-name">${tp.icon} ${tp.label}</div>
+                  <div class="arch-desc">${tp.desc}</div>
+                </div>`).join('')}
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>Race Philosophy <span style="color:var(--text-faint); font-weight:400;">— can be changed anytime later</span></label>
+            <div class="portrait-row" id="rp-row" style="flex-wrap:wrap;">
+              ${D.RACE_PHILOSOPHIES.map((rp) => `
+                <button type="button" class="portrait-pick ${racePhilo === rp.key ? 'selected' : ''}" data-rp="${rp.key}" title="${rp.desc.replace(/&amp;/g, '&')}" style="width:auto; padding:6px 12px; font-size:13px;">${rp.icon} ${rp.label}</button>`).join('')}
             </div>
           </div>
           <div style="display:flex; gap:10px; margin-top:14px;">
@@ -108,6 +127,18 @@
         root.querySelectorAll('[data-portrait]').forEach((n) => n.classList.toggle('selected', n.dataset.portrait === portrait));
       });
     });
+    root.querySelectorAll('[data-tp]').forEach((el) => {
+      el.addEventListener('click', () => {
+        trainingPhilo = el.dataset.tp;
+        root.querySelectorAll('[data-tp]').forEach((n) => n.classList.toggle('selected', n.dataset.tp === trainingPhilo));
+      });
+    });
+    root.querySelectorAll('[data-rp]').forEach((el) => {
+      el.addEventListener('click', () => {
+        racePhilo = el.dataset.rp;
+        root.querySelectorAll('[data-rp]').forEach((n) => n.classList.toggle('selected', n.dataset.rp === racePhilo));
+      });
+    });
 
     root.querySelector('#btn-back').addEventListener('click', () => renderMainMenu(root));
     nextBtn.addEventListener('click', () => {
@@ -116,7 +147,9 @@
         last: root.querySelector('#coach-last').value.trim() || 'Carter',
         dynName: root.querySelector('#dyn-name').value.trim(),
         archetype,
-        portrait
+        portrait,
+        trainingPhilosophy: trainingPhilo,
+        racePhilosophy: racePhilo
       };
       renderSchoolSelect(root, seed, world, coach);
     });
@@ -202,6 +235,8 @@
         coachLastName: coach.last,
         archetype: coach.archetype,
         portrait: coach.portrait,
+        trainingPhilosophy: coach.trainingPhilosophy,
+        racePhilosophy: coach.racePhilosophy,
         seed,
         world // reuse the previewed world so selected ids stay valid
       });

@@ -77,6 +77,15 @@
         // the alumni ledger. { allAmerican:[years], natChamp:[...],
         // confChamp:[...], allConference:[...] }
         honorYears: { allAmerican: [], natChamp: [], confChamp: [], allConference: [] },
+        // Complete career accolade ledger (Update 4, Part 1): one entry per
+        // honor earned, each stamped with the division, conference (when
+        // applicable), and year. Nothing is ever overwritten — honors earned
+        // across multiple divisions/conferences (transfers, realignment) all
+        // coexist, so the ledger is a full historical record of the career.
+        // { year, division, conference?, type, label }
+        accolades: [],
+        // Season-by-season overall progression (Update 4, Part 10).
+        overallHistory: [], // [{ year, overall }]
         generational: false, // ⭐ once-in-a-decade prospect (Part 12.5)
         genProfile: null,    // signature strength/weakness archetype key
         raceLog: [],       // last 8 results: {y, w, m, p, t, d}
@@ -88,6 +97,14 @@
         ...data
       });
       this.migrateLegacyRatings(data);
+      // Backfill the accolade ledger for saves from before Update 4 so old
+      // careers still show a complete, richly-labeled history.
+      if (!Array.isArray(this.accolades)) this.accolades = [];
+      if (!Array.isArray(this.overallHistory)) this.overallHistory = [];
+      if (data && (!data.accolades || !data.accolades.length) &&
+          window.XCD.engine.Legacy && window.XCD.engine.Legacy.backfillAccolades) {
+        window.XCD.engine.Legacy.backfillAccolades(this);
+      }
       this.recalculateOverall();
     }
 
@@ -142,6 +159,17 @@
         archetype: 'Developer', // Recruiter | Developer | Tactician | Players Coach
         portrait: '🧢',
 
+        // Coaching philosophies (Update 4). Training philosophy is PERMANENT
+        // (chosen at creation, never changes); its effectiveness scales with
+        // the Training rating. Race philosophy CAN be changed anytime and
+        // shapes in-race tactics. Both default sensibly for old saves/AI.
+        trainingPhilosophy: 'balanced',
+        racePhilosophy: 'even',
+
+        // Permanent coach award ledger (Update 4, Part 6): every national and
+        // conference Coach-of-the-Year, stamped with division/conference/year.
+        coachAccolades: [], // { year, division, conference?, type, label }
+
         // The four core coach ratings.
         recruiting: 55, // recruiting effectiveness
         training: 55,   // athlete development
@@ -186,6 +214,40 @@
       });
       this.migrateLegacyRatings(data);
       this.migrateUpdate2(data);
+      this.migrateUpdate4(data);
+    }
+
+    // Saves from before Update 4: assign philosophies deterministically so
+    // existing worlds gain coaching variety without a full regeneration.
+    migrateUpdate4(data) {
+      if (!Array.isArray(this.coachAccolades)) this.coachAccolades = [];
+      const TP = window.XCD.data.TRAINING_PHILOSOPHIES;
+      const RP = window.XCD.data.RACE_PHILOSOPHIES;
+      if (!data || data.trainingPhilosophy === undefined) {
+        // Seed from identity so it feels earned: volume tendency + archetype.
+        const t = this.tendencies || [];
+        let key = 'balanced';
+        if (t.includes('mileage-heavy')) key = 'high-mileage';
+        else if (t.includes('low-mileage')) key = 'speed';
+        else if (this.archetype === 'Developer') key = 'polarized';
+        else if (this.archetype === 'Tactician') key = 'threshold';
+        else if (this.lactateThreshold >= 70) key = 'norwegian';
+        else if ((this.id || '').length) key = TP[(this.id.charCodeAt(this.id.length - 1)) % TP.length].key;
+        this.trainingPhilosophy = key;
+      }
+      if (!data || data.racePhilosophy === undefined) {
+        const t = this.tendencies || [];
+        let key = 'even';
+        if (t.includes('aggressive')) key = 'aggressive';
+        else if (t.includes('conservative')) key = 'conservative';
+        else if (this.archetype === 'Players Coach') key = 'pack';
+        else if (this.speed >= 68) key = 'sit-and-kick';
+        else if ((this.id || '').length) key = RP[(this.id.charCodeAt(this.id.length - 1)) % RP.length].key;
+        this.racePhilosophy = key;
+      }
+      // Validate against the current catalogs (defensive).
+      if (!window.XCD.data.trainingPhilosophy(this.trainingPhilosophy)) this.trainingPhilosophy = 'balanced';
+      if (!window.XCD.data.racePhilosophy(this.racePhilosophy)) this.racePhilosophy = 'even';
     }
 
     // Saves from before Update 2: derive the new fields from what exists.
@@ -273,6 +335,12 @@
         prestige: 50, // 0-100 program prestige — dynamic, rises and falls yearly
         prestigeHistory: [], // [{year, prestige}] recent trajectory (last 30)
         prestigeMomentum: 0, // rolling success trend feeding the yearly update
+        // Program heritage (Update 4, Part 8): historically great programs
+        // carry a slow-decaying gravity that resists prestige collapse — a
+        // blue blood needs several poor seasons to truly fall, while an
+        // unlisted program can still climb into the elite tier over time.
+        heritage: 0,
+        poorSeasons: 0, // consecutive down years, used for resilient decline
         academics: 55,
         campusAppeal: 55,
 

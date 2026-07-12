@@ -15,7 +15,7 @@
     const teamRows = res.teamScores.map((t) => {
       const school = game.getSchool(t.schoolId);
       const mine = t.schoolId === game.playerSchoolId;
-      return `<tr ${mine ? 'style="background:var(--accent-soft);"' : ''}>
+      return `<tr class="clickable" data-school="${t.schoolId}" ${mine ? 'style="background:var(--accent-soft);"' : ''}>
         <td>${t.place}</td>
         <td><strong>${Utils.escapeHtml(school ? school.name : '?')}</strong></td>
         <td class="num">${t.points}</td>
@@ -30,7 +30,7 @@
     const indivRows = shown.concat(mineExtra).map((f) => {
       const school = game.getSchool(f.schoolId);
       const mine = f.schoolId === game.playerSchoolId;
-      return `<tr ${mine ? 'style="background:var(--accent-soft);"' : ''}>
+      return `<tr class="clickable" data-ath="${f.athleteId}" ${mine ? 'style="background:var(--accent-soft);"' : ''}>
         <td>${f.place}</td>
         <td>${Utils.escapeHtml(f.name)} <span style="color:var(--text-faint); font-size:11px;">${f.classYear || ''}</span></td>
         <td>${Utils.escapeHtml(school ? school.name : '?')}</td>
@@ -60,7 +60,21 @@
             <tbody>${indivRows}</tbody></table>
           </div>
         </div>
-      </div>`);
+      </div>`, (modal) => {
+      // Universal profile navigation from meet results (Update 4, Part 4).
+      modal.querySelectorAll('[data-ath]').forEach((tr) => {
+        tr.addEventListener('click', () => {
+          const a = game.getAthlete(tr.dataset.ath);
+          if (a) UI.showPlayerCard(a, game);
+        });
+      });
+      modal.querySelectorAll('[data-school]').forEach((tr) => {
+        tr.addEventListener('click', () => {
+          const s = game.getSchool(tr.dataset.school);
+          if (s && UI.showSchoolCard) UI.showSchoolCard(s, game);
+        });
+      });
+    });
   }
 
   UI.showMeetResults = meetResultModal;
@@ -159,7 +173,7 @@
             </div>
             <h3>Field to Watch (men's poll)</h3>
             ${fieldTeams.map((t) => `
-              <div class="attr-row">
+              <div class="attr-row clickable" data-school="${t.school.id}" style="cursor:pointer;">
                 <span>${t.rank ? '#' + t.rank + ' ' : ''}${Utils.escapeHtml(t.school.name)}${t.school.id === game.playerSchoolId ? ' <span style="color:var(--accent);">(You)</span>' : ''}</span>
                 <span style="color:var(--text-dim); font-size:12px;">${Utils.escapeHtml(t.school.conference)}</span>
               </div>`).join('')}
@@ -188,6 +202,41 @@
         </div>`;
     }
 
+    // Custom race scheduling (Update 4, Part 7): pick which meets to attend,
+    // gated by prestige. Editable for any regular-season week not yet run.
+    let scheduleHtml = '';
+    const Scheduling = window.XCD.engine.Scheduling;
+    if (Scheduling) {
+      if (!season.playerSchedule) Scheduling.buildOptions(game);
+      const sched = season.playerSchedule;
+      const editable = (sched.weeks || []).filter((w) => !w.locked);
+      if (editable.length) {
+        scheduleHtml = `
+          <div class="card" style="margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+              <h2 style="margin:0;">🗓 Race Schedule Selection</h2>
+              <span style="color:var(--text-dim); font-size:12.5px;">Prestige ${school.prestige} · ${window.XCD.data.divisionFor(school).label} — elite invitationals require a strong program.</span>
+            </div>
+            <div style="color:var(--text-faint); font-size:12px; margin:4px 0 12px;">
+              Choose where your team races each regular-season week. Elite fields only invite high-prestige programs; rest a week to bank a training block.
+            </div>
+            ${editable.map((w) => `
+              <div style="margin-bottom:12px;">
+                <div style="font-size:12.5px; color:var(--text-dim); margin-bottom:5px;">Week ${w.week}${w.week === game.week ? ' <span style="color:var(--warning);">(this week)</span>' : ''}</div>
+                <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                  ${w.options.map((o, i) => `
+                    <button class="btn small ${o.selected ? 'primary' : ''}" data-sched-week="${w.week}" data-sched-meet="${o.meetId || ''}"
+                      ${o.eligible ? '' : 'disabled'}
+                      title="${o.eligible ? (o.host ? 'Host: ' + Utils.escapeHtml(o.host) + ' · ' + o.field + ' teams' : '') : 'Requires prestige ' + o.prestigeReq + '+'}"
+                      style="${o.selected ? '' : o.eligible ? '' : 'opacity:0.55;'}">
+                      ${o.tier === 'Elite' ? '⭐ ' : o.tier === 'Premier' ? '◆ ' : o.tier === 'Rest' ? '😴 ' : ''}${Utils.escapeHtml(o.label)}${!o.eligible ? ` 🔒${o.prestigeReq}` : ''}
+                    </button>`).join('')}
+                </div>
+              </div>`).join('')}
+          </div>`;
+      }
+    }
+
     container.innerHTML = `
       <div class="screen-header">
         <h1>Season Schedule — ${season.year}</h1>
@@ -198,6 +247,7 @@
         </div>
       </div>
       ${preNatsHtml}
+      ${scheduleHtml}
       <div class="card">
         <div class="table-wrap"><table class="data">
           <thead><tr><th>Week</th><th>Meet</th><th>Field</th><th>Conditions</th><th>Result</th></tr></thead>
@@ -213,9 +263,26 @@
         meetResultModal(game, meet, 'M');
       });
     });
+    container.querySelectorAll('[data-school]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const s = game.getSchool(el.dataset.school);
+        if (s && UI.showSchoolCard) UI.showSchoolCard(s, game);
+      });
+    });
 
     const rcBtn = container.querySelector('#btn-race-center');
     if (rcBtn) rcBtn.addEventListener('click', () => UI.navigate('racecenter'));
+
+    container.querySelectorAll('[data-sched-week]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        const wk = Number(btn.dataset.schedWeek);
+        const meetId = btn.dataset.schedMeet || null;
+        const r = window.XCD.engine.Scheduling.select(game, wk, meetId);
+        UI.toast(r.message, r.ok ? 'success' : 'error');
+        if (r.ok) render(container);
+      });
+    });
 
     const pnAccept = container.querySelector('#btn-pn-accept');
     const pnDecline = container.querySelector('#btn-pn-decline');

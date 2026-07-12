@@ -101,7 +101,7 @@
      * Ids are unique per generation, so regenerating from the same seed
      * would produce identical data but different ids.
      */
-    static newGame({ schoolId, dynastyName, coachFirstName, coachLastName, archetype, portrait, seed, world }) {
+    static newGame({ schoolId, dynastyName, coachFirstName, coachLastName, archetype, portrait, trainingPhilosophy, racePhilosophy, seed, world }) {
       const gs = new GameState();
       gs.dynastyName = dynastyName || `${coachLastName} Dynasty`;
       gs.seed = seed >>> 0;
@@ -124,6 +124,10 @@
         archetype: arch.key,
         portrait: portrait || '🧢',
         recruiting: 50, training: 50, peaking: 50, culture: 50,
+        // Coaching philosophies (Update 4). Training philosophy is permanent;
+        // race philosophy can be changed later on the My Program screen.
+        trainingPhilosophy: (D.trainingPhilosophy(trainingPhilosophy) || {}).key || 'balanced',
+        racePhilosophy: (D.racePhilosophy(racePhilosophy) || {}).key || 'even',
         schoolId,
         isPlayer: true,
         yearsAtSchool: 0
@@ -179,6 +183,16 @@
       const snap = { M: {}, W: {} };
       ['M', 'W'].forEach((g) => this.rankings[g].forEach((r) => { snap[g][r.schoolId] = r.rank; }));
       this.season.preseasonRanks = snap;
+      // Preseason individual projections (Update 4, Part 9): who the favorites
+      // are before a single race is run.
+      try {
+        this.season.preseasonIndividuals = window.XCD.engine.Rankings.computePreseasonIndividuals(this);
+      } catch (e) { this.season.preseasonIndividuals = { M: [], W: [] }; }
+      // Custom race schedule options (Update 4, Part 7): what the player can
+      // enter each regular-season week, gated by prestige.
+      try {
+        if (window.XCD.engine.Scheduling) window.XCD.engine.Scheduling.buildOptions(this);
+      } catch (e) { /* scheduling is best-effort UI sugar */ }
     }
 
     // --- Game loop -------------------------------------------------
@@ -523,12 +537,27 @@
         if (obj.recruiting && obj.recruiting.auto === undefined) obj.recruiting.auto = false;
       }
 
+      // v4 -> v5 (Update 4): coaching philosophies, rich accolades, and
+      // program heritage. Per-entity fields (coach philosophies, athlete
+      // accolade backfill) are handled by the model constructors on revive;
+      // here we only backfill program heritage for historically great
+      // programs so their resilience carries into existing dynasties.
+      if (from < 5) {
+        const seeds = D.PRESTIGE_SEEDS || {};
+        Object.values((obj.world && obj.world.schools) || {}).forEach((s) => {
+          if (s.heritage === undefined || s.heritage === null) {
+            s.heritage = seeds[s.name] || 0;
+          }
+          if (s.poorSeasons === undefined) s.poorSeasons = 0;
+        });
+      }
+
       obj.saveVersion = GameState.SAVE_VERSION;
       return obj;
     }
   }
 
-  GameState.SAVE_VERSION = 4;
+  GameState.SAVE_VERSION = 5;
 
   window.XCD.engine.GameState = GameState;
 })();

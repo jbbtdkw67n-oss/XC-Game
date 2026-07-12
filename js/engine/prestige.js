@@ -82,6 +82,29 @@
       if (school.prestige >= 88 && score < 0.5) delta -= 0.4;
       if (school.prestige <= 25 && score > -0.5) delta += 0.3;
 
+      // --- Heritage resilience (Update 4, Part 8) --------------------------
+      // Historically great programs resist collapse: a blue blood needs
+      // several poor seasons before its standing truly falls, while weak
+      // programs remain free to climb into the elite tier over time.
+      const heritage = school.heritage || 0;
+      school.poorSeasons = score < -0.2 ? (school.poorSeasons || 0) + 1 : 0;
+      if (delta < 0 && heritage > school.prestige) {
+        // The cushion weakens with each consecutive down year, so sustained
+        // failure eventually breaks even a legendary program.
+        const grace = Math.max(0, 1 - (school.poorSeasons || 0) * 0.22);
+        const cushion = Utils.clamp((heritage - school.prestige) / 100, 0, 0.6) * grace;
+        delta *= (1 - cushion);
+      }
+      // A gentle pull toward ~60% of heritage keeps legends off the floor —
+      // but a genuinely failing blue blood (many poor years) still slides.
+      const floor = heritage * 0.6;
+      if (school.prestige < floor && score > -0.6) delta += (floor - school.prestige) * 0.02;
+
+      // Heritage itself is dynamic: sustained excellence builds a new blue
+      // blood; a long drought erodes an old one's standing.
+      if (score > 0.8 && school.prestige >= 78) school.heritage = Math.min(96, heritage + 1);
+      else if ((school.poorSeasons || 0) >= 5 && heritage > 0) school.heritage = Math.max(0, heritage - 1);
+
       delta = Utils.clamp(delta, -3, 3);
       const before = school.prestige;
       school.prestige = Utils.clamp(Math.round(school.prestige + delta), 5, 99);

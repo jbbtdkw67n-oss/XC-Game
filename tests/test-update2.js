@@ -113,7 +113,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       sharpnessDefault: typeof ath.sharpness === 'number',
       honorYears: !!ath.honorYears,
       seasonRebuilt: !!loaded.season && !!loaded.season.championships,
-      saveVersion: window.XCD.engine.GameState.SAVE_VERSION === 4,
+      saveVersion: window.XCD.engine.GameState.SAVE_VERSION === 5,
       // Migrated dynasty keeps running
       survives: (() => { try { for (let i = 0; i < 21; i++) loaded.advanceWeek(); return true; } catch (e) { return e.message; } })()
     };

@@ -53,7 +53,15 @@
     const region = D.STATE_REGION[state] || 'Midwest';
     const tier = (D.CONFERENCES[conference] || { tier: 3 }).tier;
     const [pMin, pMax] = tierPrestigeRange(tier, division);
-    const prestige = rng.int(pMin, pMax);
+    // Real-world heritage (Update 4, Part 8): historically great cross country
+    // programs open with elevated prestige and a resilient `heritage` value.
+    const seed = D.PRESTIGE_SEEDS && D.PRESTIGE_SEEDS[name];
+    let prestige = rng.int(pMin, pMax);
+    let heritage = 0;
+    if (seed !== undefined) {
+      prestige = Utils.clamp(seed + rng.int(-3, 3), pMin, 99);
+      heritage = seed;
+    }
     const divRules = D.divisionFor(division);
 
     let academics = rng.int(35, 78) + (tier === 1 ? 6 : 0);
@@ -99,10 +107,19 @@
       nationalTitlesW: tier === 1 && rng.bool(0.08) ? rng.int(1, 3) : 0
     };
 
+    // Blue bloods start with a title or two on the books to match their lore.
+    if (heritage >= 82 && division === 'DI') {
+      historicalSuccess.nationalTitlesM += rng.int(0, 3);
+      historicalSuccess.nationalTitlesW += rng.int(0, 2);
+    } else if (heritage >= 55) {
+      historicalSuccess.conferenceTitlesM += rng.int(1, 5);
+      historicalSuccess.conferenceTitlesW += rng.int(1, 5);
+    }
+
     return new M.School({
       name, state, region, conference, conferenceTier: tier,
       division,
-      prestige, academics, campusAppeal, facilities, budget,
+      prestige, heritage, academics, campusAppeal, facilities, budget,
       weather: { tempBase: weatherProfile.tempBase + rng.int(-4, 4), altitude, humidity: weatherProfile.humidity },
       historicalSuccess
     });
@@ -237,6 +254,12 @@
     t.push(rng.bool(0.55) ? (rng.bool(0.5) ? 'aggressive' : 'conservative') : null);
     coach.tendencies = t.filter(Boolean).slice(0, 3);
 
+    // Coaching philosophies (Update 4): seeded from identity for variety, with
+    // real randomness so every philosophy appears across the simulation. The
+    // training philosophy is permanent; the race philosophy is a tactic.
+    coach.trainingPhilosophy = pickTrainingPhilosophy(rng, coach);
+    coach.racePhilosophy = pickRacePhilosophy(rng, coach);
+
     // Reputation (Part 1): seeded from stature — most coaches start as
     // regional names; a handful of blue-blood veterans arrive established.
     coach.reputation = Utils.clamp(Math.round(
@@ -245,6 +268,26 @@
 
     coach.stints = [{ schoolId: school.id, school: school.name, division: school.division || 'DI', startYear: 2026 - coach.yearsAtSchool, endYear: null }];
     return coach;
+  }
+
+  // Identity-biased but genuinely varied philosophy assignment for AI coaches.
+  function pickTrainingPhilosophy(rng, coach) {
+    const t = coach.tendencies || [];
+    if (t.includes('mileage-heavy') && rng.bool(0.6)) return 'high-mileage';
+    if (t.includes('low-mileage') && rng.bool(0.6)) return 'speed';
+    if (coach.archetype === 'Developer' && rng.bool(0.4)) return 'polarized';
+    if (coach.archetype === 'Tactician' && rng.bool(0.4)) return 'threshold';
+    if (coach.lactateThreshold >= 72 && rng.bool(0.4)) return 'norwegian';
+    return rng.choice(D.TRAINING_PHILOSOPHIES).key;
+  }
+
+  function pickRacePhilosophy(rng, coach) {
+    const t = coach.tendencies || [];
+    if (t.includes('aggressive') && rng.bool(0.6)) return 'aggressive';
+    if (t.includes('conservative') && rng.bool(0.6)) return 'conservative';
+    if (coach.archetype === 'Players Coach' && rng.bool(0.45)) return 'pack';
+    if (coach.speed >= 70 && rng.bool(0.4)) return 'sit-and-kick';
+    return rng.choice(D.RACE_PHILOSOPHIES).key;
   }
 
   function assignRivalries(schools) {

@@ -15,13 +15,10 @@
       .map((k) => (D.COACH_TENDENCIES.find((t) => t.key === k) || {}).label || k);
   }
 
-  function trainingPhilosophy(coach) {
-    const t = coach.tendencies || [];
-    const vol = t.includes('mileage-heavy') ? 'High-mileage'
-      : t.includes('low-mileage') ? 'Low-mileage, speed-first' : 'Balanced-mileage';
-    const temp = t.includes('aggressive') ? 'aggressive racer'
-      : t.includes('conservative') ? 'conservative developer' : 'measured';
-    return `${vol} · ${temp}`;
+  function philosophyLine(coach) {
+    const tp = D.trainingPhilosophy(coach.trainingPhilosophy);
+    const rp = D.racePhilosophy(coach.racePhilosophy);
+    return `${tp.icon} ${tp.label} · ${rp.icon} ${rp.label}`;
   }
 
   /*
@@ -69,7 +66,8 @@
             ${retired ? '<span style="color:var(--text-faint);">Retired</span> • ' : ''}Age ${coach.age || '—'} •
             ${school ? Utils.escapeHtml(school.name) + ' (' + Utils.escapeHtml(school.conference) + ')' : (retired ? 'Career complete' : 'Free agent')}
           </div>
-          <div class="sub">${repIcon} ${Utils.escapeHtml(repLabel)} • ${Utils.escapeHtml(coach.archetype || 'Developer')} • ${Utils.escapeHtml(trainingPhilosophy(coach))}</div>
+          <div class="sub">${repIcon} ${Utils.escapeHtml(repLabel)} • ${Utils.escapeHtml(coach.archetype || 'Developer')}</div>
+          <div class="sub">${philosophyLine(coach)}</div>
         </div>
         <div style="text-align:right;">
           <div style="font-size:26px; font-weight:800;">${Math.round(coach.reputation || 0)}</div>
@@ -105,6 +103,20 @@
           <div class="attr-row" style="margin-top:6px;"><span class="attr-name">Style</span><span style="font-size:12px; color:var(--text-dim);">${tendencyLabels(coach).join(', ') || '—'}</span></div>
         </div>
       </div>
+
+      ${(() => {
+        const Legacy = window.XCD.engine.Legacy;
+        const accs = Legacy ? Legacy.coachAccoladesFor(coach) : [];
+        if (!accs.length) return '';
+        const short = { DI: 'D1', DII: 'D2', DIII: 'D3' };
+        return `
+        <div class="card" style="padding:12px; margin-bottom:14px;">
+          <h3>Coach Awards — ${accs.length}</h3>
+          <div style="max-height:160px; overflow-y:auto;">
+            ${accs.map((a) => `<div class="attr-row" style="padding:4px 0;"><span>🏅 ${a.year} ${a.conference ? Utils.escapeHtml(a.conference) : (short[a.division] || a.division || '')} ${Utils.escapeHtml(a.label)}</span></div>`).join('')}
+          </div>
+        </div>`;
+      })()}
 
       <div class="card" style="padding:12px;">
         <h3>Career Timeline — ${stints.length} stop${stints.length === 1 ? '' : 's'}</h3>

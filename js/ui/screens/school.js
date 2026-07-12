@@ -155,6 +155,23 @@
             Earn upgrade points with conference/regional/national titles, individual champions,
             All-Americans, top-10 recruiting classes, and beating preseason expectations.
           </div>
+          ${(() => {
+            const D = window.XCD.data;
+            const tp = D.trainingPhilosophy(coach.trainingPhilosophy);
+            const rp = D.racePhilosophy(coach.racePhilosophy);
+            return `
+            <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
+              <div style="font-size:12.5px;"><strong>${tp.icon} Training Philosophy:</strong> ${tp.label}
+                <span style="color:var(--text-faint);"> • permanent, scales with Training (${coach.training})</span></div>
+              <div style="font-size:12px; color:var(--text-dim); margin:3px 0 10px;">${tp.desc}</div>
+              <div style="font-size:12.5px; margin-bottom:5px;"><strong>Race Philosophy:</strong> <span style="color:var(--text-dim);">${rp.desc}</span></div>
+              <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                ${D.RACE_PHILOSOPHIES.map((x) => `
+                  <button class="btn small ${coach.racePhilosophy === x.key ? 'primary' : ''}" data-race-philo="${x.key}"
+                    title="${x.desc.replace(/&amp;/g, '&').replace(/"/g, '&quot;')}">${x.icon} ${x.label}</button>`).join('')}
+              </div>
+            </div>`;
+          })()}
         </div>
 
         <div class="card">
@@ -219,6 +236,16 @@
 
     const profBtn = container.querySelector('#btn-coach-profile');
     if (profBtn) profBtn.addEventListener('click', () => UI.showCoachCard(coach, game));
+
+    container.querySelectorAll('[data-race-philo]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.racePhilo;
+        if (coach.racePhilosophy === key) return;
+        coach.racePhilosophy = key;
+        UI.toast(`Race philosophy set: ${window.XCD.data.racePhilosophy(key).label}.`, 'success');
+        render(outerContainer);
+      });
+    });
 
     container.querySelectorAll('[data-coach-upg]').forEach((btn) => {
       btn.addEventListener('click', () => {

@@ -147,6 +147,51 @@
     return rankings;
   }
 
+  /*
+   * Preseason individual rankings (Update 4, Part 9). Before a season has any
+   * race results, project each returning/incoming athlete's standing from
+   * returning ability (race rating), current fitness, and projected
+   * development (headroom toward potential), lightly weighted by last year's
+   * results. Produces realistic favorites: national contenders return near
+   * the top unless graduation/regression changed the picture. Ranked within
+   * each division and per gender.
+   */
+  function computePreseasonIndividuals(gameState) {
+    const Races = window.XCD.engine.Races;
+    const out = { M: [], W: [] };
+    ['M', 'W'].forEach((gender) => {
+      const distanceM = gender === 'M' ? 8000 : 6000;
+      const rows = [];
+      Object.values(gameState.world.schools).forEach((school) => {
+        (gender === 'M' ? school.rosterM : school.rosterW).forEach((id) => {
+          const a = gameState.world.athletes[id];
+          if (!a || a.redshirt === 'True' || a.redshirt === 'Medical') return;
+          const ability = Races.raceRating(a, distanceM);
+          const headroom = Utils.clamp(a.potential - a.currentOverall, 0, 40);
+          const devFactor = a.age <= 19 ? 0.55 : a.age <= 21 ? 0.35 : 0.15;
+          // Prior-season résumé nudges the projection (returning stars stay up).
+          const resume = (a.careerStats.wins || 0) * 1.2 + (a.careerStats.top5 || 0) * 0.4 +
+            (a.honorYears && a.honorYears.allAmerican ? a.honorYears.allAmerican.length * 3 : 0);
+          const proj = ability + a.fitness * 0.12 + headroom * devFactor + Math.min(12, resume);
+          rows.push({
+            athleteId: a.id, name: a.fullName, classYear: a.classYear,
+            schoolId: school.id, school: school.name,
+            division: school.division || 'DI',
+            proj: Math.round(proj * 10) / 10,
+            generational: !!a.generational
+          });
+        });
+      });
+      rows.sort((a, b) => b.proj - a.proj);
+      const byDiv = {};
+      rows.forEach((r) => {
+        byDiv[r.division] = (byDiv[r.division] || 0) + 1;
+        if (byDiv[r.division] <= 100) out[gender].push({ ...r, rank: byDiv[r.division] });
+      });
+    });
+    return out;
+  }
+
   function teamRank(gameState, schoolId, gender) {
     const list = gameState.rankings && gameState.rankings[gender];
     if (!list) return null;
@@ -154,5 +199,5 @@
     return row ? row.rank : null;
   }
 
-  window.XCD.engine.Rankings = { compute, teamStrength, teamRank };
+  window.XCD.engine.Rankings = { compute, teamStrength, teamRank, computePreseasonIndividuals };
 })();
