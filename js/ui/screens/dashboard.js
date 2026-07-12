@@ -6,6 +6,37 @@
   const UI = window.XCD.ui;
   const Utils = window.XCD.core.Utils;
 
+  /*
+   * Annual program expectations (Update 5, Part 5): what the athletic
+   * department expects this season, scaled by prestige, division pressure,
+   * budget, program history, and conference strength. Elite programs are
+   * expected to contend for trophies; rebuilds are asked to improve.
+   */
+  function expectationsFor(school) {
+    const D = window.XCD.data;
+    const div = D.divisionFor(school);
+    const p = school.prestige || 50;
+    const hs = school.historicalSuccess || {};
+    const pedigree = (hs.nationalTitlesM || 0) + (hs.nationalTitlesW || 0) + (hs.conferenceTitlesM || 0) + (hs.conferenceTitlesW || 0);
+    const strongConf = (school.conferenceTier || 3) <= 1;
+    const goals = [];
+    if (p >= 82) {
+      goals.push('contend for a national trophy', 'a top-10 national finish', 'win the conference');
+    } else if (p >= 66) {
+      goals.push('qualify for Nationals', 'finish top-3 in a strong conference' , 'earn All-America honors');
+    } else if (p >= 48) {
+      goals.push('reach the NCAA Regional podium picture', 'a top-half conference finish', 'develop All-Conference runners');
+    } else {
+      goals.push('show clear, steady improvement', 'be competitive in-conference', 'build the roster through recruiting');
+    }
+    const tierLabel = p >= 82 ? 'Elite program' : p >= 66 ? 'Established program' : p >= 48 ? 'Middle-tier program' : 'Rebuilding program';
+    const budgetNote = school.budget && school.budget.total >= 400000 ? ' Resources are strong, so patience is short.'
+      : (school.budget && school.budget.total < 180000 ? ' Modest resources temper the demands.' : '');
+    const histNote = pedigree >= 6 ? ' A proud history raises the bar.' : '';
+    const confNote = strongConf ? ' The conference is a gauntlet.' : '';
+    return `${tierLabel} · ${div.label}. Expected to ${goals.join(', ')}.${budgetNote}${histNote}${confNote}`;
+  }
+
   function rankTile(game, gender) {
     const list = game.rankings && game.rankings[gender];
     if (!list) return { rank: '—', move: '' };
@@ -76,13 +107,33 @@
         </table></div>
       </div>`;
 
+    // Program expectations & the player's job security (Update 5, Part 5).
+    const expectations = expectationsFor(school);
+    const seat = window.XCD.data.seatStatus(coach.hotSeat || 0);
+    const seatColor = seat.key === 'hot' ? 'var(--danger)' : seat.key === 'warm' ? 'var(--warning)' : 'var(--success)';
+    const isAsst = game.isAssistant();
+
     container.innerHTML = `
       <div class="screen-header">
         <h1>${Utils.escapeHtml(school.name)} Cross Country</h1>
         <div class="actions">
           <span class="phase-pill" style="padding:5px 14px;">
-            Coach ${Utils.escapeHtml(coach.fullName)} — Season ${game.career.seasons + 1}
+            ${isAsst ? '📋 Asst.' : 'Coach'} ${Utils.escapeHtml(coach.fullName)} — Season ${game.career.seasons + 1}
           </span>
+          ${isAsst
+            ? `<span class="phase-pill" style="padding:5px 14px;" title="Build top recruiting classes to earn head-coach offers.">📈 Reputation ${Math.round(coach.reputation || 0)}</span>`
+            : `<span class="phase-pill" style="padding:5px 14px; color:${seatColor};" title="${seat.desc}">${seat.icon} ${seat.label}</span>`}
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div>
+          <h3 style="margin:0 0 2px;">🎯 ${game.year} Program Expectations</h3>
+          <div style="color:var(--text-dim); font-size:13px;">${expectations}</div>
+        </div>
+        <div style="text-align:right; font-size:12px; color:var(--text-faint);">
+          ${isAsst
+            ? 'As recruiting coordinator, your classes build your reputation toward a head-coaching job.'
+            : `Job security: <span style="color:${seatColor}; font-weight:600;">${seat.label}</span> — sustained misses put you on the hot seat.`}
         </div>
       </div>
 
@@ -111,10 +162,11 @@
 
       ${game.jobOffers && game.jobOffers.offers.length ? `
         <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent);">
-          <h2>📞 Job Offers — the Offseason Carousel</h2>
+          <h2>${game.jobOffers.promotion ? '🎉 Head-Coaching Offers — Your Promotion Awaits' : '📞 Job Offers — the Offseason Carousel'}</h2>
           <div style="color:var(--text-dim); font-size:13px; margin-bottom:10px;">
-            Multiple programs want you. Accept one, stay loyal, or wait and decide later (offers hold until Week ${game.jobOffers.expiresWeek}).
-            Leaving resets your recruiting board and team culture; your career record travels with you.
+            ${game.jobOffers.promotion
+              ? `Your recruiting has earned you head-coaching offers. Accept one to run your own program — you'll take full control of training, scheduling, and race strategy — stay an assistant, or wait (offers hold until Week ${game.jobOffers.expiresWeek}).`
+              : `Multiple programs want you. Accept one, stay loyal, or wait and decide later (offers hold until Week ${game.jobOffers.expiresWeek}). Leaving resets your recruiting board and team culture; your career record travels with you.`}
           </div>
           <div class="table-wrap"><table class="data">
             <thead><tr><th>School</th><th>Div</th><th>Conf</th><th class="num">Prestige</th><th class="num">Budget</th><th class="num">Facilities</th><th class="num">Recent</th><th class="num">Titles</th><th>Fit</th><th></th></tr></thead>

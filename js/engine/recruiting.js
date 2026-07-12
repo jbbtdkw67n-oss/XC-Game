@@ -242,6 +242,34 @@
         recruits[r.id] = r;
       }
 
+      // Blue-chip floor (Update 5, Part 2): every recruiting class must carry
+      // legitimate blue-chip talent so elite talent is continuously
+      // replenished and the average Division I runner stays as strong in
+      // Year 20 as in Year 1. If the natural roll produced too few genuine
+      // blue-chippers, elevate the best near-misses into that tier.
+      const BLUE_CHIP_FLOOR = 8;   // guaranteed elite prospects per gender
+      const BLUE_CHIP_POT = 88;    // the potential that defines "blue chip"
+      let eliteCount = pool.filter((r) => r.potential >= BLUE_CHIP_POT).length;
+      if (eliteCount < BLUE_CHIP_FLOOR) {
+        pool.slice().sort((a, b) => b.potential - a.potential).some((r) => {
+          if (eliteCount >= BLUE_CHIP_FLOOR) return true;
+          if (r.potential >= BLUE_CHIP_POT || r.generational) return false;
+          const target = rng.int(BLUE_CHIP_POT, 94);
+          const bump = target - r.potential;
+          r.potential = target;
+          r.peakOverall = target;
+          // Raise the physical engine toward the new ceiling so the rating
+          // reflects the potential (still developing — not a finished product).
+          ['vo2Max', 'lactateThreshold', 'runningEconomy', 'stamina', 'speed'].forEach((k) => {
+            r[k] = Utils.clamp((r[k] || 55) + Math.round(bump * 0.55), 15, 92);
+          });
+          r.workEthic = Math.max(r.workEthic, rng.int(70, 90));
+          r.recalculateOverall();
+          eliteCount++;
+          return false;
+        });
+      }
+
       // Generational spawn roll (Part 12.5): weighted odds, no pattern.
       // Averages ~1 per 7-8 classes across both genders; streaks and long
       // droughts both happen, and (very rarely) two land in one class.
@@ -413,11 +441,19 @@
   function weeklyPoints(gameState) {
     const coach = gameState.getPlayerCoach();
     const school = gameState.getPlayerSchool();
+    // Recruiting rating directly buys recruiting resources (Update 5, Part 16):
+    // an elite recruiter (99) gets meaningfully more weekly points than a weak
+    // one (~+9 over the range), so they out-recruit over many cycles.
+    let pts = 8 + Math.round(coach.recruiting / 6) +
+      Math.round((coach.reputation || 10) / 30);
+    // A head coach's recruiting-coordinator assistant adds a little pull;
+    // don't double-count when the player IS the assistant.
     const assistant = gameState.getCoach(school.assistantId);
-    // Reputation opens doors (Part 1): famous coaches get calls returned.
-    return 10 + Math.round(coach.recruiting / 8) +
-      Math.round((coach.reputation || 10) / 30) +
-      (assistant ? Math.round(assistant.recruiting / 20) : 0);
+    if (assistant && assistant.id !== coach.id) pts += Math.round(assistant.recruiting / 20);
+    // As an assistant, recruiting is the player's entire remit — a focused
+    // coordinator works the board harder than a head coach juggling everything.
+    if (gameState.isAssistant()) pts += 3;
+    return pts;
   }
 
   function scholarshipsUsed(gameState, schoolId, gender) {
@@ -834,12 +870,23 @@
     const playerClass = classes[gameState.playerSchoolId] || [];
     if (playerClass.length) {
       gameState.logNews(`Your ${playerClass.length}-runner class signs — ranked #${playerRank + 1} nationally.`);
+      const coach = gameState.getPlayerCoach();
       // Elite recruiting hauls feed coach progression.
-      if (playerRank >= 0 && playerRank < 10) {
-        const coach = gameState.getPlayerCoach();
-        if (coach) {
-          coach.upgradePoints = (coach.upgradePoints || 0) + 1;
-          gameState.logNews(`📋 Top-10 recruiting class: +1 coach upgrade point.`);
+      if (playerRank >= 0 && playerRank < 10 && coach) {
+        coach.upgradePoints = (coach.upgradePoints || 0) + 1;
+        gameState.logNews(`📋 Top-10 recruiting class: +1 coach upgrade point.`);
+      }
+      // Building a recruiting reputation is an assistant's whole career arc
+      // (Update 5, Part 4): strong classes make them a head-coach candidate.
+      if (gameState.isAssistant() && coach && playerRank >= 0) {
+        let repGain = 0;
+        if (playerRank < 3) repGain = 6;
+        else if (playerRank < 10) repGain = 4;
+        else if (playerRank < 25) repGain = 2.5;
+        else if (playerRank < 45) repGain = 1;
+        if (repGain) {
+          coach.reputation = window.XCD.core.Utils.clamp((coach.reputation || 12) + repGain, 1, 99);
+          gameState.logNews(`📈 Coach ${coach.lastName} builds a name as a recruiter — reputation rising after a #${playerRank + 1} class.`);
         }
       }
     } else {

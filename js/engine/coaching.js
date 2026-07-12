@@ -143,7 +143,9 @@
       const assistant = gameState.world.coaches[school.assistantId];
       if (assistant) {
         assistant.age += 1;
-        progressRatings(assistant, rng, false);
+        // A player-assistant grows via upgrade points (like any player coach),
+        // so auto-progression is suppressed for them.
+        progressRatings(assistant, rng, !!assistant.isPlayer);
       }
     });
 

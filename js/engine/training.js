@@ -93,7 +93,9 @@
 
   // Resolve the weekly miles for one athlete.
   function mileageFor(gameState, school, gender, athlete, coach) {
-    if (school.id === gameState.playerSchoolId) {
+    // Only a head-coach player sets mileage manually; an assistant's program
+    // is run by its AI head coach, so it follows the AI mileage plan.
+    if (school.id === gameState.playerSchoolId && gameState.controlsTraining()) {
       const t = gameState.training;
       const override = t.mileageOverrides && t.mileageOverrides[athlete.id];
       const m = override !== undefined ? override
@@ -431,15 +433,33 @@
 
     const before = athlete.currentOverall;
 
+    // High-altitude programs (Update 5, Part 3): training at elevation is a
+    // real physiological edge — a bigger aerobic engine and stronger
+    // threshold — but the thin air taxes the body, so fatigue builds faster
+    // and recovery is a touch slower. A realistic advantage a coach must
+    // manage, never a free win.
+    const alt = (school.weather && school.weather.altitude) || 'Low';
+    const altFatigue = alt === 'High' ? 1.6 : alt === 'Medium' ? 0.6 : 0;
+    const altRecovery = alt === 'High' ? 0.7 : alt === 'Medium' ? 0.3 : 0;
+
     // Fatigue & fitness. Volume adds its own load; recovery rate scales
     // with innate resilience and the program's recovery facilities.
     const recoveryRate = 4 + athlete.injuryResistance / 30 +
-      school.facilities.recoveryCenter / 40 + school.facilities.nutrition / 80;
+      school.facilities.recoveryCenter / 40 + school.facilities.nutrition / 80 - altRecovery;
     let weeklyFatigue = planMeta.fatigue + mMeta.fatigueAdd * (planMeta.loadMult ?? 1);
     // Training philosophy shifts how much fatigue the work accumulates (only
     // the load side — recovery is unaffected).
     if (weeklyFatigue > 0) weeklyFatigue *= philo.fatigueMult;
+    if (weeklyFatigue > 0) weeklyFatigue += altFatigue;
     athlete.fatigue = Math.round(Utils.clamp(athlete.fatigue + weeklyFatigue - recoveryRate, 0, 100));
+
+    // Altitude's aerobic payoff: a small, steady boost to the stamina and
+    // threshold engines (the systems that adapt to thin air).
+    if (alt !== 'Low' && rng.bool(alt === 'High' ? 0.10 : 0.04)) {
+      const k = rng.bool(0.5) ? 'stamina' : 'lactateThreshold';
+      const cap = Math.min(97, athlete.potential + 8);
+      if (athlete[k] < cap) athlete[k] += 1;
+    }
     // Training effectiveness: a modern training center makes every week count.
     const fitnessMult = (0.85 + school.facilities.trainingCenter / 300) * mMeta.fitnessMult;
     athlete.fitness = Math.round(Utils.clamp(athlete.fitness + planMeta.fitness * fitnessMult - 1.8, 0, 100));
@@ -525,6 +545,9 @@
     if (injury) {
       athlete.injury = injury;
       athlete.health = 'Injured';
+      // Injuries dent confidence (Update 5, Part 7) — the longer the layoff,
+      // the bigger the hit to belief.
+      athlete.confidence = Utils.clamp((athlete.confidence ?? 60) - Math.min(8, 2 + injury.totalWeeks), 10, 99);
       if (isPlayerSchool) {
         gameState.logNews(`Injury: ${athlete.fullName} — ${injury.type}, out ~${injury.totalWeeks} week${injury.totalWeeks > 1 ? 's' : ''}.`);
       }
@@ -536,6 +559,32 @@
     else if (athlete.fatigue < 30) moraleShift += 1;
     moraleShift += athlete.morale < 65 ? 1 : athlete.morale > 82 ? -1 : 0;
     athlete.morale = Utils.clamp(athlete.morale + moraleShift, 0, 100);
+
+    // Relationship drift (Update 5, Part 7). Both bonds slowly converge on a
+    // target set by how the athlete is being treated. Coach relationship
+    // follows the staff's culture/relationship craft and genuine development;
+    // injuries and stagnation strain it. Team relationship follows squad
+    // chemistry. Drift is gentle so a bond is built (or lost) over a season,
+    // not a single week.
+    const coachTarget = Utils.clamp(
+      (coach ? (coach.culture * 0.35 + (coach.relationships ?? 55) * 0.35) : 35) + 22 +
+      (athlete.lastDelta >= 2 ? 6 : athlete.lastDelta <= 0 ? -3 : 0) +
+      (athlete.health === 'Injured' ? -8 : 0), 10, 95);
+    athlete.coachRelationship = Utils.clamp(
+      (athlete.coachRelationship ?? 60) + (coachTarget - (athlete.coachRelationship ?? 60)) * 0.10, 10, 99);
+    const teamTarget = Utils.clamp((culture && culture.chemistry ? culture.chemistry : 55) + 6, 10, 95);
+    athlete.teamRelationship = Utils.clamp(
+      (athlete.teamRelationship ?? 60) + (teamTarget - (athlete.teamRelationship ?? 60)) * 0.08, 10, 99);
+
+    // Confidence (Update 5, Part 7) also builds through consistent, healthy
+    // training and erodes when a runner is buried by fatigue or unfit — a
+    // gentle reversion toward a fitness-anchored baseline keeps belief
+    // dynamic without letting it drift permanently to the floor or ceiling.
+    if (athlete.health !== 'Injured') {
+      const confTarget = Utils.clamp(52 + (athlete.fitness - 50) * 0.35 - (athlete.fatigue > 78 ? 10 : 0), 20, 90);
+      athlete.confidence = Utils.clamp(
+        (athlete.confidence ?? 60) + (confTarget - (athlete.confidence ?? 60)) * 0.06, 10, 99);
+    }
   }
 
   /*
@@ -579,11 +628,14 @@
     for (const school of Object.values(gameState.world.schools)) {
       const coach = gameState.getCoach(school.coachId);
       const isPlayer = school.id === playerId;
+      // A head-coach player designs the plan; an assistant's program follows
+      // its AI head coach's plan (the assistant only runs recruiting).
+      const playerPlans = isPlayer && gameState.controlsTraining();
       school.chemistry = school.chemistry || {};
       const philo = philosophyEffect(coach);
 
       ['M', 'W'].forEach((gender) => {
-        const plan = isPlayer
+        const plan = playerPlans
           ? (gameState.training[gender] || defaultPlan())
           : aiPlan(gameState, coach);
         const baseMeta = planMetaFor(plan);
@@ -595,7 +647,7 @@
           const athlete = gameState.world.athletes[id];
           if (!athlete) return;
           let meta = baseMeta;
-          if (isPlayer) {
+          if (playerPlans) {
             const override = gameState.training.overrides[id];
             if (override) meta = planMetaFor(plan, override);
           }
@@ -632,6 +684,7 @@
           let pts = Utils.clamp(gap * 0.16, 0, 4.2);       // headroom drives growth
           if (gap < 5) pts *= 0.3;                          // the plateau near the ceiling
           pts *= 0.55 + a.workEthic / 140;                  // summer is unsupervised
+          if (a.workEthic >= 88) pts *= 1.12;               // elite grinders (90+) make the biggest summer leaps (Update 5, Part 7)
           pts *= 0.70 + coachSkill / 180;                   // the program's summer plan
           pts *= devProfileMult(a);                         // late bloomers pop here
           pts *= philo.devMult;                             // the coach's philosophy

@@ -27,9 +27,42 @@
     lactateThreshold: 'Lact. Threshold', speed: 'Speed'
   };
 
+  // Read-only training overview shown to a player who is an assistant coach:
+  // the head coach owns the plan; the assistant just runs recruiting.
+  function renderAssistantView(container, game, school) {
+    const head = game.getCoach(school.coachId);
+    const philo = head ? (D.trainingPhilosophy(head.trainingPhilosophy) || {}) : {};
+    const bothRosters = game.getRoster(school.id, 'M').concat(game.getRoster(school.id, 'W'));
+    const avg = (fn) => bothRosters.length ? Math.round(Utils.average(bothRosters.map(fn))) : 0;
+    const injured = bothRosters.filter((a) => a.injury);
+    container.innerHTML = `
+      <div class="screen-header"><h1>Training</h1></div>
+      <div class="card" style="border-left:3px solid var(--accent);">
+        <h3>📋 Head Coach Controls Training</h3>
+        <p style="color:var(--text-dim);">You are the <strong>recruiting coordinator</strong> at ${Utils.escapeHtml(school.name)}. Weekly training, workouts, mileage, race scheduling, and race strategy are set by head coach
+        <strong>${head ? Utils.escapeHtml(head.fullName) : 'the staff'}</strong>${philo.label ? ` (${philo.icon || ''} ${Utils.escapeHtml(philo.label)} philosophy)` : ''}.
+        Your job is to build the best recruiting classes in the country — do that well and you'll earn head-coaching offers of your own.</p>
+      </div>
+      <div class="grid cols-4" style="margin-top:14px;">
+        <div class="stat-tile"><div class="label">Squad Fitness</div><div class="value">${avg((a) => a.fitness)}</div></div>
+        <div class="stat-tile"><div class="label">Squad Fatigue</div><div class="value">${avg((a) => a.fatigue)}</div></div>
+        <div class="stat-tile"><div class="label">Readiness</div><div class="value">${avg((a) => TE().readiness(a))}</div></div>
+        <div class="stat-tile"><div class="label">Injured</div><div class="value">${injured.length}</div></div>
+      </div>
+      <p style="color:var(--text-faint); margin-top:14px;">Head to <strong>🎯 Recruiting</strong> to work your board — that's where you make your name.</p>`;
+  }
+
   function render(container) {
     const game = UI.state.game;
     const school = game.getPlayerSchool();
+
+    // Assistant coaches don't design training — the head coach does. Show a
+    // read-only overview of the program's state instead of the plan editor.
+    if (game.isAssistant && game.isAssistant()) {
+      renderAssistantView(container, game, school);
+      return;
+    }
+
     const plan = TE().normalizePlan(game.training[activeGender]);
     game.training[activeGender] = plan;
     const roster = game.getRoster(school.id, activeGender)

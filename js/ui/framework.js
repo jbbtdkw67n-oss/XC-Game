@@ -220,8 +220,10 @@
               const f = game.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
               const step = !f.trainingConfirmed ? 1 : !f.recruitingDone ? 2 : 3;
               const cls = (n, done) => `flow-step ${done ? 'done' : step === n ? 'current' : ''}`;
-              return `<div class="flow-steps" title="The weekly coaching rhythm: plan training, then recruit, then advance.">
-                <button class="${cls(1, f.trainingConfirmed)}" data-flow-nav="training" style="cursor:pointer;">${f.trainingConfirmed ? '✓' : '1'} Training Plan</button>
+              const asst = game.isAssistant && game.isAssistant();
+              const trainingLabel = asst ? 'Training (Head Coach)' : 'Training Plan';
+              return `<div class="flow-steps" title="The weekly coaching rhythm: ${asst ? 'the head coach runs training — you recruit, then advance.' : 'plan training, then recruit, then advance.'}">
+                <button class="${cls(1, f.trainingConfirmed)}" data-flow-nav="training" style="cursor:pointer;">${f.trainingConfirmed ? '✓' : '1'} ${trainingLabel}</button>
                 <span style="color:var(--text-faint);">→</span>
                 <button class="${cls(2, f.recruitingDone)}" data-flow-nav="recruiting" style="cursor:pointer;">${f.recruitingDone ? '✓' : '2'} Recruiting</button>
                 <span style="color:var(--text-faint);">→</span>

@@ -133,10 +133,110 @@
     gameState.logNews(`📞 Your phone is ringing: ${offers.length === 1 ? offers[0].schoolName + ' wants' : offers.length + ' programs want'} to talk about their head coaching job.`);
   }
 
+  /*
+   * Assistant-coach promotions (Update 5, Part 4). A recruiting coordinator
+   * who builds classes earns head-coach offers — first at smaller programs,
+   * then bigger ones as their reputation grows. This is the payoff of the
+   * assistant career path: recruit your way into your own program.
+   */
+  function generateAssistantOffers(gameState, rng) {
+    const coach = gameState.getPlayerCoach();
+    const home = gameState.getPlayerSchool();
+    const rep = coach.reputation || 12;
+
+    // Genuine head-coach vacancies (fired/retired/open chairs).
+    const vacancies = Object.values(gameState.world.schools).filter((s) =>
+      s.id !== gameState.playerSchoolId && (!s.coachId || !gameState.world.coaches[s.coachId]));
+    if (!vacancies.length) { gameState.jobOffers = null; return; }
+
+    // A recruiting reputation is the résumé; best recent class sweetens it.
+    const bestClass = coach.careerRecord && coach.careerRecord.bestClassRank;
+    const classBoost = bestClass ? Utils.clamp((30 - bestClass) * 0.6, 0, 18) : 0;
+    const resume = rep + classBoost + (coach.recruiting - 55) * 0.25;
+
+    // Programs hire an unproven head coach only when the résumé clears their
+    // (modest) bar — smaller schools take the chance on a hot recruiter first.
+    const candidates = vacancies.filter((s) => {
+      const need = s.prestige * 0.55; // lower bar than a sitting head coach faces
+      if (resume < need - 4) return false;
+      // Powers won't hand their program to a first-time head coach yet.
+      if (s.prestige > 72 && resume < s.prestige) return false;
+      return true;
+    });
+    if (!candidates.length) { gameState.jobOffers = null; return; }
+
+    let interested = candidates.filter(() => rng.bool(Utils.clamp(0.22 + resume / 160, 0.2, 0.7)));
+    if (!interested.length && (bestClass && bestClass <= 15)) interested = [rng.choice(candidates)];
+    if (!interested.length) { gameState.jobOffers = null; return; }
+
+    const offers = rng.shuffle(interested).slice(0, 3).map((s) => {
+      const hs = s.historicalSuccess || {};
+      return {
+        schoolId: s.id, schoolName: s.name, prestige: s.prestige, conference: s.conference,
+        division: s.division || 'DI', budget: s.budget.total, facilities: s.facilitiesOverall,
+        academics: s.academics, bestRank: null,
+        expectations: Math.round((window.XCD.data.divisionFor(s).expectations || 1) * 100),
+        natTitles: (hs.nationalTitlesM || 0) + (hs.nationalTitlesW || 0),
+        confTitles: (hs.conferenceTitlesM || 0) + (hs.conferenceTitlesW || 0),
+        repFit: Utils.clamp(Math.round(resume - s.prestige * 0.55 + 55), 0, 100),
+        promotion: true,
+        kind: s.division === (home.division || 'DI') ? 'Head coach job' : `Head coach — ${s.division}`
+      };
+    }).sort((a, b) => b.prestige - a.prestige);
+
+    gameState.jobOffers = { year: gameState.year, expiresWeek: OFFER_EXPIRY_WEEK, offers, promotion: true };
+    gameState.logNews(`📞 Head-coaching interest: ${offers.length === 1 ? offers[0].schoolName + ' wants' : offers.length + ' programs want'} to make you a head coach.`);
+  }
+
   function acceptOffer(gameState, schoolId) {
     const offers = gameState.jobOffers;
     if (!offers || !offers.offers.some((o) => o.schoolId === schoolId)) {
       return { ok: false, message: 'That offer is no longer on the table.' };
+    }
+
+    // Assistant → head coach promotion: a distinct transition. The assistant
+    // leaves no head-coaching vacancy behind, and takes over the new program
+    // (its incumbent, if any, hits the market).
+    if (gameState.isAssistant()) {
+      const Legacy = window.XCD.engine.Legacy;
+      const oldSchool = gameState.getPlayerSchool();
+      const newSchool = gameState.getSchool(schoolId);
+      const coach = gameState.getPlayerCoach();
+      const rng = new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 37 + schoolId.length) >>> 0);
+
+      Legacy.closeStint(gameState, coach, oldSchool, gameState.year);
+      if (oldSchool.assistantId === coach.id) oldSchool.assistantId = null;
+
+      const incumbent = newSchool.coachId && gameState.world.coaches[newSchool.coachId];
+      if (incumbent && !incumbent.isPlayer) {
+        Legacy.closeStint(gameState, incumbent, newSchool, gameState.year);
+        incumbent.schoolId = null;
+        incumbent.hotSeat = 0;
+        incumbent.poolYears = 0;
+      }
+      coach.role = 'Head';
+      gameState.playerRole = 'Head';
+      newSchool.coachId = coach.id;
+      coach.schoolId = newSchool.id;
+      coach.yearsAtSchool = 0;
+      coach.hotSeat = 0;
+      gameState.playerSchoolId = newSchool.id;
+      Legacy.openStint(gameState, coach, newSchool, gameState.year + 1);
+      newSchool.coachChangedYear = gameState.year;
+
+      gameState.training.overrides = {};
+      gameState.training.mileageOverrides = {};
+      gameState.culture.captains = { M: [], W: [] };
+      gameState.recruiting.budgetLeft = Math.round(newSchool.budget.recruiting * 0.5);
+      gameState.lastPlayerMeetId = null;
+      gameState.jobOffers = null;
+      gameState.weeklyFlow.trainingConfirmed = false; // now a head coach — you plan again
+
+      gameState.career.stops = gameState.career.stops || [];
+      gameState.career.stops.push({ school: newSchool.name, startYear: gameState.year + 1, role: 'Head' });
+
+      gameState.logNews(`🎉 PROMOTION: You leave your assistant post at ${oldSchool.name} to become head coach at ${newSchool.name} (${newSchool.conference})!`);
+      return { ok: true, message: `You're the head coach at ${newSchool.name}!` };
     }
     const Legacy = window.XCD.engine.Legacy;
     const oldSchool = gameState.getPlayerSchool();
@@ -348,7 +448,7 @@
   }
 
   window.XCD.engine.Careers = {
-    generateOffers, acceptOffer, declineOffers, expireOffers,
+    generateOffers, generateAssistantOffers, acceptOffer, declineOffers, expireOffers,
     runCarousel, fillVacancy, coachRankings
   };
 })();

@@ -43,6 +43,11 @@
       this.world = null; // { schools, coaches, athletes, recruits, schoolOrder }
       this.playerSchoolId = null;
       this.playerCoachId = null;
+      // Coaching role (Update 5, Part 4): 'Head' controls everything;
+      // 'Assistant' controls only recruiting while an AI head coach runs
+      // training, scheduling, and race strategy. Assistants who recruit well
+      // earn head-coach offers — a full playable career path.
+      this.playerRole = 'Head';
       this.year = 2026;
       this.week = 1;
       this.newsLog = [];
@@ -101,26 +106,30 @@
      * Ids are unique per generation, so regenerating from the same seed
      * would produce identical data but different ids.
      */
-    static newGame({ schoolId, dynastyName, coachFirstName, coachLastName, archetype, portrait, trainingPhilosophy, racePhilosophy, seed, world }) {
+    static newGame({ schoolId, dynastyName, coachFirstName, coachLastName, archetype, portrait, trainingPhilosophy, racePhilosophy, startRole, seed, world }) {
       const gs = new GameState();
       gs.dynastyName = dynastyName || `${coachLastName} Dynasty`;
       gs.seed = seed >>> 0;
       gs.world = world || window.XCD.engine.WorldGenerator.generate(gs.seed);
       gs.playerSchoolId = schoolId;
+      gs.playerRole = startRole === 'Assistant' ? 'Assistant' : 'Head';
       gs.year = 2026;
       gs.week = 1;
       gs.createdAt = Date.now();
 
       const school = gs.world.schools[schoolId];
-      // Replace the AI coach at the chosen school with the player's
-      // created coach. Archetype grants a real bonus to its rating.
-      const oldCoachId = school.coachId;
-      delete gs.world.coaches[oldCoachId];
       const arch = (D.COACH_ARCHETYPES || []).find((a) => a.key === archetype) || { key: 'Developer', rating: 'training' };
+      const isAssistant = gs.playerRole === 'Assistant';
+      // A head coach REPLACES the AI coach at the chosen school; an assistant
+      // JOINS an existing staff (the AI head coach stays and runs training,
+      // scheduling, and race strategy).
+      if (!isAssistant) {
+        delete gs.world.coaches[school.coachId];
+      }
       const playerCoach = new M.Coach({
         firstName: coachFirstName || 'Alex',
         lastName: coachLastName || 'Carter',
-        age: 34,
+        age: isAssistant ? 30 : 34,
         archetype: arch.key,
         portrait: portrait || '🧢',
         recruiting: 50, training: 50, peaking: 50, culture: 50,
@@ -129,18 +138,30 @@
         trainingPhilosophy: (D.trainingPhilosophy(trainingPhilosophy) || {}).key || 'balanced',
         racePhilosophy: (D.racePhilosophy(racePhilosophy) || {}).key || 'even',
         schoolId,
+        role: isAssistant ? 'Assistant' : 'Head',
         isPlayer: true,
         yearsAtSchool: 0
       });
       playerCoach[arch.rating] = 64;
-      playerCoach.reputation = 20; // a fresh hire — unproven, but on the radar
+      // An assistant leans on their recruiting; that is their whole job.
+      if (isAssistant) playerCoach.recruiting = Math.max(playerCoach.recruiting, 58);
+      playerCoach.reputation = isAssistant ? 12 : 20; // an assistant is a true unknown
       gs.world.coaches[playerCoach.id] = playerCoach;
-      school.coachId = playerCoach.id;
       gs.playerCoachId = playerCoach.id;
+      if (isAssistant) {
+        school.assistantId = playerCoach.id;
+      } else {
+        school.coachId = playerCoach.id;
+      }
       window.XCD.engine.Legacy.openStint(gs, playerCoach, school, gs.year);
 
-      gs.career.stops.push({ school: school.name, startYear: gs.year });
-      gs.logNews(`${coachFirstName} ${coachLastName} takes over as head coach at ${school.name}.`);
+      gs.career.stops.push({ school: school.name, startYear: gs.year, role: gs.playerRole });
+      if (isAssistant) {
+        const head = gs.getCoach(school.coachId);
+        gs.logNews(`${coachFirstName} ${coachLastName} joins ${school.name} as recruiting coordinator under head coach ${head ? head.fullName : 'the staff'}.`);
+      } else {
+        gs.logNews(`${coachFirstName} ${coachLastName} takes over as head coach at ${school.name}.`);
+      }
 
       // Spin up the first recruiting cycle.
       const rng = new window.XCD.core.SeededRNG((gs.seed ^ 0xA11CE) >>> 0);
@@ -156,6 +177,8 @@
       window.XCD.engine.Races.newSeason(gs, rng);
       window.XCD.engine.Rankings.compute(gs);
       gs.capturePreseasonRanks();
+      // An assistant never plans training — that step is pre-confirmed.
+      if (!gs.controlsTraining()) gs.weeklyFlow.trainingConfirmed = true;
       return gs;
     }
 
@@ -169,6 +192,19 @@
     getAthlete(id) { return this.world.athletes[id]; }
     getPlayerSchool() { return this.getSchool(this.playerSchoolId); }
     getPlayerCoach() { return this.getCoach(this.playerCoachId); }
+
+    // Role helpers (Update 5). An assistant delegates training, scheduling,
+    // and race strategy to the program's head coach; a head coach controls
+    // all of it. Recruiting is always the player's to run.
+    isAssistant() { return this.playerRole === 'Assistant'; }
+    controlsTraining() { return this.playerRole !== 'Assistant'; }
+    controlsScheduling() { return this.playerRole !== 'Assistant'; }
+    // The head coach the player answers to as an assistant (null when a head).
+    getHeadCoach() {
+      if (!this.isAssistant()) return this.getPlayerCoach();
+      const school = this.getPlayerSchool();
+      return school ? this.getCoach(school.coachId) : null;
+    }
 
     getRoster(schoolId, gender) {
       const school = this.getSchool(schoolId);
@@ -227,7 +263,8 @@
       // Awards ceremony the week after nationals; ADs start calling.
       if (this.week === AWARDS_WEEK) {
         window.XCD.engine.Awards.processPostNationals(this, rng);
-        window.XCD.engine.Careers.generateOffers(this, rng);
+        if (this.isAssistant()) window.XCD.engine.Careers.generateAssistantOffers(this, rng);
+        else window.XCD.engine.Careers.generateOffers(this, rng);
       }
       window.XCD.engine.Careers.expireOffers(this);
 
@@ -241,7 +278,9 @@
       window.XCD.engine.Recruiting.startNewWeek(this);
 
       // A new week begins: plan training first, then recruit, then advance.
-      this.weeklyFlow = { trainingConfirmed: false, recruitingDone: false };
+      // An assistant coach doesn't control training, so that step is already
+      // handled by the head coach — auto-confirm it.
+      this.weeklyFlow = { trainingConfirmed: !this.controlsTraining(), recruitingDone: false };
       // Auto Recruiting: the CPU already worked the board this week.
       if (this.recruiting.auto) this.weeklyFlow.recruitingDone = true;
     }
@@ -401,6 +440,7 @@
         world: this.world,
         playerSchoolId: this.playerSchoolId,
         playerCoachId: this.playerCoachId,
+        playerRole: this.playerRole,
         year: this.year,
         week: this.week,
         newsLog: this.newsLog,
@@ -466,6 +506,9 @@
       gs.culture = obj.culture || { captains: { M: [], W: [] } };
       gs.jobOffers = obj.jobOffers || null;
       gs.weeklyFlow = obj.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
+      // Role defaults to Head for every pre-Update-5 dynasty.
+      gs.playerRole = obj.playerRole === 'Assistant' ? 'Assistant' : 'Head';
+      if (!gs.controlsTraining()) gs.weeklyFlow.trainingConfirmed = true;
       if (gs.week > WEEKS_PER_YEAR) gs.week = WEEKS_PER_YEAR;
       // A season built under a different calendar is rebuilt so every week
       // reference is valid (results already banked in history are kept).

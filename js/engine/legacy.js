@@ -223,12 +223,17 @@
 
   Legacy.openStint = function (gameState, coach, school, startYear) {
     coach.stints = coach.stints || [];
+    const role = coach.role || 'Head';
     coach.stints.push({
       schoolId: school.id, school: school.name,
-      division: school.division || 'DI', startYear, endYear: null
+      division: school.division || 'DI', startYear, endYear: null, role
     });
-    const prog = Legacy.program(gameState, school.id);
-    prog.coaches.push({ coachId: coach.id, name: coach.fullName, startYear, endYear: null });
+    // Only head coaches appear on the program's head-coaching ledger; an
+    // assistant's stint lives on their own timeline (Update 5).
+    if (role === 'Head') {
+      const prog = Legacy.program(gameState, school.id);
+      prog.coaches.push({ coachId: coach.id, name: coach.fullName, startYear, endYear: null });
+    }
   };
 
   // Retired (or permanently departed) coaches stay searchable forever.

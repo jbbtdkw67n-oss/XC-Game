@@ -58,6 +58,7 @@
     let portrait = prev.portrait || D.COACH_PORTRAITS[0];
     let trainingPhilo = prev.trainingPhilosophy || 'balanced';
     let racePhilo = prev.racePhilosophy || 'even';
+    let startRole = prev.startRole || 'Head';
 
     root.innerHTML = `
       <div id="menu-root">
@@ -74,6 +75,19 @@
             <div class="portrait-row">
               ${D.COACH_PORTRAITS.map((p) => `
                 <button type="button" class="portrait-pick ${p === portrait ? 'selected' : ''}" data-portrait="${p}">${p}</button>`).join('')}
+            </div>
+          </div>
+          <div class="field">
+            <label>Starting Role <span style="color:var(--text-faint); font-weight:400;">— begin your career as a program's head coach, or work up from a recruiting-only assistant job</span></label>
+            <div class="archetype-grid" id="role-grid">
+              <div class="archetype-card ${startRole === 'Head' ? 'selected' : ''}" data-role="Head">
+                <div class="arch-name">🎖 Head Coach</div>
+                <div class="arch-desc">Full control: training, scheduling, race strategy, redshirts, and recruiting (manual or auto).</div>
+              </div>
+              <div class="archetype-card ${startRole === 'Assistant' ? 'selected' : ''}" data-role="Assistant">
+                <div class="arch-name">📋 Assistant Coach</div>
+                <div class="arch-desc">Run recruiting only under an established head coach. Build a recruiting reputation to earn head-coach offers.</div>
+              </div>
             </div>
           </div>
           <div class="field">
@@ -121,6 +135,12 @@
         refresh();
       });
     });
+    root.querySelectorAll('[data-role]').forEach((el) => {
+      el.addEventListener('click', () => {
+        startRole = el.dataset.role;
+        root.querySelectorAll('[data-role]').forEach((n) => n.classList.toggle('selected', n.dataset.role === startRole));
+      });
+    });
     root.querySelectorAll('[data-portrait]').forEach((el) => {
       el.addEventListener('click', () => {
         portrait = el.dataset.portrait;
@@ -149,7 +169,8 @@
         archetype,
         portrait,
         trainingPhilosophy: trainingPhilo,
-        racePhilosophy: racePhilo
+        racePhilosophy: racePhilo,
+        startRole
       };
       renderSchoolSelect(root, seed, world, coach);
     });
@@ -170,7 +191,7 @@
       <div id="menu-root">
         <div class="menu-panel" style="width:min(640px,94vw);">
           <h1 style="font-size:22px;">Choose Your <span>School</span></h1>
-          <p class="tagline">Step 2 of 2 — Coach ${Utils.escapeHtml(coach.first)} ${Utils.escapeHtml(coach.last)} (${Utils.escapeHtml(coach.archetype)}). Coach in any of the three divisions — smaller programs mean a harder, longer climb.</p>
+          <p class="tagline">Step 2 of 2 — ${coach.startRole === 'Assistant' ? 'Assistant' : 'Head'} Coach ${Utils.escapeHtml(coach.first)} ${Utils.escapeHtml(coach.last)} (${Utils.escapeHtml(coach.archetype)}). ${coach.startRole === 'Assistant' ? 'Pick the program whose staff you will join as recruiting coordinator.' : 'Coach in any of the three divisions — smaller programs mean a harder, longer climb.'}</p>
           <div class="pill-tabs" id="div-tabs" style="margin-bottom:10px;">
             ${DIV_TABS.map(([k, label]) => `<button data-div="${k}" class="${divFilter === k ? 'active' : ''}">${label}</button>`).join('')}
           </div>
@@ -237,6 +258,7 @@
         portrait: coach.portrait,
         trainingPhilosophy: coach.trainingPhilosophy,
         racePhilosophy: coach.racePhilosophy,
+        startRole: coach.startRole,
         seed,
         world // reuse the previewed world so selected ids stay valid
       });

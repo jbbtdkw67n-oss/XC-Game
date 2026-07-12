@@ -491,9 +491,23 @@
     }
     if (c.rain) mult += 0.004 * (1.3 - weatherSkill);
 
+    // Difficult terrain (Update 5, Part 7): a genuinely hilly course is an
+    // adverse condition all its own, and mentally tough runners lose
+    // significantly less over it. (Hill *ability* is modeled per-segment
+    // elsewhere; this is the grit to keep grinding when the course bites.)
+    if (c.hilliness > 55) {
+      const toughness = (a.mentalToughness * 0.7 + a.consistency * 0.3) / 100;
+      mult += (c.hilliness - 55) * 0.00018 * (1.5 - toughness);
+    }
+
     // Altitude: a big aerobic engine copes best up high.
     if (c.altitude === 'High') mult += 0.020 * (1.5 - a.vo2Max / 100);
     else if (c.altitude === 'Medium') mult += 0.007 * (1.5 - a.vo2Max / 100);
+
+    // Confidence (Update 5, Part 7): current belief in one's running is a
+    // meaningful, dynamic race-day edge — a runner riding a wave of PRs
+    // races freer than one whose confidence has been shaken.
+    mult += Utils.clamp((60 - (a.confidence ?? 60)) * 0.00028, -0.007, 0.010);
 
     // Readiness (training state) and morale
     const TE = window.XCD.engine.Training;
@@ -896,6 +910,19 @@
       if (f.place === 1) a.morale = Utils.clamp(a.morale + 5, 0, 100);
       else if (f.place <= 10) a.morale = Utils.clamp(a.morale + 2, 0, 100);
       else if (f.place > finishers.length * 0.8) a.morale = Utils.clamp(a.morale - 2, 0, 100);
+
+      // Playing time is the strongest bond with a coach (Update 5, Part 7):
+      // getting to toe the line for the program builds the relationship.
+      a.coachRelationship = Utils.clamp((a.coachRelationship ?? 60) + 1.2, 10, 99);
+
+      // Confidence (Update 5, Part 7): built by strong races and personal
+      // bests, dented by rough outings. A dynamic belief metric that feeds
+      // race-day performance.
+      const wasPR = !pr || f.time < pr;
+      if (f.place === 1) a.confidence = Utils.clamp((a.confidence ?? 60) + 3, 10, 99);
+      else if (f.place <= 10) a.confidence = Utils.clamp((a.confidence ?? 60) + 1.5, 10, 99);
+      else if (f.place > finishers.length * 0.85) a.confidence = Utils.clamp((a.confidence ?? 60) - 1.5, 10, 99);
+      if (wasPR) a.confidence = Utils.clamp((a.confidence ?? 60) + 1, 10, 99);
 
       // Race experience nudges race IQ for young runners
       if (a.careerStats.races % 6 === 0 && a.raceIQ < 90) a.raceIQ += 1;

@@ -237,6 +237,17 @@
       }
     }
 
+    // Assistant coaches don't set the schedule or answer invitations — those
+    // are head-coach calls. Replace the editors with a read-only note.
+    if (game.isAssistant && game.isAssistant()) {
+      const head = game.getCoach(school.coachId);
+      scheduleHtml = `<div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent);">
+        <h2>🗓 Race Scheduling</h2>
+        <div style="color:var(--text-dim); font-size:13px;">Head coach <strong>${head ? Utils.escapeHtml(head.fullName) : 'the staff'}</strong> sets the race schedule and answers invitations. As recruiting coordinator you'll see the season below, but scheduling isn't your call.</div>
+      </div>`;
+      preNatsHtml = '';
+    }
+
     container.innerHTML = `
       <div class="screen-header">
         <h1>Season Schedule — ${season.year}</h1>

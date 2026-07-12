@@ -28,6 +28,9 @@
       </div>`;
 
     const roster = game.getRoster(school.id, activeGender);
+    // Captains and redshirts are head-coach decisions (Update 5): an
+    // assistant sees the roster but doesn't manage race strategy/eligibility.
+    const canManage = game.controlsTraining();
 
     const table = UI.renderSortableTable(container.querySelector('#roster-table'), {
       rows: roster,
@@ -52,7 +55,7 @@
             ? '<span style="color:var(--success);">Healthy</span>'
             : `<span style="color:var(--danger);">${Utils.escapeHtml(a.injury ? a.injury.type : a.health)}</span>`
         },
-        {
+        canManage && {
           key: 'captain', label: 'Capt',
           sortValue: (a) => UI.state.game.culture.captains[activeGender].includes(a.id) ? 1 : 0,
           render: (a) => {
@@ -63,7 +66,7 @@
             return `<button class="btn small" data-capt="${a.id}" title="Name captain (leadership ${a.leadership})">C?</button>`;
           }
         },
-        {
+        canManage && {
           key: 'redshirt', label: 'Redshirt',
           sortValue: (a) => a.redshirt,
           render: (a) => {
@@ -75,7 +78,7 @@
             return `<button class="btn small" data-rs="${a.id}" ${chk.ok ? '' : `disabled title="${chk.why}"`}>Redshirt</button>`;
           }
         }
-      ]
+      ].filter(Boolean)
     });
 
     // Capturing delegate: survives table re-sorts and beats the row-click

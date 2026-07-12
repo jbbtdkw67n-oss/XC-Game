@@ -51,8 +51,9 @@
     const timelineHtml = stints.length ? stints.map((s) => {
       const end = s.endYear ? s.endYear : (retired ? s.endYear : 'present');
       const div = s.division && s.division !== 'DI' ? ` <span style="color:var(--text-faint);">${s.division}</span>` : '';
+      const roleTag = s.role === 'Assistant' ? ' <span style="color:var(--text-faint); font-size:11px;">(Assistant)</span>' : '';
       return `<div class="attr-row">
-        <span>${Utils.escapeHtml(s.school)}${div}</span>
+        <span>${Utils.escapeHtml(s.school)}${div}${roleTag}</span>
         <span style="color:var(--text-dim);">${s.startYear}–${end}</span>
       </div>`;
     }).join('') : '<div style="color:var(--text-dim); font-size:13px;">No coaching stops recorded.</div>';
@@ -66,8 +67,13 @@
             ${retired ? '<span style="color:var(--text-faint);">Retired</span> • ' : ''}Age ${coach.age || '—'} •
             ${school ? Utils.escapeHtml(school.name) + ' (' + Utils.escapeHtml(school.conference) + ')' : (retired ? 'Career complete' : 'Free agent')}
           </div>
-          <div class="sub">${repIcon} ${Utils.escapeHtml(repLabel)} • ${Utils.escapeHtml(coach.archetype || 'Developer')}</div>
+          <div class="sub">${repIcon} ${Utils.escapeHtml(repLabel)} • ${Utils.escapeHtml(coach.archetype || 'Developer')}${coach.role === 'Assistant' ? ' • <span style="color:var(--accent);">Recruiting Coordinator</span>' : ''}</div>
           <div class="sub">${philosophyLine(coach)}</div>
+          ${(!retired && school && coach.role !== 'Assistant' && coach.reputation !== undefined) ? (() => {
+            const st = D.seatStatus(coach.hotSeat || 0);
+            const color = st.key === 'hot' ? 'var(--danger)' : st.key === 'warm' ? 'var(--warning)' : 'var(--success)';
+            return `<div class="sub" title="${st.desc}">Job security: <span style="color:${color}; font-weight:600;">${st.icon} ${st.label}</span></div>`;
+          })() : ''}
         </div>
         <div style="text-align:right;">
           <div style="font-size:26px; font-weight:800;">${Math.round(coach.reputation || 0)}</div>

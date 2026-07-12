@@ -10,6 +10,54 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 6.0 — Update 5: Living Dynasty & Coaching Careers
+
+Update 5 makes a dynasty feel alive over decades. You can now build a coaching
+career from the ground up, athletes carry two-sided loyalty that drives real
+transfer stories, every coach's chair carries visible pressure, and elite
+talent is guaranteed to keep flowing so Year 30 feels as strong as Year 1.
+
+- **Assistant Coach career path.** Choose your starting role when you create a
+  dynasty: begin as a **Head Coach** with full control, or as an **Assistant
+  Coach** (recruiting coordinator) who runs *only* recruiting, scholarship
+  allocation, and scouting while an established head coach handles training,
+  scheduling, redshirts, and race strategy. Build top recruiting classes to
+  grow your reputation and earn **head-coaching offers** — recruit your way
+  into your own program, then take the reins. Coach creation is identical for
+  both paths; only the starting position differs. Saves default every existing
+  dynasty to Head Coach.
+- **Two-sided athlete loyalty.** The mental model is rebuilt around what
+  actually keeps a runner home: **Work Ethic** (drives the biggest offseason
+  leaps — 90+ grinders can jump 6-7 overall), **Confidence** (a dynamic belief
+  metric built by strong races and PRs, dented by injuries and layoffs, with a
+  real race-day payoff), **Mental Toughness** (lose far less on hilly, wet, hot,
+  or cold courses), **Academics**, and — new — separate **Coach Relationship**
+  and **Team Relationship** attributes. An athlete may stay for a beloved coach
+  despite weak team chemistry, or for close friendships despite a frosty staff
+  relationship. Both feed the transfer portal with legible, distinct reasons, so
+  no two exits feel the same.
+- **Coaching expectations & job security.** Every program now carries clear
+  annual expectations scaled by prestige, division pressure, budget, history,
+  and conference strength, shown on your dashboard. Coach profiles display a
+  live **🟢 Stable / 🟠 Warm Seat / 🔥 Hot Seat** status; sustained misses heat
+  the seat for AI coaches (who get fired) and for you (you get warned, never
+  auto-fired — your dynasty continues).
+- **Elite talent that never runs dry.** Every recruiting class is now guaranteed
+  a floor of legitimate **blue-chip prospects**, on top of the existing
+  ⭐ generational once-in-a-decade talents, so the average Division I runner
+  stays as strong deep into a dynasty as on day one.
+- **High-altitude programs.** Elevation is a real program characteristic:
+  altitude schools get a steady lift to **Stamina** and **Lactate Threshold**,
+  but the thin air taxes recovery — athletes fatigue faster, so workload must be
+  managed more carefully. A realistic edge, never a free win.
+- **Recruiting rating pays off.** A coach's **Recruiting** rating now directly
+  buys weekly recruiting points, so elite recruiters meaningfully out-work weak
+  ones over many cycles.
+
+Saves upgrade automatically: coaches gain a role, athletes gain their coach/team
+relationship attributes (seeded from morale), and every pre-Update-5 dynasty
+starts as a Head Coach.
+
 ## Version 5.0 — Update 4: Identity, History & Prestige
 
 Update 4 deepens the dynasty: coaches gain distinct identities, every athlete

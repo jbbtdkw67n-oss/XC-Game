@@ -318,7 +318,7 @@
 
     Object.values(gameState.world.schools).forEach((school) => {
       const coach = gameState.getCoach(school.coachId);
-      if (!coach || coach.isPlayer) return;
+      if (!coach) return;
 
       // Expectation scales with the division's pressure and the school's
       // prestige, measured against the school's own division field.
@@ -330,6 +330,18 @@
 
       coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(underperformance * 55), 0, 100);
       if (underperformance < -0.08) coach.hotSeat = Math.max(0, coach.hotSeat - 18);
+
+      // The player's seat heats up too (Update 5, Part 5) so the job-security
+      // label means something — but the player is never auto-fired here; their
+      // dynasty continues, with warnings, until they choose to move on.
+      if (coach.isPlayer) {
+        if (coach.hotSeat >= 60 && coach.yearsAtSchool >= 3) {
+          gameState.logNews(`🔥 HOT SEAT: The ${school.name} administration expected more — another poor season could cost you the job.`);
+        } else if (coach.hotSeat >= 34 && coach.hotSeat < 60) {
+          gameState.logNews(`🟠 Warm seat: results are trailing expectations at ${school.name}. Boosters are restless.`);
+        }
+        return;
+      }
 
       if (coach.hotSeat >= 60 && coach.yearsAtSchool >= 3 && rng.bool(0.45) && fired < 20) {
         fired++;

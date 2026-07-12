@@ -32,6 +32,15 @@
         mentalToughness: 60,
         raceIQ: 55,
         personality: 'Grinder',
+        // Relationship attributes (Update 5, Part 7): loyalty is two-sided.
+        // Coach Relationship tracks the bond with the head coach (playing
+        // time, redshirt calls, injuries, development, communication);
+        // Team Relationship tracks chemistry with teammates. An athlete may
+        // stay for a beloved coach despite weak team chemistry, or remain for
+        // close friendships despite a frosty coach relationship. Both feed the
+        // transfer portal — poor relationships raise transfer probability.
+        coachRelationship: 60,
+        teamRelationship: 60,
 
         // Preferences (used heavily by recruiting engine, phase 2)
         preferredDistance: 'All-Around',
@@ -97,6 +106,15 @@
         ...data
       });
       this.migrateLegacyRatings(data);
+      // Update 5, Part 7: relationship attributes. Saves from before this
+      // update seed both from morale so existing rosters carry believable
+      // loyalty without a regeneration.
+      if (data && data.coachRelationship === undefined) {
+        this.coachRelationship = Utils.clamp(Math.round((this.morale ?? 70) * 0.7 + 20), 15, 95);
+      }
+      if (data && data.teamRelationship === undefined) {
+        this.teamRelationship = Utils.clamp(Math.round((this.morale ?? 70) * 0.6 + (this.leadership ?? 50) * 0.2 + 12), 15, 95);
+      }
       // Backfill the accolade ledger for saves from before Update 4 so old
       // careers still show a complete, richly-labeled history.
       if (!Array.isArray(this.accolades)) this.accolades = [];

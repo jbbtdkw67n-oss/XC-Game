@@ -11,9 +11,10 @@
   ];
 
   const MENTAL_ATTRS = [
-    ['mentalToughness', 'Mental Toughness'], ['raceIQ', 'Race IQ'], ['discipline', 'Discipline'],
-    ['leadership', 'Leadership'], ['confidence', 'Confidence'], ['consistency', 'Consistency'],
-    ['workEthic', 'Work Ethic'], ['coachability', 'Coachability'], ['academics', 'Academics']
+    ['workEthic', 'Work Ethic'], ['confidence', 'Confidence'], ['mentalToughness', 'Mental Toughness'],
+    ['academics', 'Academics'], ['coachRelationship', 'Coach Relationship'], ['teamRelationship', 'Team Relationship'],
+    ['raceIQ', 'Race IQ'], ['discipline', 'Discipline'], ['leadership', 'Leadership'],
+    ['consistency', 'Consistency'], ['coachability', 'Coachability']
   ];
 
   UI.showPlayerCard = function (athlete, game) {

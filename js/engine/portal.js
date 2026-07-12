@@ -131,6 +131,20 @@
     // Low coach relationship: unhappy AND unheard.
     if (a.morale < 50 && coach && (coach.relationships || 55) < 45) add(10, R.relationship);
 
+    // Relationship attributes (Update 5, Part 7): loyalty is two-sided and
+    // athlete-specific. A frayed bond with the coach OR a disconnect from
+    // teammates each pushes toward the door — but a strong bond in either
+    // direction is a genuine anchor, so a runner may stay for a coach they
+    // love despite weak team chemistry, or for close friends despite a cold
+    // relationship with the staff. No two exits weigh the same.
+    const coachRel = a.coachRelationship ?? 60;
+    const teamRel = a.teamRelationship ?? 60;
+    if (coachRel < 35) add(coachRel < 22 ? 20 : 12, R.relationship);
+    if (teamRel < 35) add(teamRel < 22 ? 16 : 10, R.teamChem);
+    // Strong bonds keep runners home even when other things go wrong.
+    if (coachRel >= 72) u -= (coachRel - 70) * 0.5;
+    if (teamRel >= 72) u -= (teamRel - 70) * 0.4;
+
     // Homesickness
     const dist = a.hometownState === 'INT' ? 0 : RE.distanceMiles(a.hometownState, school.state);
     if (dist > 900) add(a.personality === 'Anxious' ? 16 : 11, R.homesick);

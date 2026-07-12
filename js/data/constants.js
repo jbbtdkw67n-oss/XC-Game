@@ -443,6 +443,23 @@
     return D.REPUTATION_LEVELS.find((l) => rep >= l.min) || D.REPUTATION_LEVELS[D.REPUTATION_LEVELS.length - 1];
   };
 
+  /* ------------------------------------------------------------------ *
+   * Job security (Update 5, Part 5): every coach's chair carries a
+   * legible status derived from the hot-seat pressure that builds when a
+   * program underperforms its expectations for multiple seasons. Shown on
+   * coach profiles and the player's dashboard so the carousel feels alive.
+   * ------------------------------------------------------------------ */
+  D.SEAT_STATUSES = [
+    { min: 62, key: 'hot',    label: 'Hot Seat',   icon: '🔥', desc: 'Another poor season likely ends this tenure.' },
+    { min: 34, key: 'warm',   label: 'Warm Seat',  icon: '🟠', desc: 'Expectations are being missed — the pressure is building.' },
+    { min: 0,  key: 'stable', label: 'Stable',     icon: '🟢', desc: 'The job is secure; results meet or beat expectations.' }
+  ];
+
+  D.seatStatus = function (hotSeat) {
+    const h = hotSeat || 0;
+    return D.SEAT_STATUSES.find((s) => h >= s.min) || D.SEAT_STATUSES[D.SEAT_STATUSES.length - 1];
+  };
+
   /*
    * Coaching tendencies (Part 2): every coach — AI and player alike —
    * carries identity traits that shape how they run their program over
@@ -494,6 +511,7 @@
     contender:    'Championship aspirations',
     trainingFit:  'Poor training fit',
     relationship: 'Low coach relationship',
+    teamChem:     'Disconnected from teammates',
     nil:          'NIL opportunities',
     style:        'Playing style mismatch',
     overtraining: 'Overtraining',
