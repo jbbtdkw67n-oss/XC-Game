@@ -34,7 +34,7 @@
   function generateOffers(gameState, rng) {
     const school = gameState.getPlayerSchool();
     const coach = gameState.getPlayerCoach();
-    const rep = coach.reputation || 25;
+    const rep = coach.reputation || 20;
     const rank = bestPlayerRank(gameState);
     const total = window.XCD.engine.Coaching.divisionSize(gameState, school.division);
 
@@ -43,23 +43,55 @@
       s.id !== gameState.playerSchoolId && (!s.coachId || !gameState.world.coaches[s.coachId]));
     if (!vacancies.length) { gameState.jobOffers = null; return; }
 
-    // Interest: your reputation must fit the chair. Big programs want
-    // proven names; small programs will bet on a riser. A legendary coach
-    // fields calls from everywhere.
+    // Did you win a title this season? Titles turn heads immediately.
+    const year = gameState.year;
+    const conf = (gameState.history.conferenceChampions || {})[year] || {};
+    const nat = (gameState.history.nationalChampions || {})[year] || {};
+    const wonConf = conf[`${school.conference}-M`] === school.name || conf[`${school.conference}-W`] === school.name;
+    const wonNat = ['M', 'W'].some((g) => {
+      const key = (school.division || 'DI') === 'DI' ? g : `${school.division}-${g}`;
+      return nat[key] && nat[key].teamId === school.id;
+    });
+
+    // Your résumé is more than a reputation number: running a real program and
+    // beating expectations this season carry weight too, so a coach who is
+    // winning gets calls from peer programs before their "name" fully catches
+    // up. (Interest is what athletic directors see when they pick up the phone.)
     const expectedRank = Math.round((1 - school.prestige / 100) * total);
-    const overachievement = expectedRank - rank;
+    const overachievement = expectedRank - rank; // positive = beating expectations
+    // Beating expectations lifts your stock; badly missing them cools the
+    // market this cycle. The penalty is capped so one rough year doesn't erase
+    // an established name entirely.
+    const seasonSwing = overachievement >= 0
+      ? overachievement * 0.18
+      : Math.max(-32, overachievement * 0.22);
+    const resume = rep
+      + Math.max(0, school.prestige - 35) * 0.30       // steering a legitimate program
+      + seasonSwing                                    // how this season actually went
+      + (rank <= 15 ? 12 : rank <= 40 ? 6 : rank <= 90 ? 3 : 0) // a strong national showing
+      + (wonNat ? 15 : wonConf ? 7 : 0);               // hardware on the mantle
+
     const candidates = vacancies.filter((s) => {
-      const fit = rep - (s.prestige * 0.75 - 12); // rep needed scales with the job
-      if (fit < 0 && !(overachievement > 60 && rng.bool(0.4))) return false;
-      // Lateral and downward offers only make sense with some pull factor.
-      if (s.prestige < school.prestige - 20 && rep > s.prestige) return rng.bool(0.35);
+      const need = s.prestige * 0.68 - 10;             // reputation the chair expects
+      const fit = resume - need;
+      // A near-miss still gets a look when you're clearly overachieving.
+      if (fit < -6 && !(overachievement > 30 && rng.bool(0.5))) return false;
+      // A big step down needs a genuine reason to tempt you (still surfaced,
+      // just rarer) — no one calls a rising coach about a far-lesser job often.
+      if (s.prestige < school.prestige - 25 && resume > s.prestige + 10) return rng.bool(0.4);
       return true;
     });
     if (!candidates.length) { gameState.jobOffers = null; return; }
 
-    // Not every fit calls: reputation drives volume of interest.
-    const interested = candidates.filter(() => rng.bool(Utils.clamp(0.25 + rep / 160, 0.2, 0.8)));
-    if (!interested.length) { gameState.jobOffers = null; return; }
+    // Not every fit calls, but a stronger résumé means more phones ring.
+    let interested = candidates.filter(() => rng.bool(Utils.clamp(0.32 + resume / 140, 0.28, 0.85)));
+    // A standout season (national top-15 or a title) all but guarantees that
+    // at least one suitor comes calling if any program fits.
+    if (!interested.length) {
+      if ((rank <= 15 || wonConf || wonNat) && candidates.length) {
+        interested = [rng.choice(candidates)];
+      } else { gameState.jobOffers = null; return; }
+    }
 
     const bestRankOf = (sid) => {
       const r = gameState.rankings;
@@ -86,7 +118,7 @@
         expectations: Math.round((window.XCD.data.divisionFor(s).expectations || 1) * 100),
         natTitles: (hs.nationalTitlesM || 0) + (hs.nationalTitlesW || 0),
         confTitles: (hs.conferenceTitlesM || 0) + (hs.conferenceTitlesW || 0),
-        repFit: Utils.clamp(Math.round(rep - (s.prestige * 0.75 - 12) + 50), 0, 100),
+        repFit: Utils.clamp(Math.round(resume - (s.prestige * 0.68 - 10) + 50), 0, 100),
         kind: crossDiv && (s.division === 'DII' || s.division === 'DIII') && (school.division === 'DI')
             ? `Move to ${s.division}`
           : crossDiv && school.division !== 'DI' && s.division === 'DI' ? 'Jump to DI'

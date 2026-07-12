@@ -133,7 +133,7 @@
         yearsAtSchool: 0
       });
       playerCoach[arch.rating] = 64;
-      playerCoach.reputation = 12; // everyone starts as an unknown
+      playerCoach.reputation = 20; // a fresh hire — unproven, but on the radar
       gs.world.coaches[playerCoach.id] = playerCoach;
       school.coachId = playerCoach.id;
       gs.playerCoachId = playerCoach.id;
