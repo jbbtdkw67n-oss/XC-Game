@@ -348,8 +348,44 @@
     return { schools, coaches, athletes, schoolOrder, seed };
   }
 
+  /*
+   * Build only the Division II and III worlds (Update 3 save migration):
+   * existing DI-only dynasties gain the lower divisions so all three
+   * coexist. Returns plain maps to merge into an existing world.
+   */
+  function generateLowerDivisions(seed, options = {}) {
+    const rng = new window.XCD.core.SeededRNG((seed ^ 0xD22D33) >>> 0);
+    const rosterMin = options.rosterMin ?? 14;
+    const rosterMax = options.rosterMax ?? 14;
+    const schools = {};
+    const coaches = {};
+    const athletes = {};
+    const order = [];
+
+    [['DII', D.RAW_SCHOOLS_DII || []], ['DIII', D.RAW_SCHOOLS_DIII || []]].forEach(([division, raws]) => {
+      if (!D.divisionFor(division).active) return;
+      raws.forEach((raw) => {
+        const school = buildSchool(rng, raw, division);
+        const coach = buildCoach(rng, school, false);
+        school.coachId = coach.id;
+        const assistant = buildCoach(rng, school, false, 'Assistant');
+        school.assistantId = assistant.id;
+        coaches[assistant.id] = assistant;
+        coaches[coach.id] = coach;
+        const rM = rng.int(rosterMin, rosterMax);
+        const rW = rng.int(rosterMin, rosterMax);
+        for (let i = 0; i < rM; i++) { const a = buildAthlete(rng, school, 'M'); athletes[a.id] = a; school.rosterM.push(a.id); }
+        for (let i = 0; i < rW; i++) { const a = buildAthlete(rng, school, 'W'); athletes[a.id] = a; school.rosterW.push(a.id); }
+        schools[school.id] = school;
+        order.push(school.id);
+      });
+    });
+    return { schools, coaches, athletes, order };
+  }
+
   window.XCD.engine.WorldGenerator = {
     generate,
+    generateLowerDivisions,
     buildAthlete,
     buildWalkOn,
     buildReplacementCoach: (rng, school) => buildCoach(rng, school, false)

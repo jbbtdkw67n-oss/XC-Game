@@ -469,6 +469,11 @@
       }
       // Team morale: seed any school missing it (older saves / new field).
       window.XCD.engine.Morale.init(gs);
+
+      // Tell the player when their dynasty was upgraded into the multi-division world.
+      if (obj.__migratedDivisions) {
+        gs.logNews('🏛 Your dynasty has joined the new three-division NCAA: Division II and Division III programs now compete alongside you, with their own conferences, regionals, and championships. Your program, roster, and history carried over intact.');
+      }
       return gs;
     }
 
@@ -497,12 +502,33 @@
         if (obj.recruiting) obj.recruiting.actionsThisWeek = {};
         obj.weeklyFlow = { trainingConfirmed: false, recruitingDone: false };
       }
+
+      // v3 -> v4 (Update 3): the world becomes multi-division. Existing
+      // DI-only dynasties gain the full DII and DIII ecosystems so all three
+      // coexist. The player's program, roster, history, and career are
+      // untouched — the lower divisions are simply added alongside.
+      if (from < 4) {
+        const hasLower = obj.world && Object.values(obj.world.schools || {})
+          .some((s) => (s.division || 'DI') !== 'DI');
+        if (obj.world && !hasLower && window.XCD.engine.WorldGenerator.generateLowerDivisions) {
+          const lower = window.XCD.engine.WorldGenerator.generateLowerDivisions((obj.seed || 1) >>> 0);
+          Object.assign(obj.world.schools, lower.schools);
+          Object.assign(obj.world.coaches, lower.coaches);
+          Object.assign(obj.world.athletes, lower.athletes);
+          obj.world.schoolOrder = (obj.world.schoolOrder || []).concat(lower.order);
+          obj.season = null;   // rebuild division-aware postseason + Pre-Nationals
+          obj.rankings = null; // recompute per-division polls
+          obj.__migratedDivisions = true;
+        }
+        if (obj.recruiting && obj.recruiting.auto === undefined) obj.recruiting.auto = false;
+      }
+
       obj.saveVersion = GameState.SAVE_VERSION;
       return obj;
     }
   }
 
-  GameState.SAVE_VERSION = 3;
+  GameState.SAVE_VERSION = 4;
 
   window.XCD.engine.GameState = GameState;
 })();

@@ -250,15 +250,31 @@
     const nilScore = division.nil ? Utils.clamp(school.budget.nil / 1200, 5, 100) : 5;
     const academicsFit = a.academics > 75 ? school.academics : 50;
 
+    // Championship opportunity (Update 3): a genuine shot at contending —
+    // making nationals and finishing high — pulls transfers across divisions
+    // in both directions (a buried DI runner drops to DII/DIII to race and
+    // win; a DIII star climbs to chase DI titles).
+    let champOpp = recentSuccess * 0.5;
+    if (gameState.season && gameState.season.championships) {
+      const champ = gameState.season.championships[school.division || 'DI'];
+      const inField = champ && champ.fieldIds &&
+        ((champ.fieldIds[a.gender] || []).includes(school.id));
+      if (inField) champOpp += 30; // this program goes to nationals
+    }
+    if (playingTime >= 90 && school.prestige >= 55) champOpp += 15; // star who'd score right away
+
+    // DIII athletes weigh academics/campus fit far more (division identity).
+    const academicWeight = division.academicEmphasis >= 1.4 ? 0.10 : 0.05;
+
     return Utils.clamp(
-      school.prestige * 0.22 +
-      playingTime * 0.22 +
-      rep * 0.13 +
-      recentSuccess * 0.09 +
+      school.prestige * 0.20 +
+      playingTime * 0.20 +
+      rep * 0.12 +
+      champOpp * 0.10 +
       Utils.clamp(100 - dist / 18, 0, 100) * 0.09 +
       school.facilitiesOverall * 0.07 +
       trainingFit * 0.06 +
-      academicsFit * 0.05 +
+      academicsFit * academicWeight +
       nilScore * 0.04 +
       pull * 0.03 +
       (school.conferenceTier === 1 ? 5 : 0) +
@@ -337,10 +353,12 @@
       entry.destination = choice.sid;
       entry.decidedWeek = gameState.week;
       const to = gameState.getSchool(choice.sid);
+      const crossDiv = fromSchool && (fromSchool.division || 'DI') !== (to.division || 'DI');
+      const moveNote = crossDiv ? ` (${fromSchool.division || 'DI'} → ${to.division || 'DI'})` : '';
       if (choice.sid === gameState.playerSchoolId) {
-        gameState.logNews(`✅ TRANSFER COMMIT: ${a.fullName} (${a.currentOverall} OVR) is coming to ${to.name} from ${fromSchool?.name}!`);
-      } else if (a.currentOverall >= 72 || entry.fromSchoolId === gameState.playerSchoolId) {
-        gameState.logNews(`Transfer: ${a.fullName} picks ${to.name} over ${entry.offers.length - 1} other offer${entry.offers.length > 2 ? 's' : ''}.`);
+        gameState.logNews(`✅ TRANSFER COMMIT: ${a.fullName} (${a.currentOverall} OVR) is coming to ${to.name} from ${fromSchool?.name}${moveNote}!`);
+      } else if (a.currentOverall >= 72 || entry.fromSchoolId === gameState.playerSchoolId || crossDiv) {
+        gameState.logNews(`Transfer: ${a.fullName} picks ${to.name}${moveNote} over ${entry.offers.length - 1} other offer${entry.offers.length > 2 ? 's' : ''}.`);
       }
     });
 
