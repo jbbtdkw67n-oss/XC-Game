@@ -158,7 +158,7 @@
           <thead><tr><th>#</th><th>Coach</th><th>Reputation</th><th>School</th><th class="num">Natl</th><th class="num">Conf</th><th class="num">Best Poll</th></tr></thead>
           <tbody>
             ${rows.map((r) => `
-              <tr ${r.isPlayer ? 'style="background:var(--accent-soft);"' : ''}>
+              <tr class="clickable" data-coach="${r.coachId}" ${r.isPlayer ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>${r.rank}</td>
                 <td><strong>${Utils.escapeHtml(r.name)}</strong>${r.isPlayer ? ' (You)' : ''}</td>
                 <td>${r.reputation} <span style="color:var(--text-dim); font-size:11.5px;">${Utils.escapeHtml(r.repLabel)}</span></td>
@@ -179,11 +179,19 @@
         </div>
       </div>`;
 
+    // Clicking an active-ranking row opens that coach's full profile.
+    el.querySelectorAll('[data-coach]').forEach((tr) => {
+      tr.addEventListener('click', () => {
+        const c = game.getCoach(tr.dataset.coach);
+        if (c) UI.showCoachCard(c, game);
+      });
+    });
+
     const list = el.querySelector('#registry-list');
     const draw = (q) => {
       const filtered = registry.filter((c) => !q || c.name.toLowerCase().includes(q));
-      list.innerHTML = filtered.slice(0, 40).map((c) => `
-        <div class="attr-row" style="padding:8px 0; align-items:flex-start;">
+      list.innerHTML = filtered.slice(0, 40).map((c, i) => `
+        <div class="attr-row clickable" data-reg="${i}" style="padding:8px 0; align-items:flex-start; cursor:pointer;">
           <span style="min-width:220px;"><strong>${c.portrait || '🧢'} ${Utils.escapeHtml(c.name)}</strong>${c.isPlayer ? ' (You)' : ''}
             <div style="color:var(--text-dim); font-size:12px;">${Utils.escapeHtml(c.reputationLabel || '')} • ${c.reason === 'retired' ? `retired ${c.year}, age ${c.age}` : `left the profession ${c.year}`}</div>
           </span>
@@ -192,6 +200,9 @@
             <div>${(c.stints || []).map((s) => `${Utils.escapeHtml(s.school)} '${String(s.startYear).slice(2)}–'${String(s.endYear).slice(2)}`).join(' → ')}</div>
           </span>
         </div>`).join('') || '<div style="color:var(--text-dim); font-size:13px;">No matches.</div>';
+      list.querySelectorAll('[data-reg]').forEach((row) => {
+        row.addEventListener('click', () => UI.showCoachCard(filtered[Number(row.dataset.reg)], game, { retired: true }));
+      });
     };
     draw('');
     el.querySelector('#coach-search').addEventListener('input', (e) => draw(e.target.value.toLowerCase()));

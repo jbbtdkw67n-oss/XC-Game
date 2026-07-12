@@ -111,18 +111,34 @@
 
       ${game.jobOffers && game.jobOffers.offers.length ? `
         <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent);">
-          <h2>📞 Athletic Directors Are Calling</h2>
+          <h2>📞 Job Offers — the Offseason Carousel</h2>
           <div style="color:var(--text-dim); font-size:13px; margin-bottom:10px;">
-            Offers expire Week ${game.jobOffers.expiresWeek}. Leaving resets your recruiting board relationships and team culture.
+            Multiple programs want you. Accept one, stay loyal, or wait and decide later (offers hold until Week ${game.jobOffers.expiresWeek}).
+            Leaving resets your recruiting board and team culture; your career record travels with you.
           </div>
-          ${game.jobOffers.offers.map((o) => `
-            <div class="attr-row" style="padding:6px 0;">
-              <span>${o.kind === 'Dream job' ? '🌟 ' : ''}<strong>${Utils.escapeHtml(o.schoolName)}</strong>
-                <span style="color:var(--text-dim);">(${Utils.escapeHtml(o.conference)} • prestige ${o.prestige})</span>
-                ${o.kind ? `<span class="rating ${o.kind === 'Dream job' ? 'r-elite' : o.kind === 'Step up' ? 'r-great' : o.kind === 'Lateral move' ? 'r-avg' : 'r-poor'}" style="margin-left:6px;">${o.kind}</span>` : ''}</span>
-              <button class="btn small primary" data-accept="${o.schoolId}">Accept Job</button>
-            </div>`).join('')}
-          <div style="margin-top:8px;"><button class="btn small danger" id="btn-decline-offers">Stay Loyal</button></div>
+          <div class="table-wrap"><table class="data">
+            <thead><tr><th>School</th><th>Div</th><th>Conf</th><th class="num">Prestige</th><th class="num">Budget</th><th class="num">Facilities</th><th class="num">Recent</th><th class="num">Titles</th><th>Fit</th><th></th></tr></thead>
+            <tbody>
+              ${game.jobOffers.offers.map((o) => `
+                <tr>
+                  <td>${o.kind === 'Dream job' ? '🌟 ' : ''}<strong>${Utils.escapeHtml(o.schoolName)}</strong>
+                    <div><span class="rating ${o.kind === 'Dream job' || o.kind === 'Jump to DI' ? 'r-elite' : o.kind === 'Step up' ? 'r-great' : o.kind === 'Lateral move' ? 'r-avg' : 'r-poor'}" style="font-size:10px;">${o.kind}</span></div></td>
+                  <td>${o.division}</td>
+                  <td style="font-size:12px;">${Utils.escapeHtml(o.conference)}</td>
+                  <td class="num">${o.prestige}</td>
+                  <td class="num">$${o.budget ? (o.budget / 1000).toFixed(0) + 'k' : '—'}</td>
+                  <td class="num">${o.facilities ?? '—'}</td>
+                  <td class="num">${o.bestRank ? '#' + o.bestRank : '—'}</td>
+                  <td class="num">${o.natTitles || 0}🏆</td>
+                  <td>${UI.meter(o.repFit ?? 50, o.repFit >= 60 ? 'green' : o.repFit >= 40 ? 'yellow' : 'red')}</td>
+                  <td><button class="btn small primary" data-accept="${o.schoolId}">Accept</button></td>
+                </tr>`).join('')}
+            </tbody>
+          </table></div>
+          <div style="margin-top:10px; display:flex; gap:8px;">
+            <button class="btn small danger" id="btn-decline-offers">Stay Loyal (Decline All)</button>
+            <button class="btn small" id="btn-wait-offers">Wait — Decide Later</button>
+          </div>
         </div>` : ''}
 
       ${nextMeet ? `
@@ -189,6 +205,10 @@
       window.XCD.engine.Careers.declineOffers(game);
       UI.toast('You recommit to the program.', 'success');
       render(container);
+    });
+    const waitBtn = container.querySelector('#btn-wait-offers');
+    if (waitBtn) waitBtn.addEventListener('click', () => {
+      UI.toast(`Offers stay open until Week ${game.jobOffers.expiresWeek}. Take your time.`, 'info');
     });
   }
 

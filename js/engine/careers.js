@@ -61,17 +61,41 @@
     const interested = candidates.filter(() => rng.bool(Utils.clamp(0.25 + rep / 160, 0.2, 0.8)));
     if (!interested.length) { gameState.jobOffers = null; return; }
 
-    const offers = rng.shuffle(interested).slice(0, 3).map((s) => ({
-      schoolId: s.id,
-      schoolName: s.name,
-      prestige: s.prestige,
-      conference: s.conference,
-      division: s.division || 'DI',
-      kind: s.prestige >= 85 && s.conferenceTier === 1 ? 'Dream job'
-        : s.prestige >= school.prestige + 10 ? 'Step up'
-        : s.prestige >= school.prestige - 8 ? 'Lateral move'
-        : 'Step down'
-    })).sort((a, b) => b.prestige - a.prestige);
+    const bestRankOf = (sid) => {
+      const r = gameState.rankings;
+      if (!r) return null;
+      const m = r.M.find((x) => x.schoolId === sid);
+      const w = r.W.find((x) => x.schoolId === sid);
+      const b = Math.min(m ? m.rank : 999, w ? w.rank : 999);
+      return b < 999 ? b : null;
+    };
+    const offers = rng.shuffle(interested).slice(0, 3).map((s) => {
+      const hs = s.historicalSuccess || {};
+      const crossDiv = (s.division || 'DI') !== (school.division || 'DI');
+      return {
+        schoolId: s.id,
+        schoolName: s.name,
+        prestige: s.prestige,
+        conference: s.conference,
+        division: s.division || 'DI',
+        // Rich offer detail (Update 3 Job Offer phase).
+        budget: s.budget.total,
+        facilities: s.facilitiesOverall,
+        academics: s.academics,
+        bestRank: bestRankOf(s.id),
+        expectations: Math.round((window.XCD.data.divisionFor(s).expectations || 1) * 100),
+        natTitles: (hs.nationalTitlesM || 0) + (hs.nationalTitlesW || 0),
+        confTitles: (hs.conferenceTitlesM || 0) + (hs.conferenceTitlesW || 0),
+        repFit: Utils.clamp(Math.round(rep - (s.prestige * 0.75 - 12) + 50), 0, 100),
+        kind: crossDiv && (s.division === 'DII' || s.division === 'DIII') && (school.division === 'DI')
+            ? `Move to ${s.division}`
+          : crossDiv && school.division !== 'DI' && s.division === 'DI' ? 'Jump to DI'
+          : s.prestige >= 85 && s.conferenceTier === 1 ? 'Dream job'
+          : s.prestige >= school.prestige + 10 ? 'Step up'
+          : s.prestige >= school.prestige - 8 ? 'Lateral move'
+          : 'Step down'
+      };
+    }).sort((a, b) => b.prestige - a.prestige);
 
     gameState.jobOffers = { year: gameState.year, expiresWeek: OFFER_EXPIRY_WEEK, offers };
     gameState.logNews(`📞 Your phone is ringing: ${offers.length === 1 ? offers[0].schoolName + ' wants' : offers.length + ' programs want'} to talk about their head coaching job.`);
@@ -202,8 +226,9 @@
     }
 
     // 3) Promote an unknown assistant — everyone's career starts somewhere.
+    // Fresh coaches enter the profession young (25-40), per Update 3.
     const replacement = window.XCD.engine.WorldGenerator.buildReplacementCoach(rng, school);
-    replacement.age = Math.min(replacement.age, 48);
+    replacement.age = rng.int(25, 40);
     replacement.reputation = Utils.clamp(replacement.reputation || 15, 3, 30); // an unknown, by definition
     replacement.stints = [];
     gameState.world.coaches[replacement.id] = replacement;
@@ -228,7 +253,11 @@
     Object.values(gameState.world.schools).forEach((school) => {
       const coach = school.coachId && gameState.world.coaches[school.coachId];
       if (!coach || coach.isPlayer) return;
-      if (coach.age >= coach.retireAge) {
+      // Some coaches retire earlier than their clock (Update 3): a small,
+      // age-scaled chance from the late 60s on — burnout, health, a good
+      // stopping point. Most still coach until 75+.
+      const earlyRetire = coach.age >= 66 && rng.bool(Math.min(0.14, (coach.age - 65) * 0.02));
+      if (coach.age >= coach.retireAge || earlyRetire) {
         Legacy.closeStint(gameState, coach, school, gameState.year);
         Legacy.recordRetiredCoach(gameState, coach, 'retired');
         delete gameState.world.coaches[coach.id];

@@ -950,6 +950,8 @@
       if (!a) return;
       Legacy.athleteHonor(gameState, a, 'allConference');
       Legacy.program(gameState, f.schoolId).allConference += 1;
+      const acCoach = gameState.getCoach(gameState.getSchool(f.schoolId)?.coachId);
+      if (acCoach) acCoach.careerRecord.allConference = (acCoach.careerRecord.allConference || 0) + 1;
       if (idx === 0) {
         Legacy.athleteHonor(gameState, a, 'confChamp');
         a.honors.confChamp += 1;

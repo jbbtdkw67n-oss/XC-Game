@@ -174,8 +174,9 @@
         hotSeat: 0, // 0-100, drives firing risk
         careerRecord: {
           wins: 0, losses: 0, conferenceTitles: 0, regionalTitles: 0, nationalTitles: 0,
-          seasons: 0, allAmericans: 0, indivNatChamps: 0, indivConfChamps: 0,
-          nationalsAppearances: 0, bestClassRank: null
+          seasons: 0, allAmericans: 0, allConference: 0, indivNatChamps: 0, indivConfChamps: 0,
+          nationalsAppearances: 0, bestClassRank: null,
+          confCOY: 0, natCOY: 0 // Conference / National Coach of the Year awards
         },
         // Career timeline (Part 9): every stop, forever.
         stints: [], // { schoolId, school, division, startYear, endYear }
@@ -191,7 +192,8 @@
     migrateUpdate2(data) {
       if (!data) return;
       const cr = this.careerRecord;
-      ['seasons', 'allAmericans', 'indivNatChamps', 'indivConfChamps', 'nationalsAppearances']
+      ['seasons', 'allAmericans', 'allConference', 'indivNatChamps', 'indivConfChamps',
+        'nationalsAppearances', 'confCOY', 'natCOY']
         .forEach((k) => { if (cr[k] === undefined) cr[k] = 0; });
       if (cr.bestClassRank === undefined) cr.bestClassRank = null;
       if (data.reputation === undefined) {

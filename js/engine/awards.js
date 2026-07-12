@@ -115,11 +115,32 @@
           const school = gameState.getSchool(best.schoolId);
           const coach = gameState.getCoach(school.coachId);
           yearAwards[gender].coachOfYear = { name: coach ? coach.fullName : '?', school: school.name };
+          if (coach) coach.careerRecord.natCOY = (coach.careerRecord.natCOY || 0) + 1;
           if (coach && coach.isPlayer) {
             gameState.logNews(`🏅 YOU are the ${label} ${divLabel} Coach of the Year (preseason #${(pre[best.schoolId] || '—')} → final #${best.finalRank})!`);
-            gameState.career.awards.push(`${label} Coach of the Year (${gameState.year})`);
+            gameState.career.awards.push(`${label} ${divLabel} Coach of the Year (${gameState.year})`);
           }
         }
+      }
+
+      // Conference Coach of the Year: biggest preseason→final climb within
+      // each conference in this division (all conferences, every year).
+      if (pre) {
+        const byConf = {};
+        divRankings(gender).forEach((r) => {
+          const s = gameState.getSchool(r.schoolId);
+          if (!s) return;
+          const climb = (pre[r.schoolId] || 200) - r.rank;
+          const cur = byConf[s.conference];
+          if (!cur || climb > cur.climb) byConf[s.conference] = { schoolId: r.schoolId, climb };
+        });
+        Object.values(byConf).forEach((w) => {
+          const c = gameState.getCoach(gameState.getSchool(w.schoolId)?.coachId);
+          if (c) {
+            c.careerRecord.confCOY = (c.careerRecord.confCOY || 0) + 1;
+            if (c.isPlayer) gameState.career.awards.push(`${gameState.getPlayerSchool().conference} Coach of the Year (${gameState.year})`);
+          }
+        });
       }
 
       // Academic All-Americans: best students among the division's top runners.
