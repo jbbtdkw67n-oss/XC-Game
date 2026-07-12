@@ -10,6 +10,7 @@ node tests/test-phase4.js      # dynamic race engine: passing, kicks, fades, eve
 node tests/test-phase5.js      # coach creation, 4 ratings, archetypes, upgrade points
 node tests/test-phase6to9.js   # facilities, 14/14 rosters + walk-ons, individual qualifiers, weekly flow
 node tests/test-update2.js     # Update 2: save migration, mileage/taper, reputation, divisions, ledgers
+node tests/test-update3.js     # Update 3: filter stress, 3 divisions, Pre-Nationals, auto-recruit, rest/morale/mileage, 40-season stability
 node tests/test-20seasons.js   # 20-season stress sim + balance + full UI sweep + save/load
 ```
 

@@ -1,6 +1,6 @@
 # Cross Country Dynasty
 
-A browser-based college cross country coaching dynasty game. Manage a Division I program over decades: recruit, train, race, and build the greatest dynasty in NCAA history.
+A browser-based college cross country coaching dynasty game. Coach a program in **NCAA Division I, II, or III** over decades: recruit, train, race, and build the greatest dynasty in NCAA history.
 
 Built entirely in vanilla HTML/CSS/JavaScript — no build step, no backend.
 
@@ -9,6 +9,47 @@ Built entirely in vanilla HTML/CSS/JavaScript — no build step, no backend.
 Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
+
+## Version 4.0 — Update 3: The Three-Division NCAA
+
+Update 3 completes the multi-division architecture: Divisions I, II, and III
+now coexist in one living NCAA ecosystem, each with its own real schools,
+conferences, recruiting reality, and separate postseason. You can coach in
+any division and build a career that climbs (or falls) between them.
+
+- **All three divisions, real programs.** ~200 DII and ~165 DIII schools
+  across every major conference (RMAC, GLIAC, PSAC, NSIC, WIAC, NESCAC, UAA,
+  MIAC, and more), with division-scaled prestige, budgets, scholarships/NIL,
+  and coach stature. Rankings run **within each division** — a DIII #1 is #1
+  in DIII, never buried under DI.
+- **Cross-division competition, separate championships.** Open invitationals
+  and regional meets mix all three divisions; conference, regionals, and
+  nationals stay strictly per-division (DI/DII at 10K, DIII at 8K).
+- **Pre-Nationals Invitational.** A DI-only elite meet on the NCAA
+  Championship course. An invite is an accomplishment; coaches accept or
+  decline by philosophy; racing it earns a small course-familiarity edge at
+  Nationals and heavy poll weight.
+- **Auto Recruiting.** A toggle that hands your board to the *exact* same CPU
+  recruiting AI every computer school uses — no cheating, on or off any time.
+- **Rest Days** as a selectable weekly workout: sharpen and recover, but
+  overuse stalls development.
+- **Team Morale** (0-100), driven mostly by coach Team Culture and by results
+  vs *expectations* (not raw win/loss) — a bounded race-day modifier,
+  amplified at championships, that never overrides talent.
+- **Mileage consequences.** Overreaching a body's durable limit drives
+  chronic overuse injuries (stress fractures, Achilles, plantar fasciitis),
+  burnout, confidence loss, and temporary regression.
+- **Coach careers.** Detailed coach profiles (age, titles, Coach of the Year
+  awards, athletes coached, full career timeline), ages 25-75 with realistic
+  retirement, free movement between divisions, and a richer offseason **Job
+  Offer** phase with program detail and accept / stay / wait.
+- **Save compatibility.** Existing Update 2 dynasties migrate automatically
+  (save v3 → v4): DII and DIII are generated alongside your untouched
+  program, roster, and history.
+
+Recruiting-filter crash (Star Rating / High School / JUCO) fixed — the Safari
+WebContent crash from rebuilding a `<select>` inside its own change handler is
+gone; filters now update in place with graceful empty states.
 
 ## Version 3.0 — Update 2: The Living NCAA
 
