@@ -573,10 +573,22 @@
 
     const hillFactor = meet.conditions.hilliness / 100;
 
+    // Per-team race-day form from team morale (Update 3): a coherent, bounded
+    // over/under-performance applied to every runner on the team, so a
+    // confident squad can collectively beat its projection (and a fractured
+    // one fall short) — amplified at championships, never overriding talent.
+    const isChampMeet = meet.type === 'conference' || meet.type === 'regional' || meet.type === 'national';
+    const Morale = window.XCD.engine.Morale;
+    const teamForm = {};
+    (meet.schoolIds || []).forEach((sid) => {
+      teamForm[sid] = Morale ? Morale.teamForm(gameState, sid, isChampMeet, rng) : 0;
+    });
+
     // --- Per-runner race state -----------------------------------------
     const runners = entries.map(({ athlete: a, schoolId, individual }) => {
       const rating = raceRating(a, distanceM);
       let total = baseTime(rating, gender, distanceM) * conditionsMultiplier(gameState, a, meet, gender);
+      if (teamForm[schoolId]) total *= 1 + teamForm[schoolId];
       const chem = gameState.getSchool(schoolId)?.chemistry?.[gender];
       if (chem !== undefined) total *= 1 + (55 - chem) * 0.0002;
       // Day form: consistent runners have narrower swings.
@@ -1139,6 +1151,9 @@
         if (meet.type === 'conference') recordConferenceChampions(gameState, meet, gender);
         if (meet.type === 'regional') recordRegionalChampions(gameState, meet, gender);
         if (meet.type === 'national') recordNationalChampions(gameState, meet, gender);
+
+        // Team morale responds to result-vs-expectation (Update 3).
+        if (window.XCD.engine.Morale) window.XCD.engine.Morale.afterMeet(gameState, meet, gender);
       });
 
       // Pre-Nationals media coverage (Update 3): previews already ran; this

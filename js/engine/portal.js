@@ -122,6 +122,12 @@
     if (coach) u -= (coach.culture - 50) * 0.20 + ((coach.relationships || 55) - 50) * 0.12;
     else add(8, R.culture);
 
+    // Team morale (Update 3): a fractured locker room drives athletes out;
+    // a confident one keeps them home. High morale = lower transfer risk.
+    const teamMorale = school.teamMorale ?? 65;
+    if (teamMorale < 42) add(13, R.culture);
+    else u -= (teamMorale - 60) * 0.16;
+
     // Low coach relationship: unhappy AND unheard.
     if (a.morale < 50 && coach && (coach.relationships || 55) < 45) add(10, R.relationship);
 
@@ -355,6 +361,7 @@
     const portal = gameState.portal;
     if (!portal) return 0;
     let moved = 0;
+    const outBySchool = {};
     portal.entries.forEach((entry) => {
       if (!entry.destination) return;
       const a = gameState.world.athletes[entry.athleteId];
@@ -366,12 +373,14 @@
       to[key].push(a.id);
       a.schoolId = to.id;
       a.morale = 72;
+      outBySchool[from.id] = (outBySchool[from.id] || 0) + 1;
       moved++;
     });
     gameState.history.portalSummaries = gameState.history.portalSummaries || {};
     gameState.history.portalSummaries[portal.year] = {
       entries: portal.entries.length,
-      moved
+      moved,
+      outBySchool
     };
     gameState.portal = null;
     return moved;

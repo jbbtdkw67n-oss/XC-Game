@@ -12,6 +12,7 @@
   let activeGender = 'M';
 
   const WORKOUT_HINTS = {
+    rest: 'Complete rest. Sheds fatigue, cuts injury risk, sharpens the legs — but too many rest days stall development.',
     easy: 'Steady aerobic mileage. Small stamina gains, light load.',
     recovery: 'Very easy jogging. Sheds fatigue; tiny stamina gains.',
     long: 'The weekly cornerstone: big stamina, some VO₂ Max.',
@@ -60,7 +61,7 @@
         <div class="stat-tile"><div class="label">Squad Fitness</div><div class="value">${avgFitness}</div>${UI.meter(avgFitness)}</div>
         <div class="stat-tile"><div class="label">Squad Fatigue</div><div class="value">${avgFatigue}</div>${UI.meter(avgFatigue, avgFatigue > 60 ? 'red' : avgFatigue > 40 ? 'yellow' : 'green')}</div>
         <div class="stat-tile"><div class="label">Race Readiness</div><div class="value">${avgReadiness}</div>${UI.meter(avgReadiness, 'green')}</div>
-        <div class="stat-tile"><div class="label">Team Chemistry</div><div class="value">${school.chemistry?.[activeGender] ?? '—'}</div><div class="sub">${injured.length} injured</div></div>
+        <div class="stat-tile"><div class="label">Team Morale</div><div class="value">${school.teamMorale ?? '—'}</div><div class="sub">${(window.XCD.engine.Morale.label(school.teamMorale ?? 65)).text} · chem ${school.chemistry?.[activeGender] ?? '—'}</div></div>
       </div>
 
       <div class="card" style="margin-bottom:16px;">

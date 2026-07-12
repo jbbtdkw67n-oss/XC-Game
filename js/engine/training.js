@@ -48,17 +48,27 @@
 
   // AI weekly plans: the calendar picks the template, the coach's identity
   // nudges the emphasis.
+  // AI templates now use scheduled rest days as a real tool (Update 3):
+  // race/taper weeks and the championship taper bank a rest day for freshness.
   const AI_TEMPLATES = {
-    race:      ['easy', 'tempo', 'recovery', 'easy', 'recovery', 'easy', 'recovery'],       // taper into the meet
+    race:      ['easy', 'tempo', 'rest', 'easy', 'recovery', 'easy', 'recovery'],           // taper into the meet
+    taper:     ['easy', 'recovery', 'rest', 'easy', 'tempo', 'rest', 'recovery'],           // championship taper
     build:     ['easy', 'intervals', 'recovery', 'tempo', 'easy', 'long', 'recovery'],      // classic in-season week
-    sharpen:   ['easy', 'speed', 'recovery', 'intervals', 'easy', 'long', 'recovery'],      // late-season sharpening
+    sharpen:   ['easy', 'speed', 'recovery', 'intervals', 'rest', 'long', 'recovery'],      // late-season sharpening
     strength:  ['easy', 'hills', 'recovery', 'tempo', 'easy', 'long', 'recovery'],          // hill/strength emphasis
     base:      ['easy', 'easy', 'recovery', 'tempo', 'easy', 'long', 'recovery']            // aerobic base
   };
 
   function aiPlan(gameState, coach) {
     const week = gameState.week;
-    if (MEET_WEEKS.has(week)) return AI_TEMPLATES.race.slice();
+    // Championship weeks: a genuine taper with rest days built in.
+    if (week >= CAL.CONFERENCE_WEEK && week <= CAL.NATIONAL_WEEK) return AI_TEMPLATES.taper.slice();
+    if (MEET_WEEKS.has(week)) {
+      // Conservative / development-minded staffs rest more before meets.
+      const restful = coach && (coach.archetype === 'Developer' ||
+        (coach.hasTendency && coach.hasTendency('conservative')));
+      return (restful ? AI_TEMPLATES.taper : AI_TEMPLATES.race).slice();
+    }
     if (week <= CAL.SUMMER_WEEKS || week >= CAL.OFFSEASON_START) return AI_TEMPLATES.base.slice();
     if (week >= CAL.MEET_WEEKS[Math.max(0, CAL.MEET_WEEKS.length - 2)] - 1) return AI_TEMPLATES.sharpen.slice();
     const t = coach && (coach.archetype === 'Developer') ? AI_TEMPLATES.strength : AI_TEMPLATES.build;
@@ -161,6 +171,7 @@
     let easyDays = 0;
     let hillsDays = 0;
     let speedDays = 0;
+    let restDays = 0;
     const attrWeights = {};
 
     days.forEach((key) => {
@@ -168,6 +179,7 @@
       fatigue += w.fatigue;
       injurySum += w.injury;
       if (w.hard) hardDays++;
+      if (w.isRest) restDays++;
       if (key === 'recovery' || key === 'easy') easyDays++;
       if (key === 'hills') hillsDays++;
       if (key === 'speed' || key === 'intervals') speedDays++;
@@ -183,8 +195,11 @@
     }
 
     let injuryMult = (injurySum / 7) * (1 + backToBack * 0.18);
-    const recoveryDays = days.filter((d) => d === 'recovery').length;
+    // Rest days count as genuine recovery: a week with a scheduled rest day
+    // never triggers the "no recovery" penalty, and rest lowers injury risk.
+    const recoveryDays = days.filter((d) => d === 'recovery').length + restDays;
     if (recoveryDays === 0) { injuryMult *= 1.25; fatigue += 4; } // no true recovery all week
+    if (restDays > 0) injuryMult *= Math.max(0.6, 1 - restDays * 0.12); // rest keeps runners healthy
 
     // Development quality: 2-3 hard days is the sweet spot; more is
     // overtraining, fewer is undertraining.
@@ -205,21 +220,32 @@
     if (hardVariety >= 3) devMult += 0.05;       // varied stimulus
     if (hardDays >= 5) fatigue += 6;             // overtraining tax
 
+    // Rest days (Update 3): one well-placed rest day sharpens without cost;
+    // stacking them cuts weekly stimulus and slows long-term aerobic
+    // development, threshold, and endurance gains.
+    let fitnessBuild = 1.2 + hardDays * 0.55 + (hasLong ? 0.35 : 0);
+    if (restDays >= 2) {
+      const excess = restDays - 1;
+      devMult *= Math.max(0.45, 1 - excess * 0.12);   // slowed development
+      fitnessBuild *= Math.max(0.5, 1 - excess * 0.14); // reduced stimulus
+    }
+
     let quality;
     if (hardDays >= 5) quality = { label: 'Overtraining — injuries & burnout likely', tone: 'bad' };
     else if (hardDays === 4) quality = { label: 'Very heavy — watch fatigue closely', tone: 'warn' };
-    else if (balanced) quality = { label: 'Balanced — optimal development', tone: 'good' };
-    else if (hardDays >= 2) quality = { label: 'Solid training week', tone: 'good' };
+    else if (restDays >= 3) quality = { label: 'Rest-heavy — fresh, but development stalls', tone: 'warn' };
+    else if (balanced) quality = { label: `Balanced — optimal development${restDays ? ' (rest day included)' : ''}`, tone: 'good' };
+    else if (hardDays >= 2) quality = { label: `Solid training week${restDays ? ' with rest' : ''}`, tone: 'good' };
     else if (hardDays === 1) quality = { label: 'Light — slow development', tone: 'warn' };
     else quality = { label: 'Recovery week — fitness will fade', tone: 'warn' };
 
     return {
       fatigue: fatigue * 0.42 * loadMult,
-      fitness: (1.2 + hardDays * 0.55 + (hasLong ? 0.35 : 0)) * loadMult,
+      fitness: fitnessBuild * loadMult,
       injuryMult: injuryMult * loadMult,
       devMult: devMult * loadMult,
       attrWeights,
-      hardDays, hasLong, hillsDays, speedDays, quality,
+      hardDays, hasLong, hillsDays, speedDays, restDays, quality,
       loadMult
     };
   }
@@ -311,22 +337,31 @@
     const facilityMult = 1.12 - (school.facilities.sportsScienceLab + school.facilities.weightRoom) / 800;
     let chance = base * planMeta.injuryMult * fatigueMult * resistMult * facilityMult;
 
+    // Mileage abuse (Update 3): the further past a body's durable limit the
+    // volume goes, the sharper the breakdown risk — and the more it skews to
+    // chronic overuse injuries. Only exceptionally durable runners tolerate
+    // 100-120 mile weeks; fragile ones break down well before that.
+    let excess = 0;
     if (mMeta) {
       chance *= mMeta.injuryMult;
-      // Durability gates volume: miles beyond what this body can absorb
-      // multiply risk fast — fragile runners break at 100+ mile weeks.
-      const excess = mMeta.mileage - safeMileage(athlete);
-      if (excess > 0) chance *= 1 + excess * 0.055;
+      excess = mMeta.mileage - safeMileage(athlete);
+      if (excess > 0) chance *= 1 + excess * 0.075 + Math.pow(excess / 22, 2) * 0.10;
     }
 
-    if (!rng.bool(Utils.clamp(chance, 0.0005, 0.22))) return null;
+    if (!rng.bool(Utils.clamp(chance, 0.0005, 0.30))) return null;
 
-    const injury = rng.weightedChoice(D.INJURIES, (i) => i.weight);
+    // Over the limit → overuse breakdowns (stress fractures, Achilles,
+    // plantar fasciitis, shin splints). Otherwise the usual mixed bag.
+    const overLimit = excess > 6;
+    const table = overLimit ? D.OVERUSE_INJURIES : D.INJURIES;
+    const injury = rng.weightedChoice(table, (i) => i.weight);
     let weeks = rng.int(injury.weeks[0], injury.weeks[1]);
+    // Chronic overuse from big mileage overreach means longer layoffs.
+    if (overLimit && excess > 14) weeks = Math.round(weeks * (1 + Math.min(0.6, (excess - 14) * 0.03)));
     // Good recovery centers and natural resilience shorten layoffs.
     const rehab = 1.15 - athlete.injuryResistance / 500 - school.facilities.recoveryCenter / 450;
     weeks = Math.max(1, Math.round(weeks * rehab));
-    return { type: injury.type, weeksRemaining: weeks, totalWeeks: weeks };
+    return { type: injury.type, weeksRemaining: weeks, totalWeeks: weeks, overuse: !!injury.overuse };
   }
 
   /* ================================================================ *
@@ -362,9 +397,10 @@
     const fitnessMult = (0.85 + school.facilities.trainingCenter / 300) * mMeta.fitnessMult;
     athlete.fitness = Math.round(Utils.clamp(athlete.fitness + planMeta.fitness * fitnessMult - 1.8, 0, 100));
 
-    // Race sharpness (Part 6): drifts toward what this volume allows.
-    // Speed work sharpens; tapering off a real base sharpens fastest.
-    let sharpTarget = mMeta.sharpTarget + (planMeta.speedDays || 0) * 2.5;
+    // Race sharpness (Part 6 + Update 3): drifts toward what this volume
+    // allows. Speed work sharpens; tapering off a real base sharpens fastest;
+    // scheduled rest days add freshness and race readiness.
+    let sharpTarget = mMeta.sharpTarget + (planMeta.speedDays || 0) * 2.5 + (planMeta.restDays || 0) * 3;
     sharpTarget = Utils.clamp(sharpTarget, 15, 96);
     athlete.sharpness = Math.round(Utils.clamp(
       (athlete.sharpness ?? 55) + (sharpTarget - (athlete.sharpness ?? 55)) * 0.30, 0, 100));
@@ -377,6 +413,31 @@
       athlete.stamina -= 1;
     }
 
+    // Mileage abuse consequences (Update 3): running well past a body's
+    // durable limit doesn't just risk injury — it grinds runners down.
+    // Confidence erodes, burnout builds, and severe overreach causes a
+    // temporary regression the athlete must rebuild. Durable runners
+    // (high injury resistance) shrug off far more before this bites.
+    const overBy = mMeta.mileage - safeMileage(athlete);
+    if (overBy > 6) {
+      athlete.overuseLoad = (athlete.overuseLoad || 0) + overBy * 0.5;
+      athlete.fatigue = Utils.clamp(athlete.fatigue + Math.min(6, overBy * 0.15), 0, 100);
+      if (rng.bool(Utils.clamp(overBy * 0.02, 0.02, 0.4))) {
+        athlete.confidence = Utils.clamp(athlete.confidence - 1, 10, 99);
+        athlete.morale = Utils.clamp(athlete.morale - 2, 0, 100);
+      }
+      // Burnout / temporary regression when the overreach is sustained.
+      if (overBy > 16 && rng.bool(Utils.clamp((overBy - 16) * 0.03, 0.03, 0.3))) {
+        const k = rng.choice(['vo2Max', 'stamina', 'lactateThreshold', 'runningEconomy']);
+        if (athlete[k] > 20) athlete[k] -= 1; // ground down; must be rebuilt
+        if (isPlayerSchool && rng.bool(0.5)) {
+          gameState.logNews(`${athlete.fullName} is showing signs of burnout under a punishing mileage load — form is slipping.`);
+        }
+      }
+    } else if (athlete.overuseLoad) {
+      athlete.overuseLoad = Math.max(0, athlete.overuseLoad - 3); // recovers when volume is sane
+    }
+
     // Hills adaptation: builds with hill work, slowly fades without it.
     if (planMeta.hillsDays > 0) {
       athlete.hillAdaptation = Utils.clamp((athlete.hillAdaptation || 40) + 1.2 * planMeta.hillsDays, 0, 95);
@@ -384,12 +445,14 @@
       athlete.hillAdaptation = Math.max(30, (athlete.hillAdaptation || 40) - 0.3);
     }
 
-    // Development — chemistry lifts everyone; strong captains mentor freshmen.
+    // Development — chemistry lifts everyone; strong captains mentor freshmen;
+    // a confident team (high morale) responds more positively to training.
     let dev = devPoints(athlete, coach, school, planMeta, rng) * mMeta.devMult;
     if (culture) {
       dev *= 0.88 + culture.chemistry / 450; // 0.88–1.10
       if (athlete.classYear === 'Freshman' && culture.captainLeadership >= 75) dev *= 1.10;
     }
+    dev *= 0.94 + (school.teamMorale ?? 65) / 1100; // ~0.96–1.03 by team morale
     athlete.devProgress = (athlete.devProgress || 0) + dev;
     if (athlete.devProgress >= 1) {
       applyDevelopment(athlete, mileageAttrWeights(planMeta.attrWeights, mMeta.mileage), rng);

@@ -274,6 +274,12 @@
         academics: 55,
         campusAppeal: 55,
 
+        // Team morale (Update 3): 0-100 confidence/chemistry/belief. Driven
+        // mostly by the coach's Culture rating and by results measured against
+        // expectations (not raw win/loss). A realistic performance modifier —
+        // never a talent override. Defaults to a neutral-positive baseline.
+        teamMorale: 65,
+
         facilities: {
           trainingCenter: 50, weightRoom: 50, recoveryCenter: 50, nutrition: 50,
           lockerRoom: 50, indoorTrack: 40, altitudeRoom: 20, sportsScienceLab: 30

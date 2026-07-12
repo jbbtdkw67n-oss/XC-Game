@@ -162,6 +162,7 @@
    * hard    = counts as a quality/hard day for plan-balance math
    */
   D.WORKOUTS = {
+    rest:      { label: 'Rest Day',          short: 'Rest',  fatigue: -13, injury: 0.0, hard: false, attrs: {}, isRest: true },
     easy:      { label: 'Easy Run',          short: 'Easy',  fatigue: 4,  injury: 0.6, hard: false, attrs: { stamina: 1.0 } },
     recovery:  { label: 'Recovery Run',      short: 'Rec',   fatigue: -7, injury: 0.3, hard: false, attrs: { stamina: 0.25 } },
     long:      { label: 'Long Run',          short: 'Long',  fatigue: 10, injury: 1.1, hard: true,  attrs: { stamina: 3.0, vo2Max: 1.0 } },
@@ -176,17 +177,23 @@
   // A sensible balanced starting week (Mon → Sun).
   D.DEFAULT_WEEK_PLAN = ['easy', 'intervals', 'recovery', 'tempo', 'easy', 'long', 'recovery'];
 
-  // Injury table: name + base weeks out [min, max]
+  // Injury table: name + base weeks out [min, max]. `overuse:true` marks the
+  // chronic breakdowns that mileage abuse drives (Update 3).
   D.INJURIES = [
-    { type: 'Shin Splints',        weeks: [1, 3],  weight: 22 },
+    { type: 'Shin Splints',        weeks: [1, 3],  weight: 22, overuse: true },
     { type: 'Illness',             weeks: [1, 2],  weight: 20 },
     { type: 'Foot Injury',         weeks: [2, 4],  weight: 14 },
     { type: 'Hamstring Strain',    weeks: [2, 5],  weight: 13 },
-    { type: 'IT Band Syndrome',    weeks: [2, 5],  weight: 10 },
-    { type: 'Achilles Tendinitis', weeks: [3, 7],  weight: 9 },
-    { type: 'Overtraining Fatigue',weeks: [2, 4],  weight: 6 },
-    { type: 'Stress Fracture',     weeks: [6, 12], weight: 6 }
+    { type: 'IT Band Syndrome',    weeks: [2, 5],  weight: 10, overuse: true },
+    { type: 'Achilles Tendinitis', weeks: [3, 7],  weight: 9,  overuse: true },
+    { type: 'Plantar Fasciitis',   weeks: [3, 8],  weight: 8,  overuse: true },
+    { type: 'Overtraining Fatigue',weeks: [2, 4],  weight: 6,  overuse: true },
+    { type: 'Stress Fracture',     weeks: [6, 12], weight: 6,  overuse: true }
   ];
+
+  // When mileage is pushed well beyond what a body can absorb, injuries skew
+  // hard toward these chronic overuse breakdowns rather than random bad luck.
+  D.OVERUSE_INJURIES = D.INJURIES.filter((i) => i.overuse);
 
   // Hidden development archetypes (assigned at generation, never shown raw)
   D.DEV_PROFILES = [

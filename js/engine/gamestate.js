@@ -145,6 +145,9 @@
       window.XCD.engine.Recruiting.generateClass(gs, rng);
       window.XCD.engine.Recruiting.startNewWeek(gs);
 
+      // Team morale seeded from coach culture across the world.
+      window.XCD.engine.Morale.init(gs);
+
       // Build the season schedule and preseason polls.
       window.XCD.engine.Races.newSeason(gs, rng);
       window.XCD.engine.Rankings.compute(gs);
@@ -325,6 +328,9 @@
       // 4b) Program prestige rises and falls on the year's evidence (Part 3).
       window.XCD.engine.Prestige.yearlyUpdate(this, rng);
 
+      // 4b2) Team morale settles on the season vs its projection (Update 3).
+      window.XCD.engine.Morale.yearlyUpdate(this, rng);
+
       // 4c) Captains who graduated fall off the leadership group.
       ['M', 'W'].forEach((g) => {
         this.culture.captains[g] = this.culture.captains[g].filter((id) => this.world.athletes[id]);
@@ -461,6 +467,8 @@
         window.XCD.engine.Recruiting.generateClass(gs, rng);
         window.XCD.engine.Recruiting.startNewWeek(gs);
       }
+      // Team morale: seed any school missing it (older saves / new field).
+      window.XCD.engine.Morale.init(gs);
       return gs;
     }
 

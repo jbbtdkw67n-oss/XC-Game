@@ -51,6 +51,7 @@
     if (injured.length) warnings.push(`🩼 ${injured.length} injured (${injured.slice(0, 3).map((a) => a.lastName).join(', ')}${injured.length > 3 ? '…' : ''})`);
     if (gassed.length >= 3) warnings.push(`🥵 ${gassed.length} runners over 70 fatigue — consider a recovery week`);
     if (unhappy.length >= 2) warnings.push(`😟 ${unhappy.length} runners with low morale`);
+    if ((school.teamMorale ?? 65) < 45) warnings.push(`💬 Team morale is ${(window.XCD.engine.Morale.label(school.teamMorale)).text.toLowerCase()} (${school.teamMorale}) — belief is wavering; results vs expectations will decide the turnaround`);
     if (game.portal && game.portal.open) {
       const leaving = game.portal.entries.filter((e) => e.fromSchoolId === school.id && !e.destination).length;
       if (leaving) warnings.push(`🔄 ${leaving} of your athletes are in the transfer portal`);
@@ -97,9 +98,9 @@
           <div class="sub">squad ${rosterW.length ? Math.round(Utils.average(rosterW.slice(0, 7).map((a) => a.currentOverall))) : '—'} OVR</div>
         </div>
         <div class="stat-tile">
-          <div class="label">Prestige</div>
-          <div class="value">${school.prestige}</div>
-          <div class="sub">${Utils.escapeHtml(school.conference)}</div>
+          <div class="label">Prestige · Morale</div>
+          <div class="value">${school.prestige} · ${school.teamMorale ?? '—'}</div>
+          <div class="sub">${window.XCD.data.divisionFor(school).label} · ${(window.XCD.engine.Morale.label(school.teamMorale ?? 65)).text}</div>
         </div>
         <div class="stat-tile">
           <div class="label">Trophy Case</div>
