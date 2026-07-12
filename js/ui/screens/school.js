@@ -127,8 +127,11 @@
 
       <div class="grid cols-2">
         <div class="card">
-          <h2>${coach.portrait || '🧢'} Head Coach — ${Utils.escapeHtml(coach.fullName)}</h2>
-          <div style="color:var(--text-dim); font-size:13px; margin-bottom:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <h2 style="margin:0;">${coach.portrait || '🧢'} Head Coach — ${Utils.escapeHtml(coach.fullName)}</h2>
+            <button class="btn small" id="btn-coach-profile">Full Profile</button>
+          </div>
+          <div style="color:var(--text-dim); font-size:13px; margin:6px 0;">
             Age ${coach.age} • ${Utils.escapeHtml(coach.archetype || '')} • Year ${coach.yearsAtSchool + 1} at ${Utils.escapeHtml(school.name)} • Overall ${coach.overallRating}
           </div>
           <div style="font-size:12.5px; margin-bottom:12px;">
@@ -213,6 +216,9 @@
             : '<div style="color:var(--text-dim); font-size:13px;">No records on the books yet — race!</div>'}
         </div>
       </div>`;
+
+    const profBtn = container.querySelector('#btn-coach-profile');
+    if (profBtn) profBtn.addEventListener('click', () => UI.showCoachCard(coach, game));
 
     container.querySelectorAll('[data-coach-upg]').forEach((btn) => {
       btn.addEventListener('click', () => {

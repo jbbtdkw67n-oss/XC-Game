@@ -88,13 +88,15 @@
   function teamForm(gameState, schoolId, isChampionship, rng) {
     const school = gameState.getSchool(schoolId);
     const tm = (school && school.teamMorale) ?? 65;
-    const ampl = isChampionship ? 1.7 : 1.0;
-    let form = (tm - 62) * 0.00016 * ampl; // steady confidence effect
+    const ampl = isChampionship ? 1.4 : 1.0;
+    let form = (tm - 62) * 0.00012 * ampl; // steady confidence effect
     const roll = rng.next();
-    if (tm >= 72 && roll < 0.15) form -= (0.003 + rng.next() * 0.006) * ampl;      // rise-up day
-    else if (tm <= 45 && roll > 0.85) form += (0.003 + rng.next() * 0.006) * ampl; // flat day
-    const cap = 0.02 * ampl;
-    return Utils.clamp(form, -cap, cap);
+    if (tm >= 72 && roll < 0.15) form -= (0.002 + rng.next() * 0.004) * ampl;      // rise-up day
+    else if (tm <= 45 && roll > 0.85) form += (0.002 + rng.next() * 0.005) * ampl; // flat day
+    // Asymmetric caps keep morale a modest, non-decisive edge that never
+    // overrides talent: the upside (faster) is small so it can't manufacture
+    // absurd champion times, while a fractured team's downside runs deeper.
+    return Utils.clamp(form, -0.010, 0.016);
   }
 
   /*

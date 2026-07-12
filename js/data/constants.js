@@ -253,7 +253,7 @@
     week: 10,                 // 3 weeks before conference (wk 13)
     fieldSize: 40,            // invited DI programs (before declines)
     atLargeSlots: 6,          // rising mid-majors having exceptional seasons
-    familiarityBonus: 0.006,  // ~0.6% faster at Nationals on the same course
+    familiarityBonus: 0.004,  // ~0.4% faster at Nationals on the same course
     pollWeight: 1.45          // one of the most influential regular-season meets
   };
 
