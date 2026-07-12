@@ -55,7 +55,8 @@
         actionsThisWeek: {},   // recruitId -> actions used this week
         board: { M: [], W: [] }, // player's target lists
         aiBoards: {},          // schoolId -> { M: [ids], W: [ids] }
-        classYear: null
+        classYear: null,
+        auto: false            // Auto Recruiting: the CPU runs your board
       };
 
       // Long-term records (grows through later phases)
@@ -224,6 +225,8 @@
 
       // A new week begins: plan training first, then recruit, then advance.
       this.weeklyFlow = { trainingConfirmed: false, recruitingDone: false };
+      // Auto Recruiting: the CPU already worked the board this week.
+      if (this.recruiting.auto) this.weeklyFlow.recruitingDone = true;
     }
 
     rolloverYear() {
@@ -419,6 +422,7 @@
         pointsLeft: 0, budgetLeft: 0, actionsThisWeek: {},
         board: { M: [], W: [] }, aiBoards: {}, classYear: null
       };
+      if (gs.recruiting.auto === undefined) gs.recruiting.auto = false;
       gs.history = obj.history || { recruitingClasses: {} };
       // Day-planner training; saves from the old primary/secondary system
       // fall back to the default balanced week.

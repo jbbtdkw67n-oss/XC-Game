@@ -601,11 +601,20 @@
     if (signingOver) return;
 
     for (const school of Object.values(gameState.world.schools)) {
-      if (school.id === gameState.playerSchoolId) continue;
+      // Auto Recruiting (Update 3): when the player flips the toggle, their
+      // program is recruited by this exact same AI path — same boards, same
+      // pushes, same offer logic. No special treatment in either direction.
+      if (school.id === gameState.playerSchoolId && !gameState.recruiting.auto) continue;
       const coach = gameState.getCoach(school.coachId);
       if (!coach) continue;
 
       ensureAIBoard(gameState, school, rng, ctx);
+      // Mirror the AI's working board onto the player's visible board so
+      // they can follow along while the CPU runs their recruiting.
+      if (school.id === gameState.playerSchoolId) {
+        const aiBoard = R.aiBoards[school.id];
+        gameState.recruiting.board = { M: aiBoard.M.slice(), W: aiBoard.W.slice() };
+      }
       const board = R.aiBoards[school.id];
       const aggressive = coach.archetype === 'Recruiter';
 

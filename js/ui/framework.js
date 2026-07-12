@@ -91,7 +91,7 @@
 
     function draw() {
       const col = config.columns.find((c) => c.key === state.sortKey) || config.columns[0];
-      let rows = config.rows.slice();
+      let rows = (config.rows || []).slice();
 
       if (state.query && config.searchKeys) {
         const q = state.query.toLowerCase();
@@ -120,13 +120,13 @@
         return `<th class="${c.numeric ? 'num' : ''}${sorted}" data-col="${c.key}">${c.label}</th>`;
       }).join('');
 
-      const tbody = rows.map((row, i) => {
+      const tbody = rows.length ? rows.map((row, i) => {
         const tds = config.columns.map((c) => {
           const content = c.render ? c.render(row, i) : Utils.escapeHtml(row[c.key]);
           return `<td class="${c.numeric ? 'num' : ''}">${content}</td>`;
         }).join('');
         return `<tr class="${config.onRowClick ? 'clickable' : ''}" data-row="${i}">${tds}</tr>`;
-      }).join('');
+      }).join('') : `<tr><td colspan="${config.columns.length}" style="color:var(--text-dim); padding:14px; text-align:center;">${config.emptyMessage || 'No results match the current filters.'}</td></tr>`;
 
       container.innerHTML = `
         <div class="table-wrap">
@@ -161,6 +161,9 @@
     draw();
     return {
       setQuery(q) { state.query = q; draw(); },
+      // Swap the underlying dataset in place (filters, live updates) —
+      // sort order and search query survive; no screen re-render needed.
+      setRows(rows) { config.rows = rows || []; draw(); },
       refresh: draw
     };
   };

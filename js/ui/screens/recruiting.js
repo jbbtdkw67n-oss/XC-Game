@@ -13,6 +13,17 @@
   let starFilter = 0;
   let sourceFilter = 'All';
 
+  const STAR_OPTIONS = [0, 2, 3, 4, 5];
+  const SOURCE_OPTIONS = ['All', 'HS', 'JUCO', 'International'];
+
+  // Filter state is module-level (survives navigation); validate it every
+  // render so a stale or corrupted value can never break the pipeline.
+  function sanitizeFilters() {
+    starFilter = STAR_OPTIONS.includes(Number(starFilter)) ? Number(starFilter) : 0;
+    if (!SOURCE_OPTIONS.includes(sourceFilter)) sourceFilter = 'All';
+    if (activeGender !== 'M' && activeGender !== 'W') activeGender = 'M';
+  }
+
   /* ---------------- Fog of war helpers ---------------- */
   function fogRange(value, scout, spread = 30) {
     if (scout >= 95) return `${value}`;
@@ -223,10 +234,12 @@
       .filter(Boolean);
   }
 
+  // All filters stack (AND): gender, star minimum, and source. Empty
+  // result sets are legal and render as a friendly empty-state row.
   function rowsForSearch(game) {
-    return Object.values(game.world.recruits).filter((r) =>
-      r.gender === activeGender &&
-      (starFilter === 0 || r.starRating >= starFilter) &&
+    return Object.values(game.world.recruits || {}).filter((r) =>
+      r && r.gender === activeGender &&
+      (starFilter === 0 || (r.starRating || 0) >= starFilter) &&
       (sourceFilter === 'All' || r.source === sourceFilter));
   }
 
@@ -234,6 +247,12 @@
     const school = game.getPlayerSchool();
     return UI.renderSortableTable(container, {
       rows,
+      emptyMessage: opts.emptyMessage,
+      // The national pool is ~1,200/gender. Rendering hundreds of heavy
+      // rows (meters, stars, badges) on every view is what pushed
+      // memory-limited Safari over the edge, so the visible window is
+      // capped — sorting/searching still spans the full class.
+      maxRows: opts.maxRows,
       defaultSort: opts.defaultSort || 'nationalRank',
       defaultDir: opts.defaultDir || 'asc',
       searchKeys: ['firstName', 'lastName', 'hometownState', 'region', 'source'],
@@ -336,6 +355,7 @@
 
   /* ---------------- Main render ---------------- */
   function render(container) {
+    sanitizeFilters();
     const game = UI.state.game;
     const R = game.recruiting;
     const signingIn = D.RECRUITING.SIGNING_WEEK - game.week;
@@ -350,11 +370,22 @@
             <button data-tab="commits" class="${activeTab === 'commits' ? 'active' : ''}">Commitments</button>
             <button data-tab="rankings" class="${activeTab === 'rankings' ? 'active' : ''}">Class Rankings</button>
           </div>
+          <button class="btn ${R.auto ? 'primary' : ''}" id="btn-auto-recruiting"
+            title="Hand recruiting to the CPU — it uses the exact same AI as every computer school. Toggle any time.">
+            🤖 Auto ${R.auto ? 'ON' : 'OFF'}
+          </button>
           <button class="btn ${game.weeklyFlow?.recruitingDone ? '' : 'primary'}" id="btn-finish-recruiting">
             ${game.weeklyFlow?.recruitingDone ? '✓ Recruiting Done' : '✓ Done Recruiting'}
           </button>
         </div>
       </div>
+
+      ${R.auto ? `
+      <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent); padding:10px 14px; font-size:13px;">
+        🤖 <strong>Auto Recruiting is ON.</strong> Your staff builds the board, works targets, and extends offers
+        using the same AI as every CPU program — scholarship needs, roster holes, and budget included.
+        Your board below mirrors the staff's targets. Toggle off any time to take back control.
+      </div>` : ''}
 
       <div class="grid cols-4" style="margin-bottom:16px;">
         <div class="stat-tile"><div class="label">Points This Week</div><div class="value">${R.pointsLeft}</div><div class="sub">resets weekly</div></div>
@@ -367,6 +398,19 @@
 
     container.querySelectorAll('[data-tab]').forEach((btn) => {
       btn.addEventListener('click', () => { activeTab = btn.dataset.tab; render(container); });
+    });
+
+    container.querySelector('#btn-auto-recruiting').addEventListener('click', () => {
+      R.auto = !R.auto;
+      if (R.auto) {
+        // The CPU takes over immediately: this week counts as handled.
+        game.weeklyFlow = game.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
+        game.weeklyFlow.recruitingDone = true;
+        UI.toast('Auto Recruiting ON — your staff runs the board with the standard CPU recruiting AI.', 'success');
+      } else {
+        UI.toast('Auto Recruiting OFF — you are back on the trail.', 'info');
+      }
+      UI.renderShell(); // refresh the flow steps + this screen together
     });
 
     container.querySelector('#btn-finish-recruiting').addEventListener('click', () => {
@@ -411,19 +455,33 @@
       </div>`;
 
     const rows = isSearch ? rowsForSearch(game) : rowsForBoard(game);
-    if (!isSearch && rows.length === 0) {
-      body.querySelector('#rec-table').innerHTML =
-        '<div style="color:var(--text-dim); padding:8px;">Your board is empty. Find targets in the Search tab and add them.</div>';
-    } else {
-      const table = recruitTable(game, body.querySelector('#rec-table'), rows, {});
-      body.querySelector('#rec-search').addEventListener('input', (e) => table.setQuery(e.target.value));
-    }
+    const table = recruitTable(game, body.querySelector('#rec-table'), rows, {
+      maxRows: isSearch ? 200 : undefined,
+      emptyMessage: isSearch
+        ? 'No recruits match these filters. Loosen the star or source filter to widen the pool.'
+        : 'Your board is empty. Find targets in the Search tab and add them.'
+    });
+    body.querySelector('#rec-search').addEventListener('input', (e) => table.setQuery(e.target.value));
+
+    // Filter changes swap the table's rows in place — instant, no screen
+    // reload, and the current sort/search survive. Recruiting data is
+    // read-only here, so no filter combination can ever lose anything.
+    const applyFilters = () => {
+      sanitizeFilters();
+      table.setRows(isSearch ? rowsForSearch(game) : rowsForBoard(game));
+    };
 
     body.querySelector('#g-m').addEventListener('click', () => { activeGender = 'M'; render(container); });
     body.querySelector('#g-w').addEventListener('click', () => { activeGender = 'W'; render(container); });
     if (isSearch) {
-      body.querySelector('#star-filter').addEventListener('change', (e) => { starFilter = Number(e.target.value); render(container); });
-      body.querySelector('#source-filter').addEventListener('change', (e) => { sourceFilter = e.target.value; render(container); });
+      body.querySelector('#star-filter').addEventListener('change', (e) => {
+        starFilter = Number(e.target.value);
+        applyFilters();
+      });
+      body.querySelector('#source-filter').addEventListener('change', (e) => {
+        sourceFilter = e.target.value;
+        applyFilters();
+      });
     }
   }
 
