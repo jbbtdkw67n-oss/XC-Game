@@ -92,12 +92,21 @@
       (r.label || '').replace(/^Autosave\s+—\s+/, '') || 'Dynasty';
   }
 
-  // Player W–L for the save browser: the dynasty's cumulative coaching record.
+  // W–L for the save browser. A head coach shows their own career record; an
+  // assistant (recruiting coordinator) has no personal W–L, so we show the
+  // program's competitive record — the head coach they serve under, falling
+  // back to the program ledger — instead of a misleading 0-0.
   function recordString(gameState) {
     try {
-      const coach = gameState.getPlayerCoach();
+      const coach = (gameState.getHeadCoach && gameState.getHeadCoach()) || gameState.getPlayerCoach();
       const cr = coach && coach.careerRecord;
       if (cr && (cr.wins || cr.losses)) return `${cr.wins}-${cr.losses}`;
+      const school = gameState.getPlayerSchool && gameState.getPlayerSchool();
+      const Legacy = window.XCD.engine.Legacy;
+      if (school && Legacy && Legacy.program) {
+        const prog = Legacy.program(gameState, school.id);
+        if (prog && (prog.wins || prog.losses)) return `${prog.wins}-${prog.losses}`;
+      }
     } catch (e) { /* fall through */ }
     return '0-0';
   }
