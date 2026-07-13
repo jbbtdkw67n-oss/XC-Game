@@ -422,9 +422,10 @@
   }
 
   // Execute the moves at the year rollover (before graduation/aging).
-  function applyTransfers(gameState) {
+  function applyTransfers(gameState, rng) {
     const portal = gameState.portal;
     if (!portal) return 0;
+    rng = rng || new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 61) >>> 0);
     let moved = 0;
     const outBySchool = {};
     portal.entries.forEach((entry) => {
@@ -438,6 +439,15 @@
       to[key].push(a.id);
       a.schoolId = to.id;
       a.morale = 72;
+      // A transfer arrives fresh for a new program with a believable, varied
+      // base of summer fitness — never an empty bar. Correlated lightly with
+      // the athlete's aerobic engine so stronger runners show up fitter, plus
+      // real individual variation. (The offseason summer reset that follows
+      // applies its usual small trim on top of this.)
+      const engine = ((a.vo2Max || 55) + (a.stamina || 55)) / 2;
+      a.fitness = Utils.clamp(Math.round(44 + (engine - 55) * 0.4 + rng.int(-12, 18)), 34, 84);
+      a.fatigue = Utils.clamp(Math.min(a.fatigue, rng.int(6, 22)), 0, 100); // arrive rested
+      a.sharpness = Utils.clamp(Math.round(rng.int(45, 68)), 0, 100);       // race rust, not zeroed
       outBySchool[from.id] = (outBySchool[from.id] || 0) + 1;
       moved++;
     });

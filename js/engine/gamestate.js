@@ -307,7 +307,7 @@
       const rng = new window.XCD.core.SeededRNG((this.seed + this.year) >>> 0);
 
       // 0) Transfers move to their new programs before anything else.
-      const transferCount = window.XCD.engine.Portal.applyTransfers(this);
+      const transferCount = window.XCD.engine.Portal.applyTransfers(this, rng);
       if (transferCount) this.logNews(`Transfer portal closes: ${transferCount} athletes changed schools this cycle.`);
 
       // 1) Age everyone; redshirt years preserve eligibility and class;
