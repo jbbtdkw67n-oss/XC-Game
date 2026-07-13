@@ -273,12 +273,17 @@
       // Generational spawn roll (Part 12.5): weighted odds, no pattern.
       // Averages ~1 per 7-8 classes across both genders; streaks and long
       // droughts both happen, and (very rarely) two land in one class.
+      // Update 6, Section 8: generational talents ONLY originate from high
+      // school or overseas — a JUCO transfer may become an All-American or
+      // even a national champion, but never a once-in-a-generation prospect.
       const G = D.GENERATIONAL;
       const roll = rng.next();
       const count = roll < G.P_TWO ? 2 : roll < G.P_TWO + G.P_ONE ? 1 : 0;
-      for (let g = 0; g < count; g++) {
-        const idx = rng.int(0, pool.length - 1);
-        generationalArrivals.push(elevateToGenerational(rng, pool[idx]));
+      const eligible = pool.filter((r) => r.source !== 'JUCO' && !r.generational);
+      for (let g = 0; g < count && eligible.length; g++) {
+        const idx = rng.int(0, eligible.length - 1);
+        const pick = eligible.splice(idx, 1)[0];
+        generationalArrivals.push(elevateToGenerational(rng, pick));
       }
 
       rankPool(pool);
@@ -582,9 +587,22 @@
     const board = R.aiBoards[school.id];
 
     ['M', 'W'].forEach((gender) => {
+      const week = gameState.week;
       board[gender] = board[gender].filter((id) => {
         const r = gameState.world.recruits[id];
-        return r && !r.signed && (!r.committedTo || r.committedTo === school.id);
+        if (!r || r.signed || (r.committedTo && r.committedTo !== school.id)) return false;
+        // Dynamic pivots (Update 6, Section 6): boards evolve weekly. Once a
+        // rival's relationship lead is decisive and the clock is running,
+        // stop wasting pushes on a lost battle — replace the target instead.
+        if (week >= 6 && !r.committedTo && !r.generational) {
+          const mine = (r.interests[school.id] || {}).relationship || 0;
+          let best = 0, bestSid = null;
+          Object.entries(r.interests).forEach(([sid, st]) => {
+            if ((st.relationship || 0) > best) { best = st.relationship; bestSid = sid; }
+          });
+          if (bestSid && bestSid !== school.id && best - mine > 30) return false;
+        }
+        return true;
       });
 
       // Generational prospects (Part 12.5) jump straight onto every elite
@@ -599,7 +617,14 @@
         }
       });
 
-      if (board[gender].length >= 8) return;
+      // Wave recruiting (Update 6, Sections 6-7). Elite programs open the
+      // cycle laser-focused on a handful of elite targets and commit nearly
+      // all effort there; the board only expands once commitments land.
+      // Everyone else works a full board from the start.
+      const committed = (ctx.commitCounts[school.id] && ctx.commitCounts[school.id][gender]) || 0;
+      const elite = school.prestige >= 75;
+      const boardCap = elite && committed === 0 && week <= D.RECRUITING.SIGNING_WEEK - 3 ? 4 : 8;
+      if (board[gender].length >= boardCap) return;
 
       // Target recruits whose composite matches the program's level, with
       // a bias toward nearby kids (regional recruiting territories).
@@ -612,12 +637,14 @@
       if (hi - lo < 25) { // elite programs: widen downward so the window isn't empty
         lo = Math.max(0, lo - 60);
       }
+      // The first wave shops only at the very top of the window.
+      if (elite && boardCap === 4) lo = Math.max(lo, hi - 30);
       const windowSize = hi - lo;
       if (windowSize <= 0) return;
 
       const onBoard = new Set(board[gender]);
       let attempts = 0;
-      while (board[gender].length < 8 && attempts < 40) {
+      while (board[gender].length < boardCap && attempts < 40) {
         attempts++;
         const r = pool[lo + rng.int(0, windowSize - 1)];
         if (!r || r.signed || r.committedTo || onBoard.has(r.id)) continue;
@@ -679,9 +706,13 @@
           .sort((a, b) => recruitComposite(b) - recruitComposite(a))
           .slice(0, pushes);
 
+        // First-wave focus (Update 6): an elite board of 2-4 names gets nearly
+        // all the program's effort — each push lands noticeably harder.
+        const waveFocus = school.prestige >= 75 && committedCount === 0 && board[gender].length <= 4 ? 1.3 : 1;
+
         targets.forEach((rec) => {
           const st = rec.getSchoolState(school.id, true);
-          const push = (3 + coach.recruiting / 18) * (0.8 + rng.next() * 0.4);
+          const push = (3 + coach.recruiting / 18) * (0.8 + rng.next() * 0.4) * waveFocus;
           st.relationship = Utils.clamp(st.relationship + push, 0, 100);
           st.interest = Utils.clamp(st.interest + push * 0.75, 0, 100);
           // Offer once the AI believes in the match.
