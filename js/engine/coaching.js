@@ -91,6 +91,28 @@
     void portalOut;
   }
 
+  /*
+   * Assistant reputation (Update 6, Phase 3): a recruiting coordinator builds
+   * a name through their program's success and, above all, the recruiting
+   * classes they land. Strong assistants climb toward head-coaching candidacy;
+   * those who never move up eventually plateau and fade.
+   */
+  function updateAssistantReputation(gameState, coach, school, rng) {
+    const total = divisionSize(gameState, school.division);
+    const rank = bestRank(gameState, school.id);
+    let delta = 0.4; // early-career assistants generally build a name
+    if (rank <= total * 0.15) delta += 1.2;
+    else if (rank <= total * 0.40) delta += 0.5;
+    if ((coach.recruiting || 55) >= 70) delta += 0.5; // recruiting is their calling card
+    const bc = coach.careerRecord && coach.careerRecord.bestClassRank;
+    if (bc && bc <= 10) delta += 0.9;
+    else if (bc && bc <= 25) delta += 0.35;
+    if (coach.age > 55) delta -= 0.7; // long-tenured assistants who never stepped up plateau
+    delta += (rng.next() - 0.5) * 0.4;
+    coach.reputation = Utils.clamp(
+      Math.round((coach.reputation + Utils.clamp(delta, -3, 4)) * 10) / 10, 1, 90);
+  }
+
   /* ---------------- Rating progression ---------------- */
   function progressRatings(coach, rng, isPlayer) {
     const bump = (key, amt) => { coach[key] = Utils.clamp(coach[key] + amt, 15, 99); };
@@ -143,9 +165,14 @@
       const assistant = gameState.world.coaches[school.assistantId];
       if (assistant) {
         assistant.age += 1;
+        assistant.yearsAtSchool = (assistant.yearsAtSchool || 0) + 1;
+        assistant.careerRecord.seasons = (assistant.careerRecord.seasons || 0) + 1;
         // A player-assistant grows via upgrade points (like any player coach),
         // so auto-progression is suppressed for them.
         progressRatings(assistant, rng, !!assistant.isPlayer);
+        // Assistants build (or lose) a reputation over time, so the strong
+        // ones become realistic head-coaching candidates (Update 6, Phase 3).
+        updateAssistantReputation(gameState, assistant, school, rng);
       }
     });
 

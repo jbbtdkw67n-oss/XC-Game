@@ -907,6 +907,14 @@
 
       // Race fatigue + morale swing
       a.fatigue = Utils.clamp(a.fatigue + 8, 0, 100);
+      // Recent race intensity (Update 6, Phase 2): the pounding of a hard race
+      // leaves the body vulnerable for a couple of weeks. Championship efforts
+      // (conference/regional/national) take the biggest toll. Decays weekly in
+      // the training engine and feeds the injury roll.
+      const raceIntensity = (meet.type === 'national') ? 92
+        : (meet.type === 'regional' || meet.type === 'conference') ? 84
+        : 62;
+      a.raceLoad = Math.max(a.raceLoad || 0, raceIntensity);
       if (f.place === 1) a.morale = Utils.clamp(a.morale + 5, 0, 100);
       else if (f.place <= 10) a.morale = Utils.clamp(a.morale + 2, 0, 100);
       else if (f.place > finishers.length * 0.8) a.morale = Utils.clamp(a.morale - 2, 0, 100);

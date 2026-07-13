@@ -81,6 +81,20 @@
 
   D.COACH_PORTRAITS = ['🧢', '😤', '🧔', '👩‍🦰', '👨‍🦲', '🕶', '👴', '🧑‍🏫'];
 
+  // Alma-mater pool (Update 6, Phase 3): where a coach ran in college. Flavor
+  // shown on the coach profile card — a mix of storied distance programs
+  // across all three divisions.
+  D.ALMA_MATERS = [
+    'Oregon', 'Stanford', 'Colorado', 'Northern Arizona', 'Oklahoma State',
+    'BYU', 'Wisconsin', 'Arkansas', 'Villanova', 'Georgetown', 'Michigan',
+    'Notre Dame', 'Iona', 'Portland', 'Washington', 'Syracuse', 'Indiana',
+    'Providence', 'Colorado State', 'New Mexico', 'Furman', 'Butler', 'Tulsa',
+    'Adams State', 'Western Colorado', 'Grand Valley State', 'Colorado Mines',
+    'Chico State', 'Augustana', 'North Central', 'UW–La Crosse', 'MIT',
+    'Williams', 'Middlebury', 'Carleton', 'Pomona-Pitzer', 'SUNY Geneseo',
+    'Wartburg', 'Calvin', 'Haverford', 'Amherst', 'Johns Hopkins', 'Tufts'
+  ];
+
   /*
    * Training Philosophy (Update 4, Part 2). A permanent identity chosen at
    * coach creation — it can NEVER change. It is separate from the coach's four
@@ -220,8 +234,9 @@
   };
 
   D.INJURY_TYPES = [
-    'Stress Fracture', 'Shin Splints', 'Hamstring Strain', 'Achilles Tendinitis',
-    'Foot Injury', 'Illness', 'IT Band Syndrome', 'Overtraining Fatigue'
+    'Stress Fracture', 'Stress Reaction', 'Shin Splints', 'Hamstring Strain',
+    'Calf Strain', 'Achilles Tendinitis', 'Plantar Fasciitis', 'Foot Injury',
+    'Illness', 'IT Band Syndrome', 'Overtraining Fatigue'
   ];
 
   // Approximate state centroid coordinates for recruiting distance math.
@@ -322,15 +337,17 @@
   // Injury table: name + base weeks out [min, max]. `overuse:true` marks the
   // chronic breakdowns that mileage abuse drives (Update 3).
   D.INJURIES = [
-    { type: 'Shin Splints',        weeks: [1, 3],  weight: 22, overuse: true },
-    { type: 'Illness',             weeks: [1, 2],  weight: 20 },
-    { type: 'Foot Injury',         weeks: [2, 4],  weight: 14 },
-    { type: 'Hamstring Strain',    weeks: [2, 5],  weight: 13 },
+    { type: 'Shin Splints',        weeks: [1, 3],  weight: 20, overuse: true },
+    { type: 'Illness',             weeks: [1, 2],  weight: 18 },
+    { type: 'Calf Strain',         weeks: [1, 3],  weight: 14 },
+    { type: 'Foot Injury',         weeks: [2, 4],  weight: 12 },
+    { type: 'Hamstring Strain',    weeks: [2, 5],  weight: 12 },
     { type: 'IT Band Syndrome',    weeks: [2, 5],  weight: 10, overuse: true },
     { type: 'Achilles Tendinitis', weeks: [3, 7],  weight: 9,  overuse: true },
     { type: 'Plantar Fasciitis',   weeks: [3, 8],  weight: 8,  overuse: true },
+    { type: 'Stress Reaction',     weeks: [3, 6],  weight: 8,  overuse: true },
     { type: 'Overtraining Fatigue',weeks: [2, 4],  weight: 6,  overuse: true },
-    { type: 'Stress Fracture',     weeks: [6, 12], weight: 6,  overuse: true }
+    { type: 'Stress Fracture',     weeks: [6, 12], weight: 5,  overuse: true }
   ];
 
   // When mileage is pushed well beyond what a body can absorb, injuries skew

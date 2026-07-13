@@ -67,7 +67,8 @@
             ${retired ? '<span style="color:var(--text-faint);">Retired</span> • ' : ''}Age ${coach.age || '—'} •
             ${school ? Utils.escapeHtml(school.name) + ' (' + Utils.escapeHtml(school.conference) + ')' : (retired ? 'Career complete' : 'Free agent')}
           </div>
-          <div class="sub">${repIcon} ${Utils.escapeHtml(repLabel)} • ${Utils.escapeHtml(coach.archetype || 'Developer')}${coach.role === 'Assistant' ? ' • <span style="color:var(--accent);">Recruiting Coordinator</span>' : ''}</div>
+          <div class="sub">${repIcon} ${Utils.escapeHtml(repLabel)} • ${Utils.escapeHtml(coach.archetype || 'Developer')}${coach.role === 'Assistant' ? ` • <span style="color:var(--accent);">${coach.isPlayer ? 'Recruiting Coordinator' : 'Assistant Coach'}</span>` : ''}</div>
+          ${coach.almaMater ? `<div class="sub">🎓 ${Utils.escapeHtml(coach.almaMater)}${coach.careerRecord && coach.careerRecord.seasons ? ` • ${coach.careerRecord.seasons} yr${coach.careerRecord.seasons === 1 ? '' : 's'} experience` : ''}</div>` : ''}
           <div class="sub">${philosophyLine(coach)}</div>
           ${(!retired && school && coach.role !== 'Assistant' && coach.reputation !== undefined) ? (() => {
             const st = D.seatStatus(coach.hotSeat || 0);

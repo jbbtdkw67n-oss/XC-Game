@@ -39,6 +39,11 @@
   class GameState {
     constructor() {
       this.dynastyName = '';
+      // Unique identity for this dynasty (Update 6, Phase 5): every dynasty
+      // owns its own save + autosave slots, so starting a new one never
+      // overwrites an existing one. Assigned in newGame; derived for legacy
+      // saves that predate multi-save on load.
+      this.dynastyId = null;
       this.seed = 0;
       this.world = null; // { schools, coaches, athletes, recruits, schoolOrder }
       this.playerSchoolId = null;
@@ -109,6 +114,7 @@
     static newGame({ schoolId, dynastyName, coachFirstName, coachLastName, archetype, portrait, trainingPhilosophy, racePhilosophy, startRole, seed, world }) {
       const gs = new GameState();
       gs.dynastyName = dynastyName || `${coachLastName} Dynasty`;
+      gs.dynastyId = GameState.newDynastyId();
       gs.seed = seed >>> 0;
       gs.world = world || window.XCD.engine.WorldGenerator.generate(gs.seed);
       gs.playerSchoolId = schoolId;
@@ -149,6 +155,11 @@
       gs.world.coaches[playerCoach.id] = playerCoach;
       gs.playerCoachId = playerCoach.id;
       if (isAssistant) {
+        // The player takes the existing assistant chair; the AI assistant who
+        // held it is retired out of the world rather than left orphaned.
+        if (school.assistantId && gs.world.coaches[school.assistantId]) {
+          delete gs.world.coaches[school.assistantId];
+        }
         school.assistantId = playerCoach.id;
       } else {
         school.coachId = playerCoach.id;
@@ -384,6 +395,11 @@
       //     retires, is fired, or leaves.
       window.XCD.engine.Careers.runCarousel(this, rng);
 
+      // 4a2) The assistant-coach carousel (Update 6, Phase 3): assistants
+      //      retire, move up, get promoted or let go, and every program
+      //      keeps a full staff — a living assistant ecosystem.
+      window.XCD.engine.Careers.runAssistantCarousel(this, rng);
+
       // 4b) Program prestige rises and falls on the year's evidence (Part 3).
       window.XCD.engine.Prestige.yearlyUpdate(this, rng);
 
@@ -442,6 +458,7 @@
         version: window.XCD.VERSION,
         saveVersion: GameState.SAVE_VERSION,
         dynastyName: this.dynastyName,
+        dynastyId: this.dynastyId,
         seed: this.seed,
         world: this.world,
         playerSchoolId: this.playerSchoolId,
@@ -512,6 +529,10 @@
       gs.culture = obj.culture || { captains: { M: [], W: [] } };
       gs.jobOffers = obj.jobOffers || null;
       gs.weeklyFlow = obj.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
+      // Every dynasty owns a stable id (Phase 5). Pre-multi-save dynasties get
+      // one derived deterministically from their seed + creation time, so a
+      // legacy save keeps the same autosave slot across loads.
+      gs.dynastyId = obj.dynastyId || GameState.deriveLegacyDynastyId(obj);
       // Role defaults to Head for every pre-Update-5 dynasty.
       gs.playerRole = obj.playerRole === 'Assistant' ? 'Assistant' : 'Head';
       if (!gs.controlsTraining()) gs.weeklyFlow.trainingConfirmed = true;
@@ -607,6 +628,20 @@
   }
 
   GameState.SAVE_VERSION = 5;
+
+  // A collision-resistant id for a brand-new dynasty (Phase 5).
+  GameState.newDynastyId = function () {
+    return 'dyn_' + Date.now().toString(36) + '_' +
+      Math.floor(Math.random() * 0x7FFFFFFF).toString(36);
+  };
+
+  // A stable id for a dynasty saved before multi-save existed, derived from
+  // fields it already carried so repeated loads land on the same slot.
+  GameState.deriveLegacyDynastyId = function (obj) {
+    const seed = (obj && obj.seed ? obj.seed >>> 0 : 0).toString(36);
+    const created = (obj && obj.createdAt ? obj.createdAt : 0).toString(36);
+    return 'dyn_legacy_' + seed + '_' + created;
+  };
 
   window.XCD.engine.GameState = GameState;
 })();

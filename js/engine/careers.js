@@ -341,6 +341,41 @@
       }
     }
 
+    // 1.5) Promote a strong assistant into the head chair — the natural
+    //      career step. The program's own assistant gets first crack (internal
+    //      promotion); otherwise a standout assistant elsewhere earns their
+    //      first head job. Their old assistant seat is refilled by the
+    //      assistant carousel afterward.
+    if (depth < 2 && rng.bool(0.5)) {
+      const readyBar = school.prestige * 0.5 - 8;
+      const own = school.assistantId && gameState.world.coaches[school.assistantId];
+      let promo = null, fromSchool = null, internal = false;
+      if (own && !own.isPlayer && (own.reputation || 0) >= readyBar && own.age >= 30) {
+        promo = own; fromSchool = school; internal = true;
+      } else {
+        const cands = Object.values(gameState.world.schools)
+          .filter((s) => s.id !== school.id && s.id !== gameState.playerSchoolId &&
+            s.assistantId && gameState.world.coaches[s.assistantId])
+          .map((s) => ({ s, c: gameState.world.coaches[s.assistantId] }))
+          .filter(({ c }) => !c.isPlayer && (c.reputation || 0) >= readyBar + 4 && c.age >= 30)
+          .sort((a, b) => (b.c.reputation || 0) - (a.c.reputation || 0));
+        if (cands.length && rng.bool(0.7)) { promo = cands[0].c; fromSchool = cands[0].s; }
+      }
+      if (promo) {
+        if (fromSchool.assistantId === promo.id) fromSchool.assistantId = null;
+        Legacy.closeStint(gameState, promo, fromSchool, gameState.year);
+        promo.role = 'Head'; // set before openStint so the program ledger records it
+        promo.schoolId = school.id;
+        promo.yearsAtSchool = 0;
+        promo.hotSeat = 0;
+        school.coachId = promo.id;
+        Legacy.openStint(gameState, promo, school, gameState.year);
+        school.coachChangedYear = gameState.year;
+        gameState.logNews(`${school.name} promotes ${promo.fullName} to head coach${internal ? ' from within the staff' : ' — a first big break out of ' + fromSchool.name}.`);
+        return promo;
+      }
+    }
+
     // 2) The free-agent pool: fired coaches wait for the phone to ring.
     const pool = freeAgents(gameState)
       .filter((c) => (c.reputation || 0) >= school.prestige * 0.45 - 10)
@@ -415,6 +450,80 @@
     });
   }
 
+  /* ---------------- Assistant carousel (Update 6, Phase 3) ----------- *
+   * Assistant coaches are living careers, not static names. Every offseason
+   * (after the head-coach carousel, which may have promoted some of them):
+   *   - aging assistants retire,
+   *   - a few weak/stagnant assistants are let go,
+   *   - standout assistants step up to bigger assistant jobs, and
+   *   - every program that ends up without an assistant hires a fresh one,
+   * so the assistant ranks stay full and the ecosystem keeps churning.
+   */
+  function runAssistantCarousel(gameState, rng) {
+    const Legacy = window.XCD.engine.Legacy;
+    const WG = window.XCD.engine.WorldGenerator;
+
+    // 1) Retirements + firings.
+    Object.values(gameState.world.schools).forEach((school) => {
+      const asst = school.assistantId && gameState.world.coaches[school.assistantId];
+      if (!asst || asst.isPlayer) return;
+
+      const earlyRetire = asst.age >= 63 && rng.bool(Math.min(0.12, (asst.age - 62) * 0.02));
+      if (asst.age >= (asst.retireAge || 75) || earlyRetire) {
+        Legacy.closeStint(gameState, asst, school, gameState.year);
+        Legacy.recordRetiredCoach(gameState, asst, 'retired');
+        delete gameState.world.coaches[asst.id];
+        school.assistantId = null;
+        return;
+      }
+      // Programs churn staff: a weak, stagnating assistant is occasionally let go.
+      if ((asst.reputation || 0) < 18 && asst.age >= 34 && rng.bool(0.12)) {
+        Legacy.closeStint(gameState, asst, school, gameState.year);
+        delete gameState.world.coaches[asst.id]; // assistants don't pool as free agents
+        school.assistantId = null;
+      }
+    });
+
+    // 2) Upward lateral moves: a standout assistant fills an open assistant
+    //    seat at a bigger program, leaving their old seat to be regenerated.
+    Object.values(gameState.world.schools)
+      .filter((s) => (!s.assistantId || !gameState.world.coaches[s.assistantId]) && s.prestige >= 55)
+      .sort((a, b) => b.prestige - a.prestige)
+      .forEach((school) => {
+        if (school.assistantId && gameState.world.coaches[school.assistantId]) return;
+        if (school.id === gameState.playerSchoolId) return; // never move the player's staff out from under them
+        if (!rng.bool(0.5)) return;
+        const cands = Object.values(gameState.world.schools)
+          .filter((s) => s.id !== gameState.playerSchoolId && s.prestige < school.prestige - 8 &&
+            s.assistantId && gameState.world.coaches[s.assistantId])
+          .map((s) => ({ s, c: gameState.world.coaches[s.assistantId] }))
+          .filter(({ c }) => !c.isPlayer && (c.reputation || 0) >= school.prestige * 0.4)
+          .sort((a, b) => (b.c.reputation || 0) - (a.c.reputation || 0));
+        if (!cands.length) return;
+        const { s: from, c } = cands[0];
+        from.assistantId = null;
+        Legacy.closeStint(gameState, c, from, gameState.year);
+        c.schoolId = school.id;
+        c.yearsAtSchool = 0;
+        school.assistantId = c.id;
+        Legacy.openStint(gameState, c, school, gameState.year);
+        gameState.logNews(`${c.fullName} lands a bigger assistant job at ${school.name}, leaving ${from.name}.`);
+      });
+
+    // 3) Regenerate: every program must have an assistant coach.
+    Object.values(gameState.world.schools).forEach((school) => {
+      if (school.assistantId && gameState.world.coaches[school.assistantId]) return;
+      const asst = WG.buildAssistant(rng, school);
+      asst.age = rng.int(25, 40); // new assistants enter the profession young
+      asst.reputation = Utils.clamp(asst.reputation || 12, 3, 28);
+      asst.yearsAtSchool = 0;
+      asst.careerRecord.seasons = 0;
+      asst.stints = [{ schoolId: school.id, school: school.name, division: school.division || 'DI', startYear: gameState.year, endYear: null }];
+      gameState.world.coaches[asst.id] = asst;
+      school.assistantId = asst.id;
+    });
+  }
+
   /* ---------------- Coach rankings ---------------- */
   function coachRankings(gameState) {
     const ranks = { M: {}, W: {} };
@@ -449,6 +558,6 @@
 
   window.XCD.engine.Careers = {
     generateOffers, generateAssistantOffers, acceptOffer, declineOffers, expireOffers,
-    runCarousel, fillVacancy, coachRankings
+    runCarousel, runAssistantCarousel, fillVacancy, coachRankings
   };
 })();

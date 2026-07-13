@@ -375,12 +375,38 @@
    * Injuries
    * ================================================================ */
   function rollInjury(athlete, school, planMeta, mMeta, rng, philoInjuryMult = 1) {
-    const base = 0.010; // ~1% per athlete-week at neutral settings
-    const fatigueMult = 1 + Math.max(0, athlete.fatigue - 60) / 45;
-    const resistMult = 1.6 - athlete.injuryResistance / 100;
+    // Rebalanced (Update 6, Phase 2). Injury risk is now driven far more
+    // strongly by how much a runner is being pushed: severe fatigue,
+    // consecutive weeks of heavy workload, recent race intensity, a recent
+    // injury, low durability, and overtraining all compound. A healthy,
+    // well-rested, durable runner on a sane plan is still rarely hurt; a
+    // severely fatigued athlete raced or trained hard week after week becomes
+    // genuinely risky.
+    const base = 0.011; // ~1.1% per athlete-week at neutral settings
+
+    // Severe fatigue is the dominant driver, escalating steeply once a runner
+    // is deep in the red. Fresh legs (≤45) carry no fatigue penalty at all.
+    const fatigueMult = 1 + Math.max(0, athlete.fatigue - 45) / 40
+      + Math.max(0, athlete.fatigue - 75) / 18;
+
+    // Low durability (Injury Resistance) breaks down far sooner.
+    const resistMult = 1.7 - athlete.injuryResistance / 100;
+
+    // Consecutive weeks of high workload accumulate structural risk.
+    const loadWeeks = athlete.highLoadWeeks || 0;
+    const chronicMult = 1 + Math.min(1.3, loadWeeks * 0.15);
+
+    // Recent race intensity leaves the body vulnerable (decays weekly).
+    const raceMult = 1 + (athlete.raceLoad || 0) / 100 * 0.7;
+
+    // A recently-healed runner is markedly more likely to break down again.
+    const reinjuryMult = (athlete.recentInjuryWeeks || 0) > 0 ? 1.7 : 1;
+
     // Sports science and the weight room keep runners healthy.
     const facilityMult = 1.12 - (school.facilities.sportsScienceLab + school.facilities.weightRoom) / 800;
-    let chance = base * planMeta.injuryMult * fatigueMult * resistMult * facilityMult * philoInjuryMult;
+
+    let chance = base * planMeta.injuryMult * fatigueMult * resistMult
+      * chronicMult * raceMult * reinjuryMult * facilityMult * philoInjuryMult;
 
     // Mileage abuse (Update 3): the further past a body's durable limit the
     // volume goes, the sharper the breakdown risk — and the more it skews to
@@ -390,14 +416,15 @@
     if (mMeta) {
       chance *= mMeta.injuryMult;
       excess = mMeta.mileage - safeMileage(athlete);
-      if (excess > 0) chance *= 1 + excess * 0.075 + Math.pow(excess / 22, 2) * 0.10;
+      if (excess > 0) chance *= 1 + excess * 0.085 + Math.pow(excess / 22, 2) * 0.12;
     }
 
-    if (!rng.bool(Utils.clamp(chance, 0.0005, 0.30))) return null;
+    if (!rng.bool(Utils.clamp(chance, 0.0005, 0.42))) return null;
 
-    // Over the limit → overuse breakdowns (stress fractures, Achilles,
-    // plantar fasciitis, shin splints). Otherwise the usual mixed bag.
-    const overLimit = excess > 6;
+    // Over the limit — by mileage or by sustained overtraining while deeply
+    // fatigued — skews to overuse breakdowns (stress reactions/fractures,
+    // Achilles, plantar fasciitis, shin splints). Otherwise the usual mix.
+    const overLimit = excess > 6 || (loadWeeks >= 6 && athlete.fatigue >= 80);
     const table = overLimit ? D.OVERUSE_INJURIES : D.INJURIES;
     const injury = rng.weightedChoice(table, (i) => i.weight);
     let weeks = rng.int(injury.weeks[0], injury.weeks[1]);
@@ -423,6 +450,10 @@
       athlete.morale = Utils.clamp(athlete.morale - 1, 0, 100);
       athlete.chronicMileage = Math.round((athlete.chronicMileage || 60) * 0.7); // detraining
       if (athlete.injury.weeksRemaining <= 0) {
+        // A recently-healed runner is fragile: a reinjury window where the
+        // body is still adapting back to full load (longer for the injury
+        // that just cost more weeks). Feeds rollInjury below.
+        athlete.recentInjuryWeeks = Math.min(8, 2 + Math.round((athlete.injury.totalWeeks || 2) / 2));
         athlete.injury = null;
         athlete.health = 'Healthy';
         if (isPlayerSchool) gameState.logNews(`${athlete.fullName} is healthy and returns to full training.`);
@@ -474,6 +505,21 @@
 
     // Chronic load: the rolling base that makes tapers work — and fade.
     athlete.chronicMileage = Math.round((athlete.chronicMileage || mMeta.mileage) * 0.7 + mMeta.mileage * 0.3);
+
+    // Workload history (Update 6, Phase 2): a week counts as "high load" when
+    // the runner is carrying real fatigue, stacking hard days, or pushing past
+    // their durable mileage limit. Consecutive high-load weeks compound injury
+    // risk; a genuinely easy/taper week lets the body recover the counter.
+    const hardDayCount = planMeta.hardDays || 0;
+    const highLoadWeek = athlete.fatigue >= 70 || hardDayCount >= 5 ||
+      (mMeta.mileage - safeMileage(athlete)) > 4;
+    if (highLoadWeek) athlete.highLoadWeeks = Math.min(24, (athlete.highLoadWeeks || 0) + 1);
+    else athlete.highLoadWeeks = Math.max(0, (athlete.highLoadWeeks || 0) - 2);
+
+    // Recent race intensity and the post-injury fragility window both fade
+    // week over week as the body absorbs and recovers.
+    athlete.raceLoad = Math.max(0, Math.round((athlete.raceLoad || 0) - 22));
+    if (athlete.recentInjuryWeeks > 0) athlete.recentInjuryWeeks -= 1;
 
     // Chronic exhaustion erodes stamina — the cost of overtraining.
     if (athlete.fatigue > 85 && rng.bool(0.35) && athlete.stamina > 20) {

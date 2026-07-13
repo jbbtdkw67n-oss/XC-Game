@@ -32,24 +32,26 @@
         <h2>Save Slots</h2>
         ${slots.length ? `
           <div class="table-wrap"><table class="data">
-            <thead><tr><th>Label</th><th>School</th><th>Coach</th><th>Date</th><th>Saved</th><th></th></tr></thead>
+            <thead><tr><th>Dynasty</th><th>School</th><th>Coach</th><th>Record</th><th>Year</th><th>Last Played</th><th></th></tr></thead>
             <tbody>
               ${slots.map((s) => `
                 <tr>
-                  <td><strong>${Utils.escapeHtml(s.label)}</strong>${s.slotId === 'auto' ? ' <span style="color:var(--text-faint);font-size:11px;">(AUTO)</span>' : ''}</td>
+                  <td><strong>${Utils.escapeHtml(s.dynastyName || s.label)}</strong>${s.isAuto ? ' <span style="color:var(--text-faint);font-size:11px;">(AUTO)</span>' : ''}</td>
                   <td>${Utils.escapeHtml(s.schoolName)}</td>
                   <td>${Utils.escapeHtml(s.coachName)}</td>
+                  <td>${Utils.escapeHtml(s.record || '—')}</td>
                   <td>Wk ${s.week}, ${s.year}</td>
                   <td>${new Date(s.savedAt).toLocaleString()}</td>
                   <td style="text-align:right; white-space:nowrap;">
                     <button class="btn small" data-load="${s.slotId}">Load</button>
+                    <button class="btn small" data-rename="${s.slotId}" title="Rename dynasty">Rename</button>
                     <button class="btn small" data-overwrite="${s.slotId}">Overwrite</button>
                     <button class="btn small danger" data-del="${s.slotId}">Delete</button>
                   </td>
                 </tr>`).join('')}
             </tbody>
           </table></div>`
-        : '<div style="color:var(--text-dim);">No save slots yet. Your game auto-saves each week; use “Save to New Slot” for a manual checkpoint.</div>'}
+        : '<div style="color:var(--text-dim);">No save slots yet. Your game auto-saves each week per dynasty; use “Save to New Slot” for a manual checkpoint.</div>'}
       </div>`;
 
     container.querySelector('#btn-save-new').addEventListener('click', async () => {
@@ -116,10 +118,34 @@
       });
     });
 
+    container.querySelectorAll('[data-rename]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const slotId = btn.dataset.rename;
+        const current = slots.find((s) => s.slotId === slotId);
+        const name = window.prompt('Rename dynasty:', (current && current.dynastyName) || '');
+        if (name === null) return; // cancelled
+        try {
+          const ok = await SaveManager().renameSlot(slotId, name);
+          // Keep the live game's name in sync if it's the one being renamed.
+          if (ok && current && game && current.dynastyId === game.dynastyId) {
+            game.dynastyName = name.trim() || game.dynastyName;
+          }
+          UI.toast(ok ? 'Dynasty renamed.' : 'Rename failed.', ok ? 'success' : 'error');
+          render(container);
+        } catch (err) {
+          UI.toast('Rename failed: ' + err.message, 'error');
+        }
+      });
+    });
+
     container.querySelectorAll('[data-del]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        await SaveManager().deleteSlot(btn.dataset.del);
-        UI.toast('Save deleted.');
+        const slotId = btn.dataset.del;
+        const current = slots.find((s) => s.slotId === slotId);
+        const label = (current && current.dynastyName) || 'this save';
+        if (!window.confirm(`Delete “${label}”? This cannot be undone.`)) return;
+        await SaveManager().deleteSlot(slotId);
+        UI.toast('Dynasty deleted.');
         render(container);
       });
     });

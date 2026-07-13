@@ -29,6 +29,7 @@
 
   function renderCard(school, game) {
     const coach = game.getCoach(school.coachId);
+    const assistant = school.assistantId ? game.getCoach(school.assistantId) : null;
     const Legacy = window.XCD.engine.Legacy;
     const Rk = window.XCD.engine.Rankings;
     const prog = Legacy ? Legacy.program(game, school.id) : {};
@@ -88,6 +89,15 @@
           <div class="sub">
             Head Coach:
             ${coach ? `<span class="clickable" id="sc-coach" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(coach.fullName)}</span> — ${Utils.escapeHtml(coach.archetype || '')}` : 'Vacant'}
+            ${coach ? (() => {
+              const st = D.seatStatus(coach.hotSeat || 0);
+              const color = st.key === 'hot' ? 'var(--danger)' : st.key === 'warm' ? 'var(--warning)' : 'var(--success)';
+              return ` <span title="${st.desc}" style="color:${color}; font-size:12px;">${st.icon} ${st.label}</span>`;
+            })() : ''}
+          </div>
+          <div class="sub">
+            Assistant:
+            ${assistant ? `<span class="clickable" id="sc-assistant" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(assistant.fullName)}</span> — ${Utils.escapeHtml(assistant.archetype || '')}` : '—'}
           </div>
         </div>
         <div style="text-align:right;">
@@ -146,6 +156,8 @@
       });
       const coachEl = modal.querySelector('#sc-coach');
       if (coachEl && coach) coachEl.addEventListener('click', () => UI.showCoachCard(coach, game));
+      const asstEl = modal.querySelector('#sc-assistant');
+      if (asstEl && assistant) asstEl.addEventListener('click', () => UI.showCoachCard(assistant, game));
     });
   }
 })();

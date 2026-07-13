@@ -70,6 +70,10 @@
         sharpness: 55,     // 0-100 race sharpness: low mileage/tapering raises it
         chronicMileage: 0, // rolling weekly-volume average (taper detection)
         seasonInjuryWeeks: 0, // weeks lost to injury this season (offseason dev)
+        // Injury-risk history (Update 6, Phase 2): the body remembers abuse.
+        highLoadWeeks: 0,     // consecutive weeks of heavy workload/fatigue
+        raceLoad: 0,          // recent race intensity, decays weekly (0-100)
+        recentInjuryWeeks: 0, // reinjury window after returning from an injury
         morale: 70,        // 0-100
         devProfile: 'normal', // hidden archetype: normal | early | late | bust
         devProgress: 0,    // fractional development accumulator
@@ -176,6 +180,8 @@
         age: 40,
         archetype: 'Developer', // Recruiter | Developer | Tactician | Players Coach
         portrait: '🧢',
+        // Where the coach ran/studied — flavor shown on the profile card.
+        almaMater: '',
 
         // Coaching philosophies (Update 4). Training philosophy is PERMANENT
         // (chosen at creation, never changes); its effectiveness scales with

@@ -237,8 +237,11 @@
       isPlayer,
       yearsAtSchool: 0
     });
+    coach.almaMater = rng.choice(D.ALMA_MATERS);
     // Tenure can't exceed a plausible career length for the coach's age.
     if (!isPlayer) coach.yearsAtSchool = Math.min(rng.int(0, 14), Math.max(0, coach.age - 26));
+    // Seed years of experience so a generated coach reads as a real career.
+    if (!isPlayer) coach.careerRecord.seasons = coach.yearsAtSchool;
     // Archetypes matter: a real bump to the signature rating.
     coach[archetype.rating] = Utils.clamp(coach[archetype.rating] + 12, 20, 99);
 
@@ -431,6 +434,7 @@
     generateLowerDivisions,
     buildAthlete,
     buildWalkOn,
-    buildReplacementCoach: (rng, school) => buildCoach(rng, school, false)
+    buildReplacementCoach: (rng, school) => buildCoach(rng, school, false),
+    buildAssistant: (rng, school) => buildCoach(rng, school, false, 'Assistant')
   };
 })();

@@ -133,12 +133,24 @@
       <div class="grid cols-2">
         <div class="card">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-            <h2 style="margin:0;">${coach.portrait || '🧢'} Head Coach — ${Utils.escapeHtml(coach.fullName)}</h2>
+            <h2 style="margin:0;">${coach.portrait || '🧢'} ${coach.role === 'Assistant' ? 'Assistant Coach' : 'Head Coach'} — ${Utils.escapeHtml(coach.fullName)}</h2>
             <button class="btn small" id="btn-coach-profile">Full Profile</button>
           </div>
           <div style="color:var(--text-dim); font-size:13px; margin:6px 0;">
             Age ${coach.age} • ${Utils.escapeHtml(coach.archetype || '')} • Year ${coach.yearsAtSchool + 1} at ${Utils.escapeHtml(school.name)} • Overall ${coach.overallRating}
           </div>
+          ${(() => {
+            // Show the counterpart on the staff: the head coach you serve under
+            // as an assistant, or your recruiting coordinator as a head coach.
+            const partnerId = coach.role === 'Assistant' ? school.coachId : school.assistantId;
+            const partner = partnerId && partnerId !== coach.id ? game.getCoach(partnerId) : null;
+            if (!partner) return '';
+            const partnerRole = partner.role === 'Assistant' ? 'Assistant Coach' : 'Head Coach';
+            return `<div style="font-size:12.5px; margin:0 0 10px;">
+              ${partnerRole}: <span class="clickable" id="btn-partner-coach" style="cursor:pointer; color:var(--accent-hover);">${partner.portrait || '🧢'} ${Utils.escapeHtml(partner.fullName)}</span>
+              <span style="color:var(--text-faint);"> • ${Utils.escapeHtml(partner.archetype || '')} • Overall ${partner.overallRating}</span>
+            </div>`;
+          })()}
           <div style="font-size:12.5px; margin-bottom:12px;">
             <span title="National reputation — separate from school prestige. Feeds recruiting, the portal, and job offers.">${repLevel.icon} <strong>${repLevel.label}</strong> (${Math.round(coach.reputation || 0)}/99)</span>
             ${tendencies.length ? `<span style="color:var(--text-dim);"> • ${tendencies.join(' • ')}</span>` : ''}
@@ -241,6 +253,13 @@
 
     const profBtn = container.querySelector('#btn-coach-profile');
     if (profBtn) profBtn.addEventListener('click', () => UI.showCoachCard(coach, game));
+
+    const partnerBtn = container.querySelector('#btn-partner-coach');
+    if (partnerBtn) partnerBtn.addEventListener('click', () => {
+      const partnerId = coach.role === 'Assistant' ? school.coachId : school.assistantId;
+      const partner = partnerId && game.getCoach(partnerId);
+      if (partner) UI.showCoachCard(partner, game);
+    });
 
     container.querySelectorAll('[data-race-philo]').forEach((btn) => {
       btn.addEventListener('click', () => {

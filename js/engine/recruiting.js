@@ -865,10 +865,15 @@
     ranking.forEach((entry) => {
       const rank = entry.divisionRank;
       Legacy.recordClassRank(gameState, entry.schoolId, gameState.year, rank);
-      const coach = gameState.getCoach(gameState.getSchool(entry.schoolId)?.coachId);
-      if (coach && (!coach.careerRecord.bestClassRank || rank < coach.careerRecord.bestClassRank)) {
-        coach.careerRecord.bestClassRank = rank;
-      }
+      const school = gameState.getSchool(entry.schoolId);
+      // Credit the class to whoever runs recruiting: the head coach, and the
+      // assistant/recruiting coordinator, so assistants build a résumé too.
+      [school && school.coachId, school && school.assistantId].forEach((cid) => {
+        const coach = cid && gameState.getCoach(cid);
+        if (coach && (!coach.careerRecord.bestClassRank || rank < coach.careerRecord.bestClassRank)) {
+          coach.careerRecord.bestClassRank = rank;
+        }
+      });
     });
 
     // Generational signings are national news one more time.
