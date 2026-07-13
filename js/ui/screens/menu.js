@@ -288,21 +288,21 @@
           <div class="menu-buttons" id="slot-list">
             ${slots.map((s) => `
               <div style="display:flex; gap:8px; align-items:stretch;">
-                <button class="btn" data-load="${s.slotId}" style="flex:1; text-align:left; display:block; padding:10px 14px;">
+                <button class="btn" data-load="${s.dynastyId}" style="flex:1; text-align:left; display:block; padding:10px 14px;">
                   <div style="display:flex; justify-content:space-between; gap:8px;">
-                    <span style="font-weight:600;">${Utils.escapeHtml(s.dynastyName || s.label)}${s.isAuto ? ' <span style="color:var(--text-faint); font-size:11px; font-weight:400;">(auto)</span>' : ''}</span>
+                    <span style="font-weight:600;">${Utils.escapeHtml(s.dynastyName)}</span>
                     <span style="color:var(--text-dim); font-size:12px;">${Utils.escapeHtml(s.record || '0-0')}</span>
                   </div>
                   <div style="color:var(--text-dim); font-size:12px; margin-top:2px;">
                     ${Utils.escapeHtml(s.schoolName)} · ${Utils.escapeHtml(s.coachName)} · Wk ${s.week}, ${s.year}
                   </div>
                   <div style="color:var(--text-faint); font-size:11px; margin-top:1px;">
-                    Last played ${new Date(s.savedAt).toLocaleString()}
+                    Last saved ${new Date(s.savedAt).toLocaleString()}${s.isAuto ? ' (auto)' : ''}
                   </div>
                 </button>
                 <div style="display:flex; flex-direction:column; gap:4px;">
-                  <button class="btn" data-rename="${s.slotId}" title="Rename dynasty" style="padding:4px 8px;">✎</button>
-                  <button class="btn danger" data-del="${s.slotId}" title="Delete dynasty" style="padding:4px 8px;">✕</button>
+                  <button class="btn" data-rename="${s.dynastyId}" title="Rename dynasty" style="padding:4px 8px;">✎</button>
+                  <button class="btn danger" data-del="${s.dynastyId}" title="Delete dynasty" style="padding:4px 8px;">✕</button>
                 </div>
               </div>`).join('')}
           </div>
@@ -318,7 +318,7 @@
       btn.addEventListener('click', async () => {
         try {
           const game = await window.XCD.engine.SaveManager.load(btn.dataset.load);
-          if (!game) { UI.toast('Save slot was empty.', 'error'); return; }
+          if (!game) { UI.toast('That dynasty could not be loaded.', 'error'); return; }
           UI.state.game = game;
           UI.state.currentScreen = 'dashboard';
           UI.renderShell();
@@ -331,12 +331,12 @@
 
     root.querySelectorAll('[data-rename]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        const slotId = btn.dataset.rename;
-        const current = slots.find((s) => s.slotId === slotId);
+        const dynId = btn.dataset.rename;
+        const current = slots.find((s) => s.dynastyId === dynId);
         const name = window.prompt('Rename dynasty:', (current && current.dynastyName) || '');
         if (name === null) return;
         try {
-          await window.XCD.engine.SaveManager.renameSlot(slotId, name);
+          await window.XCD.engine.SaveManager.renameDynasty(dynId, name);
           UI.toast('Dynasty renamed.', 'success');
         } catch (err) {
           UI.toast('Rename failed: ' + err.message, 'error');
@@ -347,13 +347,17 @@
 
     root.querySelectorAll('[data-del]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        const slotId = btn.dataset.del;
-        const current = slots.find((s) => s.slotId === slotId);
+        const dynId = btn.dataset.del;
+        const current = slots.find((s) => s.dynastyId === dynId);
         const label = (current && current.dynastyName) || 'this dynasty';
         if (!window.confirm(`Delete “${label}”? This cannot be undone.`)) return;
-        await window.XCD.engine.SaveManager.deleteSlot(slotId);
+        try {
+          await window.XCD.engine.SaveManager.deleteDynasty(dynId);
+          UI.toast('Dynasty deleted.');
+        } catch (err) {
+          UI.toast('Delete failed: ' + err.message, 'error');
+        }
         renderLoadMenu(root);
-        UI.toast('Dynasty deleted.');
       });
     });
   }

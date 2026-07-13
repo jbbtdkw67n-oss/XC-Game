@@ -106,8 +106,8 @@ const { newDynasty, wireErrors } = require('./helpers');
   // Save -> load roundtrip mid-dynasty
   const roundtrip = await page.evaluate(async () => {
     const g = window.XCD.ui.state.game;
-    await window.XCD.engine.SaveManager.save('test-slot', g, 'test');
-    const loaded = await window.XCD.engine.SaveManager.load('test-slot');
+    await window.XCD.engine.SaveManager.manualSave(g);
+    const loaded = await window.XCD.engine.SaveManager.load(g.dynastyId);
     const a1 = Object.values(g.world.athletes)[0];
     const a2 = loaded.world.athletes[a1.id];
     return {
