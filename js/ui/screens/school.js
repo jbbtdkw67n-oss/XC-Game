@@ -152,6 +152,7 @@
             return `<div style="font-size:12.5px; margin:0 0 10px;">
               ${partnerRole}: <span class="clickable" id="btn-partner-coach" style="cursor:pointer; color:var(--accent-hover);">${partner.portrait || '🧢'} ${Utils.escapeHtml(partner.fullName)}</span>
               <span style="color:var(--text-faint);"> • ${Utils.escapeHtml(partner.archetype || '')} • Overall ${partner.overallRating}</span>
+              ${coach.role !== 'Assistant' ? ' <button class="btn small" id="btn-manage-staff" style="margin-left:6px;" title="Compare assistant candidates and reshape your staff">Manage Staff</button>' : ''}
             </div>`;
           })()}
           <div style="font-size:12.5px; margin-bottom:12px;">
@@ -290,6 +291,54 @@
       const partnerId = coach.role === 'Assistant' ? school.coachId : school.assistantId;
       const partner = partnerId && game.getCoach(partnerId);
       if (partner) UI.showCoachCard(partner, game);
+    });
+
+    // Staff management (Update 6, Section 9): compare candidates, hire, and
+    // let the incumbent go — head coaches only, and never an empty seat.
+    const staffBtn = container.querySelector('#btn-manage-staff');
+    if (staffBtn) staffBtn.addEventListener('click', () => {
+      const Coaching = window.XCD.engine.Coaching;
+      const current = school.assistantId && game.getCoach(school.assistantId);
+      const candidates = Coaching.assistantCandidates(game);
+      const row = (c, tag, btnHtml) => `
+        <div class="attr-row" style="align-items:flex-start; padding:8px 0;">
+          <div style="flex:1;">
+            <div><strong>${c.portrait || '🧢'} ${Utils.escapeHtml(c.fullName)}</strong>
+              <span style="color:var(--text-faint); font-size:11.5px;"> ${tag}</span></div>
+            <div style="color:var(--text-dim); font-size:12px; margin-top:2px;">
+              Age ${c.age} • ${Utils.escapeHtml(c.archetype || '')} • ${Utils.escapeHtml((window.XCD.data.trainingPhilosophy(c.trainingPhilosophy) || {}).label || '')}
+            </div>
+            <div style="font-size:12px; margin-top:3px;">
+              Rec <strong>${c.recruiting}</strong> • Trn <strong>${c.training}</strong> •
+              Eval <strong>${c.talentEval}</strong> • Cul <strong>${c.culture}</strong>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">${btnHtml}</div>
+        </div>`;
+      UI.showModal(`
+        <button class="btn small modal-close" data-modal-close>✕ Close</button>
+        <h2>👥 Assistant Staff</h2>
+        <p style="color:var(--text-dim); font-size:12.5px; margin:6px 0 10px;">
+          Better Staff Management attracts stronger applicants. Hiring replaces your
+          current assistant — the pool refreshes weekly, so a pass now isn't a pass forever.
+        </p>
+        <h3>Current</h3>
+        ${current ? row(current, `• Year ${(current.yearsAtSchool || 0) + 1} on staff`, `<button class="btn small" id="btn-view-current">Profile</button>`) : '<div style="color:var(--text-dim); font-size:13px;">Vacant (a hire below fills it).</div>'}
+        <h3 style="margin-top:12px;">Candidates This Week</h3>
+        ${candidates.map((c, i) => row(c, '', `<button class="btn small primary" data-hire="${i}">Hire</button>`)).join('')}
+      `, (modal) => {
+        const viewBtn = modal.querySelector('#btn-view-current');
+        if (viewBtn) viewBtn.addEventListener('click', () => UI.showCoachCard(current, game));
+        modal.querySelectorAll('[data-hire]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const cand = candidates[Number(btn.dataset.hire)];
+            const res = window.XCD.engine.Coaching.hireAssistant(game, cand);
+            UI.toast(res.message, res.ok ? 'success' : 'error');
+            UI.closeModal();
+            if (res.ok) render(outerContainer);
+          });
+        });
+      });
     });
 
     container.querySelectorAll('[data-race-philo]').forEach((btn) => {

@@ -30,8 +30,15 @@
   /*
    * Called right after awards + firings (awards week). Offers come only
    * from programs with genuine vacancies; your reputation is the résumé.
+   * Update 6, Section 10: elite programs also occasionally court a proven
+   * head coach for a top assistant job — career paths bend both ways.
    */
   function generateOffers(gameState, rng) {
+    generateHeadCoachOffers(gameState, rng);
+    maybeEliteAssistantOffer(gameState, rng);
+  }
+
+  function generateHeadCoachOffers(gameState, rng) {
     const school = gameState.getPlayerSchool();
     const coach = gameState.getPlayerCoach();
     const rep = coach.reputation || 20;
@@ -134,6 +141,48 @@
   }
 
   /*
+   * Elite assistant offers for sitting head coaches (Update 6, Section 10).
+   * Sometimes the smartest career move is joining a blue-blood staff:
+   * recruit inside their machine, build a bigger name, and take a bigger
+   * chair later. Accepting switches the player to the assistant career path.
+   */
+  function maybeEliteAssistantOffer(gameState, rng) {
+    const school = gameState.getPlayerSchool();
+    const coach = gameState.getPlayerCoach();
+    if (!coach || gameState.isAssistant()) return;
+    const rep = coach.reputation || 20;
+    if (rep < 28) return;               // blue bloods don't court unknowns
+    if (!rng.bool(0.16)) return;        // occasional, never routine
+    const existing = (gameState.jobOffers && gameState.jobOffers.offers) || [];
+    const taken = new Set(existing.map((o) => o.schoolId));
+    const pool = Object.values(gameState.world.schools).filter((s) => {
+      if (s.id === gameState.playerSchoolId || taken.has(s.id)) return false;
+      if (s.prestige < Math.max(78, school.prestige + 12)) return false;
+      const head = s.coachId && gameState.world.coaches[s.coachId];
+      return head && !head.isPlayer;
+    });
+    if (!pool.length) return;
+    const s = pool[rng.int(0, pool.length - 1)];
+    const hs = s.historicalSuccess || {};
+    const offer = {
+      schoolId: s.id, schoolName: s.name, prestige: s.prestige, conference: s.conference,
+      division: s.division || 'DI', budget: s.budget.total, facilities: s.facilitiesOverall,
+      academics: s.academics, bestRank: null,
+      expectations: Math.round((window.XCD.data.divisionFor(s).expectations || 1) * 100),
+      natTitles: (hs.nationalTitlesM || 0) + (hs.nationalTitlesW || 0),
+      confTitles: (hs.conferenceTitlesM || 0) + (hs.conferenceTitlesW || 0),
+      repFit: Utils.clamp(Math.round(70 + rep - s.prestige * 0.4), 0, 100),
+      assistantRole: true,
+      kind: 'Elite assistant post'
+    };
+    if (!gameState.jobOffers) {
+      gameState.jobOffers = { year: gameState.year, expiresWeek: OFFER_EXPIRY_WEEK, offers: [] };
+    }
+    gameState.jobOffers.offers.push(offer);
+    gameState.logNews(`📞 ${s.name} wants you to run their recruiting as a top assistant — a springboard inside one of the sport's biggest machines.`);
+  }
+
+  /*
    * Assistant-coach promotions (Update 5, Part 4). A recruiting coordinator
    * who builds classes earns head-coach offers — first at smaller programs,
    * then bigger ones as their reputation grows. This is the payoff of the
@@ -192,6 +241,52 @@
     const offers = gameState.jobOffers;
     if (!offers || !offers.offers.some((o) => o.schoolId === schoolId)) {
       return { ok: false, message: 'That offer is no longer on the table.' };
+    }
+    const offer = offers.offers.find((o) => o.schoolId === schoolId);
+
+    // Head coach → elite assistant (Update 6, Section 10): step off the hot
+    // seat and into a blue-blood staff. Your old chair opens for real.
+    if (offer && offer.assistantRole && !gameState.isAssistant()) {
+      const Legacy = window.XCD.engine.Legacy;
+      const oldSchool = gameState.getPlayerSchool();
+      const newSchool = gameState.getSchool(schoolId);
+      const coach = gameState.getPlayerCoach();
+      const rng = new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 41 + schoolId.length) >>> 0);
+
+      Legacy.closeStint(gameState, coach, oldSchool, gameState.year);
+      oldSchool.coachId = null;
+      oldSchool.coachChangedYear = gameState.year;
+      fillVacancy(gameState, oldSchool, rng, 0);
+
+      const asst = newSchool.assistantId && gameState.world.coaches[newSchool.assistantId];
+      if (asst && !asst.isPlayer) {
+        Legacy.closeStint(gameState, asst, newSchool, gameState.year);
+        delete gameState.world.coaches[asst.id];
+      }
+      coach.role = 'Assistant';
+      gameState.playerRole = 'Assistant';
+      coach.schoolId = newSchool.id;
+      coach.yearsAtSchool = 0;
+      coach.hotSeat = 0;
+      newSchool.assistantId = coach.id;
+      gameState.playerSchoolId = newSchool.id;
+      Legacy.openStint(gameState, coach, newSchool, gameState.year + 1);
+      Legacy.linkStaff(gameState, newSchool, gameState.year);
+
+      gameState.training.overrides = {};
+      gameState.training.mileageOverrides = {};
+      gameState.culture.captains = { M: [], W: [] };
+      gameState.recruiting.budgetLeft = Math.round(newSchool.budget.recruiting * 0.5);
+      gameState.recruiting.board = { M: [], W: [] };
+      gameState.lastPlayerMeetId = null;
+      gameState.jobOffers = null;
+      gameState.weeklyFlow.trainingConfirmed = true; // the head coach plans now
+
+      gameState.career.stops = gameState.career.stops || [];
+      gameState.career.stops.push({ school: newSchool.name, startYear: gameState.year + 1, role: 'Assistant' });
+
+      gameState.logNews(`🔁 CAREER MOVE: You step down from the ${oldSchool.name} head job to run recruiting at ${newSchool.name} — betting a blue-blood springboard beats a hot seat.`);
+      return { ok: true, message: `Welcome to the ${newSchool.name} staff!` };
     }
 
     // Assistant → head coach promotion: a distinct transition. The assistant

@@ -257,7 +257,7 @@
               ${game.jobOffers.offers.map((o) => `
                 <tr>
                   <td>${o.kind === 'Dream job' ? '🌟 ' : ''}<strong>${Utils.escapeHtml(o.schoolName)}</strong>
-                    <div><span class="rating ${o.kind === 'Dream job' || o.kind === 'Jump to DI' ? 'r-elite' : o.kind === 'Step up' ? 'r-great' : o.kind === 'Lateral move' ? 'r-avg' : 'r-poor'}" style="font-size:10px;">${o.kind}</span></div></td>
+                    <div><span class="rating ${o.kind === 'Dream job' || o.kind === 'Jump to DI' || o.kind === 'Elite assistant post' ? 'r-elite' : o.kind === 'Step up' ? 'r-great' : o.kind === 'Lateral move' ? 'r-avg' : 'r-poor'}" style="font-size:10px;">${o.kind}</span></div></td>
                   <td>${o.division}</td>
                   <td style="font-size:12px;">${Utils.escapeHtml(o.conference)}</td>
                   <td class="num">${o.prestige}</td>

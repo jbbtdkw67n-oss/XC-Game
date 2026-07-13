@@ -205,6 +205,63 @@
     return (coach.reputation || 20) * 0.7 + (coach.media || 50) * 0.3;
   }
 
+  /* ---------------- Staff management (Update 6, Section 9) ------------ *
+   * Head coaches run their own staff. Candidates are generated
+   * deterministically per week (no reroll-scumming), their quality scaled
+   * by program prestige and the head coach's Staff Management craft.
+   * Hiring is atomic — the outgoing assistant is let go in the same move,
+   * so no program is ever without an assistant.
+   */
+  function staffRng(gameState) {
+    return new window.XCD.core.SeededRNG(
+      (gameState.seed ^ (gameState.year * 53 + gameState.week * 7 + 0x5AFF)) >>> 0);
+  }
+
+  function assistantCandidates(gameState) {
+    const school = gameState.getPlayerSchool();
+    const coach = gameState.getPlayerCoach();
+    const WG = window.XCD.engine.WorldGenerator;
+    const rng = staffRng(gameState);
+    const lift = Math.round(((coach.staffManagement ?? 55) - 50) / 8); // a connected boss attracts better applicants
+    const out = [];
+    for (let i = 0; i < 3; i++) {
+      const cand = WG.buildAssistant(rng, school);
+      cand.age = rng.int(26, 52);
+      ['recruiting', 'training', 'peaking', 'culture', 'talentEval'].forEach((k) => {
+        cand[k] = Utils.clamp((cand[k] || 50) + rng.int(-3, 3) + lift, 20, 92);
+      });
+      cand.reputation = Utils.clamp(8 + cand.recruiting * 0.2 + rng.int(0, 12) + lift, 3, 60);
+      cand.schoolId = null;
+      out.push(cand);
+    }
+    return out;
+  }
+
+  function hireAssistant(gameState, candidate) {
+    const Legacy = window.XCD.engine.Legacy;
+    const school = gameState.getPlayerSchool();
+    const coach = gameState.getPlayerCoach();
+    if (!coach || coach.role === 'Assistant') {
+      return { ok: false, message: 'Only a head coach hires the staff.' };
+    }
+    const current = school.assistantId && gameState.world.coaches[school.assistantId];
+    if (current && current.isPlayer) return { ok: false, message: 'You cannot replace yourself.' };
+    if (current) {
+      Legacy.closeStint(gameState, current, school, gameState.year);
+      delete gameState.world.coaches[current.id];
+      gameState.logNews(`Staff change: ${school.name} lets assistant ${current.fullName} go.`);
+    }
+    candidate.schoolId = school.id;
+    candidate.yearsAtSchool = 0;
+    candidate.role = 'Assistant';
+    gameState.world.coaches[candidate.id] = candidate;
+    school.assistantId = candidate.id;
+    Legacy.openStint(gameState, candidate, school, gameState.year);
+    Legacy.linkStaff(gameState, school, gameState.year);
+    gameState.logNews(`Staff hire: ${candidate.fullName} joins ${school.name} as assistant coach under ${coach.fullName}.`);
+    return { ok: true, message: `${candidate.fullName} joins your staff.` };
+  }
+
   window.XCD.engine.Coaching = {
     yearlyProgression,
     updateReputation,
@@ -213,6 +270,8 @@
     mediaPull,
     bestRank,
     divisionSize,
+    assistantCandidates,
+    hireAssistant,
     CORE_RATINGS: CORE,
     SECONDARY_RATINGS: SECONDARY
   };
