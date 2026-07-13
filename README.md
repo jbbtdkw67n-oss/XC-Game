@@ -10,6 +10,65 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 7.0 — Update 6: Every Dynasty Tells a Story
+
+Update 6 (the 6.0 master spec, Part 1) turns the game into a living world that
+can span centuries: retirement starts the next generation instead of ending
+the dynasty, coaching careers connect into family trees, training becomes a
+periodized craft, and the CPU recruits and trains like it means it.
+
+- **Legacy Dynasty Mode.** Retiring never ends the dynasty. A new offseason
+  **🏁 Retire** action on My Program seals your coach's entire career into the
+  permanent record books — the coach registry and a new **Dynasty Lineage**
+  ledger on the My Career tab, both viewable forever — then reruns the creation
+  wizard for a brand-new successor who can take any chair in the country
+  (staying home is the default). Nothing else resets: every program, athlete,
+  rivalry, and record continues. Spend generations inside one world.
+- **Coach creation rebuilt as a guided wizard.** Six steps like a AAA franchise
+  start: identity (name, **age**, **hometown**, **alma mater**, starting
+  position), appearance (expanded portrait set with live preview and
+  randomize), archetype, training philosophy, race philosophy, and a career
+  summary confirmation screen with starting ratings and projected path.
+- **Coaching trees.** Every assistant remembers the head coach who first hired
+  them (their mentor) and every boss they served under; every head coach's tree
+  grows a branch when a former assistant earns their own program — including
+  branches added after the mentor retires. Coach profiles render the full tree
+  with each protégé's current status. Entire coaching families emerge over
+  decades.
+- **Training overhaul.** The separate Easy/Recovery runs merge into one
+  genuinely restorative **Easy Run** (old plans auto-migrate), and the new
+  **Championship Simulation** joins the hard sessions — the biggest sharpness
+  stimulus in the game and a confidence rehearsal for fit runners, at heavy
+  fatigue/injury cost. The season now moves through six named **periodization
+  phases** (Base → Build → Specific → Peak → Championship → Transition) shown
+  live on the planner; plans that match the phase develop athletes faster.
+  **Training adaptation**: week after week of heavy load dulls the stimulus
+  while fresh athletes improve fastest — and a genuinely easy week lets runners
+  **absorb** banked hard work into development while body and mind recover.
+  Recovery weeks are now legitimate strategy.
+- **CPU training intelligence.** AI staffs train at their craft level: elite
+  staffs peak correctly, schedule mid-season recovery weeks, rehearse
+  championships with race simulations, and rest athletes deep in the red;
+  average staffs make occasional odd calls; poor staffs overtrain through race
+  weeks, skip the championship taper, and peak too early.
+- **CPU wave recruiting.** Elite programs open the cycle laser-focused on 2-4
+  elite targets with every push landing harder, expanding the board only after
+  commitments land. All boards now **pivot weekly** — once a rival's lead is
+  decisive, the CPU drops the lost battle and re-shops the spot instead of
+  wasting effort.
+- **Generational talent rules.** Once-in-a-generation prospects only originate
+  from **high school or international** pipelines — a JUCO transfer can become
+  an All-American or a national champion, but never a generational recruit.
+- **Staff management.** Head coaches run their staff: a **Manage Staff** panel
+  compares the incumbent assistant against three weekly candidates (quality
+  scaled by prestige and your Staff Management craft, deterministic per week so
+  it can't be reroll-scummed); hiring atomically replaces the incumbent, so no
+  program is ever without an assistant.
+- **Two-way career paths.** Elite programs occasionally court a proven head
+  coach for a **top assistant job** — accepting steps you off your chair (which
+  opens for real) and onto a blue-blood staff on the assistant career path,
+  with the promotion ladder back to a head job already in place.
+
 ## Version 6.0 — Update 5: Living Dynasty & Coaching Careers
 
 Update 5 makes a dynasty feel alive over decades. You can now build a coaching
