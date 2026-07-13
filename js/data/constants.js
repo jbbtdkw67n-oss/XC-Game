@@ -326,21 +326,53 @@
    * injury  = injury-risk factor of one day
    * hard    = counts as a quality/hard day for plan-balance math
    */
+  // Update 6, Section 4: the old separate Easy/Recovery runs merged into one
+  // genuinely restorative Easy Run (legacy plans with 'recovery' auto-map).
+  // Championship Simulation joined the hard sessions: a full race-effort
+  // rehearsal — big fitness/sharpness payoff, big fatigue and injury risk.
   D.WORKOUTS = {
     rest:      { label: 'Rest Day',          short: 'Rest',  fatigue: -13, injury: 0.0, hard: false, attrs: {}, isRest: true },
-    easy:      { label: 'Easy Run',          short: 'Easy',  fatigue: 4,  injury: 0.6, hard: false, attrs: { stamina: 1.0 } },
-    recovery:  { label: 'Recovery Run',      short: 'Rec',   fatigue: -7, injury: 0.3, hard: false, attrs: { stamina: 0.25 } },
+    easy:      { label: 'Easy Run',          short: 'Easy',  fatigue: -3, injury: 0.4, hard: false, attrs: { stamina: 0.5 } },
     long:      { label: 'Long Run',          short: 'Long',  fatigue: 10, injury: 1.1, hard: true,  attrs: { stamina: 3.0, vo2Max: 1.0 } },
     tempo:     { label: 'Tempo',             short: 'Tempo', fatigue: 9,  injury: 1.0, hard: true,  attrs: { lactateThreshold: 3.0, stamina: 1.0 } },
     hills:     { label: 'Hills',             short: 'Hills', fatigue: 11, injury: 1.4, hard: true,  attrs: { vo2Max: 2.0, speed: 2.0, runningEconomy: 2.0 } },
     intervals: { label: 'Intervals',         short: 'Int',   fatigue: 12, injury: 1.3, hard: true,  attrs: { vo2Max: 3.0, speed: 1.0 } },
-    speed:     { label: 'Speed Development', short: 'Spd',   fatigue: 8,  injury: 1.2, hard: true,  attrs: { speed: 3.0, runningEconomy: 2.0 } }
+    speed:     { label: 'Speed Development', short: 'Spd',   fatigue: 8,  injury: 1.2, hard: true,  attrs: { speed: 3.0, runningEconomy: 2.0 } },
+    racesim:   { label: 'Championship Simulation', short: 'Sim', fatigue: 13, injury: 1.5, hard: true, attrs: { vo2Max: 1.5, lactateThreshold: 1.5, stamina: 0.5 } }
   };
 
   D.DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   // A sensible balanced starting week (Mon → Sun).
-  D.DEFAULT_WEEK_PLAN = ['easy', 'intervals', 'recovery', 'tempo', 'easy', 'long', 'recovery'];
+  D.DEFAULT_WEEK_PLAN = ['easy', 'intervals', 'easy', 'tempo', 'easy', 'long', 'easy'];
+
+  /* ------------------------------------------------------------------ *
+   * Periodization (Update 6, Section 4): the season moves through named
+   * training phases; plans that match the phase develop athletes best,
+   * and AI staffs follow the same calendar. `fit` inspects a plan meta.
+   * ------------------------------------------------------------------ */
+  D.TRAINING_PHASES = [
+    { key: 'base',        label: 'Base Phase',         icon: '🧱', upTo: 3,
+      ideal: 'Aerobic volume: a long run, tempo work, plenty of easy running — no more than 2 hard days.',
+      fit: (m) => m.hasLong && m.hardDays >= 1 && m.hardDays <= 2 },
+    { key: 'build',       label: 'Build Phase',        icon: '📈', upTo: 7,
+      ideal: 'Classic quality: 2-3 hard sessions plus the long run, real recovery between.',
+      fit: (m) => m.hasLong && m.hardDays >= 2 && m.hardDays <= 3 },
+    { key: 'specific',    label: 'Specific Phase',     icon: '🎯', upTo: 11,
+      ideal: 'Race-specific work: 2-3 hard days including intervals, speed, or a championship simulation.',
+      fit: (m) => m.hardDays >= 2 && m.hardDays <= 3 && (m.speedDays > 0 || m.racesimDays > 0) },
+    { key: 'peak',        label: 'Peak Phase',         icon: '⛰', upTo: 12,
+      ideal: 'Sharpen while shedding load: at most 2 hard days, speed or a race simulation, mostly easy running.',
+      fit: (m) => m.hardDays >= 1 && m.hardDays <= 2 && (m.speedDays > 0 || m.racesimDays > 0) },
+    { key: 'championship', label: 'Championship Phase', icon: '🏆', upTo: 15,
+      ideal: 'The taper: one hard touch at most, rest days banked, everything else easy.',
+      fit: (m) => m.hardDays <= 1 && (m.restDays > 0 || m.easyDays >= 4) },
+    { key: 'transition',  label: 'Transition Phase',   icon: '🍂', upTo: 99,
+      ideal: 'Let the body absorb the season: easy running, genuine rest, no forced quality.',
+      fit: (m) => m.hardDays <= 1 }
+  ];
+  D.trainingPhaseForWeek = (week) => D.TRAINING_PHASES.find((p) => week <= p.upTo) ||
+    D.TRAINING_PHASES[D.TRAINING_PHASES.length - 1];
 
   // Injury table: name + base weeks out [min, max]. `overuse:true` marks the
   // chronic breakdowns that mileage abuse drives (Update 3).

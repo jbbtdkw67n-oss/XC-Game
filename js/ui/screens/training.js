@@ -13,13 +13,13 @@
 
   const WORKOUT_HINTS = {
     rest: 'Complete rest. Sheds fatigue, cuts injury risk, sharpens the legs — but too many rest days stall development.',
-    easy: 'Steady aerobic mileage. Small stamina gains, light load.',
-    recovery: 'Very easy jogging. Sheds fatigue; tiny stamina gains.',
+    easy: 'Genuinely easy running. Sheds fatigue, keeps the aerobic system ticking — the recovery currency of every good week.',
     long: 'The weekly cornerstone: big stamina, some VO₂ Max.',
     tempo: 'Threshold running — builds Lactate Threshold.',
     hills: 'Hill repeats: VO₂ Max, Speed, Economy + hill toughness. High injury risk.',
     intervals: 'Track work: VO₂ Max and some Speed. The hardest day.',
-    speed: 'Sprint mechanics: Speed and Running Economy.'
+    speed: 'Sprint mechanics: Speed and Running Economy.',
+    racesim: 'Full championship rehearsal: the biggest sharpness boost in the game and a confidence builder for fit runners — at heavy fatigue and injury cost. One per week, placed late in the season.'
   };
 
   const ATTR_LABELS = {
@@ -108,6 +108,7 @@
             </button>
           </div>
         </div>
+        <div id="phase-banner" style="margin:8px 0 0; padding:8px 12px; background:var(--bg-tile, rgba(128,128,128,0.08)); border-radius:8px; font-size:13px; border-left:3px solid var(--warning);"></div>
         ${raceThisWeek ? `<div style="margin:8px 0 0; padding:8px 12px; background:var(--accent-soft); border-radius:8px; font-size:13px;">
           🏁 RACE WEEK — your runners race this week. Fresh legs win races; consider tapering.
         </div>` : ''}
@@ -298,6 +299,20 @@
       render(container);
     });
 
+    // Periodization banner (Update 6, Section 4): the current phase and
+    // whether the plan fits it — refreshed live as days change.
+    const refreshPhaseBanner = () => {
+      const el = container.querySelector('#phase-banner');
+      if (!el) return;
+      const phase = D.trainingPhaseForWeek(game.week);
+      const meta = TE().planMetaFor(game.training[activeGender]);
+      const fit = !!(phase.fit && phase.fit(meta));
+      el.style.borderLeftColor = fit ? 'var(--success)' : 'var(--warning)';
+      el.innerHTML = `${phase.icon} <strong>${phase.label}</strong> — ${phase.ideal}
+        <span style="color:${fit ? 'var(--success)' : 'var(--warning)'}; font-weight:600;">${fit ? '✓ Plan fits the phase (+dev)' : '✗ Plan fights the phase'}</span>`;
+    };
+    refreshPhaseBanner();
+
     // Day selects
     container.querySelectorAll('[data-day]').forEach((sel) => {
       sel.addEventListener('change', () => {
@@ -307,6 +322,7 @@
         sel.classList.toggle('easy', !D.WORKOUTS[sel.value].hard);
         const hint = container.querySelector(`#hint-${i}`);
         if (hint) hint.textContent = WORKOUT_HINTS[sel.value];
+        refreshPhaseBanner();
         preview();
       });
     });

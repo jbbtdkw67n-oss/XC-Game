@@ -40,6 +40,8 @@
   function normalizePlan(plan) {
     const days = Array.isArray(plan) ? plan.slice(0, 7) : [];
     while (days.length < 7) days.push('easy');
+    // 'recovery' merged into 'easy' (Update 6, Section 4) — legacy saves and
+    // any unknown key both land on the easy run.
     return days.map((k) => (D.WORKOUTS[k] ? k : 'easy'));
   }
 
@@ -51,26 +53,70 @@
   // AI templates now use scheduled rest days as a real tool (Update 3):
   // race/taper weeks and the championship taper bank a rest day for freshness.
   const AI_TEMPLATES = {
-    race:      ['easy', 'tempo', 'rest', 'easy', 'recovery', 'easy', 'recovery'],           // taper into the meet
-    taper:     ['easy', 'recovery', 'rest', 'easy', 'tempo', 'rest', 'recovery'],           // championship taper
-    build:     ['easy', 'intervals', 'recovery', 'tempo', 'easy', 'long', 'recovery'],      // classic in-season week
-    sharpen:   ['easy', 'speed', 'recovery', 'intervals', 'rest', 'long', 'recovery'],      // late-season sharpening
-    strength:  ['easy', 'hills', 'recovery', 'tempo', 'easy', 'long', 'recovery'],          // hill/strength emphasis
-    base:      ['easy', 'easy', 'recovery', 'tempo', 'easy', 'long', 'recovery']            // aerobic base
+    race:      ['easy', 'tempo', 'rest', 'easy', 'easy', 'easy', 'easy'],            // taper into the meet
+    taper:     ['easy', 'easy', 'rest', 'easy', 'tempo', 'rest', 'easy'],            // championship taper
+    build:     ['easy', 'intervals', 'easy', 'tempo', 'easy', 'long', 'easy'],       // classic in-season week
+    sharpen:   ['easy', 'speed', 'easy', 'intervals', 'rest', 'long', 'easy'],       // late-season sharpening
+    sharpsim:  ['easy', 'racesim', 'easy', 'speed', 'rest', 'long', 'easy'],         // elite: rehearse the championship
+    strength:  ['easy', 'hills', 'easy', 'tempo', 'easy', 'long', 'easy'],           // hill/strength emphasis
+    base:      ['easy', 'easy', 'easy', 'tempo', 'easy', 'long', 'easy'],            // aerobic base
+    recovery:  ['easy', 'easy', 'rest', 'easy', 'easy', 'easy', 'easy']              // absorb the work
   };
+
+  /*
+   * CPU coaching intelligence (Update 6, Section 5). A staff's training +
+   * peaking craft decides how well they run the calendar:
+   *   - Elite staffs peak correctly, schedule recovery weeks, and rehearse
+   *     championships with race simulations.
+   *   - Average staffs are mostly sound with occasional mistakes.
+   *   - Poor staffs overtrain, skip recovery, and peak too early — they keep
+   *     hammering quality straight through championship weeks.
+   * Mistakes are deterministic per coach+week (no save-scumming the CPU).
+   */
+  function coachCraft(coach) {
+    if (!coach) return 50;
+    return ((coach.training ?? 50) + (coach.peaking ?? 50)) / 2;
+  }
+
+  function coachRoll(coach, week, salt) {
+    // Cheap deterministic hash → [0, 1). Stable for a coach-week.
+    let h = (salt || 0) + week * 2654435761;
+    const id = (coach && coach.id) || 'x';
+    for (let i = 0; i < id.length; i++) h = (h ^ id.charCodeAt(i)) * 16777619 >>> 0;
+    return (h % 1000) / 1000;
+  }
 
   function aiPlan(gameState, coach) {
     const week = gameState.week;
-    // Championship weeks: a genuine taper with rest days built in.
-    if (week >= CAL.CONFERENCE_WEEK && week <= CAL.NATIONAL_WEEK) return AI_TEMPLATES.taper.slice();
+    const craft = coachCraft(coach);
+
+    // Championship weeks: a genuine taper with rest days built in —
+    // unless the staff simply doesn't know how to peak.
+    if (week >= CAL.CONFERENCE_WEEK && week <= CAL.NATIONAL_WEEK) {
+      if (craft < 45 && coachRoll(coach, week, 11) < 0.55) return AI_TEMPLATES.build.slice(); // overtrains into the biggest meets
+      return AI_TEMPLATES.taper.slice();
+    }
     if (MEET_WEEKS.has(week)) {
       // Conservative / development-minded staffs rest more before meets.
       const restful = coach && (coach.archetype === 'Developer' ||
         (coach.hasTendency && coach.hasTendency('conservative')));
+      if (craft < 45 && coachRoll(coach, week, 13) < 0.4) return AI_TEMPLATES.build.slice(); // trains through races
       return (restful ? AI_TEMPLATES.taper : AI_TEMPLATES.race).slice();
     }
     if (week <= CAL.SUMMER_WEEKS || week >= CAL.OFFSEASON_START) return AI_TEMPLATES.base.slice();
-    if (week >= CAL.MEET_WEEKS[Math.max(0, CAL.MEET_WEEKS.length - 2)] - 1) return AI_TEMPLATES.sharpen.slice();
+    if (week >= CAL.MEET_WEEKS[Math.max(0, CAL.MEET_WEEKS.length - 2)] - 1) {
+      if (craft < 45) return AI_TEMPLATES.build.slice();             // never sharpens
+      if (craft >= 65) return AI_TEMPLATES.sharpsim.slice();         // rehearses the championship
+      return AI_TEMPLATES.sharpen.slice();
+    }
+    // Elite staffs bank a genuine recovery week mid-season to absorb work.
+    if (craft >= 65 && week > CAL.SUMMER_WEEKS + 2 && coachRoll(coach, week, 17) < 0.18) {
+      return AI_TEMPLATES.recovery.slice();
+    }
+    // Poor staffs peak too early: quality sharpening long before it matters.
+    if (craft < 45 && coachRoll(coach, week, 19) < 0.3) return AI_TEMPLATES.sharpen.slice();
+    // Average staffs make the occasional odd call.
+    if (craft < 65 && coachRoll(coach, week, 23) < 0.08) return AI_TEMPLATES.strength.slice();
     const t = coach && (coach.archetype === 'Developer') ? AI_TEMPLATES.strength : AI_TEMPLATES.build;
     return t.slice();
   }
@@ -78,15 +124,17 @@
   /*
    * AI mileage (Part 6): a coach's volume philosophy (tendencies) sets the
    * baseline; the calendar shapes the season — summer base, race-week
-   * trims, and a genuine championship taper.
+   * trims, and a genuine championship taper. Poor staffs (Update 6) miss
+   * the taper: they keep the volume high straight into championships.
    */
   function aiMileage(gameState, coach, gender) {
     const Coaching = window.XCD.engine.Coaching;
     let m = Coaching ? Coaching.preferredMileage(coach, gender) : 70;
     const week = gameState.week;
+    const craft = coachCraft(coach);
     if (week >= CAL.OFFSEASON_START) m = Math.round(m * 0.8);        // offseason maintenance
     else if (week <= CAL.SUMMER_WEEKS) m += 8;                       // summer volume block
-    else if (week >= CAL.CONFERENCE_WEEK) m = Math.round(m * 0.62);  // championship taper
+    else if (week >= CAL.CONFERENCE_WEEK) m = Math.round(m * (craft < 45 ? 0.9 : 0.62)); // championship taper (missed by poor staffs)
     else if (MEET_WEEKS.has(week)) m = Math.round(m * 0.85);         // race-week trim
     return Utils.clamp(m, D.MILEAGE.MIN, D.MILEAGE.MAX);
   }
@@ -160,8 +208,8 @@
     if (override === 'rest') {
       return {
         fatigue: -16, fitness: 0, injuryMult: 0.2, devMult: 0.15,
-        attrWeights: {}, hardDays: 0, hasLong: false,
-        quality: { label: 'Resting', tone: 'warn' }, hillsDays: 0, speedDays: 0
+        attrWeights: {}, hardDays: 0, hasLong: false, easyDays: 0,
+        quality: { label: 'Resting', tone: 'warn' }, hillsDays: 0, speedDays: 0, racesimDays: 0
       };
     }
     const loadMult = override === 'reduced' ? 0.55 : 1;
@@ -173,6 +221,7 @@
     let easyDays = 0;
     let hillsDays = 0;
     let speedDays = 0;
+    let racesimDays = 0;
     let restDays = 0;
     const attrWeights = {};
 
@@ -182,9 +231,10 @@
       injurySum += w.injury;
       if (w.hard) hardDays++;
       if (w.isRest) restDays++;
-      if (key === 'recovery' || key === 'easy') easyDays++;
+      if (key === 'easy') easyDays++;
       if (key === 'hills') hillsDays++;
       if (key === 'speed' || key === 'intervals') speedDays++;
+      if (key === 'racesim') racesimDays++;
       for (const [attr, wt] of Object.entries(w.attrs)) {
         attrWeights[attr] = (attrWeights[attr] || 0) + wt;
       }
@@ -197,11 +247,14 @@
     }
 
     let injuryMult = (injurySum / 7) * (1 + backToBack * 0.18);
-    // Rest days count as genuine recovery: a week with a scheduled rest day
-    // never triggers the "no recovery" penalty, and rest lowers injury risk.
-    const recoveryDays = days.filter((d) => d === 'recovery').length + restDays;
+    // Easy runs are the recovery currency now (Update 6): a week with no easy
+    // running and no rest day gives the body nothing to adapt with.
+    const recoveryDays = easyDays + restDays;
     if (recoveryDays === 0) { injuryMult *= 1.25; fatigue += 4; } // no true recovery all week
     if (restDays > 0) injuryMult *= Math.max(0.6, 1 - restDays * 0.12); // rest keeps runners healthy
+    // Multiple race simulations in one week is reckless — the body can only
+    // absorb one full championship effort.
+    if (racesimDays >= 2) { injuryMult *= 1 + (racesimDays - 1) * 0.35; fatigue += (racesimDays - 1) * 5; }
 
     // Development quality: 2-3 hard days is the sweet spot; more is
     // overtraining, fewer is undertraining.
@@ -239,7 +292,7 @@
     else if (balanced) quality = { label: `Balanced — optimal development${restDays ? ' (rest day included)' : ''}`, tone: 'good' };
     else if (hardDays >= 2) quality = { label: `Solid training week${restDays ? ' with rest' : ''}`, tone: 'good' };
     else if (hardDays === 1) quality = { label: 'Light — slow development', tone: 'warn' };
-    else quality = { label: 'Recovery week — fitness will fade', tone: 'warn' };
+    else quality = { label: 'Recovery week — absorb the work, recharge body & mind', tone: 'good' };
 
     return {
       fatigue: fatigue * 0.42 * loadMult,
@@ -247,7 +300,7 @@
       injuryMult: injuryMult * loadMult,
       devMult: devMult * loadMult,
       attrWeights,
-      hardDays, hasLong, hillsDays, speedDays, restDays, quality,
+      hardDays, hasLong, hillsDays, speedDays, racesimDays, restDays, easyDays, quality,
       loadMult
     };
   }
@@ -497,8 +550,10 @@
 
     // Race sharpness (Part 6 + Update 3): drifts toward what this volume
     // allows. Speed work sharpens; tapering off a real base sharpens fastest;
-    // scheduled rest days add freshness and race readiness.
-    let sharpTarget = mMeta.sharpTarget + (planMeta.speedDays || 0) * 2.5 + (planMeta.restDays || 0) * 3;
+    // scheduled rest days add freshness; a championship simulation (Update 6)
+    // is the sharpest single stimulus there is.
+    let sharpTarget = mMeta.sharpTarget + (planMeta.speedDays || 0) * 2.5 + (planMeta.restDays || 0) * 3
+      + (planMeta.racesimDays || 0) * 6;
     sharpTarget = Utils.clamp(sharpTarget, 15, 96);
     athlete.sharpness = Math.round(Utils.clamp(
       (athlete.sharpness ?? 55) + (sharpTarget - (athlete.sharpness ?? 55)) * 0.30, 0, 100));
@@ -567,6 +622,41 @@
     }
     dev *= 0.94 + (school.teamMorale ?? 65) / 1100; // ~0.96–1.03 by team morale
     dev *= philo.devMult; // the coach's training philosophy, executed to skill
+
+    // Training adaptation (Update 6, Section 4): the body habituates.
+    // Week after week of heavy load dulls the stimulus — constant maximum
+    // intensity stops working — while a fresh, healthy athlete soaks up
+    // training fastest of all.
+    const loadWeeksNow = athlete.highLoadWeeks || 0;
+    if (loadWeeksNow >= 5) dev *= Math.max(0.6, 1 - (loadWeeksNow - 4) * 0.05);
+    else if (athlete.fatigue < 30 && loadWeeksNow === 0) dev *= 1.08;
+
+    // Periodization (Update 6): a plan that matches the season's training
+    // phase develops athletes a touch faster — intelligent planning pays.
+    if (planMeta.phaseFit) dev *= 1.06;
+
+    // Recovery weeks are legitimate strategy (Update 6): a genuinely easy
+    // week lets athletes ABSORB banked hard work — converting accumulated
+    // load into development — while body and mind recharge.
+    const recoveryWeek = planMeta.hardDays === 0 && (planMeta.easyDays || 0) >= 4;
+    if (recoveryWeek) {
+      const banked = Math.min(4, loadWeeksNow);
+      dev += banked * 0.4;                                          // the absorbed workload pays out
+      athlete.morale = Utils.clamp(athlete.morale + 2, 0, 100);     // mental recovery
+      if (athlete.health !== 'Injured') {
+        athlete.confidence = Utils.clamp((athlete.confidence ?? 60) + 1, 10, 99);
+      }
+    }
+
+    // A championship simulation is a confidence rehearsal too: a fit runner
+    // comes out believing; a buried one just gets more tired.
+    if ((planMeta.racesimDays || 0) > 0 && athlete.health !== 'Injured') {
+      if (athlete.fitness >= 60 && athlete.fatigue < 70) {
+        athlete.confidence = Utils.clamp((athlete.confidence ?? 60) + 1.2, 10, 99);
+      } else if (athlete.fatigue > 80) {
+        athlete.morale = Utils.clamp(athlete.morale - 1, 0, 100);
+      }
+    }
     athlete.devProgress = (athlete.devProgress || 0) + dev;
     if (athlete.devProgress >= 1) {
       const weights = applyPhilosophyWeights(mileageAttrWeights(planMeta.attrWeights, mMeta.mileage), philo);
@@ -670,6 +760,7 @@
 
   function processWeek(gameState, rng) {
     const playerId = gameState.playerSchoolId;
+    const phase = D.trainingPhaseForWeek(gameState.week);
 
     for (const school of Object.values(gameState.world.schools)) {
       const coach = gameState.getCoach(school.coachId);
@@ -679,12 +770,15 @@
       const playerPlans = isPlayer && gameState.controlsTraining();
       school.chemistry = school.chemistry || {};
       const philo = philosophyEffect(coach);
+      const craft = coachCraft(coach);
 
       ['M', 'W'].forEach((gender) => {
         const plan = playerPlans
           ? (gameState.training[gender] || defaultPlan())
           : aiPlan(gameState, coach);
         const baseMeta = planMetaFor(plan);
+        // Periodization fit (Update 6): does this week's plan match the phase?
+        baseMeta.phaseFit = !!(phase.fit && phase.fit(baseMeta));
         const roster = gender === 'M' ? school.rosterM : school.rosterW;
         const culture = squadCulture(gameState, school, gender, coach);
         school.chemistry[gender] = culture.chemistry;
@@ -695,7 +789,13 @@
           let meta = baseMeta;
           if (playerPlans) {
             const override = gameState.training.overrides[id];
-            if (override) meta = planMetaFor(plan, override);
+            if (override) { meta = planMetaFor(plan, override); meta.phaseFit = baseMeta.phaseFit; }
+          } else if (athlete.fatigue > 78 && craft >= 60) {
+            // Elite AI staffs rest struggling athletes (Update 6, Section 5):
+            // a runner deep in the red gets a reduced-load week. Poor staffs
+            // never notice until the injury report does it for them.
+            meta = planMetaFor(plan, 'reduced');
+            meta.phaseFit = baseMeta.phaseFit;
           }
           const miles = mileageFor(gameState, school, gender, athlete, coach);
           const mMeta = mileageMeta(miles, athlete.chronicMileage);
@@ -816,6 +916,7 @@
     readiness,
     devProfileMult,
     philosophyEffect,
+    coachCraft,
     MEET_WEEKS
   };
 })();
