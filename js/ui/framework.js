@@ -58,12 +58,15 @@
 
   /* ---------------- Rating badge helper ---------------- */
   UI.ratingBadge = function (value) {
+    // Attributes are stored as fractional values internally (for simulation
+    // precision) but always shown as whole numbers.
+    const v = Math.round(value || 0);
     let cls = 'r-poor';
-    if (value >= 85) cls = 'r-elite';
-    else if (value >= 75) cls = 'r-great';
-    else if (value >= 62) cls = 'r-good';
-    else if (value >= 50) cls = 'r-avg';
-    return `<span class="rating ${cls}">${value}</span>`;
+    if (v >= 85) cls = 'r-elite';
+    else if (v >= 75) cls = 'r-great';
+    else if (v >= 62) cls = 'r-good';
+    else if (v >= 50) cls = 'r-avg';
+    return `<span class="rating ${cls}">${v}</span>`;
   };
 
   UI.meter = function (value, colorClass = '') {

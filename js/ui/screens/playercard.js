@@ -99,7 +99,7 @@
 
       <div class="grid cols-4" style="margin-bottom:16px;">
         <div>
-          <h3>Fatigue — ${athlete.fatigue}</h3>
+          <h3>Fatigue — ${Math.round(athlete.fatigue)}</h3>
           ${UI.meter(athlete.fatigue, statusColor)}
         </div>
         <div>
@@ -107,11 +107,11 @@
           ${UI.meter(Math.round(athlete.sharpness ?? 55))}
         </div>
         <div>
-          <h3>Morale — ${athlete.morale}</h3>
+          <h3>Morale — ${Math.round(athlete.morale)}</h3>
           ${UI.meter(athlete.morale, moraleColor)}
         </div>
         <div>
-          <h3>Fitness — ${athlete.fitness}</h3>
+          <h3>Fitness — ${Math.round(athlete.fitness)}</h3>
           ${UI.meter(athlete.fitness)}
         </div>
       </div>
