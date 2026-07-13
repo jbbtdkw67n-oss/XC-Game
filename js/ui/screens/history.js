@@ -65,6 +65,25 @@
         <div class="stat-tile"><div class="label">National Titles</div><div class="value">${c.nationalTitles}</div><div class="sub">${c.podiums} podiums</div></div>
         <div class="stat-tile"><div class="label">Nationals Trips</div><div class="value">${c.nationalsAppearances}</div><div class="sub">best finish: ${c.bestFinish ? Utils.ordinal(c.bestFinish) : '—'}</div></div>
       </div>
+      ${(game.history.playerCareers || []).length ? `
+        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--gold, #d4a017);">
+          <h2>🏛 Dynasty Lineage — ${game.history.playerCareers.length + 1} coach${game.history.playerCareers.length ? 'es' : ''}</h2>
+          <div style="color:var(--text-dim); font-size:12.5px; margin-bottom:8px;">
+            Every coach who has led this dynasty. Retired careers are sealed in the record books forever.
+          </div>
+          ${game.history.playerCareers.map((p, i) => `
+            <div class="attr-row clickable" data-lineage="${i}" style="cursor:pointer;">
+              <span>${p.portrait || '🧢'} <strong>${Utils.escapeHtml(p.name)}</strong>
+                <span style="color:var(--text-faint); font-size:12px;">retired ${p.retiredYear}</span></span>
+              <span style="color:var(--text-dim); font-size:12.5px;">
+                ${(p.careerRecord || {}).seasons || 0} szn • ${(p.careerRecord || {}).nationalTitles || 0} natl • ${(p.careerRecord || {}).conferenceTitles || 0} conf • ${p.winPct || 0}%
+              </span>
+            </div>`).join('')}
+          <div class="attr-row" style="background:var(--accent-soft); border-radius:6px; padding:6px 8px;">
+            <span>${coach.portrait || '🧢'} <strong>${Utils.escapeHtml(coach.fullName)}</strong> <span style="color:var(--accent); font-size:12px;">(current)</span></span>
+            <span style="color:var(--text-dim); font-size:12.5px;">${c.seasons} szn • ${c.nationalTitles} natl • ${c.conferenceTitles} conf</span>
+          </div>
+        </div>` : ''}
       ${(c.stops || []).length ? `
         <div class="card" style="margin-bottom:16px;">
           <h2>Coaching Stops</h2>
@@ -94,6 +113,14 @@
               </tbody></table></div>` : '<div style="color:var(--text-dim);">No completed meets.</div>'}`;
         }).join('') : '<div style="color:var(--text-dim);">Complete a season and your résumé builds here.</div>'}
       </div>`;
+
+    // A retired predecessor's full historical profile, forever.
+    el.querySelectorAll('[data-lineage]').forEach((row) => {
+      row.addEventListener('click', () => {
+        const rec = (game.history.playerCareers || [])[Number(row.dataset.lineage)];
+        if (rec) UI.showCoachCard(rec, game, { retired: true });
+      });
+    });
   }
 
   /*

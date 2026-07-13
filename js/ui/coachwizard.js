@@ -343,4 +343,103 @@
     function render() { renderers[step](); window.scrollTo(0, 0); }
     render();
   };
+
+  /*
+   * Legacy Dynasty Mode succession flow (Update 6, Section 1).
+   *
+   * Runs the wizard inside a living dynasty after the player chooses to
+   * retire. Nothing changes until the very last confirmation — backing out
+   * at any step returns to the game with the old coach still in charge.
+   * On confirmation, Careers.retireAndSucceed seals the old career and
+   * installs the successor atomically.
+   */
+  UI.successionFlow = function (game, initialSpec = {}) {
+    const root = document.getElementById('root');
+    const cancel = () => UI.renderShell();
+    UI.coachWizard(root, { mode: 'succession', world: game.world, initial: initialSpec },
+      (spec) => renderSuccessionSchoolPick(root, game, spec),
+      cancel);
+  };
+
+  function renderSuccessionSchoolPick(root, game, spec) {
+    const D = window.XCD.data;
+    const schools = Object.values(game.world.schools).sort((a, b) => a.name.localeCompare(b.name));
+    const oldCoach = game.getPlayerCoach();
+    let selectedId = game.playerSchoolId; // staying home is the natural default
+    let divFilter = (game.getPlayerSchool().division || 'DI');
+
+    const DIV_TABS = [['DI', 'Division I'], ['DII', 'Division II'], ['DIII', 'Division III']]
+      .filter(([k]) => D.divisionFor(k).active);
+
+    root.innerHTML = `
+      <div id="menu-root">
+        <div class="menu-panel" style="width:min(640px,94vw);">
+          <h1 style="font-size:22px;">Choose Your <span>Program</span></h1>
+          <p class="tagline">${spec.startRole === 'Assistant' ? 'Assistant' : 'Head'} Coach ${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)} succeeds the retiring ${Utils.escapeHtml(oldCoach.fullName)}. Stay home, or start the next era anywhere in the country.</p>
+          <div class="pill-tabs" id="div-tabs" style="margin-bottom:10px;">
+            ${DIV_TABS.map(([k, label]) => `<button data-div="${k}" class="${divFilter === k ? 'active' : ''}">${label}</button>`).join('')}
+          </div>
+          <div class="field">
+            <label>Search Schools</label>
+            <input id="school-search" placeholder="Search by name, conference, or state...">
+          </div>
+          <div class="school-pick-list" id="school-list"></div>
+          <div style="display:flex; gap:10px; margin-top:18px;">
+            <button class="btn" id="btn-back">← Coach</button>
+            <button class="btn primary" id="btn-start" style="flex:1;">🏁 Retire & Begin the New Era</button>
+          </div>
+        </div>
+      </div>`;
+
+    const listEl = root.querySelector('#school-list');
+    const startBtn = root.querySelector('#btn-start');
+
+    function drawList(query = '') {
+      const q = query.toLowerCase();
+      const filtered = schools.filter((s) =>
+        (s.division || 'DI') === divFilter &&
+        (!q || s.name.toLowerCase().includes(q) || s.conference.toLowerCase().includes(q) || s.state.toLowerCase().includes(q)));
+      listEl.innerHTML = filtered.slice(0, 400).map((s) => `
+        <div class="school-pick ${s.id === selectedId ? 'selected' : ''}" data-id="${s.id}">
+          <div>
+            <div class="name">${Utils.escapeHtml(s.name)}${s.id === game.playerSchoolId ? ' <span style="color:var(--accent); font-size:11px;">(your program)</span>' : ''}</div>
+            <div class="meta">${Utils.escapeHtml(s.conference)} • ${s.state}</div>
+          </div>
+          <div style="text-align:right;">
+            ${UI.ratingBadge(s.prestige)}
+            <div class="meta">Prestige</div>
+          </div>
+        </div>`).join('') || '<div style="padding:14px;color:var(--text-dim);">No schools match.</div>';
+
+      listEl.querySelectorAll('.school-pick').forEach((el) => {
+        el.addEventListener('click', () => {
+          selectedId = el.dataset.id;
+          startBtn.disabled = false;
+          listEl.querySelectorAll('.school-pick').forEach((n) => n.classList.toggle('selected', n.dataset.id === selectedId));
+        });
+      });
+    }
+    drawList();
+    startBtn.disabled = !selectedId;
+
+    root.querySelectorAll('[data-div]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        divFilter = btn.dataset.div;
+        root.querySelectorAll('[data-div]').forEach((n) => n.classList.toggle('active', n.dataset.div === divFilter));
+        drawList(root.querySelector('#school-search').value);
+      });
+    });
+    root.querySelector('#school-search').addEventListener('input', (e) => drawList(e.target.value));
+    root.querySelector('#btn-back').addEventListener('click', () => UI.successionFlow(game, spec));
+
+    startBtn.addEventListener('click', async () => {
+      if (!selectedId) return;
+      const res = window.XCD.engine.Careers.retireAndSucceed(game, spec, selectedId);
+      if (!res.ok) { UI.toast(res.message || 'Succession failed.', 'error'); UI.renderShell(); return; }
+      UI.state.currentScreen = 'dashboard';
+      try { await window.XCD.engine.SaveManager.autoSave(game); } catch (err) { /* best-effort */ }
+      UI.renderShell();
+      UI.toast(`${res.retired} retires into the record books. Welcome, Coach ${spec.last}!`, 'success', 4200);
+    });
+  }
 })();

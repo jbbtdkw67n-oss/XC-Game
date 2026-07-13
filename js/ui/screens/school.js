@@ -134,7 +134,10 @@
         <div class="card">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
             <h2 style="margin:0;">${coach.portrait || '🧢'} ${coach.role === 'Assistant' ? 'Assistant Coach' : 'Head Coach'} — ${Utils.escapeHtml(coach.fullName)}</h2>
-            <button class="btn small" id="btn-coach-profile">Full Profile</button>
+            <div style="display:flex; gap:6px;">
+              ${window.XCD.engine.Careers.canRetire(game) ? '<button class="btn small" id="btn-retire-coach" title="Retire this coach — the dynasty continues with a successor you create">🏁 Retire</button>' : ''}
+              <button class="btn small" id="btn-coach-profile">Full Profile</button>
+            </div>
           </div>
           <div style="color:var(--text-dim); font-size:13px; margin:6px 0;">
             Age ${coach.age} • ${Utils.escapeHtml(coach.archetype || '')} • Year ${coach.yearsAtSchool + 1} at ${Utils.escapeHtml(school.name)} • Overall ${coach.overallRating}
@@ -253,6 +256,34 @@
 
     const profBtn = container.querySelector('#btn-coach-profile');
     if (profBtn) profBtn.addEventListener('click', () => UI.showCoachCard(coach, game));
+
+    // Legacy Dynasty Mode (Update 6, Section 1): retirement never ends the
+    // dynasty — it starts the next generation. Confirm, then run the
+    // succession wizard; nothing changes until the final confirmation.
+    const retireBtn = container.querySelector('#btn-retire-coach');
+    if (retireBtn) retireBtn.addEventListener('click', () => {
+      const cr = coach.careerRecord || {};
+      UI.showModal(`
+        <h2>🏁 Retire ${Utils.escapeHtml(coach.fullName)}?</h2>
+        <p style="color:var(--text-dim); font-size:13.5px; line-height:1.5; margin:10px 0;">
+          Retirement is permanent — this career (${cr.seasons || 0} seasons,
+          ${cr.nationalTitles || 0} national titles, ${cr.conferenceTitles || 0} conference titles)
+          is sealed into the record books forever. <strong>The dynasty does not end:</strong>
+          the world, every program, every athlete, and all history continue. You will
+          immediately create a brand-new coach and choose where the next era begins.
+        </p>
+        <p style="color:var(--text-faint); font-size:12.5px;">You can back out at any step of the succession wizard before the final confirmation.</p>
+        <div style="display:flex; gap:10px; margin-top:14px;">
+          <button class="btn" data-modal-close>Keep Coaching</button>
+          <button class="btn primary" id="btn-retire-confirm" style="flex:1;">Begin Succession →</button>
+        </div>
+      `, (modal) => {
+        modal.querySelector('#btn-retire-confirm').addEventListener('click', () => {
+          UI.closeModal();
+          UI.successionFlow(game);
+        });
+      });
+    });
 
     const partnerBtn = container.querySelector('#btn-partner-coach');
     if (partnerBtn) partnerBtn.addEventListener('click', () => {

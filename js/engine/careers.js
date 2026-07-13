@@ -524,6 +524,151 @@
     });
   }
 
+  /* ---------------- Legacy Dynasty Mode (Update 6, Section 1) -------- *
+   * Retirement never ends the dynasty. The player's coach retires into the
+   * permanent record books (coach registry + the dynasty's own lineage
+   * ledger), the world keeps living, and a brand-new coach — created through
+   * the same wizard — picks up the whistle at any program. Centuries of
+   * seasons, one continuous world.
+   */
+  function canRetire(gameState) {
+    return gameState.seasonPhase === 'Offseason';
+  }
+
+  /*
+   * One atomic operation: seal the old career, install the successor.
+   * Nothing else about the world resets — that is the whole point.
+   */
+  function retireAndSucceed(gameState, spec, newSchoolId) {
+    const Legacy = window.XCD.engine.Legacy;
+    const WG = window.XCD.engine.WorldGenerator;
+    const M = window.XCD.models;
+    const D = window.XCD.data;
+    const old = gameState.getPlayerCoach();
+    const oldSchool = gameState.getPlayerSchool();
+    const newSchool = gameState.getSchool(newSchoolId);
+    if (!old || !oldSchool || !newSchool) return { ok: false, message: 'Succession failed: missing coach or school.' };
+    if (!canRetire(gameState)) return { ok: false, message: 'Coaches announce retirement in the offseason.' };
+    const year = gameState.year;
+    const rng = new window.XCD.core.SeededRNG((gameState.seed ^ (year * 2654435761)) >>> 0);
+
+    // 1) The retirement: career sealed into the permanent registry, and into
+    //    the dynasty's own lineage ledger (viewable forever on My Career).
+    Legacy.closeStint(gameState, old, oldSchool, year);
+    Legacy.recordRetiredCoach(gameState, old, 'retired');
+    const registryEntry = gameState.history.coachRegistry[gameState.history.coachRegistry.length - 1];
+    gameState.history.playerCareers = gameState.history.playerCareers || [];
+    gameState.history.playerCareers.push({
+      ...JSON.parse(JSON.stringify(registryEntry)),
+      hometown: old.hometown || '',
+      almaMater: old.almaMater || '',
+      retiredYear: year,
+      dynastyCareer: JSON.parse(JSON.stringify(gameState.career))
+    });
+    if (old.role === 'Assistant') {
+      if (oldSchool.assistantId === old.id) oldSchool.assistantId = null;
+    } else if (oldSchool.coachId === old.id) {
+      oldSchool.coachId = null;
+      oldSchool.coachChangedYear = year;
+    }
+    delete gameState.world.coaches[old.id];
+    const cr = old.careerRecord || {};
+    gameState.logNews(`🏁 END OF AN ERA: ${old.fullName} retires after ${cr.seasons || 0} season${cr.seasons === 1 ? '' : 's'} — ${cr.nationalTitles || 0} national title${cr.nationalTitles === 1 ? '' : 's'}, ${cr.conferenceTitles || 0} conference title${cr.conferenceTitles === 1 ? '' : 's'}. The career enters the record books; the world keeps turning.`);
+
+    // 2) The successor takes their first job.
+    const isAssistant = spec.startRole === 'Assistant';
+    if (!isAssistant) {
+      const incumbent = newSchool.coachId && gameState.world.coaches[newSchool.coachId];
+      if (incumbent) {
+        Legacy.closeStint(gameState, incumbent, newSchool, year);
+        incumbent.schoolId = null;
+        incumbent.hotSeat = 0;
+        incumbent.poolYears = 0; // hits the open market, not oblivion
+        gameState.logNews(`${newSchool.name} moves on from ${incumbent.fullName} to hand the program to a new voice.`);
+      }
+      newSchool.coachId = null;
+    } else {
+      const asst = newSchool.assistantId && gameState.world.coaches[newSchool.assistantId];
+      if (asst && !asst.isPlayer) {
+        Legacy.closeStint(gameState, asst, newSchool, year);
+        delete gameState.world.coaches[asst.id];
+      }
+      newSchool.assistantId = null;
+    }
+
+    const arch = (D.COACH_ARCHETYPES || []).find((a) => a.key === spec.archetype) || { key: 'Developer', rating: 'training' };
+    const successor = new M.Coach({
+      firstName: spec.first || 'Alex',
+      lastName: spec.last || 'Carter',
+      age: Utils.clamp(Math.round(spec.age || (isAssistant ? 30 : 34)), 26, 60),
+      hometown: spec.hometown || '',
+      almaMater: spec.almaMater || '',
+      archetype: arch.key,
+      portrait: spec.portrait || '🧢',
+      recruiting: 50, training: 50, peaking: 50, culture: 50,
+      trainingPhilosophy: (D.trainingPhilosophy(spec.trainingPhilosophy) || {}).key || 'balanced',
+      racePhilosophy: (D.racePhilosophy(spec.racePhilosophy) || {}).key || 'even',
+      schoolId: newSchool.id,
+      role: isAssistant ? 'Assistant' : 'Head',
+      isPlayer: true,
+      yearsAtSchool: 0
+    });
+    successor[arch.rating] = 64;
+    if (isAssistant) successor.recruiting = Math.max(successor.recruiting, 58);
+    successor.reputation = isAssistant ? 12 : 20; // a fresh name, whatever the predecessor built
+    gameState.world.coaches[successor.id] = successor;
+    gameState.playerCoachId = successor.id;
+    gameState.playerRole = isAssistant ? 'Assistant' : 'Head';
+    gameState.playerSchoolId = newSchool.id;
+    if (isAssistant) newSchool.assistantId = successor.id;
+    else { newSchool.coachId = successor.id; newSchool.coachChangedYear = year; }
+    Legacy.openStint(gameState, successor, newSchool, year + 1);
+
+    // 3) The world never stalls: whatever the old program lost is refilled
+    //    from the real market (which may cascade, as always).
+    if (!oldSchool.coachId || !gameState.world.coaches[oldSchool.coachId]) {
+      fillVacancy(gameState, oldSchool, rng, 0);
+    }
+    if (!oldSchool.assistantId || !gameState.world.coaches[oldSchool.assistantId]) {
+      const asst = WG.buildAssistant(rng, oldSchool);
+      asst.age = rng.int(25, 40);
+      asst.reputation = Utils.clamp(asst.reputation || 12, 3, 28);
+      asst.yearsAtSchool = 0;
+      asst.careerRecord.seasons = 0;
+      asst.stints = [{ schoolId: oldSchool.id, school: oldSchool.name, division: oldSchool.division || 'DI', startYear: year, endYear: null }];
+      gameState.world.coaches[asst.id] = asst;
+      oldSchool.assistantId = asst.id;
+    }
+    // A head-coach successor also needs a staff under them.
+    if (!isAssistant && (!newSchool.assistantId || !gameState.world.coaches[newSchool.assistantId])) {
+      const asst = WG.buildAssistant(rng, newSchool);
+      gameState.world.coaches[asst.id] = asst;
+      newSchool.assistantId = asst.id;
+    }
+
+    // 4) A fresh personal ledger — the dynasty's history is untouched.
+    gameState.career = {
+      seasons: 0, conferenceTitles: 0, nationalTitles: 0,
+      nationalsAppearances: 0, podiums: 0, bestFinish: null, awards: [],
+      stops: [{ school: newSchool.name, startYear: year + 1, role: gameState.playerRole }]
+    };
+    gameState.training.M = D.DEFAULT_WEEK_PLAN.slice();
+    gameState.training.W = D.DEFAULT_WEEK_PLAN.slice();
+    gameState.training.overrides = {};
+    gameState.training.mileage = { M: D.MILEAGE.DEFAULT.M, W: D.MILEAGE.DEFAULT.W };
+    gameState.training.mileageOverrides = {};
+    gameState.culture.captains = { M: [], W: [] };
+    gameState.recruiting.board = { M: [], W: [] };
+    gameState.recruiting.auto = false;
+    gameState.recruiting.budgetLeft = Math.round(newSchool.budget.recruiting * 0.5);
+    gameState.lastPlayerMeetId = null;
+    gameState.jobOffers = null;
+    gameState.weeklyFlow.trainingConfirmed = !gameState.controlsTraining();
+
+    gameState.logNews(`🌅 A NEW ERA: ${successor.fullName} ${isAssistant ? `joins ${newSchool.name} as recruiting coordinator` : `takes over as head coach at ${newSchool.name}`}. The dynasty continues.`);
+    return { ok: true, retired: old.fullName, successor: successor.fullName };
+  }
+
   /* ---------------- Coach rankings ---------------- */
   function coachRankings(gameState) {
     const ranks = { M: {}, W: {} };
@@ -558,6 +703,7 @@
 
   window.XCD.engine.Careers = {
     generateOffers, generateAssistantOffers, acceptOffer, declineOffers, expireOffers,
-    runCarousel, runAssistantCarousel, fillVacancy, coachRankings
+    runCarousel, runAssistantCarousel, fillVacancy, coachRankings,
+    canRetire, retireAndSucceed
   };
 })();

@@ -247,6 +247,8 @@
       name: coach.fullName,
       portrait: coach.portrait,
       archetype: coach.archetype,
+      hometown: coach.hometown || '',
+      almaMater: coach.almaMater || '',
       tendencies: (coach.tendencies || []).slice(),
       reputation: coach.reputation || 0,
       reputationLabel: (window.XCD.data.reputationLevel(coach.reputation || 0) || {}).label,
