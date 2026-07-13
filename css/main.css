@@ -515,3 +515,30 @@ table.data td.num, table.data th.num { text-align: right; }
   border: 1px solid var(--border); border-radius: 10px; cursor: pointer; background: transparent;
 }
 .portrait-pick.selected { border-color: var(--accent); background: var(--accent-soft); }
+
+/* Coach creation wizard (Update 6, Section 2) */
+.wizard-steps { display: flex; gap: 6px; margin: 0 0 16px; flex-wrap: wrap; }
+.wizard-step {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700; color: var(--text-faint);
+  border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px 3px 8px;
+}
+.wizard-step em { font-style: normal; font-weight: 600; }
+.wizard-step.active { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.wizard-step.done { color: var(--success); border-color: var(--success); }
+.wizard-preview {
+  display: flex; align-items: center; gap: 14px;
+  border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 14px;
+}
+.wizard-preview-face {
+  font-size: 44px; width: 72px; height: 72px; flex: 0 0 72px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 50%; background: var(--accent-soft);
+}
+.wizard-summary-box {
+  border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 13px;
+}
+.wizard-summary-box .wizard-summary-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-faint); margin-bottom: 6px;
+}

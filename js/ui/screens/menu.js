@@ -52,128 +52,11 @@
     renderCoachCreation(root, seed, world);
   }
 
+  // Coach creation is the guided multi-step wizard (Update 6, Section 2).
   function renderCoachCreation(root, seed, world, prev = {}) {
-    const D = window.XCD.data;
-    let archetype = prev.archetype || null;
-    let portrait = prev.portrait || D.COACH_PORTRAITS[0];
-    let trainingPhilo = prev.trainingPhilosophy || 'balanced';
-    let racePhilo = prev.racePhilosophy || 'even';
-    let startRole = prev.startRole || 'Head';
-
-    root.innerHTML = `
-      <div id="menu-root">
-        <div class="menu-panel" style="width:min(640px,94vw);">
-          <h1 style="font-size:22px;">Create Your <span>Coach</span></h1>
-          <p class="tagline">Step 1 of 2 — every dynasty starts with a coach. Who are you?</p>
-          <div class="grid cols-2">
-            <div class="field"><label>First Name</label><input id="coach-first" value="${Utils.escapeHtml(prev.first || 'Alex')}" maxlength="20"></div>
-            <div class="field"><label>Last Name</label><input id="coach-last" value="${Utils.escapeHtml(prev.last || 'Carter')}" maxlength="20"></div>
-          </div>
-          <div class="field"><label>Dynasty Name</label><input id="dyn-name" value="${Utils.escapeHtml(prev.dynName || '')}" placeholder="e.g. The Carter Era" maxlength="40"></div>
-          <div class="field">
-            <label>Portrait</label>
-            <div class="portrait-row">
-              ${D.COACH_PORTRAITS.map((p) => `
-                <button type="button" class="portrait-pick ${p === portrait ? 'selected' : ''}" data-portrait="${p}">${p}</button>`).join('')}
-            </div>
-          </div>
-          <div class="field">
-            <label>Starting Role <span style="color:var(--text-faint); font-weight:400;">— begin your career as a program's head coach, or work up from a recruiting-only assistant job</span></label>
-            <div class="archetype-grid" id="role-grid">
-              <div class="archetype-card ${startRole === 'Head' ? 'selected' : ''}" data-role="Head">
-                <div class="arch-name">🎖 Head Coach</div>
-                <div class="arch-desc">Full control: training, scheduling, race strategy, redshirts, and recruiting (manual or auto).</div>
-              </div>
-              <div class="archetype-card ${startRole === 'Assistant' ? 'selected' : ''}" data-role="Assistant">
-                <div class="arch-name">📋 Assistant Coach</div>
-                <div class="arch-desc">Run recruiting only under an established head coach. Build a recruiting reputation to earn head-coach offers.</div>
-              </div>
-            </div>
-          </div>
-          <div class="field">
-            <label>Coaching Archetype</label>
-            <div class="archetype-grid">
-              ${D.COACH_ARCHETYPES.map((a) => `
-                <div class="archetype-card ${archetype === a.key ? 'selected' : ''}" data-arch="${a.key}">
-                  <div class="arch-name">${a.icon} ${a.key}</div>
-                  <div class="arch-desc">${a.desc}</div>
-                </div>`).join('')}
-            </div>
-          </div>
-          <div class="field">
-            <label>Training Philosophy <span style="color:var(--text-faint); font-weight:400;">— permanent; its effectiveness scales with your Training rating</span></label>
-            <div class="archetype-grid" id="tp-grid" style="max-height:190px; overflow-y:auto;">
-              ${D.TRAINING_PHILOSOPHIES.map((tp) => `
-                <div class="archetype-card ${trainingPhilo === tp.key ? 'selected' : ''}" data-tp="${tp.key}">
-                  <div class="arch-name">${tp.icon} ${tp.label}</div>
-                  <div class="arch-desc">${tp.desc}</div>
-                </div>`).join('')}
-            </div>
-          </div>
-          <div class="field" style="margin-bottom:0;">
-            <label>Race Philosophy <span style="color:var(--text-faint); font-weight:400;">— can be changed anytime later</span></label>
-            <div class="portrait-row" id="rp-row" style="flex-wrap:wrap;">
-              ${D.RACE_PHILOSOPHIES.map((rp) => `
-                <button type="button" class="portrait-pick ${racePhilo === rp.key ? 'selected' : ''}" data-rp="${rp.key}" title="${rp.desc.replace(/&amp;/g, '&')}" style="width:auto; padding:6px 12px; font-size:13px;">${rp.icon} ${rp.label}</button>`).join('')}
-            </div>
-          </div>
-          <div style="display:flex; gap:10px; margin-top:14px;">
-            <button class="btn" id="btn-back">← Back</button>
-            <button class="btn primary" id="btn-next" style="flex:1;" disabled>Next: Choose Your School →</button>
-          </div>
-        </div>
-      </div>`;
-
-    const nextBtn = root.querySelector('#btn-next');
-    const refresh = () => { nextBtn.disabled = !archetype; };
-    refresh();
-
-    root.querySelectorAll('[data-arch]').forEach((el) => {
-      el.addEventListener('click', () => {
-        archetype = el.dataset.arch;
-        root.querySelectorAll('[data-arch]').forEach((n) => n.classList.toggle('selected', n.dataset.arch === archetype));
-        refresh();
-      });
-    });
-    root.querySelectorAll('[data-role]').forEach((el) => {
-      el.addEventListener('click', () => {
-        startRole = el.dataset.role;
-        root.querySelectorAll('[data-role]').forEach((n) => n.classList.toggle('selected', n.dataset.role === startRole));
-      });
-    });
-    root.querySelectorAll('[data-portrait]').forEach((el) => {
-      el.addEventListener('click', () => {
-        portrait = el.dataset.portrait;
-        root.querySelectorAll('[data-portrait]').forEach((n) => n.classList.toggle('selected', n.dataset.portrait === portrait));
-      });
-    });
-    root.querySelectorAll('[data-tp]').forEach((el) => {
-      el.addEventListener('click', () => {
-        trainingPhilo = el.dataset.tp;
-        root.querySelectorAll('[data-tp]').forEach((n) => n.classList.toggle('selected', n.dataset.tp === trainingPhilo));
-      });
-    });
-    root.querySelectorAll('[data-rp]').forEach((el) => {
-      el.addEventListener('click', () => {
-        racePhilo = el.dataset.rp;
-        root.querySelectorAll('[data-rp]').forEach((n) => n.classList.toggle('selected', n.dataset.rp === racePhilo));
-      });
-    });
-
-    root.querySelector('#btn-back').addEventListener('click', () => renderMainMenu(root));
-    nextBtn.addEventListener('click', () => {
-      const coach = {
-        first: root.querySelector('#coach-first').value.trim() || 'Alex',
-        last: root.querySelector('#coach-last').value.trim() || 'Carter',
-        dynName: root.querySelector('#dyn-name').value.trim(),
-        archetype,
-        portrait,
-        trainingPhilosophy: trainingPhilo,
-        racePhilosophy: racePhilo,
-        startRole
-      };
-      renderSchoolSelect(root, seed, world, coach);
-    });
+    UI.coachWizard(root, { mode: 'new', world, initial: prev },
+      (spec) => renderSchoolSelect(root, seed, world, spec),
+      () => renderMainMenu(root));
   }
 
   function renderSchoolSelect(root, seed, world, coach) {
@@ -259,6 +142,9 @@
         trainingPhilosophy: coach.trainingPhilosophy,
         racePhilosophy: coach.racePhilosophy,
         startRole: coach.startRole,
+        age: coach.age,
+        hometown: coach.hometown,
+        almaMater: coach.almaMater,
         seed,
         world // reuse the previewed world so selected ids stay valid
       });

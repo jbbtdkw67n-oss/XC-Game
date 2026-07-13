@@ -180,7 +180,9 @@
         age: 40,
         archetype: 'Developer', // Recruiter | Developer | Tactician | Players Coach
         portrait: '🧢',
-        // Where the coach ran/studied — flavor shown on the profile card.
+        // Where the coach is from and ran/studied — biography shown on the
+        // profile card (player coaches set these in the creation wizard).
+        hometown: '',
         almaMater: '',
 
         // Coaching philosophies (Update 4). Training philosophy is PERMANENT

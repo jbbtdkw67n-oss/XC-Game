@@ -68,7 +68,7 @@
             ${school ? Utils.escapeHtml(school.name) + ' (' + Utils.escapeHtml(school.conference) + ')' : (retired ? 'Career complete' : 'Free agent')}
           </div>
           <div class="sub">${repIcon} ${Utils.escapeHtml(repLabel)} • ${Utils.escapeHtml(coach.archetype || 'Developer')}${coach.role === 'Assistant' ? ` • <span style="color:var(--accent);">${coach.isPlayer ? 'Recruiting Coordinator' : 'Assistant Coach'}</span>` : ''}</div>
-          ${coach.almaMater ? `<div class="sub">🎓 ${Utils.escapeHtml(coach.almaMater)}${coach.careerRecord && coach.careerRecord.seasons ? ` • ${coach.careerRecord.seasons} yr${coach.careerRecord.seasons === 1 ? '' : 's'} experience` : ''}</div>` : ''}
+          ${(coach.hometown || coach.almaMater) ? `<div class="sub">${coach.hometown ? `🏠 ${Utils.escapeHtml(coach.hometown)}` : ''}${coach.hometown && coach.almaMater ? ' • ' : ''}${coach.almaMater ? `🎓 ${Utils.escapeHtml(coach.almaMater)}` : ''}${coach.careerRecord && coach.careerRecord.seasons ? ` • ${coach.careerRecord.seasons} yr${coach.careerRecord.seasons === 1 ? '' : 's'} experience` : ''}</div>` : ''}
           <div class="sub">${philosophyLine(coach)}</div>
           ${(!retired && school && coach.role !== 'Assistant' && coach.reputation !== undefined) ? (() => {
             const st = D.seatStatus(coach.hotSeat || 0);

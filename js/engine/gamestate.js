@@ -111,7 +111,7 @@
      * Ids are unique per generation, so regenerating from the same seed
      * would produce identical data but different ids.
      */
-    static newGame({ schoolId, dynastyName, coachFirstName, coachLastName, archetype, portrait, trainingPhilosophy, racePhilosophy, startRole, seed, world }) {
+    static newGame({ schoolId, dynastyName, coachFirstName, coachLastName, archetype, portrait, trainingPhilosophy, racePhilosophy, startRole, age, hometown, almaMater, seed, world }) {
       const gs = new GameState();
       gs.dynastyName = dynastyName || `${coachLastName} Dynasty`;
       gs.dynastyId = GameState.newDynastyId();
@@ -135,7 +135,9 @@
       const playerCoach = new M.Coach({
         firstName: coachFirstName || 'Alex',
         lastName: coachLastName || 'Carter',
-        age: isAssistant ? 30 : 34,
+        age: Utils.clamp(Math.round(age || (isAssistant ? 30 : 34)), 26, 60),
+        hometown: hometown || '',
+        almaMater: almaMater || '',
         archetype: arch.key,
         portrait: portrait || '🧢',
         recruiting: 50, training: 50, peaking: 50, culture: 50,

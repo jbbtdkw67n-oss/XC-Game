@@ -1,0 +1,346 @@
+/*
+ * Coach Creation Wizard (Update 6, Section 2).
+ *
+ * A guided, multi-step creation flow — used both when starting a brand-new
+ * dynasty from the main menu and when a retired coach's successor is created
+ * inside a living dynasty (Legacy Dynasty Mode, Section 1).
+ *
+ *   Step 1  Identity      — name, age, hometown, alma mater, starting position
+ *   Step 2  Appearance    — portrait with live preview + randomize
+ *   Step 3  Archetype     — the coach's defining strength
+ *   Step 4  Training philosophy (permanent; strengths & weaknesses shown)
+ *   Step 5  Race philosophy
+ *   Step 6  Career summary — everything on one confirmation screen
+ *
+ * UI.coachWizard(root, opts, onComplete, onCancel)
+ *   opts.mode     'new' (main menu) | 'succession' (retirement flow)
+ *   opts.world    generated world (for alma-mater suggestions)
+ *   opts.initial  prefilled spec (back-navigation from school select)
+ */
+(function () {
+  const UI = window.XCD.ui;
+  const Utils = window.XCD.core.Utils;
+
+  const STEPS = ['Identity', 'Appearance', 'Archetype', 'Training', 'Racing', 'Summary'];
+
+  UI.coachWizard = function (root, opts, onComplete, onCancel) {
+    const D = window.XCD.data;
+    const mode = opts.mode || 'new';
+    const world = opts.world || null;
+
+    // The working spec — everything the wizard collects.
+    const spec = Object.assign({
+      first: 'Alex', last: 'Carter', dynName: '',
+      age: 34, hometown: '', almaMater: '',
+      startRole: 'Head',
+      portrait: D.COACH_PORTRAITS[0],
+      archetype: null,
+      trainingPhilosophy: 'balanced',
+      racePhilosophy: 'even'
+    }, opts.initial || {});
+
+    let step = 0;
+
+    const schoolNames = world
+      ? Object.values(world.schools).map((s) => s.name)
+      : [];
+    const stateKeys = Object.keys(D.STATE_NAMES || {});
+    const randomHometown = () => {
+      const root_ = D.TOWN_ROOTS[Math.floor(Math.random() * D.TOWN_ROOTS.length)];
+      const suf = D.TOWN_SUFFIXES[Math.floor(Math.random() * D.TOWN_SUFFIXES.length)];
+      const st = stateKeys[Math.floor(Math.random() * stateKeys.length)] || 'OR';
+      return `${root_}${suf}, ${st}`;
+    };
+    const randomAlma = () => schoolNames.length
+      ? schoolNames[Math.floor(Math.random() * schoolNames.length)]
+      : '';
+
+    function stepDots() {
+      return `<div class="wizard-steps">
+        ${STEPS.map((s, i) => `
+          <span class="wizard-step ${i === step ? 'active' : i < step ? 'done' : ''}">${i < step ? '✓' : i + 1}<em>${s}</em></span>`).join('')}
+      </div>`;
+    }
+
+    function frame(title, tagline, bodyHtml, { nextLabel = 'Next →', nextDisabled = false } = {}) {
+      return `
+        <div id="menu-root">
+          <div class="menu-panel" style="width:min(680px,94vw);">
+            <h1 style="font-size:22px;">${title}</h1>
+            <p class="tagline">${tagline}</p>
+            ${stepDots()}
+            ${bodyHtml}
+            <div style="display:flex; gap:10px; margin-top:16px;">
+              <button class="btn" id="btn-back">← Back</button>
+              <button class="btn primary" id="btn-next" style="flex:1;" ${nextDisabled ? 'disabled' : ''}>${nextLabel}</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function wireNav(collect) {
+      root.querySelector('#btn-back').addEventListener('click', () => {
+        if (collect) collect();
+        if (step === 0) { if (onCancel) onCancel(); return; }
+        step -= 1;
+        render();
+      });
+      root.querySelector('#btn-next').addEventListener('click', () => {
+        if (collect) collect();
+        if (step === STEPS.length - 1) { onComplete(spec); return; }
+        step += 1;
+        render();
+      });
+    }
+
+    /* ---------------- Step 1: Identity ---------------- */
+    function renderIdentity() {
+      const succession = mode === 'succession';
+      root.innerHTML = frame(
+        succession ? 'A New <span>Era</span> Begins' : 'Create Your <span>Coach</span>',
+        succession
+          ? 'Your predecessor is in the record books. Who picks up the whistle next?'
+          : 'Every dynasty starts with a coach. Who are you?',
+        `
+        <div class="grid cols-2">
+          <div class="field"><label>First Name</label><input id="coach-first" value="${Utils.escapeHtml(spec.first)}" maxlength="20"></div>
+          <div class="field"><label>Last Name</label><input id="coach-last" value="${Utils.escapeHtml(spec.last)}" maxlength="20"></div>
+        </div>
+        ${succession ? '' : `<div class="field"><label>Dynasty Name</label><input id="dyn-name" value="${Utils.escapeHtml(spec.dynName)}" placeholder="e.g. The Carter Era" maxlength="40"></div>`}
+        <div class="grid cols-2">
+          <div class="field">
+            <label>Age <span style="color:var(--text-faint); font-weight:400;">— 26-60. Younger coaches have longer careers; older ones start with a touch more respect.</span></label>
+            <input id="coach-age" type="number" min="26" max="60" value="${Utils.clamp(Math.round(spec.age || 34), 26, 60)}">
+          </div>
+          <div class="field">
+            <label>Hometown <button type="button" class="btn" id="rand-town" style="padding:1px 8px; font-size:11px;">🎲</button></label>
+            <input id="coach-town" value="${Utils.escapeHtml(spec.hometown)}" placeholder="e.g. Riverdale, OR" maxlength="40">
+          </div>
+        </div>
+        <div class="field">
+          <label>Alma Mater <button type="button" class="btn" id="rand-alma" style="padding:1px 8px; font-size:11px;">🎲</button> <span style="color:var(--text-faint); font-weight:400;">— where you ran (or studied)</span></label>
+          <input id="coach-alma" value="${Utils.escapeHtml(spec.almaMater)}" placeholder="e.g. Willamette State" maxlength="48">
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Starting Position</label>
+          <div class="archetype-grid" id="role-grid">
+            <div class="archetype-card ${spec.startRole === 'Head' ? 'selected' : ''}" data-role="Head">
+              <div class="arch-name">🎖 Head Coach</div>
+              <div class="arch-desc">Full control: training, scheduling, race strategy, redshirts, and recruiting (manual or auto).</div>
+            </div>
+            <div class="archetype-card ${spec.startRole === 'Assistant' ? 'selected' : ''}" data-role="Assistant">
+              <div class="arch-name">📋 Assistant Coach</div>
+              <div class="arch-desc">Run recruiting only under an established head coach. Build a recruiting reputation to earn head-coach offers.</div>
+            </div>
+          </div>
+        </div>`,
+        { nextLabel: 'Next: Appearance →' }
+      );
+
+      root.querySelectorAll('[data-role]').forEach((el) => {
+        el.addEventListener('click', () => {
+          spec.startRole = el.dataset.role;
+          root.querySelectorAll('[data-role]').forEach((n) => n.classList.toggle('selected', n.dataset.role === spec.startRole));
+        });
+      });
+      root.querySelector('#rand-town').addEventListener('click', () => {
+        root.querySelector('#coach-town').value = randomHometown();
+      });
+      root.querySelector('#rand-alma').addEventListener('click', () => {
+        const v = randomAlma();
+        if (v) root.querySelector('#coach-alma').value = v;
+      });
+
+      wireNav(() => {
+        spec.first = root.querySelector('#coach-first').value.trim() || 'Alex';
+        spec.last = root.querySelector('#coach-last').value.trim() || 'Carter';
+        const dyn = root.querySelector('#dyn-name');
+        if (dyn) spec.dynName = dyn.value.trim();
+        spec.age = Utils.clamp(parseInt(root.querySelector('#coach-age').value, 10) || 34, 26, 60);
+        spec.hometown = root.querySelector('#coach-town').value.trim();
+        spec.almaMater = root.querySelector('#coach-alma').value.trim();
+      });
+    }
+
+    /* ---------------- Step 2: Appearance ---------------- */
+    function renderAppearance() {
+      root.innerHTML = frame(
+        'Your <span>Look</span>',
+        'Pick a portrait — this face follows your whole career, onto every historical profile.',
+        `
+        <div class="wizard-preview">
+          <div class="wizard-preview-face" id="preview-face">${spec.portrait}</div>
+          <div>
+            <div style="font-weight:700; font-size:16px;">${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)}</div>
+            <div style="color:var(--text-dim); font-size:13px;">${spec.startRole === 'Assistant' ? 'Assistant Coach' : 'Head Coach'} • Age ${spec.age}${spec.hometown ? ' • ' + Utils.escapeHtml(spec.hometown) : ''}</div>
+            <button type="button" class="btn" id="rand-portrait" style="margin-top:8px; padding:4px 12px; font-size:12px;">🎲 Randomize</button>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Portrait</label>
+          <div class="portrait-row" style="flex-wrap:wrap;">
+            ${D.COACH_PORTRAITS.map((p) => `
+              <button type="button" class="portrait-pick ${p === spec.portrait ? 'selected' : ''}" data-portrait="${p}">${p}</button>`).join('')}
+          </div>
+        </div>`,
+        { nextLabel: 'Next: Archetype →' }
+      );
+
+      const select = (p) => {
+        spec.portrait = p;
+        root.querySelector('#preview-face').textContent = p;
+        root.querySelectorAll('[data-portrait]').forEach((n) => n.classList.toggle('selected', n.dataset.portrait === p));
+      };
+      root.querySelectorAll('[data-portrait]').forEach((el) => {
+        el.addEventListener('click', () => select(el.dataset.portrait));
+      });
+      root.querySelector('#rand-portrait').addEventListener('click', () => {
+        select(D.COACH_PORTRAITS[Math.floor(Math.random() * D.COACH_PORTRAITS.length)]);
+      });
+
+      wireNav(null);
+    }
+
+    /* ---------------- Step 3: Archetype ---------------- */
+    function renderArchetype() {
+      root.innerHTML = frame(
+        'Coaching <span>Archetype</span>',
+        'Your defining strength. It sets your standout rating and shapes how the world sees you.',
+        `
+        <div class="field" style="margin-bottom:0;">
+          <div class="archetype-grid">
+            ${D.COACH_ARCHETYPES.map((a) => `
+              <div class="archetype-card ${spec.archetype === a.key ? 'selected' : ''}" data-arch="${a.key}">
+                <div class="arch-name">${a.icon} ${a.key}</div>
+                <div class="arch-desc">${a.desc}</div>
+              </div>`).join('')}
+          </div>
+        </div>`,
+        { nextLabel: 'Next: Training Philosophy →', nextDisabled: !spec.archetype }
+      );
+
+      root.querySelectorAll('[data-arch]').forEach((el) => {
+        el.addEventListener('click', () => {
+          spec.archetype = el.dataset.arch;
+          root.querySelectorAll('[data-arch]').forEach((n) => n.classList.toggle('selected', n.dataset.arch === spec.archetype));
+          root.querySelector('#btn-next').disabled = false;
+        });
+      });
+
+      wireNav(null);
+    }
+
+    /* ---------------- Step 4: Training philosophy ---------------- */
+    function renderTraining() {
+      root.innerHTML = frame(
+        'Training <span>Philosophy</span>',
+        'Permanent for this coach\'s career — its effectiveness scales with your Training rating. Every philosophy trades something away.',
+        `
+        <div class="field" style="margin-bottom:0;">
+          <div class="archetype-grid" id="tp-grid" style="max-height:300px; overflow-y:auto;">
+            ${D.TRAINING_PHILOSOPHIES.map((tp) => `
+              <div class="archetype-card ${spec.trainingPhilosophy === tp.key ? 'selected' : ''}" data-tp="${tp.key}">
+                <div class="arch-name">${tp.icon} ${tp.label}</div>
+                <div class="arch-desc">${tp.desc}</div>
+              </div>`).join('')}
+          </div>
+        </div>`,
+        { nextLabel: 'Next: Race Philosophy →' }
+      );
+
+      root.querySelectorAll('[data-tp]').forEach((el) => {
+        el.addEventListener('click', () => {
+          spec.trainingPhilosophy = el.dataset.tp;
+          root.querySelectorAll('[data-tp]').forEach((n) => n.classList.toggle('selected', n.dataset.tp === spec.trainingPhilosophy));
+        });
+      });
+
+      wireNav(null);
+    }
+
+    /* ---------------- Step 5: Race philosophy ---------------- */
+    function renderRacing() {
+      root.innerHTML = frame(
+        'Race <span>Philosophy</span>',
+        'How your teams run when the gun goes off. Unlike training philosophy, this can be changed later.',
+        `
+        <div class="field" style="margin-bottom:0;">
+          <div class="archetype-grid" id="rp-grid" style="max-height:300px; overflow-y:auto;">
+            ${D.RACE_PHILOSOPHIES.map((rp) => `
+              <div class="archetype-card ${spec.racePhilosophy === rp.key ? 'selected' : ''}" data-rp="${rp.key}">
+                <div class="arch-name">${rp.icon} ${rp.label}</div>
+                <div class="arch-desc">${rp.desc}</div>
+              </div>`).join('')}
+          </div>
+        </div>`,
+        { nextLabel: 'Next: Career Summary →' }
+      );
+
+      root.querySelectorAll('[data-rp]').forEach((el) => {
+        el.addEventListener('click', () => {
+          spec.racePhilosophy = el.dataset.rp;
+          root.querySelectorAll('[data-rp]').forEach((n) => n.classList.toggle('selected', n.dataset.rp === spec.racePhilosophy));
+        });
+      });
+
+      wireNav(null);
+    }
+
+    /* ---------------- Step 6: Summary ---------------- */
+    function renderSummary() {
+      const arch = D.COACH_ARCHETYPES.find((a) => a.key === spec.archetype) || {};
+      const tp = D.trainingPhilosophy(spec.trainingPhilosophy) || {};
+      const rp = D.racePhilosophy(spec.racePhilosophy) || {};
+      const isAsst = spec.startRole === 'Assistant';
+      // The four core ratings this coach will start with (mirrors GameState).
+      const ratings = { recruiting: 50, training: 50, peaking: 50, culture: 50 };
+      if (arch.rating) ratings[arch.rating] = 64;
+      if (isAsst) ratings.recruiting = Math.max(ratings.recruiting, 58);
+      const path = isAsst
+        ? 'Build top recruiting classes to grow your reputation, field head-coach offers from real vacancies, and recruit your way into a program of your own.'
+        : 'Win with what you inherit, develop your athletes, and climb: bigger jobs call when your reputation outgrows your program.';
+
+      root.innerHTML = frame(
+        'Career <span>Summary</span>',
+        'One last look before it becomes official.',
+        `
+        <div class="wizard-preview">
+          <div class="wizard-preview-face">${spec.portrait}</div>
+          <div>
+            <div style="font-weight:700; font-size:17px;">${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)}</div>
+            <div style="color:var(--text-dim); font-size:13px;">
+              ${isAsst ? 'Assistant Coach (Recruiting Coordinator)' : 'Head Coach'} • Age ${spec.age}
+            </div>
+            <div style="color:var(--text-dim); font-size:13px;">
+              ${spec.hometown ? 'From ' + Utils.escapeHtml(spec.hometown) : ''}${spec.hometown && spec.almaMater ? ' • ' : ''}${spec.almaMater ? Utils.escapeHtml(spec.almaMater) + ' alum' : ''}
+            </div>
+          </div>
+        </div>
+        <div class="grid cols-2" style="margin-top:8px;">
+          <div class="wizard-summary-box">
+            <div class="wizard-summary-title">Identity</div>
+            <div>${arch.icon || ''} ${Utils.escapeHtml(spec.archetype || '—')} archetype</div>
+            <div>${tp.icon || ''} ${Utils.escapeHtml(tp.label || 'Balanced')} training</div>
+            <div>${rp.icon || ''} ${Utils.escapeHtml(rp.label || 'Even')} racing</div>
+          </div>
+          <div class="wizard-summary-box">
+            <div class="wizard-summary-title">Starting Ratings</div>
+            ${['recruiting', 'training', 'peaking', 'culture'].map((k) =>
+              `<div style="display:flex; justify-content:space-between;"><span style="text-transform:capitalize;">${k}</span><b>${ratings[k]}</b></div>`).join('')}
+          </div>
+        </div>
+        <div class="wizard-summary-box" style="margin-top:8px;">
+          <div class="wizard-summary-title">Projected Path</div>
+          <div style="color:var(--text-dim);">${path} Retirement never ends the dynasty — your career joins the record books and a successor carries the world forward.</div>
+        </div>`,
+        { nextLabel: mode === 'succession' ? 'Confirm: Choose Your Program →' : 'Confirm: Choose Your School →' }
+      );
+
+      wireNav(null);
+    }
+
+    const renderers = [renderIdentity, renderAppearance, renderArchetype, renderTraining, renderRacing, renderSummary];
+    function render() { renderers[step](); window.scrollTo(0, 0); }
+    render();
+  };
+})();

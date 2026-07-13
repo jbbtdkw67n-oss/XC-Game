@@ -17,10 +17,8 @@ async function run() {
   // ---- 1) Assistant-coach start flow via the real menu UI ----
   await page.goto('file://' + path.resolve(__dirname, '../index.html'));
   await page.click('#btn-new');
-  await page.waitForSelector('[data-role]');
-  await page.click('[data-role="Assistant"]');
-  await page.click('[data-arch="Recruiter"]');
-  await page.click('#btn-next');
+  const { walkCoachWizard } = require('./helpers');
+  await walkCoachWizard(page, { archetype: 'Recruiter', role: 'Assistant' });
   await page.waitForSelector('.school-pick');
   await page.click('.school-pick');
   await page.click('#btn-start');

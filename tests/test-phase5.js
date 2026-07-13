@@ -9,14 +9,25 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   const errors = [];
   wireErrors(page, errors);
 
-  // Coach creation is mandatory: Next disabled until archetype picked
+  // Wizard flow (Update 6): identity → appearance → archetype (mandatory) →
+  // philosophies → summary → school.
   await page.goto('file://' + require('path').resolve(__dirname, '../index.html'));
   await page.click('#btn-new');
+  await page.waitForSelector('#coach-first');
+  await page.click('#btn-next');
+  await page.waitForSelector('[data-portrait]');
+  await page.click('[data-portrait="🕶"]');
+  await page.click('#btn-next');
   await page.waitForSelector('[data-arch]');
   const nextDisabled = await page.$eval('#btn-next', (b) => b.disabled);
   if (!nextDisabled) errors.push('Next enabled before archetype chosen');
   await page.click('[data-arch="Tactician"]');
-  await page.click('[data-portrait="🕶"]');
+  await page.click('#btn-next');
+  await page.waitForSelector('[data-tp]');
+  await page.click('#btn-next');
+  await page.waitForSelector('[data-rp]');
+  await page.click('#btn-next');
+  await page.waitForSelector('.wizard-summary-box');
   await page.click('#btn-next');
   await page.waitForSelector('.school-pick');
   await page.click('.school-pick');

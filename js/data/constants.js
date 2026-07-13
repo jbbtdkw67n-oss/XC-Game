@@ -79,7 +79,15 @@
     { key: 'Players Coach', rating: 'culture',    icon: '🤝', desc: 'Runs the best locker room in the country. Starts with bonus Culture — happier athletes, better chemistry, fewer transfers.' }
   ];
 
-  D.COACH_PORTRAITS = ['🧢', '😤', '🧔', '👩‍🦰', '👨‍🦲', '🕶', '👴', '🧑‍🏫'];
+  // Expanded for the Update 6 creation wizard: hair, facial hair, skin tones,
+  // ages, and accessories — enough variety that successive coaches in a
+  // century-long dynasty don't all wear the same face.
+  D.COACH_PORTRAITS = [
+    '🧢', '😤', '🧔', '👩‍🦰', '👨‍🦲', '🕶', '👴', '🧑‍🏫',
+    '🧔🏻', '🧔🏽', '🧔🏿', '👨‍🦰', '👨🏾‍🦱', '👨🏻‍🦳', '👱', '👱🏾',
+    '👩', '👩🏽', '👩🏿', '👩‍🦱', '👩🏻‍🦳', '👵', '👴🏾', '🧓🏽',
+    '🤠', '🥸', '😎', '🤓', '🧐', '☺️', '😏', '🫡'
+  ];
 
   // Alma-mater pool (Update 6, Phase 3): where a coach ran in college. Flavor
   // shown on the coach profile card — a mix of storied distance programs
