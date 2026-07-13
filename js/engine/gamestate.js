@@ -167,6 +167,9 @@
         school.coachId = playerCoach.id;
       }
       window.XCD.engine.Legacy.openStint(gs, playerCoach, school, gs.year);
+      // Coaching tree (Update 6): link whoever now leads this staff with
+      // whoever assists them — the first boss becomes the mentor.
+      window.XCD.engine.Legacy.linkStaff(gs, school, gs.year);
 
       gs.career.stops.push({ school: school.name, startYear: gs.year, role: gs.playerRole });
       if (isAssistant) {

@@ -129,6 +129,42 @@
         <h3>Career Timeline — ${stints.length} stop${stints.length === 1 ? '' : 's'}</h3>
         ${timelineHtml}
       </div>
+
+      ${(() => {
+        // Coaching tree (Update 6, Section 1): mentors above, protégés below.
+        const mentor = coach.mentorName;
+        const served = (coach.workedFor || []);
+        const tree = (coach.coachingTree || []);
+        if (!mentor && !served.length && !tree.length) return '';
+        const protege = (t) => {
+          // A protégé may still be coaching (live lookup) or long retired
+          // (registry lookup) — show where their own career went.
+          let status = '';
+          if (game) {
+            const live = t.coachId && game.world.coaches[t.coachId];
+            if (live) {
+              const s = live.schoolId && game.getSchool(live.schoolId);
+              status = `${s ? 'now at ' + s.name : 'between jobs'} • ${(live.careerRecord || {}).nationalTitles || 0} natl titles`;
+            } else {
+              const reg = (game.history.coachRegistry || []).slice().reverse().find((r) => r.name === t.name);
+              if (reg) status = `retired • ${(reg.careerRecord || {}).nationalTitles || 0} natl titles`;
+            }
+          }
+          return `<div class="attr-row">
+            <span>↳ ${Utils.escapeHtml(t.name)} <span style="color:var(--text-faint); font-size:11.5px;">→ ${Utils.escapeHtml(t.school)} (${t.year})</span></span>
+            <span style="color:var(--text-dim); font-size:11.5px;">${Utils.escapeHtml(status)}</span>
+          </div>`;
+        };
+        return `
+        <div class="card" style="padding:12px; margin-top:14px;">
+          <h3>🌳 Coaching Tree</h3>
+          ${mentor ? `<div class="attr-row"><span>Mentored under</span><span style="color:var(--text-dim);">${Utils.escapeHtml(mentor)}</span></div>` : ''}
+          ${served.length > (mentor ? 1 : 0) ? `<div class="attr-row"><span>Worked for</span><span style="color:var(--text-dim); font-size:12px;">${served.map((w) => Utils.escapeHtml(w.name)).join(', ')}</span></div>` : ''}
+          ${tree.length ? `
+            <div style="font-size:12px; color:var(--text-faint); margin:8px 0 4px;">Former assistants who became head coaches — ${tree.length}</div>
+            ${tree.map(protege).join('')}` : ''}
+        </div>`;
+      })()}
     `);
   };
 })();

@@ -218,6 +218,15 @@
         // Long-term identity (Part 2): tendencies persist for a career.
         tendencies: [],
 
+        // Coaching tree (Update 6, Section 1). Careers connect: an assistant
+        // remembers who first hired them (mentor) and every head coach they
+        // served under; a head coach remembers every assistant who left their
+        // staff to run a program of their own. Trees survive retirement.
+        mentorName: '',
+        mentorId: null,
+        workedFor: [],    // { name, school, year? } — heads served under, in order
+        coachingTree: [], // { name, coachId, year, school } — protégés who became head coaches
+
         // Career progression: points earned through success, spent on ratings.
         upgradePoints: 0,
 

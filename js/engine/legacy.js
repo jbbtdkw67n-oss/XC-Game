@@ -212,6 +212,49 @@
     return list;
   };
 
+  /* ---------------- Coaching tree (Update 6, Section 1) --------------- */
+  /*
+   * Record the working relationship between a school's head coach and its
+   * assistant. Idempotent — safe to call every offseason for every school.
+   * The first head who employs an assistant becomes their mentor forever;
+   * every later boss is appended to the workedFor timeline.
+   */
+  Legacy.linkStaff = function (gameState, school, year) {
+    const head = school.coachId && gameState.world.coaches[school.coachId];
+    const asst = school.assistantId && gameState.world.coaches[school.assistantId];
+    if (!head || !asst || head.id === asst.id) return;
+    if (!asst.mentorName) { asst.mentorName = head.fullName; asst.mentorId = head.id; }
+    asst.workedFor = asst.workedFor || [];
+    const last = asst.workedFor[asst.workedFor.length - 1];
+    if (!last || last.name !== head.fullName) {
+      asst.workedFor.push({ name: head.fullName, school: school.name, year: year || null });
+    }
+  };
+
+  /*
+   * An assistant just became a head coach: their most recent boss earns a
+   * branch on the coaching tree — even if that boss has already retired
+   * (the registry record keeps growing; history never stops being written).
+   */
+  Legacy.creditPromotion = function (gameState, promo, school, year) {
+    const served = (promo.workedFor || []);
+    const boss = served[served.length - 1];
+    if (!boss) return;
+    const entry = { name: promo.fullName, coachId: promo.id, year, school: school.name };
+    const live = Object.values(gameState.world.coaches)
+      .find((c) => c.fullName === boss.name && c.id !== promo.id);
+    const tree = (owner) => {
+      owner.coachingTree = owner.coachingTree || [];
+      if (!owner.coachingTree.some((t) => t.coachId === promo.id && t.school === school.name)) {
+        owner.coachingTree.push(entry);
+      }
+    };
+    if (live) { tree(live); return; }
+    const reg = (gameState.history.coachRegistry || []).slice().reverse()
+      .find((r) => r.name === boss.name);
+    if (reg) tree(reg);
+  };
+
   /* ---------------- Coach history (Part 9) ---------------- */
   // Close the coach's open stint and note it on the program ledger.
   Legacy.closeStint = function (gameState, coach, school, endYear) {
@@ -261,6 +304,11 @@
       trainingPhilosophy: coach.trainingPhilosophy || 'balanced',
       racePhilosophy: coach.racePhilosophy || 'even',
       coachAccolades: (coach.coachAccolades || []).slice(),
+      // The coaching tree survives retirement — and keeps growing when a
+      // former assistant later earns their own program.
+      mentorName: coach.mentorName || '',
+      workedFor: (coach.workedFor || []).slice(),
+      coachingTree: (coach.coachingTree || []).map((t) => ({ ...t })),
       isPlayer: !!coach.isPlayer
     });
   };

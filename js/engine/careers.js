@@ -206,6 +206,8 @@
 
       Legacy.closeStint(gameState, coach, oldSchool, gameState.year);
       if (oldSchool.assistantId === coach.id) oldSchool.assistantId = null;
+      // Your old boss's coaching tree grows a branch (Update 6).
+      Legacy.creditPromotion(gameState, coach, newSchool, gameState.year);
 
       const incumbent = newSchool.coachId && gameState.world.coaches[newSchool.coachId];
       if (incumbent && !incumbent.isPlayer) {
@@ -364,6 +366,8 @@
       if (promo) {
         if (fromSchool.assistantId === promo.id) fromSchool.assistantId = null;
         Legacy.closeStint(gameState, promo, fromSchool, gameState.year);
+        // The boss they leave behind earns a branch on the coaching tree.
+        Legacy.creditPromotion(gameState, promo, school, gameState.year);
         promo.role = 'Head'; // set before openStint so the program ledger records it
         promo.schoolId = school.id;
         promo.yearsAtSchool = 0;
@@ -522,6 +526,13 @@
       gameState.world.coaches[asst.id] = asst;
       school.assistantId = asst.id;
     });
+
+    // 4) Coaching-tree bookkeeping (Update 6): whoever the head coach is now,
+    //    the assistant works for them — mentors and workedFor timelines stay
+    //    current no matter how the carousel shuffled the chairs above.
+    Object.values(gameState.world.schools).forEach((school) => {
+      Legacy.linkStaff(gameState, school, gameState.year);
+    });
   }
 
   /* ---------------- Legacy Dynasty Mode (Update 6, Section 1) -------- *
@@ -664,6 +675,10 @@
     gameState.lastPlayerMeetId = null;
     gameState.jobOffers = null;
     gameState.weeklyFlow.trainingConfirmed = !gameState.controlsTraining();
+
+    // Coaching-tree bookkeeping for both staffs touched by the succession.
+    Legacy.linkStaff(gameState, oldSchool, year);
+    Legacy.linkStaff(gameState, newSchool, year);
 
     gameState.logNews(`🌅 A NEW ERA: ${successor.fullName} ${isAssistant ? `joins ${newSchool.name} as recruiting coordinator` : `takes over as head coach at ${newSchool.name}`}. The dynasty continues.`);
     return { ok: true, retired: old.fullName, successor: successor.fullName };

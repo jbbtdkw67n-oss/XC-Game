@@ -368,6 +368,10 @@
         school.coachId = coach.id;
         const assistant = buildCoach(rng, school, false, 'Assistant');
         school.assistantId = assistant.id;
+        // Coaching tree (Update 6): the head who employs you is your mentor.
+        assistant.mentorName = coach.fullName;
+        assistant.mentorId = coach.id;
+        assistant.workedFor = [{ name: coach.fullName, school: school.name, year: null }];
         coaches[assistant.id] = assistant;
 
         const rosterSizeM = rng.int(rosterMin, rosterMax);
@@ -416,6 +420,9 @@
         school.coachId = coach.id;
         const assistant = buildCoach(rng, school, false, 'Assistant');
         school.assistantId = assistant.id;
+        assistant.mentorName = coach.fullName;
+        assistant.mentorId = coach.id;
+        assistant.workedFor = [{ name: coach.fullName, school: school.name, year: null }];
         coaches[assistant.id] = assistant;
         coaches[coach.id] = coach;
         const rM = rng.int(rosterMin, rosterMax);
