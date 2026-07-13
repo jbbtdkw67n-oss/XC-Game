@@ -240,6 +240,12 @@
       }
     });
 
+    // Background load (Update 6 rebalance): merging the old fatigue-positive
+    // Easy Run into the restorative one made every plan ~8 raw points lighter;
+    // a flat weekly cost of simply being in training restores the previous
+    // equilibrium so the injury/fatigue/race-time balance holds.
+    fatigue += 8;
+
     // Back-to-back quality days pound the legs.
     let backToBack = 0;
     for (let i = 1; i < 7; i++) {
