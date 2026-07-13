@@ -10,6 +10,41 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 7.1 — Injury System Expansion: Injuries Shape Careers
+
+Injuries are no longer a temporary absence — they are events a career
+remembers (master spec Part 2, Section 10).
+
+- **The layoff has real costs.** An injured runner's fitness bleeds far
+  faster than a healthy athlete's (durability and the recovery center slow
+  the slide), race sharpness deteriorates every week of the layoff,
+  confidence sinks while unable to compete, and morale grinds down harder
+  the longer the recovery drags on.
+- **Nobody returns at peak form.** When an injury heals the athlete enters a
+  visible **Recovering** phase — training quality is reduced, race sharpness
+  can't fully peak on rust, and reinjury risk stays elevated — for several
+  weeks (longer after longer layoffs) before they're back to full strength.
+  Recovering runners can race, but on rebuilding-in-progress fitness,
+  sharpness, and confidence. The roster, training planner, dashboard, and
+  player card all show the phase and its countdown.
+- **A permanent career injury ledger.** Every injury an athlete ever suffers
+  is stamped into their profile with the year, week, type, and length — and
+  long layoffs are flagged **MAJOR**. The player card renders the full
+  history for life.
+- **Repeated major injuries shape careers.** One major injury leaves almost
+  no scar. A second slightly erodes the development ceiling and slows future
+  progression; a third or more cause a noticeable long-term decline — in
+  both weekly training development and offseason growth. Athletes never
+  suddenly lose ability; their future improvement simply becomes smaller
+  than projected, and the player card explains exactly how much ceiling the
+  breakdowns have cost.
+- **Durability is a genuine roster strategy.** Durable athletes get hurt
+  less, recover faster, keep developing, and therefore reach higher
+  long-term potential; injury-prone athletes are a real long-term roster
+  risk worth weighing on the recruiting trail (Injury Resistance is
+  scoutable on every recruit). CPU programs live under exactly the same
+  rules.
+
 ## Version 7.0 — Update 6: Every Dynasty Tells a Story
 
 Update 6 (the 6.0 master spec, Part 1) turns the game into a living world that

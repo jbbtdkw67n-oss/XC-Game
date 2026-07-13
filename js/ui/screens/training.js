@@ -71,8 +71,9 @@
     const avgFatigue = Math.round(Utils.average(roster.map((a) => a.fatigue)));
     const avgFitness = Math.round(Utils.average(roster.map((a) => a.fitness)));
     const avgReadiness = Math.round(Utils.average(roster.map((a) => TE().readiness(a))));
-    const injured = game.getRoster(school.id, 'M').concat(game.getRoster(school.id, 'W'))
-      .filter((a) => a.injury);
+    const wholeProgram = game.getRoster(school.id, 'M').concat(game.getRoster(school.id, 'W'));
+    const injured = wholeProgram.filter((a) => a.injury);
+    const recovering = wholeProgram.filter((a) => !a.injury && a.health === 'Recovering');
 
     const raceThisWeek = game.season && game.season.playerMeetByWeek[game.week];
 
@@ -170,7 +171,9 @@
                 <td><div style="min-width:46px;">${UI.meter(a.morale, a.morale < 40 ? 'red' : a.morale < 65 ? 'yellow' : 'green')}</div></td>
                 <td>${a.injury
                   ? `<span style="color:var(--danger);">${Utils.escapeHtml(a.injury.type)} (${a.injury.weeksRemaining}w)</span>`
-                  : '<span style="color:var(--success);">Healthy</span>'}</td>
+                  : a.health === 'Recovering'
+                    ? `<span style="color:var(--warning);" title="Returning from injury — reduced training quality while rebuilding form">Recovering (${Math.max(1, a.recentInjuryWeeks || 1)}w)</span>`
+                    : '<span style="color:var(--success);">Healthy</span>'}</td>
                 <td>
                   <select data-load="${a.id}" class="search-input" style="min-width:92px; padding:4px 8px; font-size:12.5px;" ${a.injury ? 'disabled title="Injured — rehabbing automatically"' : ''}>
                     <option value="normal" ${override === 'normal' ? 'selected' : ''}>Normal</option>
@@ -197,6 +200,14 @@
             <span style="color:var(--danger);">${Utils.escapeHtml(a.injury.type)}</span>
             <span style="color:var(--text-dim);">${a.injury.weeksRemaining} of ${a.injury.totalWeeks} wk remaining</span>
           </div>`).join('') : '<div style="color:var(--text-dim);">No injuries. Keep managing those fatigue levels.</div>'}
+        ${recovering.length ? `
+          <h3 style="margin-top:12px;">Returning to Form</h3>
+          ${recovering.map((a) => `
+          <div class="attr-row" style="padding:6px 0;">
+            <span><strong>${Utils.escapeHtml(a.fullName)}</strong> <span style="color:var(--text-dim);">(${a.gender === 'M' ? 'M' : 'W'} • ${a.classYear})</span></span>
+            <span style="color:var(--warning);">Rebuilding fitness, sharpness & confidence</span>
+            <span style="color:var(--text-dim);">~${Math.max(1, a.recentInjuryWeeks || 1)} wk to full strength</span>
+          </div>`).join('')}` : ''}
       </div>`;
 
     // Plan preview: weekly load + development + quality verdict,

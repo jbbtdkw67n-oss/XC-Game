@@ -79,8 +79,18 @@
         devProgress: 0,    // fractional development accumulator
         lastDelta: 0,      // overall change last week (UI)
         seasonDev: 0,      // overall gained this season (UI)
-        health: 'Healthy', // Healthy | Injured | Recovering
-        injury: null,      // { type, weeksRemaining }
+        // Healthy | Injured | Recovering. Recovering (Injury System
+        // Expansion) is the return-to-form window after an injury heals:
+        // the athlete can race and train, but at reduced quality, while
+        // fitness, sharpness, and confidence are rebuilt over several weeks.
+        health: 'Healthy',
+        injury: null,      // { type, weeksRemaining, totalWeeks, overuse }
+        // Permanent career injury ledger (Injury System Expansion): every
+        // injury ever suffered, stamped with year/week/type/length. Entries
+        // with major:true (long layoffs) accumulate — repeated major
+        // injuries slowly erode potential and future growth rate.
+        careerInjuries: [], // { year, week, type, weeks, major }
+        potentialLostToInjury: 0, // ceiling permanently lost to major injuries
         redshirt: 'None',  // None | True | Medical | Used
         eligibilityRemaining: 4,
         yearsOnCampus: 1,  // NCAA five-year clock
@@ -123,6 +133,7 @@
       // careers still show a complete, richly-labeled history.
       if (!Array.isArray(this.accolades)) this.accolades = [];
       if (!Array.isArray(this.overallHistory)) this.overallHistory = [];
+      if (!Array.isArray(this.careerInjuries)) this.careerInjuries = [];
       if (data && (!data.accolades || !data.accolades.length) &&
           window.XCD.engine.Legacy && window.XCD.engine.Legacy.backfillAccolades) {
         window.XCD.engine.Legacy.backfillAccolades(this);

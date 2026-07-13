@@ -138,6 +138,8 @@
     const unhappy = everyone.filter((a) => a.morale < 45);
     const warnings = [];
     if (injured.length) warnings.push(`🩼 ${injured.length} injured (${injured.slice(0, 3).map((a) => a.lastName).join(', ')}${injured.length > 3 ? '…' : ''})`);
+    const recovering = everyone.filter((a) => !a.injury && a.health === 'Recovering');
+    if (recovering.length) warnings.push(`🔶 ${recovering.length} returning from injury — rebuilding race form (${recovering.slice(0, 3).map((a) => a.lastName).join(', ')}${recovering.length > 3 ? '…' : ''})`);
     if (gassed.length >= 3) warnings.push(`🥵 ${gassed.length} runners over 70 fatigue — consider a recovery week`);
     if (unhappy.length >= 2) warnings.push(`😟 ${unhappy.length} runners with low morale`);
     if ((school.teamMorale ?? 65) < 45) warnings.push(`💬 Team morale is ${(window.XCD.engine.Morale.label(school.teamMorale)).text.toLowerCase()} (${school.teamMorale}) — belief is wavering; results vs expectations will decide the turnaround`);
@@ -155,7 +157,7 @@
             ${roster.slice(0, 7).map((a, i) => `
               <tr class="clickable" data-ath="${a.id}">
                 <td>${i + 1}</td>
-                <td>${Utils.escapeHtml(a.fullName)}${a.redshirt === 'True' || a.redshirt === 'Medical' ? ' <span style="color:var(--warning); font-size:10px;">RS</span>' : ''}${a.injury ? ' <span style="color:var(--danger); font-size:10px;">INJ</span>' : ''}</td>
+                <td>${Utils.escapeHtml(a.fullName)}${a.redshirt === 'True' || a.redshirt === 'Medical' ? ' <span style="color:var(--warning); font-size:10px;">RS</span>' : ''}${a.injury ? ' <span style="color:var(--danger); font-size:10px;">INJ</span>' : a.health === 'Recovering' ? ' <span style="color:var(--warning); font-size:10px;" title="Returning from injury">REC</span>' : ''}</td>
                 <td>${a.classYear}</td>
                 <td class="num">${UI.ratingBadge(a.currentOverall)}</td>
                 <td class="num" style="color:${(a.seasonDev || 0) > 0 ? 'var(--success)' : 'var(--text-faint)'};">${(a.seasonDev || 0) > 0 ? '+' + a.seasonDev : '—'}</td>

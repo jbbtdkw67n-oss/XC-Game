@@ -53,7 +53,9 @@
           key: 'health', label: 'Status',
           render: (a) => a.health === 'Healthy'
             ? '<span style="color:var(--success);">Healthy</span>'
-            : `<span style="color:var(--danger);">${Utils.escapeHtml(a.injury ? a.injury.type : a.health)}</span>`
+            : a.health === 'Recovering'
+              ? `<span style="color:var(--warning);" title="Returning from injury — rebuilding fitness, sharpness, and confidence (~${Math.max(1, a.recentInjuryWeeks || 1)} wk)">Recovering</span>`
+              : `<span style="color:var(--danger);">${Utils.escapeHtml(a.injury ? a.injury.type : a.health)}</span>`
         },
         canManage && {
           key: 'captain', label: 'Capt',

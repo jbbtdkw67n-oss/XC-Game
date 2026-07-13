@@ -14,6 +14,7 @@ node tests/test-update3.js     # Update 3: filter stress, 3 divisions, Pre-Natio
 node tests/test-20seasons.js   # 20-season stress sim + balance + full UI sweep + save/load
 node tests/test-update5.js     # Update 5: assistant-coach path + promotion, relationship attrs, seat status, altitude, blue-chip floor
 node tests/test-update6.js     # Update 6: creation wizard, Legacy Dynasty Mode (retire → successor), coaching trees, training overhaul + periodization, CPU tiers, wave recruiting, staff management
+node tests/test-injuries.js    # Injury System Expansion: layoff costs, Recovering return-to-form phase, career injury ledgers, major-injury toll on potential/growth, durability, UI, save round-trip
 ```
 
 Each script prints `PASS` or `FAIL` with details and exits non-zero on failure.

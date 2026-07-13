@@ -391,7 +391,7 @@
 
     return 3.4 * planMeta.devMult * gapFactor * coachFactor * facFactor * makeupFactor *
       moraleFactor * fatiguePenalty * ageFactor * academicStress *
-      devProfileMult(athlete) * noise;
+      devProfileMult(athlete) * careerInjuryDevMult(athlete) * noise;
   }
 
   // Spend accumulated development on attributes weighted by the plan.
@@ -496,26 +496,94 @@
   }
 
   /* ================================================================ *
+   * Career injury history & the long-term toll (Injury System Expansion)
+   * ================================================================ */
+  // A layoff this long is a MAJOR injury — the kind a career remembers.
+  const MAJOR_INJURY_WEEKS = 5;
+
+  function majorInjuryCount(athlete) {
+    return (athlete.careerInjuries || []).filter((i) => i.major).length;
+  }
+
+  /*
+   * Growth-rate multiplier from accumulated major injuries. One major
+   * injury leaves almost no scar; a second slightly slows future
+   * progression; three or more noticeably shrink what's left of the
+   * upside. Never a sudden ability loss — the future just gets smaller.
+   * Feeds both weekly development and offseason progression, so durable
+   * athletes genuinely reach higher long-term potential.
+   */
+  function careerInjuryDevMult(athlete) {
+    const majors = majorInjuryCount(athlete);
+    if (majors <= 1) return 1;
+    if (majors === 2) return 0.92;
+    return Math.max(0.62, 0.84 - (majors - 3) * 0.07);
+  }
+
+  /*
+   * Stamp a new injury into the permanent career ledger. Major injuries
+   * accumulate: the second starts eroding the development ceiling, and
+   * every one after that cuts deeper — slowly and believably, never a
+   * sudden collapse. potentialLostToInjury records the toll for the UI.
+   */
+  function recordCareerInjury(gameState, athlete, injury, isPlayerSchool) {
+    athlete.careerInjuries = athlete.careerInjuries || [];
+    const entry = {
+      year: gameState.year, week: gameState.week, type: injury.type,
+      weeks: injury.totalWeeks, major: injury.totalWeeks >= MAJOR_INJURY_WEEKS
+    };
+    athlete.careerInjuries.push(entry);
+    if (!entry.major) return;
+    const majors = majorInjuryCount(athlete);
+    const toll = majors === 2 ? 1 : majors >= 3 ? 2 : 0;
+    if (toll > 0 && athlete.potential > 35) {
+      const cut = Math.min(toll, athlete.potential - 35);
+      athlete.potential -= cut;
+      athlete.potentialLostToInjury = (athlete.potentialLostToInjury || 0) + cut;
+      if (isPlayerSchool) {
+        gameState.logNews(majors === 2
+          ? `Medical staff worry a second major injury will limit ${athlete.fullName}'s long-term development.`
+          : `Another major injury for ${athlete.fullName} — repeated breakdowns are taking a real toll on the long-term outlook.`);
+      }
+    }
+  }
+
+  /* ================================================================ *
    * Weekly processing
    * ================================================================ */
   function processAthlete(gameState, athlete, coach, school, planMeta, mMeta, rng, isPlayerSchool, culture, philo) {
     philo = philo || philosophyEffect(coach);
-    // Injured athletes rehab instead of training.
+    // Injured athletes rehab instead of training — and the layoff has real
+    // costs (Injury System Expansion). Fitness bleeds far faster than a
+    // healthy runner's (durability and the recovery center slow the slide),
+    // race sharpness deteriorates all recovery long, confidence sinks while
+    // unable to compete, and morale grinds down harder the longer the
+    // layoff drags on.
     if (athlete.injury) {
       athlete.injury.weeksRemaining -= 1;
       athlete.seasonInjuryWeeks = (athlete.seasonInjuryWeeks || 0) + 1;
       athlete.fatigue = Utils.clamp(athlete.fatigue - 12, 0, 100);
-      athlete.fitness = Utils.clamp(athlete.fitness - 3, 0, 100);
-      athlete.morale = Utils.clamp(athlete.morale - 1, 0, 100);
+      const fitnessSlide = Utils.clamp(
+        5.5 - athlete.injuryResistance / 40 - school.facilities.recoveryCenter / 120, 2, 6);
+      athlete.fitness = Utils.clamp(athlete.fitness - fitnessSlide, 0, 100);
+      athlete.sharpness = Utils.clamp((athlete.sharpness ?? 55) - 4, 0, 100);
+      athlete.confidence = Utils.clamp((athlete.confidence ?? 60) - 1.3, 10, 99);
+      const weeksOut = (athlete.injury.totalWeeks || 2) - athlete.injury.weeksRemaining;
+      athlete.morale = Utils.clamp(athlete.morale - (weeksOut >= 3 ? 2 : 1), 0, 100);
       athlete.chronicMileage = Math.round((athlete.chronicMileage || 60) * 0.7); // detraining
       if (athlete.injury.weeksRemaining <= 0) {
         // A recently-healed runner is fragile: a reinjury window where the
         // body is still adapting back to full load (longer for the injury
-        // that just cost more weeks). Feeds rollInjury below.
+        // that just cost more weeks). Feeds rollInjury below — and is now a
+        // visible Recovering phase: the runner trains and races again, but
+        // at reduced quality, rebuilding fitness, sharpness, and confidence
+        // over several weeks before full race form returns.
         athlete.recentInjuryWeeks = Math.min(8, 2 + Math.round((athlete.injury.totalWeeks || 2) / 2));
         athlete.injury = null;
-        athlete.health = 'Healthy';
-        if (isPlayerSchool) gameState.logNews(`${athlete.fullName} is healthy and returns to full training.`);
+        athlete.health = 'Recovering';
+        if (isPlayerSchool) {
+          gameState.logNews(`${athlete.fullName} returns to training after injury — expect ~${athlete.recentInjuryWeeks} week${athlete.recentInjuryWeeks > 1 ? 's' : ''} of rebuilding before full race form.`);
+        }
       }
       athlete.lastDelta = 0;
       return;
@@ -561,6 +629,9 @@
     let sharpTarget = mMeta.sharpTarget + (planMeta.speedDays || 0) * 2.5 + (planMeta.restDays || 0) * 3
       + (planMeta.racesimDays || 0) * 6;
     sharpTarget = Utils.clamp(sharpTarget, 15, 96);
+    // Race rust (Injury System Expansion): a runner rebuilding from injury
+    // can't be fully race-sharp until the Recovering window closes.
+    if (athlete.health === 'Recovering') sharpTarget = Math.min(sharpTarget, 72);
     athlete.sharpness = Math.round(Utils.clamp(
       (athlete.sharpness ?? 55) + (sharpTarget - (athlete.sharpness ?? 55)) * 0.30, 0, 100));
 
@@ -578,9 +649,18 @@
     else athlete.highLoadWeeks = Math.max(0, (athlete.highLoadWeeks || 0) - 2);
 
     // Recent race intensity and the post-injury fragility window both fade
-    // week over week as the body absorbs and recovers.
+    // week over week as the body absorbs and recovers. When the Recovering
+    // window closes the athlete is finally back to full strength.
     athlete.raceLoad = Math.max(0, Math.round((athlete.raceLoad || 0) - 22));
-    if (athlete.recentInjuryWeeks > 0) athlete.recentInjuryWeeks -= 1;
+    if (athlete.recentInjuryWeeks > 0) {
+      athlete.recentInjuryWeeks -= 1;
+      if (athlete.recentInjuryWeeks <= 0 && athlete.health === 'Recovering') {
+        athlete.health = 'Healthy';
+        if (isPlayerSchool) gameState.logNews(`${athlete.fullName} is back to full strength.`);
+      }
+    } else if (athlete.health === 'Recovering') {
+      athlete.health = 'Healthy'; // defensive: never strand a runner in Recovering
+    }
 
     // Chronic exhaustion erodes stamina — the cost of overtraining.
     if (athlete.fatigue > 85 && rng.bool(0.35) && athlete.stamina > 20) {
@@ -628,6 +708,10 @@
     }
     dev *= 0.94 + (school.teamMorale ?? 65) / 1100; // ~0.96–1.03 by team morale
     dev *= philo.devMult; // the coach's training philosophy, executed to skill
+
+    // Returning from injury (Injury System Expansion): the body is rebuilding,
+    // not adapting — training quality stays reduced until full strength.
+    if (athlete.health === 'Recovering') dev *= 0.65;
 
     // Training adaptation (Update 6, Section 4): the body habituates.
     // Week after week of heavy load dulls the stimulus — constant maximum
@@ -693,6 +777,8 @@
       if (isPlayerSchool) {
         gameState.logNews(`Injury: ${athlete.fullName} — ${injury.type}, out ~${injury.totalWeeks} week${injury.totalWeeks > 1 ? 's' : ''}.`);
       }
+      // Permanent career ledger + long-term toll of repeated major injuries.
+      recordCareerInjury(gameState, athlete, injury, isPlayerSchool);
     }
 
     // Morale drifts with load and general program health.
@@ -844,6 +930,7 @@
           if (a.morale < 45) pts *= 0.75;                   // shaken confidence
           else if (a.morale > 78) pts *= 1.1;
           if ((a.seasonInjuryWeeks || 0) >= 4) pts *= Math.max(0.35, 1 - a.seasonInjuryWeeks * 0.07);
+          pts *= careerInjuryDevMult(a);                    // repeated major injuries shrink the upside
           if (a.fatigue > 70) pts *= 0.65;                  // burnout eats the summer
           pts *= 0.7 + rng.next() * 0.6;
 
@@ -921,6 +1008,9 @@
     planMetaFor,
     readiness,
     devProfileMult,
+    careerInjuryDevMult,
+    majorInjuryCount,
+    MAJOR_INJURY_WEEKS,
     philosophyEffect,
     coachCraft,
     MEET_WEEKS

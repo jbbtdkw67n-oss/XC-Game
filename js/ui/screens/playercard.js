@@ -63,6 +63,27 @@
         </div>
       </div>` : '';
 
+    // Injury history (Injury System Expansion): the permanent career ledger,
+    // with the long-term toll of repeated major injuries spelled out.
+    const ci = athlete.careerInjuries || [];
+    const majors = ci.filter((i) => i.major).length;
+    const injuryHistoryHtml = ci.length ? `
+      <div class="card" style="padding:12px; margin-bottom:14px;">
+        <h3>Injury History — ${ci.length}${majors ? ` (${majors} major)` : ''}</h3>
+        ${(athlete.potentialLostToInjury || 0) > 0 ? `
+          <div style="color:var(--danger); font-size:12.5px; margin:4px 0 8px;">
+            ⚠ Repeated major injuries have lowered this athlete's long-term ceiling
+            (−${athlete.potentialLostToInjury} potential) and slowed future development.
+          </div>` : ''}
+        <div style="max-height:180px; overflow-y:auto;">
+          ${ci.slice().reverse().map((inj) => `
+            <div class="attr-row" style="padding:4px 0;">
+              <span>${Utils.escapeHtml(inj.type)}${inj.major ? ' <span style="color:var(--danger); font-size:10.5px; font-weight:700;">MAJOR</span>' : ''}</span>
+              <span style="color:var(--text-dim);">Wk ${inj.week}, ${inj.year} — ${inj.weeks} wk out</span>
+            </div>`).join('')}
+        </div>
+      </div>` : '';
+
     // Career overall progression (Update 4, Part 10).
     const oh = athlete.overallHistory || [];
     const progressHtml = oh.length >= 2 ? `
@@ -119,7 +140,13 @@
       <div class="grid cols-2" style="margin-bottom:14px;">
         <div class="card" style="padding:12px;">
           <h3>Status &amp; Career</h3>
-          <div class="attr-row"><span class="attr-name">Health</span><span>${Utils.escapeHtml(athlete.health)}${athlete.injury ? ` — ${Utils.escapeHtml(athlete.injury.type)} (${athlete.injury.weeksRemaining} wk)` : ''}</span></div>
+          <div class="attr-row"><span class="attr-name">Health</span><span>${
+            athlete.injury
+              ? `<span style="color:var(--danger);">Injured — ${Utils.escapeHtml(athlete.injury.type)} (${athlete.injury.weeksRemaining} wk)</span>`
+              : athlete.health === 'Recovering'
+                ? `<span style="color:var(--warning);">Recovering — rebuilding race form (~${Math.max(1, athlete.recentInjuryWeeks || 1)} wk)</span>`
+                : Utils.escapeHtml(athlete.health)
+          }</span></div>
           <div class="attr-row"><span class="attr-name">Eligibility Left</span><span>${athlete.eligibilityRemaining} yr</span></div>
           <div class="attr-row"><span class="attr-name">Redshirt</span><span>${athlete.redshirt}</span></div>
           <div class="attr-row"><span class="attr-name">Races / Wins / Top-5s</span><span>${athlete.careerStats.races} / ${athlete.careerStats.wins} / ${athlete.careerStats.top5}</span></div>
@@ -153,6 +180,7 @@
       </div>` : ''}
 
       ${accoladesHtml}
+      ${injuryHistoryHtml}
       ${progressHtml}
 
       <div class="card" style="padding:12px; margin-bottom:14px;">
