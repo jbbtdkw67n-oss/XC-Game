@@ -25,6 +25,15 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   if (screen !== 'recruiting') errors.push('Confirm plan did not route to recruiting: ' + screen);
   await page.click('#btn-finish-recruiting');
   await page.waitForTimeout(150);
+  // The Week 1 administrative checklist (spec Part 2, Section 15) is the
+  // final gate — the advance should bounce to the Dashboard until done.
+  await page.click('#btn-advance-week');
+  await page.waitForTimeout(150);
+  week = await page.evaluate(() => window.XCD.ui.state.game.week);
+  if (week !== 1) errors.push('Week advanced despite an incomplete Week 1 checklist');
+  await page.evaluate(() => {
+    window.XCD.ui.state.game.week1 = { progressionReviewed: true, rosterConfirmed: true, scheduleFinalized: true, staffConfirmed: true, setupConfirmed: true };
+  });
   await page.click('#btn-advance-week');
   await page.waitForTimeout(300);
   week = await page.evaluate(() => window.XCD.ui.state.game.week);

@@ -87,17 +87,26 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     const top = Object.values(g.world.schools).filter((s) => s.division === 'DI')
       .sort((a, b) => b.prestige - a.prestige)[0];
     g.playerSchoolId = top.id;
+    g.week = 1; // Pre-Nationals decisions live in the Week 1 admin phase (Section 15)
+    g.week1 = window.XCD.engine.GameState.freshWeek1();
     const rng = new window.XCD.core.SeededRNG(7);
     window.XCD.engine.Races.newSeason(g, rng);
     window.XCD.engine.Rankings.compute(g);
     const p = g.season.preNationals;
     const diOnly = p.accepted.every((id) => g.getSchool(id).division === 'DI');
     const onCourse = p.diNationalsHostId === g.season.nationalsHosts.DI;
+    // The invite roll can miss even a top program; force one so the
+    // decline mechanics are tested deterministically.
+    if (!p.playerInvited) {
+      p.playerInvited = true;
+      if (!p.invited.includes(g.playerSchoolId)) p.invited.push(g.playerSchoolId);
+    }
     const d = window.XCD.engine.Races.setPreNationalsDecision(g, false);
     const declined = !g.season.preNationals.playerAccepted;
     window.XCD.engine.Races.setPreNationalsDecision(g, true);
-    return { exists: !!p, diOnly, onCourse, playerInvited: p.playerInvited, declineWorks: d.ok && declined };
+    return { exists: !!p, diOnly, onCourse, playerInvited: p.playerInvited, declineWorks: d.ok && declined, why: d.message, week: g.week, locked: g.scheduleLocked() };
   });
+  console.log('pre-nationals:', JSON.stringify(pn));
   if (!pn.exists || !pn.diOnly || !pn.onCourse) fail('Pre-Nationals misconfigured: ' + JSON.stringify(pn));
   if (!pn.declineWorks) fail('Pre-Nationals decline did not work');
   console.log('pre-nationals:', JSON.stringify(pn));

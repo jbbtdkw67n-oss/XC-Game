@@ -244,7 +244,9 @@
     if (!coach || coach.role === 'Assistant') {
       return { ok: false, why: 'Only a head coach hires the staff.' };
     }
-    if (gameState.seasonPhase !== 'Offseason') {
+    // The hiring window: the offseason proper, plus the Week 1
+    // administrative phase (spec Part 2, Section 15).
+    if (gameState.seasonPhase !== 'Offseason' && gameState.week !== 1) {
       return { ok: false, why: 'Staff changes happen in the offseason — coaches finish the season they signed on for.' };
     }
     if (gameState.staffHiredYear === gameState.year) {
@@ -274,6 +276,7 @@
     Legacy.openStint(gameState, candidate, school, gameState.year);
     Legacy.linkStaff(gameState, school, gameState.year);
     gameState.staffHiredYear = gameState.year; // one hire per offseason
+    if (gameState.week === 1 && gameState.week1) gameState.week1.staffConfirmed = true; // checklist: staff settled
     gameState.logNews(`Staff hire: ${candidate.fullName} joins ${school.name} as assistant coach under ${coach.fullName}.`);
     return { ok: true, message: `${candidate.fullName} joins your staff.` };
   }

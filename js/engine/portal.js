@@ -531,6 +531,109 @@
   }
 
   /* ================================================================ *
+   * Division I roster limits (spec Part 2, Section 15)
+   * ================================================================ */
+  const DI_ROSTER_LIMIT = 14;
+
+  // Who a smart staff keeps: mostly ceiling and current ability, with a
+  // nod to work ethic and a penalty for repeat major injuries.
+  function keepScore(a) {
+    const majors = (a.careerInjuries || []).filter((i) => i.major).length;
+    return (a.potential || 50) * 0.5 + (a.currentOverall || 40) * 0.4 +
+      ((a.workEthic || 60) - 60) * 0.08 - majors * 1.5 - (a.isWalkOn ? 3 : 0);
+  }
+
+  /*
+   * A cut athlete enters the portal and lands wherever there's genuine
+   * room and fit — a DI program under the limit, or a DII/DIII roster.
+   * A few walk away from the sport entirely (recorded as alumni).
+   */
+  function placeCutAthlete(gameState, a, fromSchool, rng) {
+    const key = a.gender === 'M' ? 'rosterM' : 'rosterW';
+    const candidates = Object.values(gameState.world.schools).filter((s) => {
+      if (fromSchool && s.id === fromSchool.id) return false;
+      if (s.id === gameState.playerSchoolId) return false; // never auto-added to the player
+      const div = s.division || 'DI';
+      if (div === 'DI' && s[key].length >= DI_ROSTER_LIMIT) return false;
+      if (s[key].length >= 20) return false; // lower-division rosters stay believable
+      return Math.abs((30 + s.prestige * 0.55) - a.currentOverall) <= 30;
+    });
+    if (!candidates.length || rng.bool(0.08)) {
+      window.XCD.engine.Legacy.recordAlumni(gameState, a);
+      a.schoolId = null;
+      a.health = 'Graduated';
+      delete gameState.world.athletes[a.id];
+      return null;
+    }
+    const ranked = candidates
+      .map((s) => ({ s, appeal: portalAppeal(gameState, s, a, fromSchool) }))
+      .sort((x, y) => y.appeal - x.appeal)
+      .slice(0, 3);
+    const to = rng.weightedChoice(ranked, (o) => Math.pow(Math.max(o.appeal, 5), 2)).s;
+    to[key].push(a.id);
+    a.schoolId = to.id;
+    a.morale = 68;
+    a.coachRelationship = 55;
+    a.teamRelationship = 50;
+    return to;
+  }
+
+  // Player-facing Week 1 cut: only a DI head coach over the limit, with
+  // the athlete moving on through the portal immediately.
+  function cutAthlete(gameState, athleteId) {
+    const a = gameState.getAthlete(athleteId);
+    if (!a) return { ok: false, message: 'Unknown athlete.' };
+    const school = a.schoolId && gameState.getSchool(a.schoolId);
+    if (!school || school.id !== gameState.playerSchoolId) return { ok: false, message: 'Not on your roster.' };
+    if (gameState.isAssistant && gameState.isAssistant()) return { ok: false, message: 'Roster cuts are a head-coach call.' };
+    if (gameState.week !== 1) return { ok: false, message: 'Roster moves happen during the Week 1 administrative phase.' };
+    if ((school.division || 'DI') !== 'DI') return { ok: false, message: 'Only Division I enforces the 14-athlete limit — your roster is unlimited.' };
+    const key = a.gender === 'M' ? 'rosterM' : 'rosterW';
+    if (school[key].length <= DI_ROSTER_LIMIT) {
+      return { ok: false, message: `That squad is at or under the ${DI_ROSTER_LIMIT}-athlete limit — no cuts required.` };
+    }
+    school[key] = school[key].filter((id) => id !== a.id);
+    a.schoolId = null;
+    const rng = new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 97 + a.id.length * 31) >>> 0);
+    const name = a.fullName;
+    const to = placeCutAthlete(gameState, a, school, rng);
+    // Cuts sting the locker room a little — the roster crunch is real.
+    school.teamMorale = Utils.clamp((school.teamMorale ?? 65) - 1, 0, 100);
+    gameState.logNews(to
+      ? `Roster cut: ${name} is released and lands at ${to.name} through the portal.`
+      : `Roster cut: ${name} is released and steps away from collegiate running.`);
+    return { ok: true, message: to ? `${name} released — picked up by ${to.name}.` : `${name} released.` };
+  }
+
+  /*
+   * CPU cut day (runs at the rollover, before walk-ons): every Division I
+   * program over the limit keeps its most valuable 14 per squad and moves
+   * the rest on. The player's own cuts are a Week 1 task, never automated
+   * — unless an AI head coach runs the program (player is the assistant).
+   */
+  function trimRosters(gameState, rng) {
+    let cuts = 0;
+    Object.values(gameState.world.schools).forEach((school) => {
+      if ((school.division || 'DI') !== 'DI') return;
+      const playerRuns = school.id === gameState.playerSchoolId &&
+        !(gameState.isAssistant && gameState.isAssistant());
+      if (playerRuns) return;
+      ['rosterM', 'rosterW'].forEach((key) => {
+        while (school[key].length > DI_ROSTER_LIMIT) {
+          const roster = school[key].map((id) => gameState.world.athletes[id]).filter(Boolean);
+          if (roster.length <= DI_ROSTER_LIMIT) { school[key] = roster.map((x) => x.id); break; }
+          const cut = roster.sort((x, y) => keepScore(x) - keepScore(y))[0];
+          school[key] = school[key].filter((id) => id !== cut.id);
+          cut.schoolId = null;
+          placeCutAthlete(gameState, cut, school, rng);
+          cuts++;
+        }
+      });
+    });
+    return cuts;
+  }
+
+  /* ================================================================ *
    * Weekly driver (called after the week increments)
    * ================================================================ */
   function processWeek(gameState, rng) {
@@ -557,8 +660,11 @@
     portalAppeal,
     transferRisk,
     applyTransfers,
+    cutAthlete,
+    trimRosters,
     ENTRY_WEEK,
     DECISION_WEEK,
-    PLAYER_OFFER_LIMIT
+    PLAYER_OFFER_LIMIT,
+    DI_ROSTER_LIMIT
   };
 })();

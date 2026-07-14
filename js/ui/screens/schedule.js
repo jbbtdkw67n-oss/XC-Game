@@ -181,11 +181,19 @@
       }
     }
 
+    // Week 1 Administrative Phase (spec Part 2, Section 15): the schedule —
+    // including the Pre-Nationals answer — is set during Week 1 and then
+    // finalized for the season. After that, only the finalized table shows.
+    const locked = game.scheduleLocked ? game.scheduleLocked() : game.week > 1;
+
     // Pre-Nationals invitation (Update 3): accept for the course preview and
     // ranking boost, or decline to rest / stay in a training block.
     let preNatsHtml = '';
     const pn = season.preNationals;
     if (pn && pn.playerInvited && game.week < pn.week) {
+      const status = pn.playerAccepted
+        ? `<span style="color:var(--success); font-weight:700;">✓ Accepted — racing Week ${pn.week} on the Championship course</span>`
+        : `<span style="color:var(--warning); font-weight:700;">Declined — resting that week</span>`;
       preNatsHtml = `
         <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent);">
           <h2>✉️ Pre-Nationals Invitation — Week ${pn.week}</h2>
@@ -193,21 +201,24 @@
             A Division I-only elite invitational on the NCAA Championship course. Accepting previews the terrain
             (a small familiarity edge at Nationals) and — with a strong run — boosts your national ranking, prestige,
             and recruiting visibility. Declining rests your athletes and protects a high-mileage block.
-            <strong> Status: ${pn.playerAccepted ? '<span style="color:var(--success);">Accepted</span>' : '<span style="color:var(--warning);">Declined</span>'}</strong>
           </div>
-          <div style="display:flex; gap:8px;">
-            <button class="btn ${pn.playerAccepted ? 'primary' : ''}" id="btn-pn-accept" ${pn.playerAccepted ? 'disabled' : ''}>Accept Invitation</button>
-            <button class="btn ${!pn.playerAccepted ? 'danger' : ''}" id="btn-pn-decline" ${!pn.playerAccepted ? 'disabled' : ''}>Decline & Rest</button>
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <span>${status}</span>
+            ${locked
+              ? '<span style="color:var(--text-faint); font-size:12px;">🔒 Locked with the finalized schedule</span>'
+              : pn.playerAccepted
+                ? '<button class="btn small" id="btn-pn-decline">Switch to Decline & Rest</button>'
+                : '<button class="btn small primary" id="btn-pn-accept">Accept Invitation</button>'}
           </div>
         </div>`;
     }
 
-    // Custom race scheduling (Update 4, Part 7): pick which meets to attend,
-    // gated by prestige. Editable for any regular-season week not yet run.
+    // Custom race scheduling (Update 4, Part 7 + Section 15): pick which
+    // meets to attend during Week 1, gated by prestige — then finalize.
     let scheduleHtml = '';
     const Scheduling = window.XCD.engine.Scheduling;
-    if (Scheduling) {
-      if (!season.playerSchedule) Scheduling.buildOptions(game);
+    if (Scheduling && !locked) {
+      Scheduling.buildOptions(game);
       const sched = season.playerSchedule;
       const editable = (sched.weeks || []).filter((w) => !w.locked);
       if (editable.length) {
@@ -218,7 +229,9 @@
               <span style="color:var(--text-dim); font-size:12.5px;">Prestige ${school.prestige} · ${window.XCD.data.divisionFor(school).label} — elite invitationals require a strong program.</span>
             </div>
             <div style="color:var(--text-faint); font-size:12px; margin:4px 0 12px;">
-              Choose where your team races each regular-season week. Elite fields only invite high-prestige programs; rest a week to bank a training block.
+              Choose where your team races each regular-season week — then <strong>finalize</strong>.
+              The schedule locks permanently once finalized (or when Week 1 ends). Elite fields only
+              invite high-prestige programs; rest a week to bank a training block.
             </div>
             ${editable.map((w) => `
               <div style="margin-bottom:12px;">
@@ -233,8 +246,18 @@
                     </button>`).join('')}
                 </div>
               </div>`).join('')}
+            <div style="border-top:1px solid var(--border); padding-top:10px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span style="color:var(--text-dim); font-size:12.5px;">Happy with the slate${pn && pn.playerInvited ? ' (and your Pre-Nationals answer)' : ''}? Finalizing locks it for the whole season.</span>
+              <button class="btn primary" id="btn-finalize-schedule">🔒 Finalize Schedule</button>
+            </div>
           </div>`;
       }
+    } else if (locked) {
+      scheduleHtml = `
+        <div class="card" style="margin-bottom:16px;">
+          <h2 style="margin:0 0 4px;">🔒 Schedule Finalized — ${season.year}</h2>
+          <div style="color:var(--text-dim); font-size:12.5px;">The slate below is locked for the season. Meet selection reopens in Week 1 of next year.</div>
+        </div>`;
     }
 
     // Assistant coaches don't set the schedule or answer invitations — those
@@ -304,6 +327,16 @@
     };
     if (pnAccept) pnAccept.addEventListener('click', () => pnDecide(true));
     if (pnDecline) pnDecline.addEventListener('click', () => pnDecide(false));
+
+    // Finalize (Section 15): permanently lock the season's slate.
+    const finalizeBtn = container.querySelector('#btn-finalize-schedule');
+    if (finalizeBtn) finalizeBtn.addEventListener('click', () => {
+      if (!game.controlsScheduling()) { UI.toast('Only the head coach finalizes the schedule.', 'error'); return; }
+      game.week1 = game.week1 || window.XCD.engine.GameState.freshWeek1();
+      game.week1.scheduleFinalized = true;
+      UI.toast('Schedule finalized — the slate is locked for the season.', 'success');
+      render(container);
+    });
   }
 
   UI.screens.schedule = { render };

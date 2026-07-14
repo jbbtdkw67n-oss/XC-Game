@@ -21,8 +21,12 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       return { week: g.week, year: g.year, meets };
     });
     log.push(info);
-    // Complete the mandatory weekly flow (tested in depth elsewhere)
-    await page.evaluate(() => { window.XCD.ui.state.game.weeklyFlow = { trainingConfirmed: true, recruitingDone: true }; });
+    // Complete the mandatory weekly flow + Week 1 checklist (tested in depth elsewhere)
+    await page.evaluate(() => {
+      const g = window.XCD.ui.state.game;
+      g.weeklyFlow = { trainingConfirmed: true, recruitingDone: true };
+      g.week1 = { progressionReviewed: true, rosterConfirmed: true, scheduleFinalized: true, staffConfirmed: true, setupConfirmed: true };
+    });
     await page.click('#btn-advance-week');
     await page.waitForTimeout(120);
     if (errors.length) break;

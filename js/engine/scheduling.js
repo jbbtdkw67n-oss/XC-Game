@@ -127,6 +127,11 @@
   function select(gameState, week, meetId) {
     const season = gameState.season;
     if (!season) return { ok: false, message: 'No active season.' };
+    // Week 1 Administrative Phase (spec Part 2, Section 15): the schedule is
+    // set during Week 1 and then finalized for the season — permanently.
+    if (gameState.scheduleLocked && gameState.scheduleLocked()) {
+      return { ok: false, message: 'The schedule is finalized — meets lock for the season after Week 1.' };
+    }
     if (gameState.week > week) return { ok: false, message: 'That week has already been raced.' };
     const pid = gameState.playerSchoolId;
     const school = gameState.getPlayerSchool();

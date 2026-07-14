@@ -275,6 +275,13 @@
         UI.navigate('recruiting');
         return;
       }
+      // Week 1 Administrative Phase (spec Part 2, Section 15): Week 2 stays
+      // locked until the season-setup checklist is complete.
+      if (game.week1Complete && !game.week1Complete()) {
+        UI.toast('Week 1 is the season-setup phase — complete the checklist on the Dashboard to unlock Week 2.', 'error');
+        UI.navigate('dashboard');
+        return;
+      }
       const weekBefore = game.week;
       game.advanceWeek();
       try {
@@ -299,10 +306,17 @@
     const simBtn = document.getElementById('btn-sim-race');
     if (simBtn) {
       simBtn.addEventListener('click', async () => {
-        // Advance until a week in which our team raced (guard: ~1.2 years).
+        // The Week 1 checklist gates simming forward too (Section 15).
+        if (game.week1Complete && !game.week1Complete()) {
+          UI.toast('Week 1 is the season-setup phase — complete the checklist on the Dashboard first.', 'error');
+          UI.navigate('dashboard');
+          return;
+        }
+        // Advance until a week in which our team raced (guard: ~1.2 years),
+        // stopping at a new season's Week 1 for the administrative phase.
         let raced = false;
         let rolledOver = false;
-        for (let i = 0; i < 26 && !raced; i++) {
+        for (let i = 0; i < 26 && !raced && !rolledOver; i++) {
           const wk = game.week;
           const s = game.season;
           const hadMeet = s && (s.playerMeetByWeek[wk] ||

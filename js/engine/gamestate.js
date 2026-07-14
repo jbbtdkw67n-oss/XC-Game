@@ -93,6 +93,13 @@
       // The weekly coaching rhythm: plan training -> recruit -> advance.
       this.weeklyFlow = { trainingConfirmed: false, recruitingDone: false };
 
+      // Week 1 Administrative Phase (spec Part 2, Section 15): the season-
+      // setup checklist a head coach completes before Week 2 unlocks —
+      // review progression, finalize the roster (DI: 14 per squad),
+      // finalize the schedule (permanently locked afterward), settle the
+      // staff, and confirm the season setup. Reset every rollover.
+      this.week1 = GameState.freshWeek1();
+
       // The player's coaching career ledger
       this.career = {
         seasons: 0, conferenceTitles: 0, nationalTitles: 0,
@@ -229,6 +236,49 @@
     }
 
     get seasonPhase() { return phaseForWeek(this.week); }
+
+    /* ---- Week 1 Administrative Phase (spec Part 2, Section 15) ---- */
+    static freshWeek1() {
+      return {
+        progressionReviewed: false, rosterConfirmed: false,
+        scheduleFinalized: false, staffConfirmed: false, setupConfirmed: false
+      };
+    }
+
+    // Division I programs carry at most 14 athletes per squad; DII/DIII
+    // rosters are unlimited.
+    static get DI_ROSTER_LIMIT() { return 14; }
+
+    // Squad sizes vs the limit for the player's program.
+    rosterLimitStatus() {
+      const school = this.getPlayerSchool();
+      const limit = (school && (school.division || 'DI') === 'DI') ? GameState.DI_ROSTER_LIMIT : Infinity;
+      const M = school ? school.rosterM.length : 0;
+      const W = school ? school.rosterW.length : 0;
+      return { limit, M, W, over: M > limit || W > limit };
+    }
+
+    // Does the Week 1 checklist require the offseason report review?
+    week1NeedsReport() {
+      return !!(this.offseasonReport && this.offseasonReport.year === this.year &&
+        (this.offseasonReport.entries || []).length);
+    }
+
+    // The schedule is editable only during Week 1, until it's finalized;
+    // advancing to Week 2 locks it permanently either way.
+    scheduleLocked() {
+      return this.week > 1 || !!(this.week1 && this.week1.scheduleFinalized);
+    }
+
+    // Week 2 stays locked until the administrative checklist is complete.
+    // Assistants don't run the program, so they are never gated.
+    week1Complete() {
+      if (this.week !== 1) return true;
+      if (this.isAssistant()) return true;
+      const t = this.week1 || {};
+      return (!this.week1NeedsReport() || t.progressionReviewed) &&
+        t.rosterConfirmed && t.scheduleFinalized && t.staffConfirmed && t.setupConfirmed;
+    }
 
     capturePreseasonRanks() {
       if (!this.season || !this.rankings) return;
@@ -372,6 +422,16 @@
       //     progresses or regresses between seasons.
       window.XCD.engine.Training.offseasonDevelopment(this, rng);
 
+      // 2c) Division I roster limits (spec Part 2, Section 15): CPU programs
+      //     over 14 per squad make intelligent cuts; cut athletes move on
+      //     through the portal to programs with room. The player's own cuts
+      //     are a Week 1 checklist task, never automated.
+      const trimmed = window.XCD.engine.Portal.trimRosters(this, rng);
+      if (trimmed) this.logNews(`Roster deadline: Division I programs trim to 14 per squad — ${trimmed} athletes move on.`);
+
+      // 2d) A new season brings a fresh Week 1 administrative checklist.
+      this.week1 = GameState.freshWeek1();
+
       // 3) Every program must field 14 men and 14 women. If recruiting
       //    left a roster short, walk-ons fill the gap — weak, low-ceiling
       //    runners, except the ~0.1% hidden legend.
@@ -486,7 +546,8 @@
         jobOffers: this.jobOffers,
         weeklyFlow: this.weeklyFlow,
         offseasonReport: this.offseasonReport || null,
-        staffHiredYear: this.staffHiredYear || null
+        staffHiredYear: this.staffHiredYear || null,
+        week1: this.week1
       };
     }
 
@@ -538,6 +599,13 @@
       gs.weeklyFlow = obj.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
       gs.offseasonReport = obj.offseasonReport || null;
       gs.staffHiredYear = obj.staffHiredYear || null;
+      // Saves from before the Week 1 administrative phase are grandfathered:
+      // the in-progress season's checklist counts as complete (its schedule
+      // still locks normally once Week 1 passes).
+      gs.week1 = obj.week1 || {
+        progressionReviewed: true, rosterConfirmed: true,
+        scheduleFinalized: obj.week > 1, staffConfirmed: true, setupConfirmed: true
+      };
       // Every dynasty owns a stable id (Phase 5). Pre-multi-save dynasties get
       // one derived deterministically from their seed + creation time, so a
       // legacy save keeps the same autosave slot across loads.

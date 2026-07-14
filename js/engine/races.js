@@ -394,6 +394,11 @@
     const season = gameState.season;
     const pn = season && season.preNationals;
     if (!pn || !pn.playerInvited) return { ok: false, message: 'No Pre-Nationals invitation is open.' };
+    // The invitation is answered during Week 1 (spec Part 2, Section 15):
+    // once the schedule is finalized, the decision locks with it.
+    if (gameState.scheduleLocked && gameState.scheduleLocked()) {
+      return { ok: false, message: 'The schedule is finalized — the Pre-Nationals decision locked with it after Week 1.' };
+    }
     if (gameState.week >= pn.week) return { ok: false, message: 'Too late to change — Pre-Nationals has arrived.' };
     const meet = season.meets[pn.meetId];
     if (!meet) return { ok: false, message: 'Meet not found.' };

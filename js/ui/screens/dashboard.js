@@ -276,6 +276,57 @@
       </div>
 
       ${(() => {
+        // Week 1 Administrative Phase (spec Part 2, Section 15): the season-
+        // setup checklist. Week 2 stays locked until every task is complete.
+        if (game.week !== 1 || (game.isAssistant && game.isAssistant()) || !game.week1) return '';
+        const t = game.week1;
+        const needReport = game.week1NeedsReport();
+        const reportDone = !needReport || t.progressionReviewed;
+        const rl = game.rosterLimitStatus();
+        const staffDone = t.staffConfirmed || game.staffHiredYear === game.year;
+        const preDone = reportDone && t.rosterConfirmed && t.scheduleFinalized && staffDone;
+        const allDone = preDone && t.setupConfirmed;
+        const chk = (done) => done ? '✅' : '⬜';
+        const row = (done, label, sub, btnHtml) => `
+          <div class="attr-row" style="padding:7px 0; align-items:center;">
+            <span>${chk(done)} <strong>${label}</strong>
+              <span style="color:var(--text-faint); font-size:12px;"> ${sub}</span></span>
+            <span>${done ? '<span style="color:var(--success); font-size:12px;">Done</span>' : btnHtml}</span>
+          </div>`;
+        return `
+        <div class="card" style="margin-bottom:16px; border-left:3px solid ${allDone ? 'var(--success)' : 'var(--warning)'};">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+            <h2 style="margin:0;">📋 Week 1 — Season Setup</h2>
+            <span style="color:${allDone ? 'var(--success)' : 'var(--warning)'}; font-size:12.5px; font-weight:600;">
+              ${allDone ? '✓ Complete — Week 2 unlocked' : 'Week 2 is locked until the checklist is complete'}
+            </span>
+          </div>
+          <div style="color:var(--text-faint); font-size:12px; margin:4px 0 8px;">
+            The offseason management phase: review the summer, set the roster, lock the schedule, settle the staff, and confirm the season.
+          </div>
+          ${row(reportDone, 'Review offseason progression',
+            needReport ? 'every returning athlete, before → after' : 'first season — no summer to review',
+            '<button class="btn small primary" id="w1-report">View Report</button>')}
+          ${row(t.rosterConfirmed, 'Finalize roster',
+            rl.limit === Infinity
+              ? `M ${rl.M} · W ${rl.W} — no roster limit in your division`
+              : `M ${rl.M}/${rl.limit} · W ${rl.W}/${rl.limit}${rl.over ? ' — <span style="color:var(--danger);">over the Division I limit, make cuts on the Roster screen</span>' : ''}`,
+            rl.over
+              ? '<button class="btn small" id="w1-roster-go">Go to Roster</button>'
+              : '<button class="btn small primary" id="w1-roster">Confirm Roster</button>')}
+          ${row(t.scheduleFinalized, 'Finalize schedule',
+            'pick your meets and answer invitations, then lock the slate for the season',
+            '<button class="btn small" id="w1-schedule">Go to Schedule</button>')}
+          ${row(staffDone, 'Settle the staff',
+            'keep your assistant or make your one offseason hire (Manage Staff on My Program)',
+            '<button class="btn small primary" id="w1-staff">Keep Current Staff</button>')}
+          ${row(t.setupConfirmed, 'Confirm season setup',
+            'the final sign-off that opens Week 2',
+            `<button class="btn small ${preDone ? 'primary' : ''}" id="w1-confirm" ${preDone ? '' : 'disabled title="Finish the tasks above first"'}>Confirm & Unlock Week 2</button>`)}
+        </div>`;
+      })()}
+
+      ${(() => {
         // Offseason Progression Report (spec Part 2, Section 11): shown ahead
         // of Week 1 — every returning athlete's summer, before → after.
         const rep = game.offseasonReport;
@@ -421,8 +472,37 @@
     container.querySelectorAll('[data-ath]').forEach((tr) => {
       tr.addEventListener('click', () => UI.showPlayerCard(game.getAthlete(tr.dataset.ath), game));
     });
+    const markReviewed = () => { if (game.week === 1 && game.week1) game.week1.progressionReviewed = true; };
     const reportBtn = container.querySelector('#btn-offseason-report');
-    if (reportBtn) reportBtn.addEventListener('click', () => showOffseasonReport(game));
+    if (reportBtn) reportBtn.addEventListener('click', () => { markReviewed(); showOffseasonReport(game); render(container); });
+
+    // Week 1 checklist wiring (Section 15).
+    const w1 = (id, fn) => { const el = container.querySelector(id); if (el) el.addEventListener('click', fn); };
+    w1('#w1-report', () => {
+      markReviewed();
+      if (game.week1NeedsReport()) showOffseasonReport(game);
+      else UI.toast('First season — no offseason to review yet. Task complete.', 'success');
+      render(container);
+    });
+    w1('#w1-roster', () => {
+      const rl = game.rosterLimitStatus();
+      if (rl.over) { UI.toast('Your roster is over the Division I limit — make cuts first.', 'error'); return; }
+      game.week1.rosterConfirmed = true;
+      UI.toast('Roster finalized.', 'success');
+      render(container);
+    });
+    w1('#w1-roster-go', () => UI.navigate('roster'));
+    w1('#w1-schedule', () => UI.navigate('schedule'));
+    w1('#w1-staff', () => {
+      game.week1.staffConfirmed = true;
+      UI.toast('Staff settled for the season.', 'success');
+      render(container);
+    });
+    w1('#w1-confirm', () => {
+      game.week1.setupConfirmed = true;
+      UI.toast('Season setup confirmed — Week 2 is unlocked. Good luck out there.', 'success');
+      render(container);
+    });
 
     container.querySelectorAll('#btn-to-schedule, #btn-to-schedule-2, [data-meet], [data-meet-nav]').forEach((el) => {
       el.addEventListener('click', () => UI.navigate('schedule'));

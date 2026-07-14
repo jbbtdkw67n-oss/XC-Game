@@ -10,6 +10,33 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 7.6 — The Week 1 Administrative Phase
+
+Week 1 becomes the season's front office (spec Part 2, Section 15).
+
+- **The season-setup checklist.** A head coach's Week 1 runs through five
+  required tasks on the Dashboard — review the offseason progression
+  report, finalize the roster, finalize the schedule, settle the staff
+  (keep the assistant or make the one offseason hire), and confirm the
+  season setup. **Week 2 stays locked until the checklist is complete**;
+  Sim to Race waits too. Assistants are never gated, and the checklist
+  resets every rollover.
+- **Finalized schedules.** Meet selection and the Pre-Nationals answer now
+  live in Week 1 only: pick the slate, then hit **Finalize Schedule** to
+  lock it permanently — the selection UI disappears for the season,
+  leaving the clean finalized table. Advancing past Week 1 locks the
+  slate regardless. Accepting the Pre-Nationals invitation drops it
+  straight into the finalized schedule, with a clear ✓ Accepted state
+  (no more dead buttons).
+- **Division I roster limits.** DI programs carry at most **14 athletes
+  per squad**. Enter Week 1 over the limit and the roster task blocks
+  until you cut — the Roster screen gains a cut banner and per-athlete
+  ✂️ Cut buttons, with overall, potential, class, work ethic, injury
+  history, transfer risk, and stats all on hand for the decision. Cut
+  athletes enter the portal and land at programs with room (a few walk
+  away). **CPU Division I programs make the same intelligent cuts every
+  rollover**; DII and DIII rosters stay unlimited.
+
 ## Version 7.5 — Live Team Score Projection Overhaul
 
 Team scoring in the Race Center broadcast is now genuinely live (spec

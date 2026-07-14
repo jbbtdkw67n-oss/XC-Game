@@ -12,6 +12,14 @@
     const game = UI.state.game;
     const school = game.getPlayerSchool();
 
+    // Week 1 roster crunch (spec Part 2, Section 15): Division I carries at
+    // most 14 per squad. Over the limit, the head coach must cut before the
+    // season can begin — cut athletes move on through the portal.
+    const rl = game.rosterLimitStatus();
+    const canManage = game.controlsTraining();
+    const squadSize = activeGender === 'M' ? rl.M : rl.W;
+    const cutMode = canManage && game.week === 1 && rl.limit !== Infinity && squadSize > rl.limit;
+
     container.innerHTML = `
       <div class="screen-header">
         <h1>Roster</h1>
@@ -23,14 +31,20 @@
           <input class="search-input" id="roster-search" placeholder="Search runners...">
         </div>
       </div>
+      ${cutMode ? `
+      <div class="card" style="margin-bottom:14px; border-left:3px solid var(--danger);">
+        <h3 style="margin:0 0 4px;">✂️ Roster over the Division I limit — ${squadSize}/${rl.limit}</h3>
+        <div style="color:var(--text-dim); font-size:12.5px;">
+          Cut ${squadSize - rl.limit} athlete${squadSize - rl.limit > 1 ? 's' : ''} to finalize the roster (Week 1 checklist).
+          Weigh overall, potential, class, development, work ethic, injury history, and transfer risk —
+          open any profile for the full picture. Cut athletes enter the portal and land elsewhere.
+        </div>
+      </div>` : ''}
       <div class="card">
         <div id="roster-table"></div>
       </div>`;
 
     const roster = game.getRoster(school.id, activeGender);
-    // Captains and redshirts are head-coach decisions (Update 5): an
-    // assistant sees the roster but doesn't manage race strategy/eligibility.
-    const canManage = game.controlsTraining();
 
     const table = UI.renderSortableTable(container.querySelector('#roster-table'), {
       rows: roster,
@@ -92,6 +106,10 @@
             const chk = window.XCD.engine.Portal.canRedshirt(UI.state.game, a);
             return `<button class="btn small" data-rs="${a.id}" ${chk.ok ? '' : `disabled title="${chk.why}"`}>Redshirt</button>`;
           }
+        },
+        cutMode && {
+          key: 'cut', label: 'Cut',
+          render: (a) => `<button class="btn small danger" data-cut="${a.id}" title="Release ${Utils.escapeHtml(a.fullName)} — they enter the portal">✂️ Cut</button>`
         }
       ].filter(Boolean)
     });
@@ -99,6 +117,32 @@
     // Capturing delegate: survives table re-sorts and beats the row-click
     // handler that would otherwise open the player card.
     container.querySelector('#roster-table').addEventListener('click', (e) => {
+      const cutBtn = e.target.closest('[data-cut]');
+      if (cutBtn) {
+        e.stopPropagation();
+        const game = UI.state.game;
+        const a = game.getAthlete(cutBtn.dataset.cut);
+        if (!a) return;
+        UI.showModal(`
+          <h2>✂️ Cut ${Utils.escapeHtml(a.fullName)}?</h2>
+          <p style="color:var(--text-dim); font-size:13px;">
+            ${a.classYear} • ${a.currentOverall} OVR (POT ${a.potential}) • Work Ethic ${a.workEthic} •
+            ${(a.careerInjuries || []).length} career injur${(a.careerInjuries || []).length === 1 ? 'y' : 'ies'} •
+            ${a.careerStats.races} races. This is permanent — released athletes enter the portal and sign elsewhere.
+          </p>
+          <div style="display:flex; gap:8px; margin-top:12px;">
+            <button class="btn danger" id="cut-yes">✂️ Release ${Utils.escapeHtml(a.lastName)}</button>
+            <button class="btn" data-modal-close>Keep on Roster</button>
+          </div>`, (modal) => {
+          modal.querySelector('#cut-yes').addEventListener('click', () => {
+            const r = window.XCD.engine.Portal.cutAthlete(game, a.id);
+            UI.toast(r.message, r.ok ? 'success' : 'error');
+            UI.closeModal();
+            if (r.ok) render(container);
+          });
+        });
+        return;
+      }
       const rsBtn = e.target.closest('[data-rs]');
       if (rsBtn && !rsBtn.disabled) {
         e.stopPropagation();
