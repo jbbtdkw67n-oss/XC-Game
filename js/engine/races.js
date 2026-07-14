@@ -525,10 +525,14 @@
     mult += Utils.clamp((55 - (a.sharpness ?? 55)) * 0.00035, -0.014, 0.014);
 
     // Peaking: a great tactician has athletes flying for championship races.
+    // Race preparation is a staff effort (spec Part 2, Section 12): the
+    // assistant contributes a quarter-weight of their own peaking craft.
     if (meet.type === 'conference' || meet.type === 'regional' || meet.type === 'national') {
       const school = gameState.getSchool(a.schoolId);
       const coach = school && gameState.getCoach(school.coachId);
-      const peaking = coach ? (coach.peaking ?? coach.raceStrategy ?? 55) : 55;
+      let peaking = coach ? (coach.peaking ?? coach.raceStrategy ?? 55) : 55;
+      const asst = school && school.assistantId && gameState.world.coaches[school.assistantId];
+      if (asst && (!coach || asst.id !== coach.id)) peaking += ((asst.peaking ?? 55) - 55) * 0.25;
       mult -= (peaking - 50) * 0.00016; // ±0.8% swing at the extremes
     }
 

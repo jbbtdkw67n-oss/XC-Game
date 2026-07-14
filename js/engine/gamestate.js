@@ -339,6 +339,9 @@
         else window.XCD.engine.Careers.generateOffers(this, rng);
       }
       window.XCD.engine.Careers.expireOffers(this);
+      // The offseason job market keeps evolving week to week (spec Part 2):
+      // fresh openings surface, others get filled behind the scenes.
+      if (this.week > AWARDS_WEEK) window.XCD.engine.Careers.evolveJobMarket(this, rng);
 
       // Redshirts + the transfer portal window.
       window.XCD.engine.Portal.processWeek(this, rng);

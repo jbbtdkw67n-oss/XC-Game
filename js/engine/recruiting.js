@@ -762,9 +762,14 @@
         // all the program's effort — each push lands noticeably harder.
         const waveFocus = school.prestige >= 75 && committedCount === 0 && board[gender].length <= 4 ? 1.3 : 1;
 
+        // Assistant coach impact (spec Part 2, Section 12): the recruiting
+        // coordinator's own pull adds to every CPU push, same as the player's.
+        const asst = school.assistantId && gameState.world.coaches[school.assistantId];
+        const asstPull = asst ? (asst.recruiting - 55) / 90 : 0;
+
         targets.forEach((rec) => {
           const st = rec.getSchoolState(school.id, true);
-          const push = (3 + coach.recruiting / 18) * (0.8 + rng.next() * 0.4) * waveFocus;
+          const push = (3 + coach.recruiting / 18 + asstPull) * (0.8 + rng.next() * 0.4) * waveFocus;
           st.relationship = Utils.clamp(st.relationship + push, 0, 100);
           st.interest = Utils.clamp(st.interest + push * 0.75, 0, 100);
           // Offer once the AI believes in the match.

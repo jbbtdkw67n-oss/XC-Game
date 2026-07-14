@@ -100,44 +100,94 @@
       } else { gameState.jobOffers = null; return; }
     }
 
-    const bestRankOf = (sid) => {
-      const r = gameState.rankings;
-      if (!r) return null;
-      const m = r.M.find((x) => x.schoolId === sid);
-      const w = r.W.find((x) => x.schoolId === sid);
-      const b = Math.min(m ? m.rank : 999, w ? w.rank : 999);
-      return b < 999 ? b : null;
-    };
-    const offers = rng.shuffle(interested).slice(0, 3).map((s) => {
-      const hs = s.historicalSuccess || {};
-      const crossDiv = (s.division || 'DI') !== (school.division || 'DI');
-      return {
-        schoolId: s.id,
-        schoolName: s.name,
-        prestige: s.prestige,
-        conference: s.conference,
-        division: s.division || 'DI',
-        // Rich offer detail (Update 3 Job Offer phase).
-        budget: s.budget.total,
-        facilities: s.facilitiesOverall,
-        academics: s.academics,
-        bestRank: bestRankOf(s.id),
-        expectations: Math.round((window.XCD.data.divisionFor(s).expectations || 1) * 100),
-        natTitles: (hs.nationalTitlesM || 0) + (hs.nationalTitlesW || 0),
-        confTitles: (hs.conferenceTitlesM || 0) + (hs.conferenceTitlesW || 0),
-        repFit: Utils.clamp(Math.round(resume - (s.prestige * 0.68 - 10) + 50), 0, 100),
-        kind: crossDiv && (s.division === 'DII' || s.division === 'DIII') && (school.division === 'DI')
-            ? `Move to ${s.division}`
-          : crossDiv && school.division !== 'DI' && s.division === 'DI' ? 'Jump to DI'
-          : s.prestige >= 85 && s.conferenceTier === 1 ? 'Dream job'
-          : s.prestige >= school.prestige + 10 ? 'Step up'
-          : s.prestige >= school.prestige - 8 ? 'Lateral move'
-          : 'Step down'
-      };
-    }).sort((a, b) => b.prestige - a.prestige);
+    // Expanded job market (spec Part 2): significantly more openings —
+    // Division I, II, and III chairs all surface, up to six at once.
+    const offers = rng.shuffle(interested).slice(0, 6)
+      .map((s) => buildOfferRow(gameState, school, resume, s))
+      .sort((a, b) => b.prestige - a.prestige);
 
     gameState.jobOffers = { year: gameState.year, expiresWeek: OFFER_EXPIRY_WEEK, offers };
     gameState.logNews(`📞 Your phone is ringing: ${offers.length === 1 ? offers[0].schoolName + ' wants' : offers.length + ' programs want'} to talk about their head coaching job.`);
+  }
+
+  function bestRankOf(gameState, sid) {
+    const r = gameState.rankings;
+    if (!r) return null;
+    const m = r.M.find((x) => x.schoolId === sid);
+    const w = r.W.find((x) => x.schoolId === sid);
+    const b = Math.min(m ? m.rank : 999, w ? w.rank : 999);
+    return b < 999 ? b : null;
+  }
+
+  function buildOfferRow(gameState, school, resume, s) {
+    const hs = s.historicalSuccess || {};
+    const crossDiv = (s.division || 'DI') !== (school.division || 'DI');
+    return {
+      schoolId: s.id,
+      schoolName: s.name,
+      prestige: s.prestige,
+      conference: s.conference,
+      division: s.division || 'DI',
+      // Rich offer detail (Update 3 Job Offer phase).
+      budget: s.budget.total,
+      facilities: s.facilitiesOverall,
+      academics: s.academics,
+      bestRank: bestRankOf(gameState, s.id),
+      expectations: Math.round((window.XCD.data.divisionFor(s).expectations || 1) * 100),
+      natTitles: (hs.nationalTitlesM || 0) + (hs.nationalTitlesW || 0),
+      confTitles: (hs.conferenceTitlesM || 0) + (hs.conferenceTitlesW || 0),
+      repFit: Utils.clamp(Math.round(resume - (s.prestige * 0.68 - 10) + 50), 0, 100),
+      kind: crossDiv && (s.division === 'DII' || s.division === 'DIII') && (school.division === 'DI')
+          ? `Move to ${s.division}`
+        : crossDiv && school.division !== 'DI' && s.division === 'DI' ? 'Jump to DI'
+        : s.prestige >= 85 && s.conferenceTier === 1 ? 'Dream job'
+        : s.prestige >= school.prestige + 10 ? 'Step up'
+        : s.prestige >= school.prestige - 8 ? 'Lateral move'
+        : 'Step down'
+    };
+  }
+
+  /*
+   * The offseason job market keeps moving (spec Part 2): week to week new
+   * openings surface — any division, looser fit — and the occasional listing
+   * gets filled behind the scenes. Head-coach path only; assistant players
+   * have their own promotion market.
+   */
+  function evolveJobMarket(gameState, rng) {
+    if (gameState.isAssistant()) return;
+    if (gameState.seasonPhase !== 'Offseason' || gameState.week >= OFFER_EXPIRY_WEEK) return;
+    const school = gameState.getPlayerSchool();
+    const coach = gameState.getPlayerCoach();
+    if (!school || !coach) return;
+    const resumeLite = (coach.reputation || 20) + Math.max(0, school.prestige - 35) * 0.30;
+
+    let market = gameState.jobOffers;
+    if (market && market.promotion) return; // assistant promotion offers evolve elsewhere
+
+    // A listing occasionally gets filled behind the scenes.
+    if (market && market.offers.length > 2 && rng.bool(0.18)) {
+      const gone = market.offers.splice(rng.int(0, market.offers.length - 1), 1)[0];
+      gameState.logNews(`Job market: ${gone.schoolName} fills its head-coaching vacancy — that door closes.`);
+    }
+
+    // A new opening surfaces most weeks (looser fit than the first wave, so
+    // there are meaningful choices every offseason — including steps down).
+    if (rng.bool(0.5)) {
+      const offeredIds = new Set(((market && market.offers) || []).map((o) => o.schoolId));
+      const fresh = Object.values(gameState.world.schools).filter((s) =>
+        s.id !== gameState.playerSchoolId && !offeredIds.has(s.id) &&
+        (!s.coachId || !gameState.world.coaches[s.coachId]) &&
+        s.prestige * 0.68 - 10 <= resumeLite + 14);
+      if (fresh.length && (!market || market.offers.length < 8)) {
+        const s = rng.choice(fresh);
+        if (!market) {
+          market = gameState.jobOffers = { year: gameState.year, expiresWeek: OFFER_EXPIRY_WEEK, offers: [] };
+        }
+        market.offers.push(buildOfferRow(gameState, school, resumeLite, s));
+        market.offers.sort((a, b) => b.prestige - a.prestige);
+        gameState.logNews(`📞 New opening: ${s.name} (${s.division || 'DI'}, ${s.conference}) reaches out about their head-coaching job.`);
+      }
+    }
   }
 
   /*
@@ -817,7 +867,7 @@
 
   window.XCD.engine.Careers = {
     generateOffers, generateAssistantOffers, acceptOffer, declineOffers, expireOffers,
-    runCarousel, runAssistantCarousel, fillVacancy, coachRankings,
+    evolveJobMarket, runCarousel, runAssistantCarousel, fillVacancy, coachRankings,
     canRetire, retireAndSucceed
   };
 })();

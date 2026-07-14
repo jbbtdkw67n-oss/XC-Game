@@ -300,21 +300,39 @@
       const Coaching = window.XCD.engine.Coaching;
       const current = school.assistantId && game.getCoach(school.assistantId);
       const candidates = Coaching.assistantCandidates(game);
-      const row = (c, tag, btnHtml) => `
+      // Full comparison profiles (spec Part 2, Section 12): philosophy,
+      // every craft that feeds gameplay, experience, career record, and
+      // reputation — enough to genuinely weigh candidates.
+      const row = (c, tag, btnHtml) => {
+        const cr = c.careerRecord || {};
+        const seasons = cr.seasons || 0;
+        const veteran = !!window.XCD.ui.state.game.world.coaches[c.id];
+        const rp = (window.XCD.data.racePhilosophy(c.racePhilosophy) || {});
+        return `
         <div class="attr-row" style="align-items:flex-start; padding:8px 0;">
           <div style="flex:1;">
             <div><strong>${c.portrait || '🧢'} ${Utils.escapeHtml(c.fullName)}</strong>
-              <span style="color:var(--text-faint); font-size:11.5px;"> ${tag}</span></div>
+              <span style="color:var(--text-faint); font-size:11.5px;"> ${tag}</span>
+              ${veteran && !tag ? '<span class="rating r-good" style="font-size:10px;" title="A real free agent from the coaching pool — career history and all">Free Agent</span>' : ''}</div>
             <div style="color:var(--text-dim); font-size:12px; margin-top:2px;">
-              Age ${c.age} • ${Utils.escapeHtml(c.archetype || '')} • ${Utils.escapeHtml((window.XCD.data.trainingPhilosophy(c.trainingPhilosophy) || {}).label || '')}
+              Age ${c.age} • ${Utils.escapeHtml(c.archetype || '')} •
+              ${Utils.escapeHtml((window.XCD.data.trainingPhilosophy(c.trainingPhilosophy) || {}).label || '')}${rp.label ? ` / ${Utils.escapeHtml(rp.label)}` : ''}
+              ${seasons ? ` • ${seasons} season${seasons > 1 ? 's' : ''} coached${cr.wins || cr.losses ? ` (${cr.wins || 0}-${cr.losses || 0})` : ''}${cr.nationalTitles ? ` • ${cr.nationalTitles}🏆` : ''}` : ' • First job'}
+              • Rep ${Math.round(c.reputation || 0)}
             </div>
             <div style="font-size:12px; margin-top:3px;">
-              Rec <strong>${c.recruiting}</strong> • Trn <strong>${c.training}</strong> •
-              Eval <strong>${c.talentEval}</strong> • Cul <strong>${c.culture}</strong>
+              <span title="Recruiting pull — adds weekly recruiting points">Rec <strong>${c.recruiting}</strong></span> •
+              <span title="Development — multiplies every athlete's weekly growth">Dev <strong>${c.training}</strong></span> •
+              <span title="Peaking — sharpens championship race day">Peak <strong>${c.peaking}</strong></span> •
+              <span title="Culture — feeds squad chemistry">Cul <strong>${c.culture}</strong></span> •
+              <span title="Motivation — lifts struggling athletes' morale">Mot <strong>${c.motivation ?? 55}</strong></span> •
+              <span title="Communication — bonds that keep athletes home">Com <strong>${c.relationships ?? 55}</strong></span> •
+              <span title="Scouting accuracy">Eval <strong>${c.talentEval}</strong></span>
             </div>
           </div>
           <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">${btnHtml}</div>
         </div>`;
+      };
       const gate = Coaching.canHireAssistant(game);
       UI.showModal(`
         <button class="btn small modal-close" data-modal-close>✕ Close</button>
@@ -328,10 +346,19 @@
         <h3>Current</h3>
         ${current ? row(current, `• Year ${(current.yearsAtSchool || 0) + 1} on staff`, `<button class="btn small" id="btn-view-current">Profile</button>`) : '<div style="color:var(--text-dim); font-size:13px;">Vacant (a hire below fills it).</div>'}
         <h3 style="margin-top:12px;">Candidates This Week</h3>
-        ${candidates.map((c, i) => row(c, '', `<button class="btn small primary" data-hire="${i}" ${gate.ok ? '' : `disabled title="${gate.why}"`}>Hire</button>`)).join('')}
+        ${candidates.map((c, i) => row(c, '', `
+          <button class="btn small primary" data-hire="${i}" ${gate.ok ? '' : `disabled title="${gate.why}"`}>Hire</button>
+          <button class="btn small" data-view-cand="${i}">Profile</button>`)).join('')}
+        <div style="color:var(--text-faint); font-size:11.5px; margin-top:8px;">
+          A strong assistant genuinely matters: Dev multiplies weekly development, Rec adds recruiting
+          points, Cul feeds chemistry, Mot lifts struggling athletes, and Peak sharpens championship day.
+        </div>
       `, (modal) => {
         const viewBtn = modal.querySelector('#btn-view-current');
         if (viewBtn) viewBtn.addEventListener('click', () => UI.showCoachCard(current, game));
+        modal.querySelectorAll('[data-view-cand]').forEach((btn) => {
+          btn.addEventListener('click', () => UI.showCoachCard(candidates[Number(btn.dataset.viewCand)], game));
+        });
         modal.querySelectorAll('[data-hire]').forEach((btn) => {
           btn.addEventListener('click', () => {
             const cand = candidates[Number(btn.dataset.hire)];

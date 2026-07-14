@@ -234,6 +234,17 @@
       cand.schoolId = null;
       out.push(cand);
     }
+    // The unemployed pool (spec Part 2, Section 12): fired and displaced
+    // coaches stay in the ecosystem — when the pool has anyone, one genuine
+    // free agent (career record, stints, and all) replaces a generated
+    // candidate on the weekly list. Same deterministic weekly pick.
+    const pool = Object.values(gameState.world.coaches)
+      .filter((c) => !c.schoolId && !c.isPlayer && c.id !== school.assistantId && (c.age || 40) < 68)
+      .sort((a, b) => a.id < b.id ? -1 : 1); // stable order for determinism
+    if (pool.length) {
+      const veteran = pool[rng.int(0, pool.length - 1)];
+      out[rng.int(0, out.length - 1)] = veteran;
+    }
     return out;
   }
 

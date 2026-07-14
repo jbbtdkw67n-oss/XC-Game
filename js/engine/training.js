@@ -713,6 +713,10 @@
     // not adapting — training quality stays reduced until full strength.
     if (athlete.health === 'Recovering') dev *= 0.65;
 
+    // The assistant's development craft (Section 12): an elite assistant
+    // measurably accelerates the whole room; a poor one drags on it.
+    if (culture && culture.asstDev) dev *= culture.asstDev;
+
     // Training adaptation (Update 6, Section 4): the body habituates.
     // Week after week of heavy load dulls the stimulus — constant maximum
     // intensity stops working — while a fresh, healthy athlete soaks up
@@ -786,6 +790,12 @@
     if (athlete.fatigue > 80) moraleShift -= 2;
     else if (athlete.fatigue < 30) moraleShift += 1;
     moraleShift += athlete.morale < 65 ? 1 : athlete.morale > 82 ? -1 : 0;
+    // A great motivator on staff lifts struggling athletes (Section 12);
+    // a checked-out assistant lets them stew.
+    if (culture && athlete.morale < 62) {
+      if (culture.asstMotivation >= 75) moraleShift += 1;
+      else if (culture.asstMotivation <= 35 && rng.bool(0.5)) moraleShift -= 1;
+    }
     athlete.morale = Utils.clamp(athlete.morale + moraleShift, 0, 100);
 
     // Relationship drift (Update 5, Part 7). Both bonds slowly converge on a
@@ -823,7 +833,16 @@
     const roster = (gender === 'M' ? school.rosterM : school.rosterW)
       .map((id) => gameState.world.athletes[id])
       .filter(Boolean);
-    if (!roster.length) return { chemistry: 50, captainLeadership: 50 };
+    // Assistant coach impact (spec Part 2, Section 12): a real staff matters.
+    // The assistant's culture craft feeds squad chemistry; their development
+    // and motivation crafts ride along for the weekly training loop.
+    const asstRaw = school.assistantId && gameState.world.coaches[school.assistantId];
+    const asst = asstRaw && (!coach || asstRaw.id !== coach.id) ? asstRaw : null;
+    const asstFx = {
+      asstDev: asst ? 1 + ((asst.training - 55) / 55) * 0.12 : 1,
+      asstMotivation: asst ? (asst.motivation ?? 55) : 55
+    };
+    if (!roster.length) return { chemistry: 50, captainLeadership: 50, ...asstFx };
 
     let captains = [];
     if (school.id === gameState.playerSchoolId && gameState.culture) {
@@ -845,9 +864,10 @@
       Utils.average(roster.map((a) => a.morale)) * 0.40 +
       Utils.average(roster.map((a) => a.discipline)) * 0.20 +
       captainLeadership * 0.25 +
-      (coach ? coach.culture : 50) * 0.15,
+      (coach ? coach.culture : 50) * 0.15 +
+      (asst ? (asst.culture - 55) * 0.06 : 0), // the assistant's locker-room touch
       0, 100));
-    return { chemistry, captainLeadership };
+    return { chemistry, captainLeadership, ...asstFx };
   }
 
   function processWeek(gameState, rng) {
@@ -1045,6 +1065,7 @@
     safeMileage,
     planMetaFor,
     readiness,
+    squadCulture,
     devProfileMult,
     careerInjuryDevMult,
     majorInjuryCount,

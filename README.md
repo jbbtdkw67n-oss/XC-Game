@@ -10,6 +10,35 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 7.7 — Assistants That Matter & a Living Job Market
+
+Assistant coaches stop being names on a door (spec Part 2, Sections 12-13 +
+the expanded job market).
+
+- **Real coaching value.** An assistant's ratings now feed the systems they
+  should: **Dev** multiplies every athlete's weekly development (±12% at
+  the extremes), **Cul** feeds squad chemistry, **Mot** lifts struggling
+  athletes' morale (a checked-out assistant lets them stew), **Rec** adds
+  weekly recruiting points — and powers CPU programs' pushes identically —
+  and **Peak** contributes a quarter-weight to championship race-day
+  sharpness. Elite assistants are genuinely worth chasing; poor ones
+  noticeably underperform.
+- **Full comparison profiles.** The Manage Staff panel now shows every
+  craft that matters (Rec/Dev/Peak/Cul/Mot/Com/Eval with tooltips
+  explaining exactly what each does), both philosophies, age, experience,
+  career record, and reputation — plus a Profile button opening the full
+  coach card for every candidate.
+- **The unemployed pool is real.** Fired and displaced coaches stay in the
+  ecosystem: when the pool has anyone, a genuine **free agent** — career
+  record, stints, coaching tree and all — replaces one generated candidate
+  on the weekly list, badged in the panel.
+- **A living job market.** A strong résumé now draws up to **six** head-
+  coaching offers across all three divisions in the first wave — and the
+  market keeps moving all offseason: new openings surface week to week
+  (looser fits included, so there are meaningful choices every cycle) and
+  listed vacancies occasionally get filled behind the scenes, all reported
+  in the news. Elite assistant posts for sitting head coaches remain.
+
 ## Version 7.6 — The Week 1 Administrative Phase
 
 Week 1 becomes the season's front office (spec Part 2, Section 15).
