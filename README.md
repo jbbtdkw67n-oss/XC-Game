@@ -58,6 +58,14 @@ and no recruit ever left holding an offer nobody honored.
   and scholarship/roster-spot caps — programs recruit to a long-term
   roster plan, not just the best name available, and dynasties stay
   stable 40+ seasons (soak-verified).
+- **The assistant job ladder.** Assistant seats now appear in the job
+  market as genuine **step-up moves only**: a head coach grinding at a
+  weak program (or sweating a warm seat) gets courted for an elite
+  assistant post at a clearly better program, and a low-level assistant
+  earns offers for bigger assistant jobs as their recruiting reputation
+  grows — alongside their head-coach offers. The ladder runs through
+  Division I: a DII seat is a rare flagship call, a DIII seat never
+  comes, and no offer is ever lateral or a step down.
 
 ## Version 7.9 — Facilities That Matter & Success-Driven Fundraising
 
