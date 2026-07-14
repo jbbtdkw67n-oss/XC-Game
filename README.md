@@ -10,6 +10,27 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 7.5 — Live Team Score Projection Overhaul
+
+Team scoring in the Race Center broadcast is now genuinely live (spec
+Part 2, Section 17).
+
+- **Every runner, every frame.** The projected team score is recomputed
+  continuously from the current position of the entire field — finished
+  runners by time, in-progress runners by actual distance covered from
+  their real race splits — not from the eventual final order.
+- **Real drama.** Standings surge, fade, and trade the lead naturally as
+  the race unfolds; team rows carry movement arrows and point gaps back to
+  the projected leader, and championship outcomes stay uncertain until the
+  last scorers cross.
+- **Your scoring detail, live.** A player panel under the board shows your
+  projected finish and points, the five currently scoring (tagged ·live
+  until they finish), your displacement runners, and the point gaps to the
+  leader and the team chasing you.
+- **Locked when it's real.** The board reads *Projected* until every
+  counted runner (top seven of every scoring team) has finished — then it
+  locks, flips to *Final*, and matches the official result exactly.
+
 ## Version 7.4 — High School Personal Bests & Prep History
 
 Recruiting gets a stopwatch (spec Part 2, Section 16): every recruit now

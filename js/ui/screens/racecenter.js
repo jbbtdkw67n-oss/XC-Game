@@ -223,13 +223,32 @@
         standings.forEach((s, pos) => prevPos.set(s.r.athleteId, pos + 1));
       }
 
-      // Live team score projection from current positions of ALL finishers
-      const liveScore = projectedScore(res, raceT);
-      teams.innerHTML = `<h3>Projected Team Score</h3>` + liveScore.slice(0, 8).map((t, i) => `
-        <div class="attr-row" style="padding:2.5px 0;">
-          <span style="${t.schoolId === UI.state.game.playerSchoolId ? 'color:var(--accent-hover); font-weight:700;' : ''}">${i + 1}. ${Utils.escapeHtml(UI.state.game.getSchool(t.schoolId)?.name || '?')}</span>
-          <span>${t.points}</span>
-        </div>`).join('');
+      // Live team score projection (Section 17): recomputed every frame from
+      // the current position of every runner in the field. Leads change,
+      // surges and fades move the score, and the board only locks once every
+      // counted runner has crossed the line.
+      const live = projectedScore(res, raceT);
+      const prevTeamPos = anim.prevTeamPos || (anim.prevTeamPos = new Map());
+      teams.innerHTML = `<h3>${live.locked ? '🔒 Final Team Score' : '📊 Projected Team Score'}</h3>` +
+        live.teams.slice(0, 8).map((t, i) => {
+          const prev = prevTeamPos.get(t.schoolId);
+          let move = '<span class="pos-move"> </span>';
+          if (prev !== undefined && prev !== i + 1) {
+            move = prev > i + 1
+              ? `<span class="pos-move up">▲</span>`
+              : `<span class="pos-move down">▼</span>`;
+          }
+          return `
+          <div class="attr-row" style="padding:2.5px 0;">
+            <span style="${t.schoolId === UI.state.game.playerSchoolId ? 'color:var(--accent-hover); font-weight:700;' : ''}">${i + 1}. ${move}${Utils.escapeHtml(UI.state.game.getSchool(t.schoolId)?.name || '?')}</span>
+            <span>${t.points}${i > 0 ? ` <span style="color:var(--text-faint); font-size:10.5px;">+${t.points - live.teams[0].points}</span>` : ''}</span>
+          </div>`;
+        }).join('') +
+        playerTeamPanel(UI.state.game, live.teams, live.entries, live.locked);
+      if (anim && (!anim.lastTeamSnap || now - anim.lastTeamSnap > 900)) {
+        anim.lastTeamSnap = now;
+        live.teams.forEach((t, i) => prevTeamPos.set(t.schoolId, i + 1));
+      }
 
       if (raceT >= lastFinish) {
         stopAnim();
@@ -241,11 +260,72 @@
     anim.raf = requestAnimationFrame(frame);
   }
 
-  // Approximate live team scores using final order truncated at current race time.
+  /*
+   * Live Team Score Projection (spec Part 2, Section 17). The projection is
+   * computed from the CURRENT position of every runner in the field — the
+   * live order blends finished runners (by time) with in-progress runners
+   * (by distance covered from their real splits) — so team standings surge,
+   * fade, and trade the lead naturally until the last scorer crosses.
+   */
+  function liveOrderAt(res, raceT) {
+    const S = Races().SEGMENTS;
+    const splits = res.splits || {};
+    return res.finishers
+      .map((f) => {
+        const done = raceT >= f.time;
+        let p = 1;
+        if (!done) {
+          const sp = splits[f.athleteId];
+          if (!sp) p = raceT / f.time;
+          else {
+            let seg = 0;
+            while (seg < S && sp[seg] < raceT) seg++;
+            const segStart = seg === 0 ? 0 : sp[seg - 1];
+            const segEnd = sp[Math.min(seg, S - 1)];
+            const within = segEnd > segStart ? (raceT - segStart) / (segEnd - segStart) : 0;
+            p = Utils.clamp((seg + within) / S, 0, 0.9999);
+          }
+        }
+        return { f, p, done };
+      })
+      .sort((a, b) => (b.p - a.p) || (a.f.time - b.f.time));
+  }
+
+  // Project team scores from live positions. Once every counted runner
+  // (top 7 of each scoring team) has finished, the score is locked final.
   function projectedScore(res, raceT) {
-    const finished = res.finishers.filter((f) => f.time <= raceT);
-    const source = finished.length >= 25 ? finished : res.finishers; // early race: use eventual order
-    return Races().scoreRace(source.map((f) => ({ ...f })));
+    const order = liveOrderAt(res, raceT);
+    const entries = order.map((x) => ({ ...x.f, done: x.done }));
+    const teams = Races().scoreRace(entries);
+    const counted = entries.filter((e) => e.scoringPlace);
+    const locked = counted.length > 0 && counted.every((e) => e.done);
+    return { teams, entries, locked };
+  }
+
+  // The player's live scoring detail: who scores right now, displacement,
+  // and the point gaps to the leader and the team chasing them.
+  function playerTeamPanel(game, teams, entries, locked) {
+    const mine = teams.find((t) => t.schoolId === game.playerSchoolId);
+    if (!mine) return '';
+    const idx = teams.indexOf(mine);
+    const leader = teams[0];
+    const behind = teams[idx + 1];
+    const squad = entries.filter((e) => e.scoringPlace && e.schoolId === game.playerSchoolId);
+    const scorers = squad.slice(0, 5);
+    const displacers = squad.slice(5, 7);
+    return `
+      <div style="border-top:1px solid var(--border); margin-top:8px; padding-top:8px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-dim);">
+          <span>${locked ? 'Final' : 'Projected'}: <strong style="color:var(--text);">${Utils.ordinal(mine.place)} — ${mine.points} pts</strong></span>
+          <span>${mine.place === 1
+            ? (teams[1] ? `Lead: ${teams[1].points - mine.points} pts` : '')
+            : `Leader: +${mine.points - leader.points}`}${behind && mine.place !== 1 ? ` • Chaser: −${behind.points - mine.points}` : ''}</span>
+        </div>
+        <div style="font-size:11.5px; color:var(--text-faint); margin-top:4px;">
+          Scoring: ${scorers.map((s) => `${Utils.escapeHtml(s.name.split(' ').pop())} (${s.scoringPlace}${s.done ? '' : '·live'})`).join(', ') || '—'}
+        </div>
+        ${displacers.length ? `<div style="font-size:11.5px; color:var(--text-faint);">Displacing: ${displacers.map((s) => `${Utils.escapeHtml(s.name.split(' ').pop())} (${s.scoringPlace})`).join(', ')}</div>` : ''}
+      </div>`;
   }
 
   function showFinal(game, meet, container) {
@@ -296,5 +376,5 @@
       }).join('') : '<h3>Team Scores Locked</h3>';
   }
 
-  UI.screens.racecenter = { render };
+  UI.screens.racecenter = { render, projectedScore, liveOrderAt, playerTeamPanel };
 })();
