@@ -325,11 +325,19 @@
       const total = divSize(school.division);
       const pressure = window.XCD.data.divisionFor(school).expectations || 1;
       const expectedPct = 1 - school.prestige / 100;
-      const actualPct = ((rankIndex.M[school.id] || total) + (rankIndex.W[school.id] || total)) / (2 * total);
+      // Program Expectations (spec Part 2): schools recognize success in
+      // EITHER program. The better squad carries most of the evaluation, so
+      // a nationally competitive men's OR women's team keeps the seat cool;
+      // real pressure only builds when both consistently underperform.
+      const mPct = (rankIndex.M[school.id] || total) / total;
+      const wPct = (rankIndex.W[school.id] || total) / total;
+      const actualPct = Math.min(mPct, wPct) * 0.7 + Math.max(mPct, wPct) * 0.3;
       const underperformance = (actualPct - expectedPct) * pressure; // positive = worse than expected
 
       coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(underperformance * 55), 0, 100);
       if (underperformance < -0.08) coach.hotSeat = Math.max(0, coach.hotSeat - 18);
+      // A top-15% squad in either gender actively cools the chair.
+      if (Math.min(mPct, wPct) <= 0.15) coach.hotSeat = Math.max(0, coach.hotSeat - 25);
 
       // The player's seat heats up too (Update 5, Part 5) so the job-security
       // label means something — but the player is never auto-fired here; their
@@ -450,5 +458,5 @@
     gameState.season.nxn = result;
   }
 
-  window.XCD.engine.Awards = { processPostNationals, considerHallOfFame, addHonor, runNXN };
+  window.XCD.engine.Awards = { processPostNationals, considerHallOfFame, addHonor, runNXN, coachFirings };
 })();

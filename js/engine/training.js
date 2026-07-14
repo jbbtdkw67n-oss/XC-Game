@@ -909,6 +909,14 @@
    */
   function offseasonDevelopment(gameState, rng) {
     const improvers = [];
+    // Offseason Progression Report (spec Part 2, Section 11): every returning
+    // athlete's summer development is captured — overall and each attribute,
+    // before → after — and shown to the player before Week 1.
+    const report = [];
+    // Seniors generally improve less than underclassmen: the physical
+    // maturity curve flattens as the frame finishes filling out.
+    const CLASS_FACTOR = { Freshman: 1.15, Sophomore: 1.08, Junior: 0.95, Senior: 0.80, Graduate: 0.70 };
+    const REPORT_ATTRS = ['vo2Max', 'runningEconomy', 'stamina', 'lactateThreshold', 'speed', 'consistency', 'raceIQ'];
     Object.values(gameState.world.schools).forEach((school) => {
       const coach = gameState.getCoach(school.coachId);
       const coachSkill = coach ? coach.training : 50;
@@ -917,16 +925,23 @@
         school[key].forEach((id) => {
           const a = gameState.world.athletes[id];
           if (!a) return;
+          const isPlayerSchool = school.id === gameState.playerSchoolId;
+          const snapshot = isPlayerSchool
+            ? REPORT_ATTRS.reduce((s, k) => { s[k] = a[k]; return s; }, {})
+            : null;
 
           const gap = a.potential - a.currentOverall;
           let pts = Utils.clamp(gap * 0.16, 0, 4.2);       // headroom drives growth
           if (gap < 5) pts *= 0.3;                          // the plateau near the ceiling
-          pts *= 0.55 + a.workEthic / 140;                  // summer is unsupervised
+          // Work Ethic is the LARGEST factor (Section 11): summer is
+          // unsupervised, so the grinders separate themselves.
+          pts *= 0.42 + a.workEthic / 105;
           if (a.workEthic >= 88) pts *= 1.12;               // elite grinders (90+) make the biggest summer leaps (Update 5, Part 7)
           pts *= 0.70 + coachSkill / 180;                   // the program's summer plan
           pts *= devProfileMult(a);                         // late bloomers pop here
           pts *= philo.devMult;                             // the coach's philosophy
           pts *= 0.85 + a.consistency / 400;
+          pts *= CLASS_FACTOR[a.classYear] ?? 1;            // maturity curve
           if (a.morale < 45) pts *= 0.75;                   // shaken confidence
           else if (a.morale > 78) pts *= 1.1;
           if ((a.seasonInjuryWeeks || 0) >= 4) pts *= Math.max(0.35, 1 - a.seasonInjuryWeeks * 0.07);
@@ -955,9 +970,26 @@
             if (a[k] > 15) a[k] -= 1;
           }
 
+          // Summer maturity beyond the stopwatch (Section 11): a season of
+          // reflection steadies a racer's head. Disciplined athletes tighten
+          // their consistency; anyone with real races banked sharpens their
+          // race IQ over the film sessions.
+          if (a.consistency < 92 && rng.bool(0.10 + a.discipline / 400)) a.consistency += 1;
+          if ((a.careerStats.races || 0) > 0 && a.raceIQ < 90 && rng.bool(0.30)) a.raceIQ += 1;
+
           const before = a.currentOverall;
           a.recalculateOverall();
           const delta = a.currentOverall - before;
+          if (snapshot) {
+            report.push({
+              id: a.id, name: a.fullName, gender: key === 'rosterM' ? 'M' : 'W',
+              classYear: a.classYear, workEthic: a.workEthic,
+              incoming: (a.yearsOnCampus || 1) <= 1, // signee who just enrolled
+              before, after: a.currentOverall,
+              attrs: REPORT_ATTRS.map((k) => ({ key: k, from: snapshot[k], to: a[k] }))
+                .filter((r) => r.from !== r.to)
+            });
+          }
           // Season-by-season career progression ledger (Update 4, Part 10).
           a.overallHistory = a.overallHistory || [];
           a.overallHistory.push({ year: gameState.year, overall: a.currentOverall });
@@ -985,6 +1017,12 @@
     down.forEach((x) => {
       gameState.logNews(`Offseason concern: ${x.a.fullName} regressed over the summer (${x.delta} overall).`);
     });
+
+    // Publish the full progression report (Section 11): sorted biggest gain
+    // first, stamped with the NEW season's year (rolloverYear increments the
+    // year before calling us), surfaced on the dashboard before Week 1.
+    report.sort((x, y) => (y.after - y.before) - (x.after - x.before));
+    gameState.offseasonReport = { year: gameState.year, entries: report };
   }
 
   // Race readiness (used by the race engine, shown in the UI): fitness,

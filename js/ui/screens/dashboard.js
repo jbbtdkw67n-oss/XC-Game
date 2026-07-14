@@ -37,6 +37,59 @@
     return `${tierLabel} · ${div.label}. Expected to ${goals.join(', ')}.${budgetNote}${histNote}${confNote}`;
   }
 
+  /*
+   * The full Offseason Progression Report modal (spec Part 2, Section 11):
+   * every returning athlete's summer, overall and attribute by attribute,
+   * so the player understands exactly how each athlete developed.
+   */
+  const ATTR_SHORT = {
+    vo2Max: 'VO₂', runningEconomy: 'ECO', stamina: 'STA',
+    lactateThreshold: 'THR', speed: 'SPD', consistency: 'CON', raceIQ: 'IQ'
+  };
+  function showOffseasonReport(game) {
+    const rep = game.offseasonReport;
+    if (!rep || !rep.entries.length) return;
+    const deltaHtml = (e) => {
+      const d = e.after - e.before;
+      const color = d > 0 ? 'var(--success)' : d < 0 ? 'var(--danger)' : 'var(--text-faint)';
+      return `<span style="color:${color}; font-weight:700;">${e.before} → ${e.after} (${d > 0 ? '+' : ''}${d})</span>`;
+    };
+    const attrHtml = (e) => e.attrs.map((r) => {
+      const up = r.to > r.from;
+      return `<span title="${r.key}" style="white-space:nowrap; color:${up ? 'var(--success)' : 'var(--danger)'};">${ATTR_SHORT[r.key] || r.key} ${r.from}→${r.to}</span>`;
+    }).join(' · ') || '<span style="color:var(--text-faint);">no change</span>';
+    const section = (gender, label) => {
+      const rows = rep.entries.filter((e) => e.gender === gender);
+      if (!rows.length) return '';
+      return `
+        <h3 style="margin-top:14px;">${label}</h3>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Athlete</th><th>Class</th><th class="num">Work Ethic</th><th>Overall</th><th>Attribute Gains</th></tr></thead>
+          <tbody>
+            ${rows.map((e) => `
+              <tr>
+                <td><strong>${Utils.escapeHtml(e.name)}</strong>${e.incoming ? ' <span style="color:var(--text-faint); font-size:10px;" title="Incoming — first summer on campus">NEW</span>' : ''}</td>
+                <td>${e.classYear}</td>
+                <td class="num">${e.workEthic}</td>
+                <td>${deltaHtml(e)}</td>
+                <td style="font-size:12px;">${attrHtml(e)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table></div>`;
+    };
+    UI.showModal(`
+      <button class="btn small modal-close" data-modal-close>✕ Close</button>
+      <h2>📈 Offseason Progression Report — ${rep.year}</h2>
+      <p style="color:var(--text-dim); font-size:13px;">
+        Track season, strength gains, aerobic development, and a summer of miles.
+        Work Ethic drives who improves most; underclassmen grow faster than seniors,
+        and injuries or burnout can stall a summer entirely.
+      </p>
+      ${section('M', "Men's Squad")}
+      ${section('W', "Women's Squad")}
+    `);
+  }
+
   // Season W/L from the player's completed meets (dual-meet-style ledger).
   function seasonRecord(game) {
     const s = game.season;
@@ -222,6 +275,29 @@
         </div>
       </div>
 
+      ${(() => {
+        // Offseason Progression Report (spec Part 2, Section 11): shown ahead
+        // of Week 1 — every returning athlete's summer, before → after.
+        const rep = game.offseasonReport;
+        if (!rep || rep.year !== game.year || game.week > 3 || !rep.entries.length) return '';
+        const returners = rep.entries.filter((e) => !e.incoming);
+        const gained = returners.filter((e) => e.after > e.before);
+        const top = returners.slice(0, 3)
+          .map((e) => `${Utils.escapeHtml(e.name)} ${e.before}→${e.after}`).join(' · ');
+        return `
+        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--success);">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div>
+              <h2 style="margin:0 0 2px;">📈 Offseason Progression Report</h2>
+              <div style="color:var(--text-dim); font-size:13px;">
+                ${gained.length} of ${returners.length} returning athletes improved over the summer${top ? ` — ${top}` : ''}.
+              </div>
+            </div>
+            <button class="btn small primary" id="btn-offseason-report">View Full Report</button>
+          </div>
+        </div>`;
+      })()}
+
       <div class="grid cols-4" style="margin-bottom:16px;">
         <div class="stat-tile">
           <div class="label">Men's Poll</div>
@@ -345,6 +421,9 @@
     container.querySelectorAll('[data-ath]').forEach((tr) => {
       tr.addEventListener('click', () => UI.showPlayerCard(game.getAthlete(tr.dataset.ath), game));
     });
+    const reportBtn = container.querySelector('#btn-offseason-report');
+    if (reportBtn) reportBtn.addEventListener('click', () => showOffseasonReport(game));
+
     container.querySelectorAll('#btn-to-schedule, #btn-to-schedule-2, [data-meet], [data-meet-nav]').forEach((el) => {
       el.addEventListener('click', () => UI.navigate('schedule'));
     });

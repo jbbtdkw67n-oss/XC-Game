@@ -484,7 +484,8 @@
         fundraisedYear: this.fundraisedYear || null,
         culture: this.culture,
         jobOffers: this.jobOffers,
-        weeklyFlow: this.weeklyFlow
+        weeklyFlow: this.weeklyFlow,
+        offseasonReport: this.offseasonReport || null
       };
     }
 
@@ -534,6 +535,7 @@
       gs.culture = obj.culture || { captains: { M: [], W: [] } };
       gs.jobOffers = obj.jobOffers || null;
       gs.weeklyFlow = obj.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
+      gs.offseasonReport = obj.offseasonReport || null;
       // Every dynasty owns a stable id (Phase 5). Pre-multi-save dynasties get
       // one derived deterministically from their seed + creation time, so a
       // legacy save keeps the same autosave slot across loads.

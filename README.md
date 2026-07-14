@@ -10,6 +10,32 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 7.2 — Offseason Progression Report & Coaching Logic Fixes
+
+Part 2 of the master spec continues: visible summer development and a fairer
+coaching evaluation (Sections 11 + Coaching Logic fixes).
+
+- **The Offseason Progression Report.** Every returning athlete develops
+  between seasons — track season, physical maturity, strength gains, aerobic
+  development — and the dashboard now presents the full report ahead of
+  Week 1: overall before → after for both squads, attribute by attribute
+  (VO₂ Max, Economy, Stamina, Threshold, Speed, Consistency, Race IQ), with
+  incoming signees tagged. The report persists in the save.
+- **Work Ethic is the biggest driver.** Summer is unsupervised: elite
+  grinders commonly jump several points while low-effort athletes barely
+  move. Underclassmen grow faster than seniors on a realistic maturity
+  curve, late bloomers still pop, and injuries or burnout can stall a
+  summer entirely. Offseason film sessions also sharpen Race IQ and
+  consistency for disciplined, experienced runners.
+- **Hot Seat reset (bug fix).** Pressure no longer follows a coach to a new
+  school: any job change — head or assistant, player or CPU — starts the
+  seat at Stable, with expectations recalculated against the new program
+  only. Reputation still travels.
+- **Either-program expectations.** Schools now recognize success in either
+  gender's squad: the better program carries most of the yearly evaluation
+  and a nationally competitive team in either gender actively cools the
+  chair. Real pressure only builds when both squads underperform together.
+
 ## Version 7.1 — Injury System Expansion: Injuries Shape Careers
 
 Injuries are no longer a temporary absence — they are events a career

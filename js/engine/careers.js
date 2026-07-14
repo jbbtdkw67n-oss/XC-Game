@@ -357,6 +357,10 @@
     newSchool.coachId = coach.id;
     coach.schoolId = newSchool.id;
     coach.yearsAtSchool = 0;
+    // Hot Seat Reset (spec Part 2): pressure never follows a coach to a new
+    // job. Reputation transfers; the seat starts Stable, and expectations
+    // are recalculated against the new school only.
+    coach.hotSeat = 0;
     gameState.playerSchoolId = newSchool.id;
     Legacy.openStint(gameState, coach, newSchool, gameState.year + 1);
     newSchool.coachChangedYear = gameState.year;
