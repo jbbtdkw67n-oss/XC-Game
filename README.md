@@ -10,6 +10,33 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 7.3 — Transfer Desire & the Transfer Risk Indicator
+
+Transfer decisions become legible (spec Part 2, Section 14 core): every
+athlete carries an internal Transfer Desire score — the exact same score the
+CPU's portal entries roll against.
+
+- **Five visible levels.** Every rostered athlete's profile now shows a
+  **Transfer Risk** indicator — Very Low / Low / Moderate / High / Very
+  High — and the roster gains a sortable Risk column. Graduating seniors
+  show "finishing career" instead: they never enter the portal.
+- **Click to understand.** Expanding the indicator reveals the concrete
+  drivers: high risk lists what's pushing them out (poor coach
+  relationship, limited development, no racing, injury frustration, a
+  program that can't contend…); low risk lists the anchors keeping them
+  home (excellent coach relationship, strong team chemistry, consistent
+  development, championship contender, winning locker room).
+- **New desire inputs.** Development stagnation (real headroom, zero
+  growth) and a season lost to the training room now feed transfer desire,
+  alongside the existing playing time, culture, morale, relationships,
+  homesickness, academics, NIL, training fit, and championship factors.
+- **The Zero Morale Rule.** An athlete at rock bottom now almost always
+  enters the portal (92%). The only reprieves: an exceptionally strong
+  coach or team bond, or a career already in its final season.
+- **Program culture matters.** Strong-culture staffs, confident locker
+  rooms, and contending programs actively suppress desire, so retention
+  naturally varies by school — for the CPU exactly as for you.
+
 ## Version 7.2 — Offseason Progression Report & Coaching Logic Fixes
 
 Part 2 of the master spec continues: visible summer development and a fairer

@@ -63,6 +63,29 @@
         </div>
       </div>` : '';
 
+    // Transfer Risk Indicator (spec Part 2, Section 14): the athlete's
+    // Transfer Desire as a five-step level; expanding it reveals exactly
+    // what's pushing them out — or anchoring them home.
+    const risk = window.XCD.engine.Portal && window.XCD.engine.Portal.transferRisk
+      ? window.XCD.engine.Portal.transferRisk(game, athlete)
+      : null;
+    const riskHtml = risk ? `
+      <div class="attr-row" style="align-items:flex-start;"><span class="attr-name">Transfer Risk</span>
+        <details style="text-align:right;">
+          <summary style="cursor:pointer; color:${risk.level.color}; font-weight:700; list-style:none;">
+            ${risk.graduating ? '<span style="color:var(--text-faint); font-weight:400;">— (finishing career)</span>' : `${risk.level.label} ▾`}
+          </summary>
+          ${risk.graduating ? '' : `
+          <div style="font-size:12px; color:var(--text-dim); margin-top:4px;">
+            ${(risk.level.key === 'very-low' || risk.level.key === 'low') && risk.anchors.length
+              ? risk.anchors.map((r) => `<div>✓ ${Utils.escapeHtml(r)}</div>`).join('')
+              : risk.reasons.length
+                ? risk.reasons.map((r) => `<div>• ${Utils.escapeHtml(r)}</div>`).join('')
+                : '<div>No pressing concerns</div>'}
+          </div>`}
+        </details>
+      </div>` : '';
+
     // Injury history (Injury System Expansion): the permanent career ledger,
     // with the long-term toll of repeated major injuries spelled out.
     const ci = athlete.careerInjuries || [];
@@ -147,6 +170,7 @@
                 ? `<span style="color:var(--warning);">Recovering — rebuilding race form (~${Math.max(1, athlete.recentInjuryWeeks || 1)} wk)</span>`
                 : Utils.escapeHtml(athlete.health)
           }</span></div>
+          ${riskHtml}
           <div class="attr-row"><span class="attr-name">Eligibility Left</span><span>${athlete.eligibilityRemaining} yr</span></div>
           <div class="attr-row"><span class="attr-name">Redshirt</span><span>${athlete.redshirt}</span></div>
           <div class="attr-row"><span class="attr-name">Races / Wins / Top-5s</span><span>${athlete.careerStats.races} / ${athlete.careerStats.wins} / ${athlete.careerStats.top5}</span></div>

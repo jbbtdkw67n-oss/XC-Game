@@ -50,6 +50,19 @@
         { key: 'fatigue', label: 'FTG', numeric: true, render: (a) => `<div style="min-width:60px;">${UI.meter(a.fatigue, a.fatigue > 70 ? 'red' : a.fatigue > 40 ? 'yellow' : 'green')}</div>` },
         { key: 'morale', label: 'MOR', numeric: true, render: (a) => `<div style="min-width:60px;">${UI.meter(a.morale, a.morale < 40 ? 'red' : a.morale < 65 ? 'yellow' : 'green')}</div>` },
         {
+          key: 'transferRisk', label: 'Risk',
+          sortValue: (a) => {
+            const r = window.XCD.engine.Portal.transferRisk(UI.state.game, a);
+            return r && !r.graduating ? r.score : -1;
+          },
+          render: (a) => {
+            const r = window.XCD.engine.Portal.transferRisk(UI.state.game, a);
+            if (!r || r.graduating) return '<span style="color:var(--text-faint);">—</span>';
+            const hint = (r.reasons.length ? r.reasons : r.anchors).slice(0, 3).join(' • ');
+            return `<span style="color:${r.level.color}; font-size:12px;" title="Transfer risk: ${r.level.label}${hint ? ' — ' + hint : ''} (open the profile for details)">${r.level.label}</span>`;
+          }
+        },
+        {
           key: 'health', label: 'Status',
           render: (a) => a.health === 'Healthy'
             ? '<span style="color:var(--success);">Healthy</span>'

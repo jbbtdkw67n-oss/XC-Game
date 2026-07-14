@@ -97,7 +97,8 @@
     const TE = window.XCD.engine.Training;
     const R = window.XCD.data.PORTAL_REASONS;
     let u = 0;
-    const reasons = []; // { w, label }
+    const reasons = []; // { w, label } — what pushes toward the door
+    const anchors = []; //  labels — what keeps this athlete home
     const add = (w, label) => { u += w; reasons.push({ w, label }); };
 
     const coach = gameState.getCoach(school.coachId);
@@ -119,14 +120,19 @@
     // Team culture: chemistry + the coach's culture/relationship craft.
     const chem = (school.chemistry && school.chemistry[a.gender]) ?? 55;
     if (chem < 42) add(14, R.culture);
-    if (coach) u -= (coach.culture - 50) * 0.20 + ((coach.relationships || 55) - 50) * 0.12;
-    else add(8, R.culture);
+    if (coach) {
+      u -= (coach.culture - 50) * 0.20 + ((coach.relationships || 55) - 50) * 0.12;
+      if (coach.culture >= 68) anchors.push('Strong program culture');
+    } else add(8, R.culture);
 
     // Team morale (Update 3): a fractured locker room drives athletes out;
     // a confident one keeps them home. High morale = lower transfer risk.
     const teamMorale = school.teamMorale ?? 65;
     if (teamMorale < 42) add(13, R.culture);
-    else u -= (teamMorale - 60) * 0.16;
+    else {
+      u -= (teamMorale - 60) * 0.16;
+      if (teamMorale >= 78) anchors.push('Confident, winning locker room');
+    }
 
     // Low coach relationship: unhappy AND unheard.
     if (a.morale < 50 && coach && (coach.relationships || 55) < 45) add(10, R.relationship);
@@ -142,8 +148,8 @@
     if (coachRel < 35) add(coachRel < 22 ? 20 : 12, R.relationship);
     if (teamRel < 35) add(teamRel < 22 ? 16 : 10, R.teamChem);
     // Strong bonds keep runners home even when other things go wrong.
-    if (coachRel >= 72) u -= (coachRel - 70) * 0.5;
-    if (teamRel >= 72) u -= (teamRel - 70) * 0.4;
+    if (coachRel >= 72) { u -= (coachRel - 70) * 0.5; anchors.push('Excellent coach relationship'); }
+    if (teamRel >= 72) { u -= (teamRel - 70) * 0.4; anchors.push('Strong team chemistry'); }
 
     // Homesickness
     const dist = a.hometownState === 'INT' ? 0 : RE.distanceMiles(a.hometownState, school.state);
@@ -152,8 +158,23 @@
     // Academics
     if (a.academics > 80 && school.academics < 50) add(9, R.academics);
 
-    // Championship aspirations: stars stuck outside the national picture.
+    // Championship aspirations: stars stuck outside the national picture —
+    // while a genuine contender is one of the strongest anchors there is.
     if (a.currentOverall > school.prestige + 18) add(20, R.contender);
+    else if (school.prestige >= 72) { u -= 5; anchors.push('Championship contender'); }
+
+    // Development & progression (Section 14): an athlete with real headroom
+    // who isn't improving starts looking for a staff that will develop them;
+    // visible growth is a genuine anchor.
+    const seasonGrowth = a.seasonDev || 0;
+    if (seasonGrowth <= 0 && (a.potential - a.currentOverall) > 8 &&
+        !['Freshman'].includes(a.classYear)) {
+      add(12, R.stagnant);
+    } else if (seasonGrowth >= 3) { u -= 6; anchors.push('Consistent development'); }
+
+    // A season lost to the training room breeds frustration — doubly so for
+    // athletes whose careers already carry major injuries.
+    if ((a.seasonInjuryWeeks || 0) >= 6) add(9, R.injuries);
 
     // Lower-division stars drawing higher-division interest (Update 5,
     // Section 1). Exceptionally decorated DII/DIII athletes — national
@@ -199,7 +220,48 @@
     else if (a.morale < 55) u += 10;
 
     reasons.sort((x, y) => y.w - x.w);
-    return { u, reason: reasons.length ? reasons[0].label : R.fresh };
+    // Merge duplicate labels (culture can trigger twice) for clean display.
+    const seen = new Set();
+    const topReasons = reasons.filter((r) => !seen.has(r.label) && seen.add(r.label))
+      .map((r) => r.label);
+    return {
+      u,
+      reason: reasons.length ? reasons[0].label : R.fresh,
+      reasons: topReasons,
+      anchors: [...new Set(anchors)]
+    };
+  }
+
+  /*
+   * Transfer Risk Indicator (spec Part 2, Section 14): the athlete's
+   * internal Transfer Desire mapped to a visible five-step level, with the
+   * concrete reasons (or anchors keeping them home) ready to reveal on the
+   * profile. The CPU's portal entries run on this exact same scale.
+   */
+  function transferRisk(gameState, athlete) {
+    const school = athlete.schoolId && gameState.getSchool(athlete.schoolId);
+    if (!school || athlete.isRecruit) return null;
+    const { u, reasons, anchors } = unhappiness(gameState, athlete, school);
+    const R = window.XCD.data.PORTAL_REASONS;
+    let score = u;
+    let zeroMorale = false;
+    // The Zero Morale Rule: a completely unhappy athlete is almost certain
+    // to leave unless an exceptionally strong bond holds them.
+    if (athlete.morale <= 2 &&
+        (athlete.coachRelationship ?? 60) < 85 && (athlete.teamRelationship ?? 60) < 85) {
+      score = Math.max(score, 70);
+      zeroMorale = true;
+    }
+    const level = window.XCD.data.transferRiskLevel(score);
+    const shown = zeroMorale ? [R.miserable, ...reasons] : reasons;
+    return {
+      score: Math.round(score),
+      level,
+      // High risk reveals what's driving it; low risk reveals what anchors them.
+      reasons: shown.slice(0, 4),
+      anchors: anchors.slice(0, 4),
+      graduating: athlete.eligibilityRemaining < 2 // seniors don't enter the portal
+    };
   }
 
   function openPortal(gameState, rng) {
@@ -210,7 +272,14 @@
           const a = gameState.world.athletes[id];
           if (!a || a.eligibilityRemaining < 2 || isRedshirted(a)) return;
           const { u, reason } = unhappiness(gameState, a, school);
-          const p = Utils.clamp((u - 14) / 130, 0, 0.5);
+          let p = Utils.clamp((u - 14) / 130, 0, 0.5);
+          // The Zero Morale Rule (Section 14): athletes at rock bottom almost
+          // always leave. The only rare exceptions are exceptionally strong
+          // bonds (and seniors, who never enter — they finish out the career).
+          if (a.morale <= 2 &&
+              (a.coachRelationship ?? 60) < 85 && (a.teamRelationship ?? 60) < 85) {
+            p = 0.92;
+          }
           if (rng.bool(p)) {
             entries.push({
               athleteId: a.id,
@@ -486,6 +555,7 @@
     isRedshirted,
     playerOffer,
     portalAppeal,
+    transferRisk,
     applyTransfers,
     ENTRY_WEEK,
     DECISION_WEEK,

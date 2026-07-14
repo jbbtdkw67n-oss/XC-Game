@@ -574,6 +574,24 @@
     style:        'Playing style mismatch',
     overtraining: 'Overtraining',
     undertraining:'Undertraining',
+    stagnant:     'Limited development',
+    injuries:     'Injury frustration',
+    miserable:    'Completely unhappy',
     fresh:        'Fresh start'
   };
+
+  /*
+   * Transfer Desire levels (spec Part 2, Section 14): every athlete's
+   * internal desire score maps to one of five visible risk levels shown on
+   * their profile. The CPU's portal entries run on the exact same scale.
+   */
+  D.TRANSFER_RISK_LEVELS = [
+    { key: 'very-low',  label: 'Very Low',  max: 8,        color: 'var(--success)' },
+    { key: 'low',       label: 'Low',       max: 22,       color: 'var(--success)' },
+    { key: 'moderate',  label: 'Moderate',  max: 40,       color: 'var(--warning)' },
+    { key: 'high',      label: 'High',      max: 60,       color: 'var(--danger)' },
+    { key: 'very-high', label: 'Very High', max: Infinity, color: 'var(--danger)' }
+  ];
+  D.transferRiskLevel = (u) => D.TRANSFER_RISK_LEVELS.find((l) => u < l.max) ||
+    D.TRANSFER_RISK_LEVELS[D.TRANSFER_RISK_LEVELS.length - 1];
 })();
