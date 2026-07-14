@@ -16,18 +16,21 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   const stats = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     for (let i = 0; i < 4; i++) g.advanceWeek();
-    const meet = g.season.meets[g.lastPlayerMeetId];
+    const firstMeet = g.season.meets[g.lastPlayerMeetId]; // week-4 race
+    for (let i = 0; i < 2; i++) g.advanceWeek();
+    const meet = g.season.meets[g.lastPlayerMeetId];      // week-6 race
     const res = meet.results.M;
     const S = window.XCD.engine.Races.SEGMENTS;
     const splits = res.splits;
     const ids = Object.keys(splits);
 
     // Position of each runner at each segment
-    const placeAt = (seg) => {
-      const arr = ids.map((id) => ({ id, t: splits[id][seg] })).sort((a, b) => a.t - b.t);
+    const placeAtIn = (sp, seg) => {
+      const arr = Object.keys(sp).map((id) => ({ id, t: sp[id][seg] })).sort((a, b) => a.t - b.t);
       const m = {}; arr.forEach((x, i) => { m[x.id] = i + 1; });
       return m;
     };
+    const placeAt = (seg) => placeAtIn(splits, seg);
     const early = placeAt(2);
     const mid = placeAt(7);
     const late = placeAt(9);
@@ -42,11 +45,20 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       if (Math.abs(fin[id] - late[id]) >= 2) lateMoves++;
     });
 
-    // Do fast finishers (speed+RE) gain over the last 3 segments?
-    const gains = top40.map((id) => {
-      const a = g.world.athletes[id];
-      return { spd: a.speed + a.runningEconomy, gain: late[id] - fin[id] };
-    }).sort((a, b) => b.spd - a.spd);
+    // Do fast finishers (speed+RE) gain over the closing segments? Pool the
+    // ENTIRE field of BOTH early-season races so the quartile means are
+    // statistically stable — the old single-race top-40 sample (10 per
+    // quartile over two segments) made this assertion flaky.
+    const gains = [];
+    [firstMeet && firstMeet.results.M, res].filter((r) => r && r.splits).forEach((r) => {
+      const lateR = placeAtIn(r.splits, 9);
+      const finR = placeAtIn(r.splits, S - 1);
+      r.finishers.forEach((f) => {
+        const a = g.world.athletes[f.athleteId];
+        if (a) gains.push({ spd: a.speed + a.runningEconomy, gain: lateR[f.athleteId] - finR[f.athleteId] });
+      });
+    });
+    gains.sort((a, b) => b.spd - a.spd);
     const topQ = gains.slice(0, Math.floor(gains.length / 4));
     const botQ = gains.slice(-Math.floor(gains.length / 4));
     const avg = (xs) => xs.reduce((s, x) => s + x.gain, 0) / xs.length;
@@ -115,25 +127,27 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     const meet = Object.values(g.season.meets).find((m) => m.week === 6 && m.schoolIds.includes(g.playerSchoolId));
     if (!meet) return null;
     const Rng = window.XCD.core.SeededRNG;
+    // Compare average TIME (continuous — no place floor when the star wins
+    // either way) over enough seeds for a stable mean. The old 6-seed
+    // place comparison made this assertion flaky.
     const run = (fatigue) => {
       const old = star.fatigue;
       star.fatigue = fatigue;
-      // average over several seeds to control noise; clone results only
       let sum = 0, n = 0;
-      for (let seed = 1; seed <= 6; seed++) {
+      for (let seed = 1; seed <= 12; seed++) {
         const res = R.simulateRace(g, meet, 'M', new Rng(seed * 977), true);
         const f = res.finishers.find((x) => x.athleteId === star.id);
-        if (f) { sum += f.place; n++; }
+        if (f) { sum += f.time; n++; }
       }
       star.fatigue = old;
       return sum / n;
     };
-    const freshPlace = run(5);
-    const gassedPlace = run(90);
-    return { freshPlace, gassedPlace };
+    const freshTime = run(5);
+    const gassedTime = run(90);
+    return { freshTime: +freshTime.toFixed(1), gassedTime: +gassedTime.toFixed(1) };
   });
   console.log('fatigue fade test:', JSON.stringify(fadeTest));
-  if (fadeTest && fadeTest.gassedPlace <= fadeTest.freshPlace) errors.push('Fatigue has no cost: ' + JSON.stringify(fadeTest));
+  if (fadeTest && fadeTest.gassedTime <= fadeTest.freshTime) errors.push('Fatigue has no cost: ' + JSON.stringify(fadeTest));
 
   console.log(errors.length ? 'FAIL\n' + errors.join('\n---\n') : 'PASS');
   await browser.close();
