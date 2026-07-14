@@ -287,6 +287,7 @@
       }
 
       rankPool(pool);
+      assignHsCredentials(pool, rng); // 5K PBs + state titles (Section 16)
     });
 
     gameState.world.recruits = recruits;
@@ -319,6 +320,57 @@
       r.stateRank = byState[r.hometownState];
       byRegion[r.region] = (byRegion[r.region] || 0) + 1;
       r.regionalRank = byRegion[r.region];
+    });
+  }
+
+  /* ================================================================ *
+   * High-school credentials (spec Part 2, Section 16)
+   * ================================================================ */
+  /*
+   * Every recruit carries an official 5K Personal Best, generated from a
+   * realistic gender-specific distribution. The PB correlates with the
+   * CURRENT engine (overall, stamina, threshold, VO₂ Max) plus genuine
+   * race-day noise — potential is deliberately absent, so a slow kid can
+   * hide an elite ceiling and a fast one can be nearly finished growing.
+   */
+  function generateHsPB(rng, r) {
+    // Current engine: what the athlete can actually run today.
+    const engine = r.currentOverall * 0.5 +
+      ((r.stamina || 55) + (r.lactateThreshold || 55)) / 2 * 0.3 + (r.vo2Max || 55) * 0.2;
+    // Blend in a share of upside — the nation's top-ranked preps ARE fast —
+    // but keep it minor and noisy, so slow kids can hide elite ceilings and
+    // fast ones can be nearly finished products.
+    const m = engine * 0.72 + (r.potential || 60) * 0.28;
+    const base = r.gender === 'M' ? 1233 - m * 5.33 : 1440 - m * 6.5;
+    const noise = rng.gaussian(0, 14);
+    // Realistic bounds: national-record realm at the front (~14:03 boys /
+    // ~16:03 girls), development-project times at the back.
+    const floor = (r.gender === 'M' ? 843 : 963) + rng.int(0, 12);
+    const ceil = r.gender === 'M' ? 1155 : 1320;
+    return Math.round(Utils.clamp(base + noise, floor, ceil));
+  }
+
+  /*
+   * Stamp the class's permanent prep credentials: the 5K PB for everyone,
+   * and a State Championship for the best high-school senior in each state
+   * — history that follows the athlete through college and into the alumni
+   * ledger forever.
+   */
+  function assignHsCredentials(pool, rng) {
+    const Legacy = window.XCD.engine.Legacy;
+    const stateChampTaken = {};
+    pool.forEach((r) => {
+      if (r.hsPB === undefined) r.hsPB = generateHsPB(rng, r);
+      const st = r.hometownState;
+      if (r.source !== 'HS' || !st || st === 'INT' || stateChampTaken[st]) return;
+      stateChampTaken[st] = true;
+      r.hsStateChampion = true;
+      r.honorYears = r.honorYears || {};
+      r.honorYears.hsStateChamp = [r.gradYear];
+      Legacy.recordAccolade(r, {
+        year: r.gradYear, division: null, conference: null,
+        type: 'hsStateChamp', label: `${st} HS State Champion`
+      });
     });
   }
 
@@ -1040,6 +1092,7 @@
     weeklyPoints,
     scholarshipsUsed,
     enrollSignees,
-    projectedFreshmanOverall
+    projectedFreshmanOverall,
+    generateHsPB
   };
 })();

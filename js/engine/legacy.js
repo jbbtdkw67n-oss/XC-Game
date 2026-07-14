@@ -133,7 +133,9 @@
       // Nike Cross Nationals prep honors (Update 5, Part 9) — permanent, and
       // carried into college when the recruit enrolls.
       ['nxnChampion', '👟', 'NXN Champion'],
-      ['nxnAllAmerican', '🎽', 'NXN All-American']
+      ['nxnAllAmerican', '🎽', 'NXN All-American'],
+      // High-school state titles (Section 16) — permanent prep history.
+      ['hsStateChamp', '🏵', 'HS State Champion']
     ];
     const badges = defs
       .filter(([k]) => hy[k] && hy[k].length)

@@ -174,6 +174,8 @@
           <div class="attr-row"><span class="attr-name">Eligibility Left</span><span>${athlete.eligibilityRemaining} yr</span></div>
           <div class="attr-row"><span class="attr-name">Redshirt</span><span>${athlete.redshirt}</span></div>
           <div class="attr-row"><span class="attr-name">Races / Wins / Top-5s</span><span>${athlete.careerStats.races} / ${athlete.careerStats.wins} / ${athlete.careerStats.top5}</span></div>
+          ${athlete.hsPB !== undefined ? `<div class="attr-row"><span class="attr-name">HS 5K PB</span><span title="Official high-school personal best — permanent history">${window.XCD.engine.Races.formatTime(athlete.hsPB)}</span></div>` : ''}
+          ${athlete.nxn && athlete.nxn.finish ? `<div class="attr-row"><span class="attr-name">NXN Finish</span><span>${athlete.nxn.finish === 1 ? '🥇 Champion' : '#' + athlete.nxn.finish}${athlete.nxn.year ? ` (${athlete.nxn.year})` : ''}</span></div>` : ''}
           ${Object.entries(athlete.careerStats.personalBests || {}).map(([k, t]) =>
             `<div class="attr-row"><span class="attr-name">PR ${k}</span><span>${window.XCD.engine.Races ? window.XCD.engine.Races.formatTime(t) : t}</span></div>`).join('')}
         </div>

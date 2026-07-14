@@ -561,6 +561,13 @@
       // Team morale: seed any school missing it (older saves / new field).
       window.XCD.engine.Morale.init(gs);
 
+      // HS 5K PBs (Section 16): recruit classes saved before the feature get
+      // deterministic PBs so the board is never blank mid-cycle.
+      const pbRng = new window.XCD.core.SeededRNG((gs.seed ^ 0x5B5B) >>> 0);
+      Object.values(gs.world.recruits).forEach((r) => {
+        if (r.hsPB === undefined) r.hsPB = window.XCD.engine.Recruiting.generateHsPB(pbRng, r);
+      });
+
       // Tell the player when their dynasty was upgraded into the multi-division world.
       if (obj.__migratedDivisions) {
         gs.logNews('🏛 Your dynasty has joined the new three-division NCAA: Division II and Division III programs now compete alongside you, with their own conferences, regionals, and championships. Your program, roster, and history carried over intact.');

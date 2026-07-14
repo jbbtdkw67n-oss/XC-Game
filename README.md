@@ -10,6 +10,31 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 7.4 — High School Personal Bests & Prep History
+
+Recruiting gets a stopwatch (spec Part 2, Section 16): every recruit now
+carries an official **5K Personal Best**.
+
+- **Realistic, separate distributions.** Boys' and girls' PBs are generated
+  from distinct curves: the nation's elite run genuinely national-class
+  times (low-14s / mid-16s) while development projects sit where you'd
+  expect, with no artificial spacing — the record realm caps the front,
+  believable prep times close the back.
+- **Fast now vs. good later.** The PB correlates strongly with current
+  ability (overall, stamina, threshold, VO₂ Max) plus race-day noise, but
+  potential stays independent enough that a 16:40 kid can hide an elite
+  ceiling — and a 14:30 phenom can be nearly a finished product. Balancing
+  the stopwatch against the projection is now the recruiting craft.
+- **Displayed everywhere.** A sortable 5K PB column on the recruiting
+  board, the PB front-and-center on the recruit profile with class year,
+  and a permanent **HS 5K PB** line on the college player card, forever.
+- **Prep history that follows the athlete.** The best high-school senior in
+  each of the 50 states earns a **State Championship** (🏵 permanent badge
+  + accolade), NXN now stamps each top-30 **finish** on the athlete for
+  life alongside the existing NXN Champion/All-American honors, and all of
+  it survives enrollment, transfers, graduation, and the alumni ledger.
+- Old saves get deterministic backfilled PBs for the in-progress class.
+
 ## Version 7.3 — Transfer Desire & the Transfer Risk Indicator
 
 Transfer decisions become legible (spec Part 2, Section 14 core): every

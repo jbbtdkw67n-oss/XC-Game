@@ -17,6 +17,7 @@ node tests/test-update6.js     # Update 6: creation wizard, Legacy Dynasty Mode 
 node tests/test-injuries.js    # Injury System Expansion: layoff costs, Recovering return-to-form phase, career injury ledgers, major-injury toll on potential/growth, durability, UI, save round-trip
 node tests/test-offseason.js   # Offseason progression report (Work Ethic driven, class curve, full before→after UI), Hot Seat reset on school change, either-program expectations
 node tests/test-transferrisk.js # Transfer Desire levels, reasons/anchors reveal, Zero Morale Rule portal entries, stagnation/injury desire inputs, roster + profile UI
+node tests/test-hspb.js        # HS 5K PBs: gender distributions, ability correlation + potential independence, state champions, NXN finishes, prep history through enrollment, UI, save round-trip
 ```
 
 Each script prints `PASS` or `FAIL` with details and exits non-zero on failure.

@@ -428,6 +428,11 @@
       const top = scored.slice(0, 30);
       top.forEach((entry, i) => {
         result[gender].push({ recruitId: entry.r.id, name: entry.r.fullName, place: i + 1, state: entry.r.hometownState });
+        // The finish lives on the athlete forever (Section 16): part of the
+        // permanent high-school history that follows them through college.
+        entry.r.nxn = entry.r.nxn || {};
+        entry.r.nxn.finish = i + 1;
+        entry.r.nxn.year = year;
       });
 
       top.slice(0, AA_PER_GENDER).forEach((entry, i) => {
