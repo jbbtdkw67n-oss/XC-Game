@@ -141,6 +141,8 @@ async function run() {
   ok(rec.eliteBoards > 0 && rec.waved >= rec.eliteBoards * 0.8, 'elite first-wave boards should be small');
 
   // ---- 5) Staff management: candidates, hire, mentor link ----
+  // Staffing is an offseason activity (spec Part 2, Section 12).
+  await page.evaluate(() => { window.XCD.ui.state.game.week = 17; });
   await page.click('[data-nav="school"]');
   await page.waitForSelector('#btn-manage-staff');
   const asstBefore = await page.evaluate(() => {
@@ -161,6 +163,19 @@ async function run() {
   ok(candCount === 3, 'expected 3 assistant candidates');
   ok(staff.name !== asstBefore, 'hire must replace the incumbent');
   ok(staff.mentor && staff.role === 'Assistant', 'hired assistant must be linked to the head coach');
+
+  // One staff hire per offseason, and never mid-season (spec Part 2, §12).
+  const staffRule = await page.evaluate(() => {
+    const g = window.XCD.ui.state.game;
+    const C = window.XCD.engine.Coaching;
+    const second = C.hireAssistant(g, C.assistantCandidates(g)[1]);
+    g.week = 6;
+    const inSeason = C.canHireAssistant(g);
+    g.week = 17;
+    return { secondBlocked: !second.ok, inSeasonBlocked: !inSeason.ok };
+  });
+  ok(staffRule.secondBlocked, 'a second staff hire in the same offseason must be blocked');
+  ok(staffRule.inSeasonBlocked, 'staff hires must be blocked during the season');
 
   // ---- 6) Elite assistant offers for a proven head coach ----
   const eliteOffer = await page.evaluate(() => {

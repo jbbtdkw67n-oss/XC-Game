@@ -30,6 +30,11 @@ Part 2, Section 17).
 - **Locked when it's real.** The board reads *Projected* until every
   counted runner (top seven of every scoring team) has finished — then it
   locks, flips to *Final*, and matches the official result exactly.
+- **The staffing window** (Section 12 rule): assistant hires are an
+  offseason activity — one hire per cycle, with the Manage Staff panel
+  explaining the lock during the season. Coaches finish the season they
+  signed on for; the CPU's assistant carousel already lives by the same
+  yearly rhythm.
 
 ## Version 7.4 — High School Personal Bests & Prep History
 

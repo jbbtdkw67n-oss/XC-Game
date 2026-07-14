@@ -237,13 +237,28 @@
     return out;
   }
 
+  // The staffing window (spec Part 2, Section 12): staff changes are an
+  // OFFSEASON activity, and a program makes at most one hire per cycle.
+  function canHireAssistant(gameState) {
+    const coach = gameState.getPlayerCoach();
+    if (!coach || coach.role === 'Assistant') {
+      return { ok: false, why: 'Only a head coach hires the staff.' };
+    }
+    if (gameState.seasonPhase !== 'Offseason') {
+      return { ok: false, why: 'Staff changes happen in the offseason — coaches finish the season they signed on for.' };
+    }
+    if (gameState.staffHiredYear === gameState.year) {
+      return { ok: false, why: 'You have already made your one staff hire this offseason.' };
+    }
+    return { ok: true };
+  }
+
   function hireAssistant(gameState, candidate) {
     const Legacy = window.XCD.engine.Legacy;
     const school = gameState.getPlayerSchool();
     const coach = gameState.getPlayerCoach();
-    if (!coach || coach.role === 'Assistant') {
-      return { ok: false, message: 'Only a head coach hires the staff.' };
-    }
+    const gate = canHireAssistant(gameState);
+    if (!gate.ok) return { ok: false, message: gate.why };
     const current = school.assistantId && gameState.world.coaches[school.assistantId];
     if (current && current.isPlayer) return { ok: false, message: 'You cannot replace yourself.' };
     if (current) {
@@ -258,6 +273,7 @@
     school.assistantId = candidate.id;
     Legacy.openStint(gameState, candidate, school, gameState.year);
     Legacy.linkStaff(gameState, school, gameState.year);
+    gameState.staffHiredYear = gameState.year; // one hire per offseason
     gameState.logNews(`Staff hire: ${candidate.fullName} joins ${school.name} as assistant coach under ${coach.fullName}.`);
     return { ok: true, message: `${candidate.fullName} joins your staff.` };
   }
@@ -271,6 +287,7 @@
     bestRank,
     divisionSize,
     assistantCandidates,
+    canHireAssistant,
     hireAssistant,
     CORE_RATINGS: CORE,
     SECONDARY_RATINGS: SECONDARY

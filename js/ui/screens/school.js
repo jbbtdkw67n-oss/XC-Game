@@ -315,17 +315,20 @@
           </div>
           <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">${btnHtml}</div>
         </div>`;
+      const gate = Coaching.canHireAssistant(game);
       UI.showModal(`
         <button class="btn small modal-close" data-modal-close>✕ Close</button>
         <h2>👥 Assistant Staff</h2>
         <p style="color:var(--text-dim); font-size:12.5px; margin:6px 0 10px;">
           Better Staff Management attracts stronger applicants. Hiring replaces your
-          current assistant — the pool refreshes weekly, so a pass now isn't a pass forever.
+          current assistant, and a program makes <strong>one staff hire per offseason</strong> —
+          coaches finish the season they signed on for.
         </p>
+        ${gate.ok ? '' : `<div style="color:var(--warning); font-size:12.5px; margin:0 0 10px;">🔒 ${gate.why}</div>`}
         <h3>Current</h3>
         ${current ? row(current, `• Year ${(current.yearsAtSchool || 0) + 1} on staff`, `<button class="btn small" id="btn-view-current">Profile</button>`) : '<div style="color:var(--text-dim); font-size:13px;">Vacant (a hire below fills it).</div>'}
         <h3 style="margin-top:12px;">Candidates This Week</h3>
-        ${candidates.map((c, i) => row(c, '', `<button class="btn small primary" data-hire="${i}">Hire</button>`)).join('')}
+        ${candidates.map((c, i) => row(c, '', `<button class="btn small primary" data-hire="${i}" ${gate.ok ? '' : `disabled title="${gate.why}"`}>Hire</button>`)).join('')}
       `, (modal) => {
         const viewBtn = modal.querySelector('#btn-view-current');
         if (viewBtn) viewBtn.addEventListener('click', () => UI.showCoachCard(current, game));
