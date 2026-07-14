@@ -23,6 +23,7 @@ node tests/test-week1.js       # Week 1 admin phase: checklist gates Week 2, sch
 node tests/test-staff.js       # Assistant value (dev/chemistry/morale/recruiting/peaking wiring), free-agent pool, comparison panel + profiles, open job market (all chairs, Interest %, apply/reject flow, offseason-only)
 node tests/test-facilities.js  # Five-facility overhaul: shape + old-save migration, rehab/indoor-track/training-center implications, success+size fundraising, panel UI
 node tests/test-100seasons.js  # Century soak (~9 min): talent stability, health rates, staffing/roster/facility integrity, records, save size + round-trip
+node tests/test-updatex.js     # Update X: 3,600-recruit classes, DIII "Offer Roster Spot" wording, mandatory signing for offered recruits, near-universal CPU signing coverage, Auto Recruiting real economy, elite portal bidding wars (~9-10 suitors), CPU championship fitness
 ```
 
 Each script prints `PASS` or `FAIL` with details and exits non-zero on failure.

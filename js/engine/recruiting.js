@@ -42,38 +42,79 @@
    * Weekly computation context: caches that make one simulated week cheap.
    *  - rosterMarks: per school/gender, the 5th & 7th best returner overall
    *    (playing-time math) computed once instead of per appeal() call.
+   *  - needs: per school/gender, the genuine roster-building picture — how
+   *    many athletes graduate, which events they vacate, and how many
+   *    signees the staff should chase (Update X: CPU coaches recruit to
+   *    real roster holes, not a flat quota).
    *  - pools: unsigned/uncommitted recruits sorted by composite per gender,
    *    letting AI board-building binary-search a talent window.
+   *  - offerCounts: per school/gender, offers + commits already extended
+   *    (the scholarship/roster-spot cap math, precomputed once).
    */
   function buildWeekContext(gameState) {
     const rosterMarks = {};
+    const needs = {};
     for (const school of Object.values(gameState.world.schools)) {
       const marks = {};
+      const need = {};
       ['M', 'W'].forEach((gender) => {
-        const overalls = (gender === 'M' ? school.rosterM : school.rosterW)
+        const roster = (gender === 'M' ? school.rosterM : school.rosterW)
           .map((id) => gameState.world.athletes[id])
-          .filter(Boolean)
-          .map((a) => a.currentOverall)
-          .sort((a, b) => b - a);
+          .filter(Boolean);
+        const overalls = roster.map((a) => a.currentOverall).sort((a, b) => b - a);
         marks[gender] = { fifth: overalls[4] ?? 40, seventh: overalls[6] ?? 35 };
+
+        // Graduation losses: who leaves after this season (redshirts keep
+        // their year, so they don't count as departures).
+        const leaving = roster.filter((a) =>
+          a.redshirt !== 'True' && a.redshirt !== 'Medical' &&
+          (a.eligibilityRemaining <= 1 || a.classYear === 'Graduate'));
+        const eventNeeds = {};
+        leaving.forEach((a) => {
+          eventNeeds[a.preferredDistance] = (eventNeeds[a.preferredDistance] || 0) + 1;
+        });
+        // Sign enough to cover the losses AND fill back to a full squad of
+        // 14 — empty roster spots trigger aggressive recruiting. A roster
+        // already bursting (lower divisions carry no hard limit) recruits
+        // only to replace departures, so squads stay believable over
+        // decades-long dynasties.
+        const returning = roster.length - leaving.length;
+        const shortfall = Math.max(0, 14 - returning);
+        need[gender] = {
+          leaving: leaving.length,
+          eventNeeds,
+          target: Utils.clamp(Math.max(leaving.length, shortfall, returning >= 16 ? 0 : 2), 0, 9)
+        };
       });
       rosterMarks[school.id] = marks;
+      needs[school.id] = need;
     }
 
     const pools = { M: [], W: [] };
     const commitCounts = {};
+    const offerCounts = {};
     for (const r of Object.values(gameState.world.recruits || {})) {
       if (r.committedTo) {
         const c = (commitCounts[r.committedTo] = commitCounts[r.committedTo] || { M: 0, W: 0 });
         c[r.gender] += 1;
+        const oc = (offerCounts[r.committedTo] = offerCounts[r.committedTo] || { M: 0, W: 0 });
+        oc[r.gender] += 1;
         continue;
       }
-      if (!r.signed) pools[r.gender].push(r);
+      if (!r.signed) {
+        pools[r.gender].push(r);
+        for (const sid in r.interests) {
+          if (r.interests[sid].offered) {
+            const oc = (offerCounts[sid] = offerCounts[sid] || { M: 0, W: 0 });
+            oc[r.gender] += 1;
+          }
+        }
+      }
     }
     pools.M.sort((a, b) => recruitComposite(a) - recruitComposite(b));
     pools.W.sort((a, b) => recruitComposite(a) - recruitComposite(b));
 
-    return { rosterMarks, pools, commitCounts };
+    return { rosterMarks, needs, pools, commitCounts, offerCounts };
   }
 
   /* ================================================================ *
@@ -493,20 +534,25 @@
   }
 
   /* ================================================================ *
-   * Player economy
+   * The recruiting economy — one set of rules for everyone (Update X).
+   * The player, Auto Recruiting, and every CPU program all buy the same
+   * actions with the same weekly points and the same yearly budget.
    * ================================================================ */
-  function weeklyPoints(gameState) {
-    const coach = gameState.getPlayerCoach();
-    const school = gameState.getPlayerSchool();
-    // Recruiting rating directly buys recruiting resources (Update 5, Part 16):
-    // an elite recruiter (99) gets meaningfully more weekly points than a weak
-    // one (~+9 over the range), so they out-recruit over many cycles.
+  // Weekly recruiting points any program's staff generates. Recruiting
+  // rating directly buys recruiting resources (Update 5, Part 16): an elite
+  // recruiter (99) gets meaningfully more weekly points than a weak one.
+  function schoolWeeklyPoints(gameState, school, coach) {
     let pts = 8 + Math.round(coach.recruiting / 6) +
       Math.round((coach.reputation || 10) / 30);
-    // A head coach's recruiting-coordinator assistant adds a little pull;
-    // don't double-count when the player IS the assistant.
+    // The recruiting-coordinator assistant adds a little pull; don't
+    // double-count when the coach in question IS the assistant.
     const assistant = gameState.getCoach(school.assistantId);
     if (assistant && assistant.id !== coach.id) pts += Math.round(assistant.recruiting / 20);
+    return pts;
+  }
+
+  function weeklyPoints(gameState) {
+    let pts = schoolWeeklyPoints(gameState, gameState.getPlayerSchool(), gameState.getPlayerCoach());
     // As an assistant, recruiting is the player's entire remit — a focused
     // coordinator works the board harder than a head coach juggling everything.
     if (gameState.isAssistant()) pts += 3;
@@ -521,46 +567,29 @@
   }
 
   /*
-   * Execute a player recruiting action. Returns { ok, message }.
+   * How many offers (+ commits) a program may have live for one gender.
+   * DI/DII: derived from scholarship equivalencies as before. DIII offers
+   * roster spots, not scholarships (Update X, Part 3) — the cap follows
+   * genuine roster need instead of a scholarship count.
    */
-  function doAction(gameState, recruitId, actionKey) {
-    const rec = gameState.world.recruits[recruitId];
+  function offerCap(school, gender, needTarget) {
+    const division = D.divisionFor(school);
+    if (division.scholarshipModel === 'none') {
+      return Math.max(6, (needTarget || 4) + 3);
+    }
+    const avail = gender === 'M' ? school.scholarshipsAvailableM : school.scholarshipsAvailableW;
+    return Math.max(4, Math.floor(avail / 2));
+  }
+
+  /*
+   * The shared heart of every recruiting action: relationship/interest
+   * effects, visit flags, offer flags, and (for the player's program only)
+   * scouting knowledge + motivation discovery. `rand` is a 0-1 generator —
+   * Math.random for the live player, the seeded RNG for AI weeks.
+   * Returns the discovered motivation key, if any.
+   */
+  function applyActionEffects(gameState, school, coach, rec, actionKey, st, rand) {
     const action = D.RECRUIT_ACTIONS[actionKey];
-    const school = gameState.getPlayerSchool();
-    const coach = gameState.getPlayerCoach();
-    const R = gameState.recruiting;
-
-    if (!rec || !action) return { ok: false, message: 'Unknown recruit or action.' };
-    if (rec.signed) return { ok: false, message: `${rec.fullName} has already signed.` };
-    if (gameState.week > D.RECRUITING.SIGNING_WEEK) return { ok: false, message: 'The signing period is over for this cycle.' };
-    if (R.pointsLeft < action.points) return { ok: false, message: 'Not enough recruiting points this week.' };
-    if (R.budgetLeft < action.cost) return { ok: false, message: 'Recruiting budget is exhausted for this year.' };
-
-    const usedThisWeek = R.actionsThisWeek[recruitId] || 0;
-    if (usedThisWeek >= D.MAX_ACTIONS_PER_RECRUIT_WEEK) {
-      return { ok: false, message: `You've already contacted ${rec.lastName} twice this week.` };
-    }
-
-    const st = rec.getSchoolState(school.id, true);
-    if (actionKey === 'offer' && st.offered) return { ok: false, message: 'Scholarship already offered.' };
-    if (action.requires === 'interest30' && st.interest < 30) {
-      return { ok: false, message: `${rec.lastName} isn't interested enough to visit campus yet (needs 30 interest).` };
-    }
-    if (action.requires === 'visited' && !st.visited) {
-      return { ok: false, message: 'An overnight requires a campus visit first.' };
-    }
-    if (actionKey === 'offer') {
-      const cap = rec.gender === 'M' ? Math.floor(school.scholarshipsAvailableM / 2) : Math.floor(school.scholarshipsAvailableW / 2);
-      if (scholarshipsUsed(gameState, school.id, rec.gender) >= Math.max(4, cap)) {
-        return { ok: false, message: 'No scholarship slots left for this class (offers + commits at cap).' };
-      }
-    }
-
-    // Pay the costs.
-    R.pointsLeft -= action.points;
-    R.budgetLeft -= action.cost;
-    R.actionsThisWeek[recruitId] = usedThisWeek + 1;
-
     // Effect scaling: the coach's Recruiting rating sells the relationship.
     const recruitingMul = 0.75 + coach.recruiting / 200;             // 0.85–1.25
     const coachabilityMul = 0.8 + rec.coachability / 250;
@@ -588,17 +617,71 @@
     st.relationship = Utils.clamp(st.relationship + rel, 0, 100);
     st.interest = Utils.clamp(st.interest + int, 0, 100);
 
-    // Scouting knowledge + motivation discovery.
-    const know = rec.playerKnowledge;
-    know.scout = Utils.clamp(know.scout + action.scout, 0, 100);
-    let discovered = null;
-    if (Math.random() < action.reveal) {
-      const hidden = rec.motivations.filter((m) => !know.revealed.includes(m));
-      if (hidden.length) {
-        discovered = hidden[Math.floor(Math.random() * hidden.length)];
-        know.revealed.push(discovered);
+    // Scouting knowledge + motivation discovery — fog of war is the
+    // player's alone, so only their staff's work (manual or Auto) reveals it.
+    if (school.id === gameState.playerSchoolId) {
+      const know = rec.playerKnowledge;
+      know.scout = Utils.clamp(know.scout + action.scout, 0, 100);
+      if (rand() < action.reveal) {
+        const hidden = rec.motivations.filter((m) => !know.revealed.includes(m));
+        if (hidden.length) {
+          const discovered = hidden[Math.floor(rand() * hidden.length)];
+          know.revealed.push(discovered);
+          return discovered;
+        }
       }
     }
+    return null;
+  }
+
+  /*
+   * Execute a player recruiting action. Returns { ok, message }.
+   */
+  function doAction(gameState, recruitId, actionKey) {
+    const rec = gameState.world.recruits[recruitId];
+    const action = D.RECRUIT_ACTIONS[actionKey];
+    const school = gameState.getPlayerSchool();
+    const coach = gameState.getPlayerCoach();
+    const R = gameState.recruiting;
+
+    if (!rec || !action) return { ok: false, message: 'Unknown recruit or action.' };
+    if (rec.signed) return { ok: false, message: `${rec.fullName} has already signed.` };
+    if (gameState.week > D.RECRUITING.SIGNING_WEEK) return { ok: false, message: 'The signing period is over for this cycle.' };
+    if (R.pointsLeft < action.points) return { ok: false, message: 'Not enough recruiting points this week.' };
+    if (R.budgetLeft < action.cost) return { ok: false, message: 'Recruiting budget is exhausted for this year.' };
+
+    const usedThisWeek = R.actionsThisWeek[recruitId] || 0;
+    if (usedThisWeek >= D.MAX_ACTIONS_PER_RECRUIT_WEEK) {
+      return { ok: false, message: `You've already contacted ${rec.lastName} twice this week.` };
+    }
+
+    const terms = D.offerTerms(school);
+    const st = rec.getSchoolState(school.id, true);
+    if (actionKey === 'offer' && st.offered) return { ok: false, message: terms.already };
+    if (action.requires === 'interest30' && st.interest < 30) {
+      return { ok: false, message: `${rec.lastName} isn't interested enough to visit campus yet (needs 30 interest).` };
+    }
+    if (action.requires === 'visited' && !st.visited) {
+      return { ok: false, message: 'An overnight requires a campus visit first.' };
+    }
+    if (actionKey === 'offer') {
+      const roster = gameState.getRoster(school.id, rec.gender);
+      const leaving = roster.filter((a) =>
+        a.redshirt !== 'True' && a.redshirt !== 'Medical' &&
+        (a.eligibilityRemaining <= 1 || a.classYear === 'Graduate')).length;
+      const needTarget = Math.max(leaving, 14 - (roster.length - leaving), 2);
+      if (scholarshipsUsed(gameState, school.id, rec.gender) >= offerCap(school, rec.gender, needTarget)) {
+        return { ok: false, message: terms.capped };
+      }
+    }
+
+    // Pay the costs.
+    R.pointsLeft -= action.points;
+    R.budgetLeft -= action.cost;
+    R.actionsThisWeek[recruitId] = usedThisWeek + 1;
+
+    // The action itself runs on the shared rules every program uses.
+    const discovered = applyActionEffects(gameState, school, coach, rec, actionKey, st, Math.random);
 
     const messages = {
       letter: `Sent a letter to ${rec.fullName}.`,
@@ -609,7 +692,7 @@
       campusVisit: `${rec.fullName} toured campus.`,
       hostOvernight: `${rec.fullName} stayed overnight with the team.`,
       meetTeam: `${rec.fullName} met the squad.`,
-      offer: `Scholarship offered to ${rec.fullName}!`
+      offer: `${terms.made} ${rec.fullName}!`
     };
     let message = messages[actionKey];
     if (discovered) {
@@ -672,15 +755,19 @@
       // Wave recruiting (Update 6, Sections 6-7). Elite programs open the
       // cycle laser-focused on a handful of elite targets and commit nearly
       // all effort there; the board only expands once commitments land.
-      // Everyone else works a full board from the start.
+      // Everyone else works a board sized to their genuine roster needs
+      // (Update X): heavy graduation losses mean a bigger board.
       const committed = (ctx.commitCounts[school.id] && ctx.commitCounts[school.id][gender]) || 0;
+      const need = ctx.needs[school.id][gender];
       const elite = school.prestige >= 75;
-      const boardCap = elite && committed === 0 && week <= D.RECRUITING.SIGNING_WEEK - 3 ? 4 : 8;
+      const boardCap = elite && committed === 0 && week <= D.RECRUITING.SIGNING_WEEK - 3
+        ? 4
+        : Utils.clamp(need.target * 2, 6, 12);
       if (board[gender].length >= boardCap) return;
 
       // Target recruits whose composite matches the program's level, with
       // a bias toward nearby kids (regional recruiting territories).
-      // Random sampling inside the talent window spreads 350 programs
+      // Random sampling inside the talent window spreads 700+ programs
       // across the whole class instead of piling onto the same names.
       const pool = ctx.pools[gender];
       const targetComposite = 30 + school.prestige * 0.55;
@@ -689,6 +776,11 @@
       if (hi - lo < 25) { // elite programs: widen downward so the window isn't empty
         lo = Math.max(0, lo - 60);
       }
+      // The late scramble (Update X): a program still short of its class in
+      // the final month stops fighting lost bidding wars and shops
+      // down-market for the overlooked — recruits nobody has offered yet.
+      const scramble = week >= D.RECRUITING.SIGNING_WEEK - 5 && committed < need.target;
+      if (scramble) lo = Math.max(0, lo - 50);
       // The first wave shops only at the very top of the window.
       if (elite && boardCap === 4) lo = Math.max(lo, hi - 30);
       const windowSize = hi - lo;
@@ -702,7 +794,16 @@
         if (!r || r.signed || r.committedTo || onBoard.has(r.id)) continue;
         // Regional bias: nearby recruits usually make the board; far ones sometimes.
         const dist = r.hometownState === 'INT' ? 1000 : distanceMiles(r.hometownState, school.state);
-        const keepChance = Utils.clamp(1.05 - dist / 1600, 0.25, 1);
+        let keepChance = Utils.clamp(1.05 - dist / 1600, 0.25, 1);
+        // Event balance (Update X): graduating seniors leave a hole in their
+        // event group — recruits who fill it are prioritized for the board.
+        if (need.eventNeeds[r.preferredDistance]) keepChance = Math.min(1, keepChance + 0.25);
+        // Scrambling programs chase uncontested names: an offer-free recruit
+        // is a near-certain add, a bidding war is mostly a waste of a slot.
+        if (scramble) {
+          const contested = Object.keys(r.interests).some((sid) => r.interests[sid].offered);
+          keepChance = contested ? keepChance * 0.45 : 1;
+        }
         if (!rng.bool(keepChance)) continue;
         board[gender].push(r.id);
         onBoard.add(r.id);
@@ -710,35 +811,150 @@
     });
   }
 
+  /*
+   * The AI recruiting week, rebuilt on the real economy (Update X, Part 5).
+   * Every CPU program — and the player's program under Auto Recruiting —
+   * spends the same weekly points, the same yearly recruiting budget, and
+   * buys the same actions with the same effects and gates as a human coach.
+   * No abstract pushes, no shortcuts: identical rules for everyone.
+   */
+  function makeEcon(gameState, school, coach) {
+    const R = gameState.recruiting;
+    if (school.id === gameState.playerSchoolId) {
+      // Auto Recruiting spends the player's REAL points and budget, so the
+      // recruiting screen reflects exactly what the staff did.
+      return {
+        get points() { return R.pointsLeft; }, set points(v) { R.pointsLeft = v; },
+        get budget() { return R.budgetLeft; }, set budget(v) { R.budgetLeft = v; },
+        actions: R.actionsThisWeek
+      };
+    }
+    // CPU programs: a yearly budget ledger that persists across the cycle.
+    R.aiBudgets = R.aiBudgets || {};
+    if (R.aiBudgets[school.id] === undefined) R.aiBudgets[school.id] = school.budget.recruiting;
+    const box = { pts: schoolWeeklyPoints(gameState, school, coach) };
+    return {
+      get points() { return box.pts; }, set points(v) { box.pts = v; },
+      get budget() { return R.aiBudgets[school.id]; }, set budget(v) { R.aiBudgets[school.id] = v; },
+      actions: {} // same 2-contacts-per-recruit weekly cap as the player
+    };
+  }
+
+  // Spend one action through the shared rules. Returns true if it happened.
+  function tryAIAction(gameState, school, coach, rec, actionKey, econ, rng, ctx) {
+    const action = D.RECRUIT_ACTIONS[actionKey];
+    if (!action || rec.signed) return false;
+    if (econ.points < action.points || econ.budget < action.cost) return false;
+    const used = econ.actions[rec.id] || 0;
+    if (used >= D.MAX_ACTIONS_PER_RECRUIT_WEEK) return false;
+    const st = rec.getSchoolState(school.id, true);
+    if (actionKey === 'offer' && st.offered) return false;
+    if (action.requires === 'interest30' && st.interest < 30) return false;
+    if (action.requires === 'visited' && !st.visited) return false;
+
+    econ.points -= action.points;
+    econ.budget -= action.cost;
+    econ.actions[rec.id] = used + 1;
+    applyActionEffects(gameState, school, coach, rec, actionKey, st, () => rng.next());
+    if (actionKey === 'offer') {
+      const oc = (ctx.offerCounts[school.id] = ctx.offerCounts[school.id] || { M: 0, W: 0 });
+      oc[rec.gender] += 1;
+    }
+    return true;
+  }
+
+  /*
+   * What would a competent human staff do with this recruit right now?
+   * Close when the fit is believed, sell the campus once interest allows,
+   * work the family when the relationship lags, and keep cheap contact
+   * flowing otherwise — all inside the week's remaining points and the
+   * year's remaining budget.
+   */
+  function chooseAIAction(gameState, school, rec, st, o) {
+    const A = D.RECRUIT_ACTIONS;
+    const affordable = (k) =>
+      o.econ.points >= A[k].points && o.econ.budget >= A[k].cost && A[k].cost <= o.weekSpend + 400;
+
+    // 1) The close: offer when the AI believes in the match and slots remain.
+    //    Late in the cycle programs behind on their class lower the bar —
+    //    empty roster spots trigger aggressive recruiting, and the final two
+    //    weeks are a genuine closing sweep so no class goes unsigned for
+    //    want of paperwork.
+    const talentBar = 34 + school.prestige * 0.62 + o.urgency * 12;
+    // In the closing sweep a program short on bodies offers on contact —
+    // a roster spot in hand beats an empty locker.
+    const interestBar = o.urgency >= 2 ? -1 : o.urgency === 1 ? 14 : 28;
+    if (!st.offered && st.interest > interestBar && recruitComposite(rec) <= talentBar && affordable('offer')) {
+      const oc = ctxOfferCount(o.ctx, school.id, rec.gender);
+      if (oc < offerCap(school, rec.gender, o.need.target)) return 'offer';
+    }
+    // 1b) Scouting: fog of war is the player's problem alone, so an Auto
+    //     Recruiting staff sends a scout to a race before it commits real
+    //     money to a name it can't read. (CPU programs carry no fog — a
+    //     scouting trip would buy them nothing.)
+    if (school.id === gameState.playerSchoolId && !st.offered &&
+        rec.playerKnowledge.scout < 40 && st.interest >= 10 && affordable('watchRace')) {
+      return 'watchRace';
+    }
+    // 2) The big sell: get them to campus, then keep them overnight.
+    if (!st.visited && st.interest >= 30 && affordable('campusVisit')) return 'campusVisit';
+    if (st.visited && !st.overnight && st.interest >= 45 && affordable('hostOvernight')) return 'hostOvernight';
+    // 3) Work the family when the bond is the bottleneck.
+    if (st.relationship < 55 && affordable('homeVisit')) return 'homeVisit';
+    // 4) Keep contact flowing at whatever the budget allows.
+    if (affordable('assistantVisit')) return 'assistantVisit';
+    if (affordable('meetTeam') && st.interest >= 20) return 'meetTeam';
+    if (affordable('call')) return 'call';
+    if (affordable('letter')) return 'letter';
+    return null;
+  }
+
+  function ctxOfferCount(ctx, schoolId, gender) {
+    return (ctx.offerCounts[schoolId] && ctx.offerCounts[schoolId][gender]) || 0;
+  }
+
   function aiRecruitWeek(gameState, rng, ctx) {
     const R = gameState.recruiting;
-    const signingOver = gameState.week > D.RECRUITING.SIGNING_WEEK;
-    if (signingOver) return;
+    const week = gameState.week;
+    if (week > D.RECRUITING.SIGNING_WEEK) return;
+    const weeksLeft = Math.max(1, D.RECRUITING.SIGNING_WEEK - week + 1);
 
     for (const school of Object.values(gameState.world.schools)) {
-      // Auto Recruiting (Update 3): when the player flips the toggle, their
-      // program is recruited by this exact same AI path — same boards, same
-      // pushes, same offer logic. No special treatment in either direction.
-      if (school.id === gameState.playerSchoolId && !gameState.recruiting.auto) continue;
+      // Auto Recruiting: when the player flips the toggle, their program is
+      // recruited by this exact same path — same boards, same actions, same
+      // economy. No special treatment in either direction.
+      const isPlayer = school.id === gameState.playerSchoolId;
+      if (isPlayer && !R.auto) continue;
       const coach = gameState.getCoach(school.coachId);
       if (!coach) continue;
 
       ensureAIBoard(gameState, school, rng, ctx);
       // Mirror the AI's working board onto the player's visible board so
       // they can follow along while the CPU runs their recruiting.
-      if (school.id === gameState.playerSchoolId) {
+      if (isPlayer) {
         const aiBoard = R.aiBoards[school.id];
-        gameState.recruiting.board = { M: aiBoard.M.slice(), W: aiBoard.W.slice() };
+        R.board = { M: aiBoard.M.slice(), W: aiBoard.W.slice() };
       }
       const board = R.aiBoards[school.id];
-      const aggressive = coach.archetype === 'Recruiter';
+      const econ = makeEcon(gameState, school, coach);
+      // Budget pacing: spend the year's budget evenly-but-confidently, the
+      // way a staff that intends to use all of it does — never dumping it
+      // all in September, never sitting on it until signing day.
+      let weekSpend = Math.max(1500, Math.round((econ.budget / weeksLeft) * 1.7));
+      const aggressive = coach.archetype === 'Recruiter' ||
+        (coach.hasTendency && coach.hasTendency('elite-recruiter'));
 
-      ['M', 'W'].forEach((gender) => {
+      // Work genders in alternating priority so one squad never starves.
+      const genders = week % 2 === 0 ? ['M', 'W'] : ['W', 'M'];
+      genders.forEach((gender) => {
+        const need = ctx.needs[school.id][gender];
         const committedCount = (ctx.commitCounts[school.id] && ctx.commitCounts[school.id][gender]) || 0;
-        if (committedCount >= D.RECRUITING.AI_SIGNEES_TARGET) return;
+        // CPU coaches keep recruiting until roster needs are met — then stop.
+        if (committedCount >= need.target) return;
+        // Urgency rises as signing day nears with the class still short:
+        // 1 = push harder and lower the bars, 2 = the final closing sweep.
+        const urgency = weeksLeft <= 2 ? 2 : weeksLeft <= 6 ? 1 : 0;
 
-        // AI spends 2-3 abstract "pushes" per gender per week on top targets.
-        const pushes = aggressive ? 3 : 2;
         const targets = board[gender]
           .map((id) => gameState.world.recruits[id])
           .filter((r) => {
@@ -755,29 +971,27 @@
             }
             return true;
           })
-          .sort((a, b) => recruitComposite(b) - recruitComposite(a))
-          .slice(0, pushes);
+          .sort((a, b) => recruitComposite(b) - recruitComposite(a));
 
-        // First-wave focus (Update 6): an elite board of 2-4 names gets nearly
-        // all the program's effort — each push lands noticeably harder.
-        const waveFocus = school.prestige >= 75 && committedCount === 0 && board[gender].length <= 4 ? 1.3 : 1;
-
-        // Assistant coach impact (spec Part 2, Section 12): the recruiting
-        // coordinator's own pull adds to every CPU push, same as the player's.
-        const asst = school.assistantId && gameState.world.coaches[school.assistantId];
-        const asstPull = asst ? (asst.recruiting - 55) / 90 : 0;
-
-        targets.forEach((rec) => {
+        // Points are shared across both squads (like the player's), with a
+        // soft per-gender ceiling so the first squad can't spend everything.
+        const genderPointCap = Math.ceil(econ.points * 0.62);
+        let spentHere = 0;
+        const workCount = Math.min(targets.length, (aggressive ? 6 : 5) + urgency * 2);
+        for (let i = 0; i < workCount; i++) {
+          const rec = targets[i];
+          if (econ.points <= 0 || spentHere >= genderPointCap) break;
           const st = rec.getSchoolState(school.id, true);
-          const push = (3 + coach.recruiting / 18 + asstPull) * (0.8 + rng.next() * 0.4) * waveFocus;
-          st.relationship = Utils.clamp(st.relationship + push, 0, 100);
-          st.interest = Utils.clamp(st.interest + push * 0.75, 0, 100);
-          // Offer once the AI believes in the match.
-          if (!st.offered && st.interest > 35 && recruitComposite(rec) <= 34 + school.prestige * 0.62) {
-            st.offered = true;
-            st.interest = Utils.clamp(st.interest + 8, 0, 100);
+          while ((econ.actions[rec.id] || 0) < D.MAX_ACTIONS_PER_RECRUIT_WEEK &&
+                 econ.points > 0 && spentHere < genderPointCap) {
+            const key = chooseAIAction(gameState, school, rec, st, { econ, weekSpend, urgency, need, ctx });
+            if (!key) break;
+            const cost = D.RECRUIT_ACTIONS[key];
+            if (!tryAIAction(gameState, school, coach, rec, key, econ, rng, ctx)) break;
+            spentHere += cost.points;
+            weekSpend -= cost.cost;
           }
-        });
+        }
       });
     }
   }
@@ -832,7 +1046,10 @@
           .map((sid) => ({ sid, appeal: appeal(gameState, gameState.getSchool(sid), rec, ctx) }))
           .sort((a, b) => b.appeal - a.appeal);
         const best = ranked[0];
-        if (best.appeal < 52) continue;
+        // The picky threshold softens as signing day nears (Update X): a
+        // recruit holding real offers stops holding out for a dream school.
+        const appealFloor = week >= D.RECRUITING.SIGNING_WEEK - 2 ? 40 : 52;
+        if (best.appeal < appealFloor) continue;
 
         // Probability of pulling the trigger rises as signing day nears.
         const urgency = (week - rec.decisionWeek + 1) / Math.max(1, D.RECRUITING.SIGNING_WEEK - rec.decisionWeek + 1);
@@ -898,13 +1115,21 @@
       if (rec.signed) continue;
 
       if (!rec.committedTo) {
-        // Uncommitted seniors take their best offer if it's palatable.
-        const offers = Object.keys(rec.interests).filter((sid) => rec.interests[sid].offered);
+        // Signing-day rule (Update X, Part 7): a recruit holding at least one
+        // valid offer ALWAYS signs somewhere. They evaluate every offer, rank
+        // the schools, and pick a destination — usually the best fit, with
+        // the occasional heart-over-head surprise. Only recruits with zero
+        // offers go unsigned.
+        const offers = Object.keys(rec.interests).filter((sid) =>
+          rec.interests[sid].offered && gameState.getSchool(sid));
         if (offers.length) {
           const ranked = offers
             .map((sid) => ({ sid, appeal: appeal(gameState, gameState.getSchool(sid), rec, ctx) }))
             .sort((a, b) => b.appeal - a.appeal);
-          if (ranked[0].appeal >= 45) rec.committedTo = ranked[0].sid;
+          const pool = ranked.slice(0, 3);
+          rec.committedTo = pool.length > 1
+            ? rng.weightedChoice(pool, (o) => Math.pow(Math.max(o.appeal, 1), 3)).sid
+            : pool[0].sid;
         }
       }
       if (rec.committedTo) {
@@ -991,12 +1216,18 @@
       }
       // Building a recruiting reputation is an assistant's whole career arc
       // (Update 5, Part 4): strong classes make them a head-coach candidate.
+      // Update X: gains are larger and division-weighted — a top-5 DI class
+      // is a bigger résumé line than a top DII or DIII class, because the
+      // recruiting competition is fiercer at the higher level.
       if (gameState.isAssistant() && coach && playerRank >= 0) {
+        const divW = { DI: 1, DII: 0.7, DIII: 0.5 }[playerDiv] ?? 1;
         let repGain = 0;
-        if (playerRank < 3) repGain = 6;
-        else if (playerRank < 10) repGain = 4;
-        else if (playerRank < 25) repGain = 2.5;
-        else if (playerRank < 45) repGain = 1;
+        if (playerRank < 3) repGain = 9;
+        else if (playerRank < 5) repGain = 7.5;
+        else if (playerRank < 10) repGain = 5.5;
+        else if (playerRank < 25) repGain = 3;
+        else if (playerRank < 45) repGain = 1.4;
+        repGain = Math.round(repGain * divW * 10) / 10;
         if (repGain) {
           coach.reputation = window.XCD.core.Utils.clamp((coach.reputation || 12) + repGain, 1, 99);
           gameState.logNews(`📈 Coach ${coach.lastName} builds a name as a recruiter — reputation rising after a #${playerRank + 1} ${playerDiv} class.`);
@@ -1064,6 +1295,7 @@
     const school = gameState.getPlayerSchool();
     gameState.recruiting.budgetLeft = school.budget.recruiting;
     gameState.recruiting.aiBoards = {};
+    gameState.recruiting.aiBudgets = {}; // every CPU program's budget refills
     gameState.recruiting.board = { M: [], W: [] };
     generateClass(gameState, rng);
   }
@@ -1095,7 +1327,9 @@
     distanceMiles,
     recruitComposite,
     weeklyPoints,
+    schoolWeeklyPoints,
     scholarshipsUsed,
+    offerCap,
     enrollSignees,
     projectedFreshmanOverall,
     generateHsPB

@@ -86,26 +86,41 @@
     return (h % 1000) / 1000;
   }
 
-  function aiPlan(gameState, coach) {
+  /*
+   * `avgFatigue` (Update X, Part 6): CPU staffs now monitor their squad's
+   * fatigue and schedule recovery instead of hammering a tired room. Elite
+   * staffs react early, average staffs react a little late, and even poor
+   * staffs finally back off a truly exhausted roster — the CPU no longer
+   * arrives at championship season running on empty.
+   */
+  function aiPlan(gameState, coach, avgFatigue = 0) {
     const week = gameState.week;
     const craft = coachCraft(coach);
 
-    // Championship weeks: a genuine taper with rest days built in —
-    // unless the staff simply doesn't know how to peak.
+    // Championship weeks: a genuine taper with rest days built in. Poor
+    // staffs still botch the peak sometimes — just far less often than the
+    // old chronic overtraining (Update X buff).
     if (week >= CAL.CONFERENCE_WEEK && week <= CAL.NATIONAL_WEEK) {
-      if (craft < 45 && coachRoll(coach, week, 11) < 0.55) return AI_TEMPLATES.build.slice(); // overtrains into the biggest meets
+      if (craft < 45 && coachRoll(coach, week, 11) < 0.25) return AI_TEMPLATES.build.slice(); // overtrains into the biggest meets
+      // Peaking for nationals after conference: a squad still carrying real
+      // fatigue gets a genuine recovery week between the rounds.
+      if (avgFatigue >= 62 && craft >= 45) return AI_TEMPLATES.recovery.slice();
       return AI_TEMPLATES.taper.slice();
     }
     if (MEET_WEEKS.has(week)) {
       // Conservative / development-minded staffs rest more before meets.
       const restful = coach && (coach.archetype === 'Developer' ||
         (coach.hasTendency && coach.hasTendency('conservative')));
-      if (craft < 45 && coachRoll(coach, week, 13) < 0.4) return AI_TEMPLATES.build.slice(); // trains through races
+      if (craft < 45 && coachRoll(coach, week, 13) < 0.2) return AI_TEMPLATES.build.slice(); // trains through races
       return (restful ? AI_TEMPLATES.taper : AI_TEMPLATES.race).slice();
     }
     if (week <= CAL.SUMMER_WEEKS || week >= CAL.OFFSEASON_START) return AI_TEMPLATES.base.slice();
+    // Fatigue-responsive recovery (Update X): a tired squad gets an easy
+    // week to absorb the work. Better staffs notice at a lower threshold.
+    const recoveryTrigger = craft >= 65 ? 60 : craft >= 45 ? 66 : 76;
+    if (avgFatigue >= recoveryTrigger) return AI_TEMPLATES.recovery.slice();
     if (week >= CAL.MEET_WEEKS[Math.max(0, CAL.MEET_WEEKS.length - 2)] - 1) {
-      if (craft < 45) return AI_TEMPLATES.build.slice();             // never sharpens
+      if (craft < 45) return (coachRoll(coach, week, 29) < 0.5 ? AI_TEMPLATES.sharpen : AI_TEMPLATES.build).slice();
       if (craft >= 65) return AI_TEMPLATES.sharpsim.slice();         // rehearses the championship
       return AI_TEMPLATES.sharpen.slice();
     }
@@ -134,7 +149,9 @@
     const craft = coachCraft(coach);
     if (week >= CAL.OFFSEASON_START) m = Math.round(m * 0.8);        // offseason maintenance
     else if (week <= CAL.SUMMER_WEEKS) m += 8;                       // summer volume block
-    else if (week >= CAL.CONFERENCE_WEEK) m = Math.round(m * (craft < 45 ? 0.9 : 0.62)); // championship taper (missed by poor staffs)
+    // Championship taper: poor staffs still under-taper, but no longer march
+    // into nationals at ~full volume (Update X CPU fitness buff).
+    else if (week >= CAL.CONFERENCE_WEEK) m = Math.round(m * (craft < 45 ? 0.78 : 0.62));
     else if (MEET_WEEKS.has(week)) m = Math.round(m * 0.85);         // race-week trim
     return Utils.clamp(m, D.MILEAGE.MIN, D.MILEAGE.MAX);
   }
@@ -894,13 +911,24 @@
       const craft = coachCraft(coach);
 
       ['M', 'W'].forEach((gender) => {
+        const roster = gender === 'M' ? school.rosterM : school.rosterW;
+        // CPU squad monitoring (Update X): the staff reads the room's fatigue
+        // before writing the week — a tired squad earns a recovery week.
+        let avgFatigue = 0;
+        if (!playerPlans && roster.length) {
+          let sum = 0, n = 0;
+          roster.forEach((id) => {
+            const a = gameState.world.athletes[id];
+            if (a && !a.injury) { sum += a.fatigue; n++; }
+          });
+          avgFatigue = n ? sum / n : 0;
+        }
         const plan = playerPlans
           ? (gameState.training[gender] || defaultPlan())
-          : aiPlan(gameState, coach);
+          : aiPlan(gameState, coach, avgFatigue);
         const baseMeta = planMetaFor(plan);
         // Periodization fit (Update 6): does this week's plan match the phase?
         baseMeta.phaseFit = !!(phase.fit && phase.fit(baseMeta));
-        const roster = gender === 'M' ? school.rosterM : school.rosterW;
         const culture = squadCulture(gameState, school, gender, coach);
         school.chemistry[gender] = culture.chemistry;
 
@@ -911,10 +939,11 @@
           if (playerPlans) {
             const override = gameState.training.overrides[id];
             if (override) { meta = planMetaFor(plan, override); meta.phaseFit = baseMeta.phaseFit; }
-          } else if (athlete.fatigue > 78 && craft >= 60) {
-            // Elite AI staffs rest struggling athletes (Update 6, Section 5):
-            // a runner deep in the red gets a reduced-load week. Poor staffs
-            // never notice until the injury report does it for them.
+          } else if ((athlete.fatigue > 74 && craft >= 50) || athlete.fatigue > 86) {
+            // AI staffs rest struggling athletes (Update 6, Section 5; buffed
+            // in Update X): a runner deep in the red gets a reduced-load week.
+            // Competent staffs react early; even poor ones finally notice a
+            // runner who is completely cooked.
             meta = planMetaFor(plan, 'reduced');
             meta.phaseFit = baseMeta.phaseFit;
           }

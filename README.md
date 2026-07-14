@@ -10,6 +10,55 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 8.0 — Update X: Recruiting Realism & The Living Transfer Market
+
+The recruiting world wakes up: real bidding wars in the portal, a fully
+populated Division III, one recruiting economy for humans and CPUs alike,
+and no recruit ever left holding an offer nobody honored.
+
+- **Transfer portal bidding wars.** CPU programs no longer stumble into
+  the portal at random. Every staff evaluates each transfer against its
+  own situation — prestige, roster holes, graduation losses, event needs,
+  roster space, recruiting budget, timeline (contender vs. rebuild), and
+  the staff's recruiting philosophy. Elite transfers now draw **9–10+
+  pursuing schools** and let the market develop before choosing; mid-level
+  athletes draw a handful of genuine fits; overlooked runners still hear
+  from the programs where they'd matter. The winner skews toward the best
+  recruiter and the best program at the table.
+- **One recruiting economy for everyone.** CPU schools and Auto
+  Recruiting now play by the player's exact rules: the same weekly
+  recruiting points, the same yearly budget, the same actions with the
+  same costs, gates, and effects. Auto Recruiting spends your real points
+  and budget like a competent human assistant — it scouts, calls,
+  hosts visits, and extends offers against roster needs until the class
+  is filled.
+- **Division III lives.** Nearly every D3 program (~95%+) now signs a
+  class every year: needs-driven boards, budget-scaled activity, and a
+  late-cycle scramble for overlooked recruits. And per NCAA rules, DIII
+  programs now **Offer Roster Spots** — never scholarships — everywhere
+  in recruiting, while DI/DII keep scholarship language.
+- **Every offer gets an answer.** A recruit holding at least one valid
+  offer always evaluates the field, ranks the schools, and signs before
+  the cycle closes. Only recruits with zero offers go unsigned.
+- **A 3,600-recruit national class.** The class grows from 2,400 to
+  3,600 (1,800 per gender) so all 727 programs across three divisions can
+  genuinely eat — while generational talents still arrive only every
+  7–10 years.
+- **Assistant careers accelerate.** Assistant reputation now grows from
+  the things scouts actually notice: recruiting class rankings (a top-5
+  DI class far outweighs a top DII or DIII haul), landing elite portal
+  transfers, player development, team success, and conference/national
+  titles.
+- **CPU fitness management buff.** CPU staffs monitor squad fatigue and
+  schedule real recovery weeks, rest struggling runners sooner, taper
+  properly into conference and peak again for nationals — even weak
+  staffs stop marching exhausted rosters into championship season.
+- **Smarter roster building all around.** CPU boards track graduation
+  losses, event balance, empty roster spots, redshirt-aware departures,
+  and scholarship/roster-spot caps — programs recruit to a long-term
+  roster plan, not just the best name available, and dynasties stay
+  stable 40+ seasons (soak-verified).
+
 ## Version 7.9 — Facilities That Matter & Success-Driven Fundraising
 
 Eight decorative facilities become five that genuinely shape training —

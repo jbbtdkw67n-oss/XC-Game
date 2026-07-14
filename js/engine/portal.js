@@ -335,9 +335,14 @@
       if (row) recentSuccess = Utils.clamp(100 - row.rank * 1.1, 20, 100);
     }
 
-    // Coach reputation (Part 1) + transfer-recruiting craft pull hard.
+    // Coach reputation (Part 1) + recruiting craft pull hard (Update X):
+    // the transfer should land with the best recruiter and/or the best
+    // program pursuing them, so the coach's Recruiting rating and portal
+    // craft carry real weight in the decision.
     const rep = coach ? (coach.reputation || 25) : 25;
-    const pull = coach ? (coach.transferRecruiting || 55) : 45;
+    const craft = coach
+      ? ((coach.recruiting || 55) * 0.55 + (coach.transferRecruiting || 55) * 0.45)
+      : 45;
 
     // Training philosophy fit: durable grinders want volume programs;
     // fragile or speed-based runners want to be handled with care.
@@ -370,62 +375,178 @@
 
     return Utils.clamp(
       school.prestige * 0.20 +
-      playingTime * 0.20 +
-      rep * 0.12 +
+      playingTime * 0.19 +
+      rep * 0.11 +
+      craft * 0.09 +
       champOpp * 0.10 +
-      Utils.clamp(100 - dist / 18, 0, 100) * 0.09 +
-      school.facilitiesOverall * 0.07 +
-      trainingFit * 0.06 +
+      Utils.clamp(100 - dist / 18, 0, 100) * 0.08 +
+      school.facilitiesOverall * 0.06 +
+      trainingFit * 0.05 +
       academicsFit * academicWeight +
-      nilScore * 0.04 +
-      pull * 0.03 +
+      nilScore * 0.03 +
       (school.conferenceTier === 1 ? 5 : 0) +
       (school.prestige > (fromSchool ? fromSchool.prestige : 50) ? 4 : 0),
       0, 100);
+  }
+
+  /*
+   * The transfer market, rebuilt (Update X, Part 1). Schools don't pursue
+   * transfers randomly — every CPU staff evaluates each portal athlete
+   * against its own situation: program prestige, current roster holes,
+   * graduation losses, event needs, available roster space, recruiting
+   * budget, competitive timeline (contender vs rebuild), and the staff's
+   * recruiting philosophy. Interest scales with talent: All-American
+   * caliber transfers draw a genuine national bidding war of ~10 programs,
+   * mid-level transfers a handful of fits, and overlooked runners still
+   * hear from the smaller programs where they'd matter.
+   */
+  function buildPortalMarket(gameState) {
+    const portal = gameState.portal;
+    const rankIndex = {};
+    if (gameState.rankings) {
+      ['M', 'W'].forEach((g) => gameState.rankings[g].forEach((r) => {
+        rankIndex[r.schoolId] = Math.min(rankIndex[r.schoolId] || 999, r.rank);
+      }));
+    }
+    const profiles = [];
+    Object.values(gameState.world.schools).forEach((school) => {
+      if (school.id === gameState.playerSchoolId) return; // the player pursues manually
+      const coach = gameState.getCoach(school.coachId);
+      const per = {};
+      ['M', 'W'].forEach((gender) => {
+        const roster = gameState.getRoster(school.id, gender);
+        const leaving = roster.filter((a) =>
+          a.redshirt !== 'True' && a.redshirt !== 'Medical' &&
+          (a.eligibilityRemaining <= 1 || a.classYear === 'Graduate'));
+        const eventNeeds = {};
+        leaving.forEach((a) => {
+          eventNeeds[a.preferredDistance] = (eventNeeds[a.preferredDistance] || 0) + 1;
+        });
+        const overalls = roster.map((a) => a.currentOverall).sort((x, y) => y - x);
+        per[gender] = {
+          returning: roster.length - leaving.length,
+          leaving: leaving.length,
+          eventNeeds,
+          fifth: overalls[4] ?? 40,
+          pending: 0 // transfers already committed here this cycle
+        };
+      });
+      profiles.push({
+        school, coach,
+        bestRank: rankIndex[school.id] || 999,
+        hunter: coach && (coach.archetype === 'Recruiter' ||
+          (coach.hasTendency && coach.hasTendency('transfer-expert')) ||
+          (coach.transferRecruiting || 55) >= 75),
+        per
+      });
+    });
+    const byId = {};
+    profiles.forEach((p) => { byId[p.school.id] = p; });
+    (portal.entries || []).forEach((e) => {
+      if (!e.destination) return;
+      const a = gameState.getAthlete(e.athleteId);
+      const p = a && byId[e.destination];
+      if (p) p.per[a.gender].pending += 1;
+    });
+    return profiles;
+  }
+
+  // How many programs should end up chasing this athlete across the window.
+  function suitorTarget(quality, rng) {
+    if (quality >= 74) return 10 + rng.int(0, 3); // elite: a national bidding war
+    if (quality >= 66) return 6 + rng.int(0, 2);  // proven scorer
+    if (quality >= 56) return 4 + rng.int(0, 1);  // solid contributor
+    return 2 + rng.int(0, 1);                     // developmental / depth
+  }
+
+  function pursuitScore(prof, a, quality, rng) {
+    const school = prof.school;
+    const need = prof.per[a.gender];
+    // Roster space is a hard gate: DI programs at the limit (returners +
+    // already-committed transfers) sit the market out for that gender.
+    const spots = ((school.division || 'DI') === 'DI' ? DI_ROSTER_LIMIT : 18)
+      - need.returning - need.pending;
+    if (spots <= 0) return -1;
+
+    // Talent-program fit: pursue athletes near or above your level. An
+    // above-level target is exciting; one far below doesn't move the needle.
+    const levelMark = 30 + school.prestige * 0.55;
+    const gap = quality - levelMark;
+    let score = 38 - Math.abs(gap) * (gap > 0 ? 0.5 : 1.4);
+
+    // Roster needs: graduation losses and empty spots demand replacements.
+    score += Math.min(18, need.leaving * 4.5) + Math.min(12, Math.max(0, spots - 1) * 2);
+    // Event needs: a graduating senior leaves a hole in this event group.
+    if (need.eventNeeds[a.preferredDistance]) score += 8;
+
+    // Competitive timeline. A national title contender aggressively pursues
+    // All-American caliber transfers; a rebuilding program wants athletes
+    // who score immediately; smaller programs chase the overlooked.
+    const contender = school.prestige >= 75 || prof.bestRank <= 15;
+    if (contender && quality >= 72) score += 14;
+    if (school.prestige < 58 && a.currentOverall >= need.fifth) score += 10;
+
+    // Coaching philosophy & staff craft: portal hunters live in this market.
+    if (prof.hunter) score += 12;
+    if (prof.coach) score += ((prof.coach.transferRecruiting || 55) - 55) * 0.15;
+
+    // Recruiting budget: deep pockets can afford to chase more targets.
+    score += Math.min(8, school.budget.recruiting / 15000);
+
+    // The market has noise — no two searches shake out the same.
+    score += rng.next() * 16;
+    return score;
   }
 
   function aiPortalOffers(gameState, rng) {
     const portal = gameState.portal;
     if (!portal || !portal.open) return;
 
-    // Which programs need bodies/talent?
-    const needy = Object.values(gameState.world.schools).filter((s) => s.id !== gameState.playerSchoolId);
+    const market = buildPortalMarket(gameState);
+    const week = gameState.week;
+    const weeksLeft = Math.max(1, DECISION_WEEK - week + 1);
+    const divRank = (d) => (d === 'DI' ? 3 : d === 'DII' ? 2 : 1);
+
     portal.entries.forEach((entry) => {
       if (entry.destination) return;
       const a = gameState.getAthlete(entry.athleteId);
       if (!a) return;
-      // 2-4 suitors accumulate over the window; better runners draw better offers.
-      if (entry.offers.length >= 4) return;
-      const candidates = [];
-      for (let i = 0; i < 30; i++) {
-        const s = rng.choice(needy);
-        if (s.id === entry.fromSchoolId || entry.offers.includes(s.id)) continue;
-        // Programs chase talent near/above their level; portal-expert
-        // coaches and elite transfer recruiters hunt everyone.
-        const coach = gameState.getCoach(s.coachId);
-        const hunter = coach && (coach.archetype === 'Recruiter' ||
-          (coach.hasTendency && coach.hasTendency('transfer-expert')) ||
-          (coach.transferRecruiting || 55) >= 75);
-        if (!hunter && Math.abs(a.currentOverall - (30 + s.prestige * 0.55)) > 22) continue;
-        candidates.push(s);
-        if (candidates.length >= 3) break;
-      }
 
-      // Lower-division stars climbing (Update 5, Section 1): a decorated
-      // DII/DIII athlete who entered chasing higher-division competition
-      // should actually draw a higher-division suitor, not just lateral ones.
+      const quality = a.currentOverall * 0.7 + a.potential * 0.3;
+      const cap = entry.suitorCap = entry.suitorCap ?? suitorTarget(quality, rng);
+      if (entry.offers.length >= cap) return;
+      // Offers roll in across the window rather than landing all at once.
+      const additions = Math.min(
+        Utils.clamp(Math.ceil((cap - entry.offers.length) / weeksLeft) + (quality >= 74 ? 1 : 0), 1, 4),
+        cap - entry.offers.length);
+
       const fromSchool = gameState.getSchool(entry.fromSchoolId);
-      const divRank = (d) => (d === 'DI' ? 3 : d === 'DII' ? 2 : 1);
-      if (fromSchool && entry.reason === window.XCD.data.PORTAL_REASONS.moveUp) {
-        const higher = needy.filter((s) =>
-          divRank(s.division || 'DI') > divRank(fromSchool.division || 'DI') &&
-          !entry.offers.includes(s.id) && s.id !== entry.fromSchoolId &&
-          Math.abs(a.currentOverall - (30 + s.prestige * 0.55)) <= 26);
-        if (higher.length) candidates.push(rng.choice(higher));
-      }
+      const movingUp = fromSchool && entry.reason === window.XCD.data.PORTAL_REASONS.moveUp;
+      const taken = new Set(entry.offers);
+      taken.add(entry.fromSchoolId);
 
-      if (candidates.length && rng.bool(0.55)) {
-        entry.offers.push(rng.choice(candidates).id);
+      const scored = [];
+      for (const prof of market) {
+        if (taken.has(prof.school.id)) continue;
+        let s = pursuitScore(prof, a, quality, rng);
+        if (s <= 0) continue;
+        // Lower-division stars climbing (Update 5): an athlete chasing
+        // higher-division competition draws the higher division's interest.
+        if (movingUp && divRank(prof.school.division || 'DI') > divRank(fromSchool.division || 'DI')) s += 10;
+        scored.push({ prof, s });
+      }
+      if (!scored.length) return;
+      scored.sort((x, y) => y.s - x.s);
+
+      // Genuine interest only: a school pursues when the fit clears a real
+      // bar, so weak matches never generate junk offers.
+      const bar = 34;
+      const interested = scored.filter((c) => c.s >= bar);
+      const pool = interested.length ? interested.slice(0, additions * 3) : scored.slice(0, 2);
+      for (let i = 0; i < additions && pool.length; i++) {
+        const pick = rng.weightedChoice(pool, (c) => Math.max(1, c.s - bar + 8));
+        pool.splice(pool.indexOf(pick), 1);
+        entry.offers.push(pick.prof.school.id);
       }
     });
   }
@@ -445,7 +566,9 @@
     if (active >= PLAYER_OFFER_LIMIT) return { ok: false, message: `You can only pursue ${PLAYER_OFFER_LIMIT} portal athletes at once.` };
     entry.offers.push(gameState.playerSchoolId);
     const a = gameState.getAthlete(athleteId);
-    return { ok: true, message: `Scholarship offered to ${a ? a.fullName : 'transfer'}.` };
+    // DIII programs offer roster spots, not scholarships (Update X, Part 3).
+    const terms = window.XCD.data.offerTerms(gameState.getPlayerSchool());
+    return { ok: true, message: `${terms.made} ${a ? a.fullName : 'transfer'}.` };
   }
 
   function resolveDecisions(gameState, rng, final = false) {
@@ -460,12 +583,18 @@
       const a = gameState.getAthlete(entry.athleteId);
       const fromSchool = gameState.getSchool(entry.fromSchoolId);
       if (!a) return;
+      // Elite transfers let the bidding war develop (Update X): a star
+      // doesn't commit in the first week of calls — the market comes to them.
+      if (!final && a.currentOverall >= 72 && entry.offers.length < 6) return;
       const ranked = entry.offers
         .map((sid) => ({ sid, appeal: portalAppeal(gameState, gameState.getSchool(sid), a, fromSchool) }))
         .sort((x, y) => y.appeal - x.appeal);
       if (ranked[0].appeal < 45 && !final) return;
 
-      const choice = rng.weightedChoice(ranked.slice(0, 3), (o) => Math.pow(o.appeal, 3));
+      // Elite transfers weigh their bidding war carefully (Update X): the
+      // best recruiter / best program pursuing them wins far more often.
+      const pow = a.currentOverall >= 72 ? 4 : 3;
+      const choice = rng.weightedChoice(ranked.slice(0, 3), (o) => Math.pow(o.appeal, pow));
       entry.destination = choice.sid;
       entry.decidedWeek = gameState.week;
       const to = gameState.getSchool(choice.sid);
@@ -497,6 +626,7 @@
     rng = rng || new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 61) >>> 0);
     let moved = 0;
     const outBySchool = {};
+    const inBySchool = {};
     portal.entries.forEach((entry) => {
       if (!entry.destination) return;
       const a = gameState.world.athletes[entry.athleteId];
@@ -508,6 +638,26 @@
       to[key].push(a.id);
       a.schoolId = to.id;
       a.morale = 72;
+
+      // The transfer-success ledger (Update X): who landed whom, and how
+      // good they were — feeds staff reputation at the yearly progression.
+      const haul = (inBySchool[to.id] = inBySchool[to.id] || { count: 0, elite: 0, best: 0 });
+      haul.count += 1;
+      haul.best = Math.max(haul.best, a.currentOverall);
+      if (a.currentOverall >= 72) {
+        haul.elite += 1;
+        // Landing an elite portal athlete is an immediate résumé line for
+        // the staff that closed the deal (Part 4: portal success matters).
+        const head = gameState.getCoach(to.coachId);
+        const asst = to.assistantId && gameState.world.coaches[to.assistantId];
+        if (head) head.reputation = Utils.clamp((head.reputation || 25) + 0.8, 1, 99);
+        if (asst && (!head || asst.id !== head.id)) {
+          asst.reputation = Utils.clamp((asst.reputation || 12) + 1.5, 1, 99);
+          if (asst.isPlayer) {
+            gameState.logNews(`📈 Landing ${a.fullName} (${a.currentOverall} OVR) from the portal boosts your recruiting reputation.`);
+          }
+        }
+      }
       // A transfer arrives fresh for a new program with a believable, varied
       // base of summer fitness — never an empty bar. Correlated lightly with
       // the athlete's aerobic engine so stronger runners show up fitter, plus
@@ -524,7 +674,8 @@
     gameState.history.portalSummaries[portal.year] = {
       entries: portal.entries.length,
       moved,
-      outBySchool
+      outBySchool,
+      inBySchool
     };
     gameState.portal = null;
     return moved;

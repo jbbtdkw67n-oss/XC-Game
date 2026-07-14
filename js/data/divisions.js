@@ -95,4 +95,34 @@
       : (schoolOrKey && schoolOrKey.division) || 'DI';
     return D.DIVISIONS[key] || D.DIVISIONS.DI;
   };
+
+  /*
+   * Offer terminology (Update X, Part 3). Division III programs may NOT
+   * offer athletic scholarships — they offer roster spots. The recruiting
+   * mechanics are identical; only the language changes, and it changes
+   * EVERYWHERE an offer is referenced. DI/DII keep "scholarship" wording.
+   */
+  D.offerTerms = function (schoolOrKey) {
+    const div = D.divisionFor(schoolOrKey);
+    if (div.scholarshipModel === 'none') {
+      return {
+        action: 'Offer Roster Spot',
+        offered: 'Roster Spot Offered',
+        already: 'Roster spot already offered.',
+        made: 'Roster spot offered to',
+        capped: 'No roster spots left for this class (offers + commits at cap).',
+        noun: 'roster spot',
+        plural: 'roster spots'
+      };
+    }
+    return {
+      action: 'Offer Scholarship',
+      offered: 'Scholarship Offered',
+      already: 'Scholarship already offered.',
+      made: 'Scholarship offered to',
+      capped: 'No scholarship slots left for this class (offers + commits at cap).',
+      noun: 'scholarship',
+      plural: 'scholarships'
+    };
+  };
 })();

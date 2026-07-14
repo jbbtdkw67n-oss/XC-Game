@@ -105,6 +105,9 @@
         ? `<span style="color:var(--warning);">Verbal — ${Utils.escapeHtml(game.getSchool(rec.committedTo)?.name || '?')}</span>`
         : '<span style="color:var(--text-dim);">Uncommitted</span>';
 
+    // DIII offers roster spots, not scholarships (Update X, Part 3) — the
+    // recruiting mechanics are identical, the button just reflects NCAA rules.
+    const terms = D.offerTerms(school);
     const actionButtons = Object.entries(D.RECRUIT_ACTIONS).map(([key, a]) => {
       const R = game.recruiting;
       const used = R.actionsThisWeek[rec.id] || 0;
@@ -116,9 +119,10 @@
       else if (key === 'offer' && st.offered) disabledReason = 'Already offered';
       else if (a.requires === 'interest30' && st.interest < 30) disabledReason = 'Needs 30 interest';
       else if (a.requires === 'visited' && !st.visited) disabledReason = 'Needs campus visit first';
+      const label = key === 'offer' ? terms.action : a.label;
       return `
         <button class="btn small" data-action="${key}" ${disabledReason ? `disabled title="${disabledReason}"` : ''}>
-          ${a.label} <span style="color:var(--text-faint); font-weight:400;">(${a.points}pt${a.cost ? ` · $${a.cost}` : ''})</span>
+          ${label} <span style="color:var(--text-faint); font-weight:400;">(${a.points}pt${a.cost ? ` · $${a.cost}` : ''})</span>
         </button>`;
     }).join('');
 
@@ -164,7 +168,7 @@
       </div>
 
       <div class="card" style="padding:12px; margin-bottom:14px;">
-        <h3>Recruiting Actions ${st.offered ? '• <span style="color:var(--success);">Scholarship Offered</span>' : ''}</h3>
+        <h3>Recruiting Actions ${st.offered ? `• <span style="color:var(--success);">${terms.offered}</span>` : ''}</h3>
         <div style="display:flex; flex-wrap:wrap; gap:6px;" id="action-row">${actionButtons}</div>
         <div style="margin-top:8px; font-size:12px; color:var(--text-dim);">
           ${game.recruiting.pointsLeft} points left this week • $${game.recruiting.budgetLeft.toLocaleString()} budget left this year
@@ -322,7 +326,7 @@
             <div class="attr-row clickable" data-rec="${r.id}" style="cursor:pointer; padding:6px 0;">
               <span>${stars(r.starRating)} <strong>${Utils.escapeHtml(r.fullName)}</strong> <span style="color:var(--text-dim);">(${r.gender})</span></span>
               <span>${r.signed ? '<span style="color:var(--success);">Signed</span>' : '<span style="color:var(--warning);">Verbal</span>'}</span>
-            </div>`).join('') : '<div style="color:var(--text-dim);">No commitments yet. Offer scholarships and build relationships.</div>'}
+            </div>`).join('') : `<div style="color:var(--text-dim);">No commitments yet. Offer ${D.offerTerms(school).plural} and build relationships.</div>`}
         </div>
         <div class="card">
           <h2>Recent National Commitments</h2>
@@ -416,9 +420,11 @@
 
       ${R.auto ? `
       <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent); padding:10px 14px; font-size:13px;">
-        🤖 <strong>Auto Recruiting is ON.</strong> Your staff builds the board, works targets, and extends offers
-        using the same AI as every CPU program — scholarship needs, roster holes, and budget included.
-        Your board below mirrors the staff's targets. Toggle off any time to take back control.
+        🤖 <strong>Auto Recruiting is ON.</strong> Your staff runs recruiting like a competent human assistant:
+        it spends your weekly points and yearly budget on real actions — calls, visits, scouting, and
+        ${D.offerTerms(game.getPlayerSchool()).noun} offers — prioritizing roster holes and graduation losses until the class is filled.
+        It is the exact same system every CPU program uses. Your board below mirrors the staff's targets;
+        toggle off any time to take back control.
       </div>` : ''}
 
       <div class="grid cols-4" style="margin-bottom:16px;">

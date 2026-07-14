@@ -458,10 +458,13 @@
 
   // Recruiting calendar (within the 21-week year)
   D.RECRUITING = {
-    CLASS_SIZE_PER_GENDER: 1200,
+    // Update X: 1,800 per gender (3,600 nationally) so all 727 programs across
+    // three divisions can genuinely sign classes. Generational-talent odds are
+    // per CLASS (below), not per recruit, so the every-7-10-years cadence holds.
+    CLASS_SIZE_PER_GENDER: 1800,
     SIGNING_WEEK: 19,       // national signing day (offseason)
     EARLY_COMMIT_WEEK: 3,   // earliest anyone verbals
-    AI_SIGNEES_TARGET: 5    // roster spots AI schools try to fill per gender
+    AI_SIGNEES_TARGET: 5    // fallback signing target when roster needs are unknown
   };
 
   /* ------------------------------------------------------------------ *

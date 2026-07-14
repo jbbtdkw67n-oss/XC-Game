@@ -74,10 +74,14 @@
     }
 
     // Roster exodus stings; a locked-in locker room quietly builds trust.
-    const portalOut = ((gameState.history.portalSummaries || {})[year] || {}).entries !== undefined
-      ? null : null; // program-level exits tracked below via morale proxy
     const unhappy = roster.filter((a) => a.morale < 45).length;
     if (unhappy >= 5) delta -= 0.8;
+
+    // Winning the portal (Update X): a staff that lands elite transfers is
+    // seen as a program on the move.
+    const ps = (gameState.history.portalSummaries || {})[year];
+    const haul = ps && ps.inBySchool && ps.inBySchool[school.id];
+    if (haul && haul.elite) delta += Math.min(1.2, haul.elite * 0.5);
 
     // Longevity: staying employed is itself a reputation.
     delta += 0.15;
@@ -88,29 +92,77 @@
 
     delta += (rng.next() - 0.5) * 0.6; // media noise
     coach.reputation = Utils.clamp(Math.round((coach.reputation + Utils.clamp(delta, -5, 7)) * 10) / 10, 1, 99);
-    void portalOut;
   }
 
   /*
-   * Assistant reputation (Update 6, Phase 3): a recruiting coordinator builds
-   * a name through their program's success and, above all, the recruiting
-   * classes they land. Strong assistants climb toward head-coaching candidacy;
-   * those who never move up eventually plateau and fade.
+   * Assistant reputation (Update 6, Phase 3; overhauled in Update X, Part 4):
+   * a recruiting coordinator builds a name through the recruiting classes
+   * they land — the calling card, heavily weighted — plus transfer portal
+   * wins, player development, team success, and titles. Everything is
+   * division-weighted: a top-5 DI class builds a reputation substantially
+   * faster than a top DII or DIII class, because the competition for those
+   * recruits is fiercer. Progression should feel rewarding season over
+   * season; assistants who never step up eventually plateau and fade.
    */
+  const ASSISTANT_DIV_WEIGHT = { DI: 1, DII: 0.72, DIII: 0.5 };
+
   function updateAssistantReputation(gameState, coach, school, rng) {
+    const year = gameState.year - 1; // the season that just ended
     const total = divisionSize(gameState, school.division);
     const rank = bestRank(gameState, school.id);
+    const divW = ASSISTANT_DIV_WEIGHT[school.division || 'DI'] ?? 1;
     let delta = 0.4; // early-career assistants generally build a name
-    if (rank <= total * 0.15) delta += 1.2;
-    else if (rank <= total * 0.40) delta += 0.5;
+
+    // Team success: the whole staff shares in a nationally relevant season.
+    if (rank <= total * 0.05) delta += 2.0 * divW;
+    else if (rank <= total * 0.15) delta += 1.3 * divW;
+    else if (rank <= total * 0.40) delta += 0.5 * divW;
+
+    // Titles: hardware on the program's mantle burnishes every résumé on staff.
+    const conf = (gameState.history.conferenceChampions || {})[year] || {};
+    if (conf[`${school.conference}-M`] === school.name) delta += 0.8 * divW;
+    if (conf[`${school.conference}-W`] === school.name) delta += 0.8 * divW;
+    const nat = (gameState.history.nationalChampions || {})[year] || {};
+    ['M', 'W'].forEach((g) => {
+      const key = (school.division || 'DI') === 'DI' ? g : `${school.division}-${g}`;
+      if (nat[key] && nat[key].teamId === school.id) delta += 3.0 * divW;
+    });
+
+    // THIS season's recruiting class — the assistant's signature work and
+    // the largest single input. Judged within the division's own race.
+    const classes = (gameState.history.recruitingClasses || {})[year] || [];
+    const entry = classes.find((e) => e.schoolId === school.id);
+    if (entry) {
+      const r = entry.divisionRank || entry.rank;
+      if (r <= 3) delta += 3.4 * divW;
+      else if (r <= 5) delta += 2.8 * divW;
+      else if (r <= 10) delta += 2.0 * divW;
+      else if (r <= 25) delta += 1.0 * divW;
+      else if (r <= 60) delta += 0.4 * divW;
+    }
+
+    // Transfer portal success: landing elite portal athletes is a modern
+    // recruiting résumé line (the immediate bump lands at transfer time;
+    // a strong overall haul compounds it here).
+    const ps = (gameState.history.portalSummaries || {})[year];
+    const haul = ps && ps.inBySchool && ps.inBySchool[school.id];
+    if (haul) {
+      if (haul.elite) delta += Math.min(2.0, haul.elite * 0.8) * divW;
+      else if (haul.count >= 2) delta += 0.4 * divW;
+    }
+
+    // Player development: a room that visibly improves reflects on the staff.
+    const roster = gameState.getRoster(school.id, 'M').concat(gameState.getRoster(school.id, 'W'));
+    if (roster.length) {
+      const avgDev = Utils.average(roster.map((a) => a.seasonDev || 0));
+      delta += Utils.clamp((avgDev - 2.2) * 0.3, -0.6, 0.9);
+    }
+
     if ((coach.recruiting || 55) >= 70) delta += 0.5; // recruiting is their calling card
-    const bc = coach.careerRecord && coach.careerRecord.bestClassRank;
-    if (bc && bc <= 10) delta += 0.9;
-    else if (bc && bc <= 25) delta += 0.35;
     if (coach.age > 55) delta -= 0.7; // long-tenured assistants who never stepped up plateau
     delta += (rng.next() - 0.5) * 0.4;
     coach.reputation = Utils.clamp(
-      Math.round((coach.reputation + Utils.clamp(delta, -3, 4)) * 10) / 10, 1, 90);
+      Math.round((coach.reputation + Utils.clamp(delta, -3, 8)) * 10) / 10, 1, 92);
   }
 
   /* ---------------- Rating progression ---------------- */
