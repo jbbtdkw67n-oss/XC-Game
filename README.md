@@ -10,6 +10,31 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 7.8 — The Open Coaching Market
+
+Job hunting becomes a real decision with real risk.
+
+- **Every chair, every division.** The offseason dashboard now lists *all*
+  open head-coaching jobs in the country — DI, DII, DIII — in one
+  organized, scrollable market card. Nothing is hidden behind fit filters:
+  the blue-blood dream job is on the board next to the rebuilding DIII
+  program.
+- **Interest is your chance.** Each listing shows the school's **Interest**
+  in you (4–95%) — the literal percent chance an application lands the
+  job, built from your reputation, program, results, and hardware against
+  what the chair expects. Direct courtships (elite assistant posts,
+  assistant promotions) show **Offer** instead and are yours to take.
+- **Schools can go another direction.** Apply and fail the roll, and the
+  school hires someone else on the spot — the listing greys out ("Went
+  another direction"), the chair genuinely fills, and the door stays
+  closed for the cycle. Each chair's search outcome is seeded, so
+  re-clicking can never reroll a rejection. Rejections cost you nothing
+  but the opportunity; your current job is safe.
+- **Offseason only.** The market opens with the awards ceremony, moves
+  weekly (new searches surface, other chairs fill behind the scenes — all
+  in the news), and closes before the season begins. Nothing job-related
+  renders on the dashboard in-season.
+
 ## Version 7.7 — Assistants That Matter & a Living Job Market
 
 Assistant coaches stop being names on a door (spec Part 2, Sections 12-13 +

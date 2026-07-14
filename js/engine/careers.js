@@ -78,36 +78,18 @@
       + (rank <= 15 ? 12 : rank <= 40 ? 6 : rank <= 90 ? 3 : 0) // a strong national showing
       + (wonNat ? 15 : wonConf ? 7 : 0);               // hardware on the mantle
 
-    const candidates = vacancies.filter((s) => {
-      const need = s.prestige * 0.68 - 10;             // reputation the chair expects
-      const fit = resume - need;
-      // A near-miss still gets a look when you're clearly overachieving.
-      if (fit < -6 && !(overachievement > 30 && rng.bool(0.5))) return false;
-      // A big step down needs a genuine reason to tempt you (still surfaced,
-      // just rarer) — no one calls a rising coach about a far-lesser job often.
-      if (s.prestige < school.prestige - 25 && resume > s.prestige + 10) return rng.bool(0.4);
-      return true;
-    });
-    if (!candidates.length) { gameState.jobOffers = null; return; }
-
-    // Not every fit calls, but a stronger résumé means more phones ring.
-    let interested = candidates.filter(() => rng.bool(Utils.clamp(0.32 + resume / 140, 0.28, 0.85)));
-    // A standout season (national top-15 or a title) all but guarantees that
-    // at least one suitor comes calling if any program fits.
-    if (!interested.length) {
-      if ((rank <= 15 || wonConf || wonNat) && candidates.length) {
-        interested = [rng.choice(candidates)];
-      } else { gameState.jobOffers = null; return; }
-    }
-
-    // Expanded job market (spec Part 2): significantly more openings —
-    // Division I, II, and III chairs all surface, up to six at once.
-    const offers = rng.shuffle(interested).slice(0, 6)
+    // The open job market (spec Part 2): EVERY vacant chair is listed —
+    // Division I, II, and III — and the player may apply to any of them.
+    // Each listing carries the school's Interest in the player: the literal
+    // percent chance they hire you when you apply. Long-shot chairs stay
+    // visible; they simply tend to go another direction.
+    const offers = vacancies
       .map((s) => buildOfferRow(gameState, school, resume, s))
       .sort((a, b) => b.prestige - a.prestige);
 
     gameState.jobOffers = { year: gameState.year, expiresWeek: OFFER_EXPIRY_WEEK, offers };
-    gameState.logNews(`📞 Your phone is ringing: ${offers.length === 1 ? offers[0].schoolName + ' wants' : offers.length + ' programs want'} to talk about their head coaching job.`);
+    const hot = offers.filter((o) => (o.interest || 0) >= 60).length;
+    gameState.logNews(`📞 The coaching market opens: ${offers.length} head-coaching ${offers.length === 1 ? 'chair is' : 'chairs are'} open across the country${hot ? ` — ${hot} with genuine interest in you` : ''}.`);
   }
 
   function bestRankOf(gameState, sid) {
@@ -137,6 +119,10 @@
       natTitles: (hs.nationalTitlesM || 0) + (hs.nationalTitlesW || 0),
       confTitles: (hs.conferenceTitlesM || 0) + (hs.conferenceTitlesW || 0),
       repFit: Utils.clamp(Math.round(resume - (s.prestige * 0.68 - 10) + 50), 0, 100),
+      // The school's interest in the player — the percent chance an
+      // application lands the job. Never 0 (chairs take fliers) and never
+      // 100 (a school can always go another direction).
+      interest: Utils.clamp(Math.round(resume - (s.prestige * 0.68 - 10) + 55), 4, 95),
       kind: crossDiv && (s.division === 'DII' || s.division === 'DIII') && (school.division === 'DI')
           ? `Move to ${s.division}`
         : crossDiv && school.division !== 'DI' && s.division === 'DI' ? 'Jump to DI'
@@ -164,30 +150,34 @@
     let market = gameState.jobOffers;
     if (market && market.promotion) return; // assistant promotion offers evolve elsewhere
 
-    // A listing occasionally gets filled behind the scenes.
-    if (market && market.offers.length > 2 && rng.bool(0.18)) {
-      const gone = market.offers.splice(rng.int(0, market.offers.length - 1), 1)[0];
-      gameState.logNews(`Job market: ${gone.schoolName} fills its head-coaching vacancy — that door closes.`);
-    }
-
-    // A new opening surfaces most weeks (looser fit than the first wave, so
-    // there are meaningful choices every offseason — including steps down).
-    if (rng.bool(0.5)) {
-      const offeredIds = new Set(((market && market.offers) || []).map((o) => o.schoolId));
-      const fresh = Object.values(gameState.world.schools).filter((s) =>
-        s.id !== gameState.playerSchoolId && !offeredIds.has(s.id) &&
-        (!s.coachId || !gameState.world.coaches[s.coachId]) &&
-        s.prestige * 0.68 - 10 <= resumeLite + 14);
-      if (fresh.length && (!market || market.offers.length < 8)) {
-        const s = rng.choice(fresh);
-        if (!market) {
-          market = gameState.jobOffers = { year: gameState.year, expiresWeek: OFFER_EXPIRY_WEEK, offers: [] };
-        }
-        market.offers.push(buildOfferRow(gameState, school, resumeLite, s));
-        market.offers.sort((a, b) => b.prestige - a.prestige);
-        gameState.logNews(`📞 New opening: ${s.name} (${s.division || 'DI'}, ${s.conference}) reaches out about their head-coaching job.`);
+    // A listing occasionally gets filled behind the scenes — the chair
+    // genuinely fills (not just a cosmetic removal), so the world stays
+    // consistent with the board.
+    if (market && market.offers.filter((o) => !o.rejected).length > 2 && rng.bool(0.15)) {
+      const open = market.offers.filter((o) => !o.rejected && (o.interest || 50) < 75);
+      if (open.length) {
+        const gone = rng.choice(open);
+        const s = gameState.getSchool(gone.schoolId);
+        if (s && !s.coachId) fillVacancy(gameState, s, rng, 0);
+        market.offers = market.offers.filter((o) => o !== gone);
+        gameState.logNews(`Job market: ${gone.schoolName} fills its head-coaching vacancy — that door closes.`);
       }
     }
+
+    // Any chair that opened since the market posted (poach chains, late
+    // firings) joins the board — every opening is always visible.
+    const offeredIds = new Set(((market && market.offers) || []).map((o) => o.schoolId));
+    const fresh = Object.values(gameState.world.schools).filter((s) =>
+      s.id !== gameState.playerSchoolId && !offeredIds.has(s.id) &&
+      (!s.coachId || !gameState.world.coaches[s.coachId]));
+    fresh.forEach((s) => {
+      if (!market) {
+        market = gameState.jobOffers = { year: gameState.year, expiresWeek: OFFER_EXPIRY_WEEK, offers: [] };
+      }
+      market.offers.push(buildOfferRow(gameState, school, resumeLite, s));
+      gameState.logNews(`📞 New opening: ${s.name} (${s.division || 'DI'}, ${s.conference}) begins a head-coaching search.`);
+    });
+    if (market && fresh.length) market.offers.sort((a, b) => b.prestige - a.prestige);
   }
 
   /*
@@ -428,6 +418,49 @@
 
     gameState.logNews(`🚨 COACHING MOVE: You leave ${oldSchool.name} for ${newSchool.name} (${newSchool.conference}). The rebuild begins.`);
     return { ok: true, message: `Welcome to ${newSchool.name}!` };
+  }
+
+  /*
+   * Apply for a listed opening (spec: the player may pursue ANY chair).
+   * The school's interest is the literal chance they hire you — fail the
+   * roll and they go another direction: the chair fills with someone else
+   * and the listing closes. The outcome is seeded per chair/year, so
+   * re-clicking can't reroll a rejection. Direct offers (elite assistant
+   * posts, assistant promotions) skip the roll — those schools courted YOU.
+   */
+  // The deterministic per-chair search draw: each opening quietly settled on
+  // how strong a candidate it would take this cycle, so re-clicking Apply can
+  // never reroll a rejection. Hired iff the draw clears the interest chance.
+  function applicationRoll(gameState, schoolId) {
+    let h = 0;
+    for (let i = 0; i < schoolId.length; i++) h = ((h * 31) + schoolId.charCodeAt(i)) >>> 0;
+    const rng = new window.XCD.core.SeededRNG((gameState.seed ^ (gameState.year * 131) ^ h) >>> 0);
+    return rng.next();
+  }
+
+  function applyForJob(gameState, schoolId) {
+    const market = gameState.jobOffers;
+    const offer = market && market.offers.find((o) => o.schoolId === schoolId);
+    if (!offer) return { ok: false, message: 'That opening is no longer listed.' };
+    if (offer.assistantRole || market.promotion) return acceptOffer(gameState, schoolId);
+    if (offer.rejected) return { ok: false, message: `${offer.schoolName} already went another direction.` };
+    if (gameState.seasonPhase !== 'Offseason') {
+      return { ok: false, message: 'The coaching market runs in the offseason.' };
+    }
+    if (applicationRoll(gameState, schoolId) < (offer.interest ?? 50) / 100) {
+      return acceptOffer(gameState, schoolId);
+    }
+    // Passed over: the school hires someone else and the listing closes.
+    offer.rejected = true;
+    const school = gameState.getSchool(schoolId);
+    const rng = new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 977 + schoolId.length) >>> 0);
+    fillVacancy(gameState, school, rng, 0);
+    const hired = school.coachId && gameState.world.coaches[school.coachId];
+    gameState.logNews(`Passed over: ${school.name} goes another direction${hired ? ` and hires ${hired.fullName}` : ''} — with ${offer.interest}% interest, your candidacy fell short.`);
+    return {
+      ok: false, rejected: true,
+      message: `${school.name} went another direction${hired ? ` — they hired ${hired.fullName}` : ''}.`
+    };
   }
 
   function declineOffers(gameState) {
@@ -866,8 +899,8 @@
   }
 
   window.XCD.engine.Careers = {
-    generateOffers, generateAssistantOffers, acceptOffer, declineOffers, expireOffers,
-    evolveJobMarket, runCarousel, runAssistantCarousel, fillVacancy, coachRankings,
-    canRetire, retireAndSucceed
+    generateOffers, generateAssistantOffers, acceptOffer, applyForJob, applicationRoll,
+    declineOffers, expireOffers, evolveJobMarket, runCarousel, runAssistantCarousel,
+    fillVacancy, coachRankings, canRetire, retireAndSucceed
   };
 })();

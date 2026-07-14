@@ -122,7 +122,7 @@ async function run() {
   ok(panel.profiles >= 3 && profileOpened, 'every candidate must open a full profile card');
   console.log('staff panel:', JSON.stringify(panel));
 
-  // ---- 4) The job market: bigger first wave, evolving offseason ----
+  // ---- 4) The open job market: every chair listed, evolving offseason ----
   const market = await page.evaluate(() => {
     const g0 = window.XCD.ui.state.game;
     const g = window.XCD.engine.GameState.fromJSON(JSON.parse(JSON.stringify(g0.toJSON())));
@@ -134,24 +134,128 @@ async function run() {
     const others = Object.values(g.world.schools).filter((s) => s.id !== g.playerSchoolId).slice(0, 10);
     others.forEach((s) => { if (s.coachId) { delete g.world.coaches[s.coachId]; s.coachId = null; } });
     C.generateOffers(g, new window.XCD.core.SeededRNG(11));
-    const firstWave = g.jobOffers ? g.jobOffers.offers.length : 0;
-    const divisions = g.jobOffers ? [...new Set(g.jobOffers.offers.map((o) => o.division))] : [];
-    // The market evolves week to week.
-    let grew = false, newsHit = false;
-    for (let i = 0; i < 12; i++) {
-      const before = g.jobOffers ? g.jobOffers.offers.length : 0;
-      C.evolveJobMarket(g, new window.XCD.core.SeededRNG(500 + i));
-      const after = g.jobOffers ? g.jobOffers.offers.length : 0;
-      if (after > before) grew = true;
-    }
-    newsHit = g.newsLog.some((n) => (n.text || n).toString().includes('New opening') ||
-      (n.text || n).toString().includes('fills its head-coaching vacancy'));
-    return { firstWave, divisions, grew, newsHit, final: g.jobOffers ? g.jobOffers.offers.length : 0 };
+    // Elite assistant posts are direct courtships, not vacancies — exclude.
+    const offers = (g.jobOffers ? g.jobOffers.offers : []).filter((o) => !o.assistantRole);
+    const vacancies = Object.values(g.world.schools).filter((s) =>
+      s.id !== g.playerSchoolId && (!s.coachId || !g.world.coaches[s.coachId])).length;
+    const interestsOk = offers.every((o) => o.interest >= 4 && o.interest <= 95);
+    // The market evolves: a chair opening mid-offseason joins the board.
+    const late = Object.values(g.world.schools).find((s) =>
+      s.id !== g.playerSchoolId && s.coachId && g.world.coaches[s.coachId] && !g.world.coaches[s.coachId].isPlayer);
+    delete g.world.coaches[late.coachId];
+    late.coachId = null;
+    const before = g.jobOffers.offers.length;
+    C.evolveJobMarket(g, new window.XCD.core.SeededRNG(500));
+    const grew = g.jobOffers.offers.length > before &&
+      g.jobOffers.offers.some((o) => o.schoolId === late.id);
+    const newsHit = g.newsLog.some((n) => (n.text || n).toString().includes('New opening') ||
+      (n.text || n).toString().includes('coaching market opens'));
+    return { firstWave: offers.length, vacancies, interestsOk, grew, newsHit };
   });
-  ok(market.firstWave >= 4, 'a strong resume with open chairs must draw a big first wave (up to 6): ' + market.firstWave);
-  ok(market.grew, 'the market must evolve — new openings surfacing through the offseason');
+  ok(market.firstWave >= 10 && market.firstWave === market.vacancies,
+    `EVERY open chair must be listed (${market.firstWave} offers vs ${market.vacancies} vacancies)`);
+  ok(market.interestsOk, 'every listing must carry a 4-95% interest chance');
+  ok(market.grew, 'a chair opening mid-offseason must join the board');
   ok(market.newsHit, 'market movement must be reported in the news');
   console.log('job market:', JSON.stringify(market));
+
+  // ---- 5) Applications: interest is the literal hire chance ----
+  const apply = await page.evaluate(() => {
+    const g0 = window.XCD.ui.state.game;
+    const C = window.XCD.engine.Careers;
+    const mk = (seed) => {
+      const g = window.XCD.engine.GameState.fromJSON(JSON.parse(JSON.stringify(g0.toJSON())));
+      g.getPlayerCoach().reputation = 60;
+      g.week = 17;
+      Object.values(g.world.schools).filter((s) => s.id !== g.playerSchoolId).slice(0, 10)
+        .forEach((s) => { if (s.coachId) { delete g.world.coaches[s.coachId]; s.coachId = null; } });
+      C.generateOffers(g, new window.XCD.core.SeededRNG(seed));
+      return g;
+    };
+
+    // The per-chair search draw is deterministic and exposed, so we can pick
+    // a chair that is GUARANTEED to reject (draw above the interest chance)
+    // and one guaranteed to hire — the test never flakes on a roll.
+    // (a) A school with modest interest goes another direction.
+    const g1 = mk(21);
+    g1.jobOffers.offers.forEach((o) => { o.interest = 40; });
+    const doomed = g1.jobOffers.offers.find((o) => C.applicationRoll(g1, o.schoolId) >= 0.4);
+    const rej = C.applyForJob(g1, doomed.schoolId);
+    const rejSchool = g1.getSchool(doomed.schoolId);
+    const chairFilled = !!(rejSchool.coachId && g1.world.coaches[rejSchool.coachId]);
+    const reapply = C.applyForJob(g1, doomed.schoolId);
+    const stillHome = g1.playerSchoolId === g0.playerSchoolId;
+    const rejection = !rej.ok && rej.rejected ? rej : null;
+
+    // (b) A school with genuine interest hires the player.
+    const g2 = mk(22);
+    g2.jobOffers.offers.forEach((o) => { o.interest = 40; });
+    const lock = g2.jobOffers.offers.find((o) => C.applicationRoll(g2, o.schoolId) < 0.4);
+    let landed = false;
+    if (lock) {
+      const r = C.applyForJob(g2, lock.schoolId);
+      landed = r.ok && g2.playerSchoolId === lock.schoolId;
+    }
+
+    // (c) The market only runs in the offseason.
+    const g3 = mk(23);
+    g3.week = 5;
+    const inSeason = C.applyForJob(g3, g3.jobOffers.offers[0].schoolId);
+
+    return {
+      gotRejected: !!rejection, chairFilled,
+      reapplyBlocked: !reapply.ok && !reapply.rejected,
+      stillHome, landed,
+      inSeasonBlocked: !inSeason.ok && /offseason/i.test(inSeason.message)
+    };
+  });
+  ok(apply.gotRejected, 'low-interest schools must be able to go another direction');
+  ok(apply.chairFilled, 'a school that passes on the player must hire someone else');
+  ok(apply.reapplyBlocked, 'a closed door must stay closed for the cycle');
+  ok(apply.stillHome, 'a rejected applicant must stay at their current program');
+  ok(apply.landed, 'sufficient interest must land the player the job (and move them)');
+  ok(apply.inSeasonBlocked, 'applications must only work in the offseason stage');
+  console.log('applications:', JSON.stringify(apply));
+
+  // ---- 6) Dashboard: the market card renders organized, offseason-only ----
+  await page.evaluate(() => {
+    const g = window.XCD.ui.state.game;
+    g.week = 17;
+    Object.values(g.world.schools).filter((s) => s.id !== g.playerSchoolId).slice(0, 6)
+      .forEach((s) => { if (s.coachId) { delete g.world.coaches[s.coachId]; s.coachId = null; } });
+    window.XCD.engine.Careers.generateOffers(g, new window.XCD.core.SeededRNG(31));
+  });
+  await page.click('[data-nav="dashboard"]');
+  await page.waitForSelector('[data-apply]');
+  const board = await page.evaluate(() => {
+    const text = document.body.textContent;
+    return {
+      title: text.includes('Coaching Job Market'),
+      interestHeader: text.includes('Interest'),
+      pct: /\d+%/.test(text),
+      applies: document.querySelectorAll('[data-apply]').length
+    };
+  });
+  await page.click('[data-apply]');
+  await page.waitForSelector('#confirm-apply');
+  const modalText = await page.evaluate(() => {
+    const m = document.querySelector('.modal-backdrop');
+    const t = m ? m.textContent : '';
+    m && m.remove();
+    return { chance: t.includes('chance'), anotherDirection: t.includes('another direction') || t.includes('someone else') };
+  });
+  const inSeasonCard = await page.evaluate(() => {
+    const g = window.XCD.ui.state.game;
+    g.week = 5; // regular season: the card must vanish even if offers linger
+    window.XCD.ui.navigate('dashboard');
+    return document.body.textContent.includes('Coaching Job Market');
+  });
+  ok(board.title && board.interestHeader && board.pct && board.applies >= 5,
+    'the dashboard market card must list every chair with Interest %: ' + JSON.stringify(board));
+  ok(modalText.chance && modalText.anotherDirection, 'the apply dialog must explain the interest roll');
+  ok(!inSeasonCard, 'the job market card must only render during the offseason');
+  await page.evaluate(() => { window.XCD.ui.state.game.week = 17; }); // restore
+  console.log('market UI:', JSON.stringify({ ...board, modal: modalText }));
 
   ok(errors.length === 0, 'page errors: ' + errors.join(' | '));
 

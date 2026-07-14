@@ -20,7 +20,7 @@ node tests/test-transferrisk.js # Transfer Desire levels, reasons/anchors reveal
 node tests/test-hspb.js        # HS 5K PBs: gender distributions, ability correlation + potential independence, state champions, NXN finishes, prep history through enrollment, UI, save round-trip
 node tests/test-livescore.js   # Live team score projection: dynamic per-frame scoring from real splits, convergence to the official final, lock timing, player scoring panel, broadcast render
 node tests/test-week1.js       # Week 1 admin phase: checklist gates Week 2, schedule finalization + Pre-Nationals lock, DI 14-athlete limit with player cuts + CPU trim, rollover reset
-node tests/test-staff.js       # Assistant value (dev/chemistry/morale/recruiting/peaking wiring), free-agent pool candidates, full comparison panel + profiles, evolving job market
+node tests/test-staff.js       # Assistant value (dev/chemistry/morale/recruiting/peaking wiring), free-agent pool, comparison panel + profiles, open job market (all chairs, Interest %, apply/reject flow, offseason-only)
 ```
 
 Each script prints `PASS` or `FAIL` with details and exits non-zero on failure.

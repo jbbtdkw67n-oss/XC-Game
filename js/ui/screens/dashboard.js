@@ -372,38 +372,56 @@
         </div>
       </div>
 
-      ${game.jobOffers && game.jobOffers.offers.length ? `
+      ${game.jobOffers && game.jobOffers.offers.length && game.seasonPhase === 'Offseason' ? (() => {
+        // The open coaching market (spec + user request): every vacant chair
+        // is listed and applyable. "Interest" is the school's interest in the
+        // player — the literal percent chance an application lands the job.
+        // Direct offers (promotions, elite assistant posts) skip the roll.
+        const promo = game.jobOffers.promotion;
+        const rows = game.jobOffers.offers.map((o) => {
+          const direct = promo || o.assistantRole;
+          const interest = o.interest ?? o.repFit ?? 50;
+          const iColor = interest >= 60 ? 'var(--success)' : interest >= 30 ? 'var(--warning)' : 'var(--danger)';
+          const action = o.rejected
+            ? '<span style="color:var(--text-faint); font-size:11.5px;">Went another direction</span>'
+            : direct
+              ? `<button class="btn small primary" data-accept="${o.schoolId}">Accept</button>`
+              : `<button class="btn small primary" data-apply="${o.schoolId}" data-interest="${interest}">Apply</button>`;
+          return `
+            <tr ${o.rejected ? 'style="opacity:0.55;"' : ''}>
+              <td>${o.kind === 'Dream job' ? '🌟 ' : ''}<strong>${Utils.escapeHtml(o.schoolName)}</strong>
+                <div><span class="rating ${o.kind === 'Dream job' || o.kind === 'Jump to DI' || o.kind === 'Elite assistant post' ? 'r-elite' : o.kind === 'Step up' ? 'r-great' : o.kind === 'Lateral move' ? 'r-avg' : 'r-poor'}" style="font-size:10px;">${o.kind}</span></div></td>
+              <td>${o.division}</td>
+              <td style="font-size:12px;">${Utils.escapeHtml(o.conference)}</td>
+              <td class="num">${o.prestige}</td>
+              <td class="num">$${o.budget ? (o.budget / 1000).toFixed(0) + 'k' : '—'}</td>
+              <td class="num">${o.facilities ?? '—'}</td>
+              <td class="num">${o.bestRank ? '#' + o.bestRank : '—'}</td>
+              <td class="num">${o.natTitles || 0}🏆</td>
+              <td class="num">${direct
+                ? '<span style="color:var(--success); font-weight:700;" title="They came to you — the job is yours to take">Offer</span>'
+                : `<span style="color:${iColor}; font-weight:700;" title="The school's interest in you — your chance of landing the job if you apply. They may go another direction.">${interest}%</span>`}</td>
+              <td>${action}</td>
+            </tr>`;
+        }).join('');
+        return `
         <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent);">
-          <h2>${game.jobOffers.promotion ? '🎉 Head-Coaching Offers — Your Promotion Awaits' : '📞 Job Offers — the Offseason Carousel'}</h2>
+          <h2>${promo ? '🎉 Head-Coaching Offers — Your Promotion Awaits' : `🗂 Coaching Job Market — ${game.jobOffers.offers.filter((o) => !o.rejected).length} Open Chair${game.jobOffers.offers.filter((o) => !o.rejected).length === 1 ? '' : 's'}`}</h2>
           <div style="color:var(--text-dim); font-size:13px; margin-bottom:10px;">
-            ${game.jobOffers.promotion
+            ${promo
               ? `Your recruiting has earned you head-coaching offers. Accept one to run your own program — you'll take full control of training, scheduling, and race strategy — stay an assistant, or wait (offers hold until Week ${game.jobOffers.expiresWeek}).`
-              : `Multiple programs want you. Accept one, stay loyal, or wait and decide later (offers hold until Week ${game.jobOffers.expiresWeek}). Leaving resets your recruiting board and team culture; your career record travels with you.`}
+              : `Every open chair in the country, all divisions. <strong>Interest</strong> is each school's interest in you — the chance they hire you if you apply. Fail the roll and they go another direction (final for the cycle). The market moves weekly and closes after Week ${game.jobOffers.expiresWeek}.`}
           </div>
-          <div class="table-wrap"><table class="data">
-            <thead><tr><th>School</th><th>Div</th><th>Conf</th><th class="num">Prestige</th><th class="num">Budget</th><th class="num">Facilities</th><th class="num">Recent</th><th class="num">Titles</th><th>Fit</th><th></th></tr></thead>
-            <tbody>
-              ${game.jobOffers.offers.map((o) => `
-                <tr>
-                  <td>${o.kind === 'Dream job' ? '🌟 ' : ''}<strong>${Utils.escapeHtml(o.schoolName)}</strong>
-                    <div><span class="rating ${o.kind === 'Dream job' || o.kind === 'Jump to DI' || o.kind === 'Elite assistant post' ? 'r-elite' : o.kind === 'Step up' ? 'r-great' : o.kind === 'Lateral move' ? 'r-avg' : 'r-poor'}" style="font-size:10px;">${o.kind}</span></div></td>
-                  <td>${o.division}</td>
-                  <td style="font-size:12px;">${Utils.escapeHtml(o.conference)}</td>
-                  <td class="num">${o.prestige}</td>
-                  <td class="num">$${o.budget ? (o.budget / 1000).toFixed(0) + 'k' : '—'}</td>
-                  <td class="num">${o.facilities ?? '—'}</td>
-                  <td class="num">${o.bestRank ? '#' + o.bestRank : '—'}</td>
-                  <td class="num">${o.natTitles || 0}🏆</td>
-                  <td>${UI.meter(o.repFit ?? 50, o.repFit >= 60 ? 'green' : o.repFit >= 40 ? 'yellow' : 'red')}</td>
-                  <td><button class="btn small primary" data-accept="${o.schoolId}">Accept</button></td>
-                </tr>`).join('')}
-            </tbody>
+          <div class="table-wrap" style="max-height:340px; overflow-y:auto;"><table class="data">
+            <thead><tr><th>School</th><th>Div</th><th>Conf</th><th class="num">Prestige</th><th class="num">Budget</th><th class="num">Facilities</th><th class="num">Recent</th><th class="num">Titles</th><th class="num">Interest</th><th></th></tr></thead>
+            <tbody>${rows}</tbody>
           </table></div>
           <div style="margin-top:10px; display:flex; gap:8px;">
-            <button class="btn small danger" id="btn-decline-offers">Stay Loyal (Decline All)</button>
+            <button class="btn small danger" id="btn-decline-offers">Stay Loyal (${promo ? 'Decline All' : 'Close the Market'})</button>
             <button class="btn small" id="btn-wait-offers">Wait — Decide Later</button>
           </div>
-        </div>` : ''}
+        </div>`;
+      })() : ''}
 
       <div class="card" style="margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
@@ -527,6 +545,37 @@
             UI.closeModal();
             UI.toast(result.message, result.ok ? 'success' : 'error');
             if (result.ok) UI.renderShell();
+          });
+        });
+      });
+    });
+    // Open-market applications: the school's interest decides the roll.
+    container.querySelectorAll('[data-apply]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const target = game.getSchool(btn.dataset.apply);
+        const interest = Number(btn.dataset.interest) || 50;
+        UI.showModal(`
+          <h2>Apply for the ${Utils.escapeHtml(target.name)} job?</h2>
+          <p style="color:var(--text-dim); margin-bottom:8px;">
+            Their interest in you is <strong style="color:${interest >= 60 ? 'var(--success)' : interest >= 30 ? 'var(--warning)' : 'var(--danger)'};">${interest}%</strong> —
+            that's your chance of landing the chair. If they pass, they'll hire someone else and the door
+            closes for this cycle.
+          </p>
+          <p style="color:var(--text-dim); margin-bottom:16px;">
+            Land it and you leave ${Utils.escapeHtml(game.getPlayerSchool().name)} immediately — your career
+            record travels with you; your roster, recruits, and captains stay behind.
+          </p>
+          <div style="display:flex; gap:10px;">
+            <button class="btn primary" id="confirm-apply">Apply (${interest}% chance)</button>
+            <button class="btn" data-modal-close>Cancel</button>
+          </div>
+        `, (modal) => {
+          modal.querySelector('#confirm-apply').addEventListener('click', () => {
+            const result = window.XCD.engine.Careers.applyForJob(game, btn.dataset.apply);
+            UI.closeModal();
+            UI.toast(result.message, result.ok ? 'success' : 'error');
+            if (result.ok) UI.renderShell();
+            else render(container); // reflect a closed door without losing the dashboard
           });
         });
       });
