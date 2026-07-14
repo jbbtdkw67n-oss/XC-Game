@@ -10,6 +10,34 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 7.9 — Facilities That Matter & Success-Driven Fundraising
+
+Eight decorative facilities become five that genuinely shape training —
+verified by a full 100-season soak test.
+
+- **Five living facilities.** 🏋️ **Weight Room** (injury prevention —
+  strong bodies break down less), 🏥 **Rehab Center** (faster weekly
+  recovery, shorter injury layoffs, less fitness lost while hurt), 🏃
+  **Training Center** (development speed and fitness gains for the whole
+  roster), 🏟 **Indoor Track** (speed sessions and race simulations
+  sharpen more, and Speed develops faster from speed work), and 🎓
+  **Alumni Center** (fundraising power). The dead weight — nutrition,
+  locker room, altitude room, sports science lab — folds into them; old
+  saves migrate automatically, and the facilities panel now states every
+  implication on hover.
+- **Fundraising follows success and size.** A booster push is now driven
+  by how successful the program is (current poll standing, trophy case,
+  prestige trajectory) and how big the school is (a power-conference DI
+  university dwarfs a DIII college), amplified by the Alumni Center —
+  from ~$5k for a struggling small college to $120k+ for a national
+  power with a strong donor network. The yearly facilities-fund refill
+  compounds with the alumni network too.
+- **100-season soak test.** A new `tests/test-100seasons.js` simulates a
+  full century (~9 minutes): world talent held flat all hundred years,
+  injury/recovery rates stable, every chair and staff filled, every
+  roster full and DI-capped, facilities intact, 100 champion years in
+  the records, and the save round-trips cleanly.
+
 ## Version 7.8 — The Open Coaching Market
 
 Job hunting becomes a real decision with real risk.

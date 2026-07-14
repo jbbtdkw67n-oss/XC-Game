@@ -396,9 +396,16 @@
         // never a talent override. Defaults to a neutral-positive baseline.
         teamMorale: 65,
 
+        // Five facilities, each with a real training implication (spec Part 2,
+        // Section 18 audit — facilities must matter):
+        //   trainingCenter — development speed & fitness gains
+        //   weightRoom     — injury prevention & durability
+        //   rehabCenter    — recovery rate, injury rehab time, layoff costs
+        //   indoorTrack    — race sharpness & speed-work payoff
+        //   alumniCenter   — fundraising power & program pull
         facilities: {
-          trainingCenter: 50, weightRoom: 50, recoveryCenter: 50, nutrition: 50,
-          lockerRoom: 50, indoorTrack: 40, altitudeRoom: 20, sportsScienceLab: 30
+          trainingCenter: 50, weightRoom: 50, rehabCenter: 50,
+          indoorTrack: 40, alumniCenter: 35
         },
 
         budget: {
@@ -423,6 +430,23 @@
 
         ...data
       });
+      // Facilities consolidation (spec: five that matter). Saves from the
+      // old eight-facility model fold down: sports science and nutrition
+      // strengthen the training center and rehab center, the locker room's
+      // donor polish seeds the alumni center, the altitude room retires
+      // (altitude training lives in school.weather).
+      if (this.facilities && this.facilities.rehabCenter === undefined) {
+        const f = this.facilities;
+        const clamp = (v) => window.XCD.core.Utils.clamp(Math.round(v), 5, 99);
+        this.facilities = {
+          trainingCenter: clamp((f.trainingCenter ?? 50) * 0.65 + (f.sportsScienceLab ?? f.trainingCenter ?? 50) * 0.20 + (f.nutrition ?? 50) * 0.15),
+          weightRoom: clamp(f.weightRoom ?? 50),
+          rehabCenter: clamp((f.recoveryCenter ?? 50) * 0.7 + (f.nutrition ?? 50) * 0.3),
+          indoorTrack: clamp(f.indoorTrack ?? 40),
+          alumniCenter: clamp((f.lockerRoom ?? 40) * 0.5 + (this.prestige ?? 50) * 0.35 + (this.heritage ? 8 : 0))
+        };
+      }
+
       // Keep scholarship limits in sync with division rules (data-driven).
       const div = window.XCD.data.divisionFor && window.XCD.data.divisionFor(this);
       if (div && (!data || data.scholarshipsAvailableM === undefined)) {

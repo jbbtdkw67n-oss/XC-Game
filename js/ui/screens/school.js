@@ -5,10 +5,14 @@
   const UI = window.XCD.ui;
   const Utils = window.XCD.core.Utils;
 
+  // Five facilities, each with a stated training implication (facilities
+  // overhaul) — the tooltip tells the player exactly what the money buys.
   const FACILITY_LABELS = {
-    trainingCenter: 'Training Center', weightRoom: 'Weight Room', recoveryCenter: 'Recovery Center',
-    nutrition: 'Nutrition Program', lockerRoom: 'Locker Room', indoorTrack: 'Indoor Track',
-    altitudeRoom: 'Altitude Room', sportsScienceLab: 'Sports Science Lab'
+    trainingCenter: ['Training Center', 'Development speed: every athlete grows faster each week, and training fitness builds quicker.'],
+    weightRoom: ['Weight Room', 'Injury prevention: strong bodies break down less under the same load.'],
+    rehabCenter: ['Rehab Center', 'Recovery: faster weekly fatigue recovery, shorter injury layoffs, and less fitness lost while hurt.'],
+    indoorTrack: ['Indoor Track', 'Sharpness: speed sessions and race simulations pay out more, and Speed develops faster from speed work.'],
+    alumniCenter: ['Alumni Center', 'Fundraising: bigger booster pushes and a faster-refilling facilities fund, scaled by program success and school size.']
   };
 
   const COACH_ATTRS = [
@@ -201,21 +205,23 @@
             <span style="font-size:13px; color:var(--text-dim);">Facilities Fund: <strong style="color:var(--text);">$${school.budget.facilitiesFund.toLocaleString()}</strong></span>
             <button class="btn small primary" id="btn-fundraise" ${game.fundraisedYear === game.year ? 'disabled title="Boosters already gave this year"' : ''}>💰 Fundraise</button>
           </div>
-          ${Object.entries(FACILITY_LABELS).map(([key, label]) => {
+          ${Object.entries(FACILITY_LABELS).map(([key, [label, effect]]) => {
             const level = school.facilities[key];
             const cost = window.XCD.engine.Finances.upgradeCost(level);
             const afford = school.budget.facilitiesFund >= cost && level < 99;
             return `
-            <div class="attr-row" style="margin-bottom:6px;">
-              <span class="attr-name" style="min-width:128px;">${label}</span>
+            <div class="attr-row" style="margin-bottom:6px;" title="${effect}">
+              <span class="attr-name" style="min-width:128px; cursor:help;">${label}</span>
               <div style="flex:1; margin:0 10px;">${UI.meter(level)}</div>
               <span style="font-weight:700; font-size:12.5px; min-width:24px;">${level}</span>
               <button class="btn small" data-upg="${key}" ${afford ? '' : `disabled title="${level >= 99 ? 'World-class' : 'Costs $' + cost.toLocaleString()}"`}
-                style="margin-left:8px;" title="Upgrade +${window.XCD.engine.Finances.UPGRADE_STEP} for $${cost.toLocaleString()}">▲ $${Math.round(cost / 1000)}k</button>
+                style="margin-left:8px;" title="Upgrade +${window.XCD.engine.Finances.UPGRADE_STEP} for $${cost.toLocaleString()} — ${effect}">▲ $${Math.round(cost / 1000)}k</button>
             </div>`;
           }).join('')}
           <div style="font-size:12px; color:var(--text-faint); margin-top:6px;">
-            Facilities boost development and recruiting. The fund refills each year — faster when you win.
+            Every facility has a real training implication — hover a name to see it. Fundraising scales with
+            program success and school size (${window.XCD.engine.Finances.schoolSizeLabel(school).toLowerCase()}),
+            amplified by the Alumni Center. The fund also refills yearly — faster when you win.
           </div>
         </div>
       </div>

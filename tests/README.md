@@ -21,6 +21,8 @@ node tests/test-hspb.js        # HS 5K PBs: gender distributions, ability correl
 node tests/test-livescore.js   # Live team score projection: dynamic per-frame scoring from real splits, convergence to the official final, lock timing, player scoring panel, broadcast render
 node tests/test-week1.js       # Week 1 admin phase: checklist gates Week 2, schedule finalization + Pre-Nationals lock, DI 14-athlete limit with player cuts + CPU trim, rollover reset
 node tests/test-staff.js       # Assistant value (dev/chemistry/morale/recruiting/peaking wiring), free-agent pool, comparison panel + profiles, open job market (all chairs, Interest %, apply/reject flow, offseason-only)
+node tests/test-facilities.js  # Five-facility overhaul: shape + old-save migration, rehab/indoor-track/training-center implications, success+size fundraising, panel UI
+node tests/test-100seasons.js  # Century soak (~9 min): talent stability, health rates, staffing/roster/facility integrity, records, save size + round-trip
 ```
 
 Each script prints `PASS` or `FAIL` with details and exits non-zero on failure.

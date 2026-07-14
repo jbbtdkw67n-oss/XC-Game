@@ -26,19 +26,64 @@
     return { ok: true, message: `Upgrade complete (+${UPGRADE_STEP}) — $${cost.toLocaleString()} spent.`, cost };
   }
 
-  // Once-a-year booster push driven by prestige and the coach's culture.
+  /*
+   * School size (facilities overhaul): in this world a program's size IS its
+   * division and conference tier — a power-conference DI school is a huge
+   * state university with a giant alumni base; a DIII program is a small
+   * college. Size scales how much money a fundraising push can move.
+   */
+  function schoolSizeFactor(school) {
+    const div = school.division || 'DI';
+    if (div === 'DII') return 0.55;
+    if (div === 'DIII') return 0.4;
+    return ({ 1: 1.5, 2: 1.15, 3: 0.9 }[school.conferenceTier] || 0.9);
+  }
+
+  function schoolSizeLabel(school) {
+    const f = schoolSizeFactor(school);
+    return f >= 1.4 ? 'Large university' : f >= 0.9 ? 'Mid-size university' : f >= 0.55 ? 'Small university' : 'Small college';
+  }
+
+  /*
+   * How successful is this program RIGHT NOW in its donors' eyes? Current
+   * poll standing, hardware in the trophy case, and prestige trajectory.
+   */
+  function programSuccessScore(gameState, school) {
+    let best = 999;
+    if (gameState.rankings) {
+      ['M', 'W'].forEach((g) => {
+        const row = gameState.rankings[g].find((r) => r.schoolId === school.id);
+        if (row) best = Math.min(best, row.rank);
+      });
+    }
+    const rankMoney = best <= 5 ? 14000 : best <= 15 ? 9000 : best <= 40 ? 4500 : best <= 100 ? 1500 : 0;
+    const hs = school.historicalSuccess || {};
+    const hardware = Math.min(12000,
+      ((hs.nationalTitlesM || 0) + (hs.nationalTitlesW || 0)) * 2500 +
+      ((hs.conferenceTitlesM || 0) + (hs.conferenceTitlesW || 0)) * 350);
+    const momentum = Utils.clamp((school.prestigeMomentum || 0) * 900, -3000, 4500);
+    return rankMoney + hardware + momentum;
+  }
+
+  /*
+   * Once-a-year booster push (facilities overhaul): what a program can
+   * raise is driven by how successful it is (poll standing, titles,
+   * trajectory) and how big the school is — amplified by the Alumni
+   * Center, the facility built to keep donors close.
+   */
   function fundraise(gameState) {
     if (gameState.fundraisedYear === gameState.year) {
       return { ok: false, message: 'The boosters already gave this year.' };
     }
     const school = gameState.getPlayerSchool();
     const coach = gameState.getPlayerCoach();
-    // Boosters give to winners with strong programs — and coaches whose
-    // culture makes people want to be part of it.
-    const amount = Math.round((school.prestige * 320 + coach.culture * 260 + 8000) / 100) * 100;
+    const base = 5000 + school.prestige * 180 + coach.culture * 120;
+    const success = programSuccessScore(gameState, school);
+    const alumniMult = 0.7 + (school.facilities.alumniCenter || 35) / 110; // ~0.75–1.6
+    const amount = Math.round((base + success) * schoolSizeFactor(school) * alumniMult / 100) * 100;
     school.budget.facilitiesFund += amount;
     gameState.fundraisedYear = gameState.year;
-    gameState.logNews(`Fundraiser: boosters commit $${amount.toLocaleString()} to the facilities fund.`);
+    gameState.logNews(`Fundraiser: boosters commit $${amount.toLocaleString()} to the facilities fund (${schoolSizeLabel(school).toLowerCase()}, alumni network ${school.facilities.alumniCenter}).`);
     return { ok: true, message: `Boosters commit $${amount.toLocaleString()}!`, amount };
   }
 
@@ -69,8 +114,11 @@
       school.budget.travel = Math.round(school.budget.total * 0.22);
       school.budget.scholarships = division.scholarshipModel === 'none' ? 0 : Math.round(school.budget.total * 0.42);
       school.budget.nil = division.nil ? Math.round(school.budget.total * 0.08 * (school.conferenceTier === 1 ? 2 : 1)) : 0;
+      // The alumni center quietly compounds: a strong donor network tops up
+      // the facilities fund a little faster every year.
+      const alumniTopUp = 1 + ((school.facilities.alumniCenter || 35) - 35) / 220;
       school.budget.facilitiesFund = Math.min(
-        school.budget.facilitiesFund + Math.round(school.budget.total * 0.12) + bonus,
+        school.budget.facilitiesFund + Math.round(school.budget.total * 0.12 * alumniTopUp) + bonus,
         Math.round(school.budget.total * 0.5)
       );
 
@@ -91,5 +139,8 @@
     });
   }
 
-  window.XCD.engine.Finances = { upgradeFacility, fundraise, yearlyRefresh, upgradeCost, UPGRADE_STEP };
+  window.XCD.engine.Finances = {
+    upgradeFacility, fundraise, yearlyRefresh, upgradeCost,
+    schoolSizeFactor, schoolSizeLabel, programSuccessScore, UPGRADE_STEP
+  };
 })();

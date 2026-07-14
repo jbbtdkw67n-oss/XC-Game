@@ -381,7 +381,7 @@
     const coachSkill = coach ? (coach.training ?? coach.development ?? 55) : 50;
     const coachFactor = 0.55 + coachSkill / 110;
     // Facilities matter: training center + sports science drive development.
-    const facFactor = 0.55 + (school.facilities.trainingCenter + school.facilities.sportsScienceLab) / 290;
+    const facFactor = 0.50 + school.facilities.trainingCenter / 145;
     const makeupFactor = 0.55 + (athlete.workEthic + athlete.coachability) / 320;
     const moraleFactor = 0.75 + athlete.morale / 280;
     const fatiguePenalty = athlete.fatigue > 75 ? 0.50 : athlete.fatigue > 55 ? 0.85 : 1.0;
@@ -461,8 +461,8 @@
     // A recently-healed runner is markedly more likely to break down again.
     const reinjuryMult = (athlete.recentInjuryWeeks || 0) > 0 ? 1.7 : 1;
 
-    // Sports science and the weight room keep runners healthy.
-    const facilityMult = 1.12 - (school.facilities.sportsScienceLab + school.facilities.weightRoom) / 800;
+    // The weight room keeps runners healthy (facilities overhaul).
+    const facilityMult = 1.14 - school.facilities.weightRoom / 400;
 
     let chance = base * planMeta.injuryMult * fatigueMult * resistMult
       * chronicMult * raceMult * reinjuryMult * facilityMult * philoInjuryMult;
@@ -490,7 +490,7 @@
     // Chronic overuse from big mileage overreach means longer layoffs.
     if (overLimit && excess > 14) weeks = Math.round(weeks * (1 + Math.min(0.6, (excess - 14) * 0.03)));
     // Good recovery centers and natural resilience shorten layoffs.
-    const rehab = 1.15 - athlete.injuryResistance / 500 - school.facilities.recoveryCenter / 450;
+    const rehab = 1.15 - athlete.injuryResistance / 500 - school.facilities.rehabCenter / 450;
     weeks = Math.max(1, Math.round(weeks * rehab));
     return { type: injury.type, weeksRemaining: weeks, totalWeeks: weeks, overuse: !!injury.overuse };
   }
@@ -564,7 +564,7 @@
       athlete.seasonInjuryWeeks = (athlete.seasonInjuryWeeks || 0) + 1;
       athlete.fatigue = Utils.clamp(athlete.fatigue - 12, 0, 100);
       const fitnessSlide = Utils.clamp(
-        5.5 - athlete.injuryResistance / 40 - school.facilities.recoveryCenter / 120, 2, 6);
+        5.5 - athlete.injuryResistance / 40 - school.facilities.rehabCenter / 120, 2, 6);
       athlete.fitness = Utils.clamp(athlete.fitness - fitnessSlide, 0, 100);
       athlete.sharpness = Utils.clamp((athlete.sharpness ?? 55) - 4, 0, 100);
       athlete.confidence = Utils.clamp((athlete.confidence ?? 60) - 1.3, 10, 99);
@@ -603,7 +603,7 @@
     // Fatigue & fitness. Volume adds its own load; recovery rate scales
     // with innate resilience and the program's recovery facilities.
     const recoveryRate = 4 + athlete.injuryResistance / 30 +
-      school.facilities.recoveryCenter / 40 + school.facilities.nutrition / 80 - altRecovery;
+      school.facilities.rehabCenter / 27 - altRecovery;
     let weeklyFatigue = planMeta.fatigue + mMeta.fatigueAdd * (planMeta.loadMult ?? 1);
     // Training philosophy shifts how much fatigue the work accumulates (only
     // the load side — recovery is unaffected).
@@ -626,8 +626,12 @@
     // allows. Speed work sharpens; tapering off a real base sharpens fastest;
     // scheduled rest days add freshness; a championship simulation (Update 6)
     // is the sharpest single stimulus there is.
-    let sharpTarget = mMeta.sharpTarget + (planMeta.speedDays || 0) * 2.5 + (planMeta.restDays || 0) * 3
-      + (planMeta.racesimDays || 0) * 6;
+    // Indoor track (facilities overhaul): a real indoor facility makes every
+    // speed session and race rehearsal count for more — all-weather, banked,
+    // fast. A dirt loop in the rain blunts the same work.
+    const trackQual = 1 + (school.facilities.indoorTrack - 45) / 160; // ~0.75–1.34
+    let sharpTarget = mMeta.sharpTarget + (planMeta.speedDays || 0) * 2.5 * trackQual
+      + (planMeta.restDays || 0) * 3 + (planMeta.racesimDays || 0) * 6 * trackQual;
     sharpTarget = Utils.clamp(sharpTarget, 15, 96);
     // Race rust (Injury System Expansion): a runner rebuilding from injury
     // can't be fully race-sharp until the Recovering window closes.
@@ -754,6 +758,11 @@
     athlete.devProgress = (athlete.devProgress || 0) + dev;
     if (athlete.devProgress >= 1) {
       const weights = applyPhilosophyWeights(mileageAttrWeights(planMeta.attrWeights, mMeta.mileage), philo);
+      // Indoor track (facilities overhaul): speed work on a real indoor
+      // facility develops Speed noticeably faster than a cinder loop.
+      if ((planMeta.speedDays || 0) > 0 && weights.speed) {
+        weights.speed *= 1 + (school.facilities.indoorTrack - 45) / 140;
+      }
       applyDevelopment(athlete, weights, rng);
     }
 

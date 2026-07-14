@@ -70,16 +70,16 @@
 
     const campusAppeal = Utils.clamp(Math.round(prestige * 0.5 + rng.int(15, 45)), 20, 99);
 
+    // Five facilities that matter (spec Part 2): training center (development),
+    // weight room (injury prevention), rehab center (recovery), indoor track
+    // (sharpness & speed work), alumni center (fundraising & pull).
     const fBase = Utils.clamp(prestige - rng.int(-8, 8), 20, 95);
     const facilities = {
       trainingCenter: Utils.clamp(fBase + rng.int(-10, 10), 15, 99),
       weightRoom: Utils.clamp(fBase + rng.int(-10, 10), 15, 99),
-      recoveryCenter: Utils.clamp(fBase - 10 + rng.int(-10, 10), 10, 99),
-      nutrition: Utils.clamp(fBase - 5 + rng.int(-10, 10), 10, 99),
-      lockerRoom: Utils.clamp(fBase + rng.int(-10, 10), 15, 99),
-      indoorTrack: Utils.clamp(fBase - 20 + rng.int(-15, 15), 5, 95),
-      altitudeRoom: Utils.clamp((MOUNTAIN_STATES.has(state) ? fBase + 10 : fBase - 30) + rng.int(-10, 10), 0, 95),
-      sportsScienceLab: Utils.clamp(fBase - 15 + rng.int(-15, 15), 5, 95)
+      rehabCenter: Utils.clamp(fBase - 8 + rng.int(-10, 10), 10, 99),
+      indoorTrack: Utils.clamp(fBase - 18 + rng.int(-15, 15), 5, 95),
+      alumniCenter: Utils.clamp(Math.round(prestige * 0.6 + (heritage ? 12 : 0)) + rng.int(-8, 12), 10, 99)
     };
 
     // Budgets scale by conference tier AND by division: DII operates on a

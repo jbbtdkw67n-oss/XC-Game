@@ -426,7 +426,7 @@
       facilities: school.facilitiesOverall,
       nil: division.nil ? Utils.clamp(Math.round(school.budget.nil / 1200), 5, 100) : 5,
       playingTime: playingTimeScore(gameState, school, recruit, ctx),
-      development: coach ? Math.round(coach.training * 0.65 + school.facilities.sportsScienceLab * 0.35) : 50
+      development: coach ? Math.round(coach.training * 0.65 + school.facilities.trainingCenter * 0.35) : 50
     };
 
     let total = 0;
