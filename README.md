@@ -59,6 +59,13 @@ that respects a handshake.
   **2–4 pursuing schools per athlete** — top programs still chase the
   top names and small programs the overlooked, only the market size came
   back down.
+- **Your pursuit is a real edge.** Chasing a transfer in person now
+  matters: you can work up to **6 targets at once**, and an athlete
+  genuinely prefers the staff recruiting them hardest — so you reliably
+  land the roster help you focus on, while a true star still forces a real
+  fight against the blue bloods. The portal also shows each athlete's
+  **remaining eligibility** — the seasons they'll actually give your
+  program, since transferring uses a year (they move up a class).
 - **The carousel respects a handshake.** Accepting any coaching job
   immediately clears every remaining offer, closes the market to you for
   the rest of that offseason, and the accepted chair is final for the

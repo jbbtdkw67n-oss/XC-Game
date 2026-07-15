@@ -24,7 +24,52 @@
   const SUMMER_FINAL_WEEK = CAL.SUMMER_WEEKS;
   const SEASON_END_WEEK = CAL.NATIONAL_WEEK;
   const REDSHIRT_CUTOFF = CAL.MEET_WEEKS[2];  // mid regular season
-  const PLAYER_OFFER_LIMIT = 3;
+  // The player can work more of the board at once (Update 11.1) — chasing
+  // only three transfers made landing any of them a coin-flip grind.
+  const PLAYER_OFFER_LIMIT = 6;
+  // A transfer the player actively pursues is being recruited by a head
+  // coach in person — direct contact and a real pitch the passive CPU
+  // market doesn't match. Two levers model that edge:
+  //  - a modest appeal bump, so the player's program clears the athlete's
+  //    "worth committing to" bar and lands among the finalists; and
+  //  - a heavier weight in the final choice, because an athlete genuinely
+  //    prefers the staff courting them hardest.
+  // It's a real edge, not a guarantee: a blue blood can still out-pull the
+  // player for a true star, where CPU appeal towers over a mid program's.
+  const PLAYER_PURSUIT_BONUS = 16;
+  const PLAYER_PURSUIT_WEIGHT = 6;
+
+  // Rank a portal entry's suitors by the athlete's real appeal, with the
+  // player's own program credited for actively pursuing (see above).
+  function rankedOffers(gameState, entry, a, fromSchool) {
+    return entry.offers
+      .map((sid) => {
+        let appeal = portalAppeal(gameState, gameState.getSchool(sid), a, fromSchool);
+        if (sid === gameState.playerSchoolId) {
+          appeal = Utils.clamp(appeal + PLAYER_PURSUIT_BONUS, 0, 100);
+        }
+        return { sid, appeal };
+      })
+      .sort((x, y) => y.appeal - x.appeal);
+  }
+
+  // The athlete's final pick among its finalists: appeal, steeply weighted,
+  // with the player's active pursuit favored. The edge is strongest for
+  // athletes who'd realistically choose a program at the player's level and
+  // fades (never to nothing) for stars far above it, who have their pick of
+  // blue bloods — so the player reliably lands roster help they focus on, but
+  // still has to win a real fight for a difference-maker.
+  function chooseSuitor(gameState, ranked, rng, pow, athlete) {
+    const school = gameState.getPlayerSchool();
+    let mult = PLAYER_PURSUIT_WEIGHT;
+    if (athlete && school) {
+      const reach = athlete.currentOverall - (30 + school.prestige * 0.55);
+      if (reach > 10) mult = Math.max(2, PLAYER_PURSUIT_WEIGHT - (reach - 10) * 0.35);
+    }
+    return rng.weightedChoice(ranked.slice(0, 3), (o) =>
+      Math.pow(Math.max(o.appeal, 1), pow) *
+      (o.sid === gameState.playerSchoolId ? mult : 1));
+  }
 
   /* ================================================================ *
    * Redshirts
@@ -630,15 +675,13 @@
       // Elite transfers let their (smaller, Update 11) market develop: a
       // star doesn't commit on the first call — the top suitors line up.
       if (!final && a.currentOverall >= 72 && entry.offers.length < 3) return;
-      const ranked = entry.offers
-        .map((sid) => ({ sid, appeal: portalAppeal(gameState, gameState.getSchool(sid), a, fromSchool) }))
-        .sort((x, y) => y.appeal - x.appeal);
+      const ranked = rankedOffers(gameState, entry, a, fromSchool);
       if (ranked[0].appeal < 45 && !final) return;
 
       // Elite transfers weigh their bidding war carefully (Update X): the
       // best recruiter / best program pursuing them wins far more often.
       const pow = a.currentOverall >= 72 ? 4 : 3;
-      const choice = rng.weightedChoice(ranked.slice(0, 3), (o) => Math.pow(o.appeal, pow));
+      const choice = chooseSuitor(gameState, ranked, rng, pow, a);
       entry.destination = choice.sid;
       entry.decidedWeek = gameState.week;
       const to = gameState.getSchool(choice.sid);
@@ -736,11 +779,9 @@
       const a = gameState.getAthlete(entry.athleteId);
       const fromSchool = gameState.getSchool(entry.fromSchoolId);
       if (!a) return;
-      const ranked = entry.offers
-        .map((sid) => ({ sid, appeal: portalAppeal(gameState, gameState.getSchool(sid), a, fromSchool) }))
-        .sort((x, y) => y.appeal - x.appeal);
+      const ranked = rankedOffers(gameState, entry, a, fromSchool);
       if (!final && ranked[0].appeal < 45) return;
-      const choice = rng.weightedChoice(ranked.slice(0, 3), (o) => Math.pow(Math.max(o.appeal, 1), 3));
+      const choice = chooseSuitor(gameState, ranked, rng, 3, a);
       entry.destination = choice.sid;
       entry.decidedWeek = gameState.week;
       if (applySummerMove(gameState, entry, rng)) {

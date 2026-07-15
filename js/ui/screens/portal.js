@@ -72,6 +72,13 @@
 
       <div class="card"><div id="portal-table"></div></div>`;
 
+    // Eligibility a transfer will actually give the new program. Transferring
+    // costs a year — the athlete ages a class at the rollover — so a fall
+    // portal athlete brings (eligibilityRemaining − 1) seasons. Summer-window
+    // athletes already aged this offseason (they were cut after the rollover),
+    // so they bring their full remaining eligibility.
+    const seasonsLeft = (a) => Math.max(0, (a.eligibilityRemaining || 0) - (summer ? 0 : 1));
+
     const table = UI.renderSortableTable(container.querySelector('#portal-table'), {
       rows: entries.map(({ e, a }) => ({
         e, a,
@@ -81,6 +88,7 @@
         overall: a.currentOverall,
         potential: a.potential,
         classYear: a.classYear,
+        eligLeft: seasonsLeft(a),
         from: game.getSchool(e.fromSchoolId)?.name || '?',
         reason: e.reason,
         offers: e.offers.length,
@@ -93,6 +101,13 @@
       columns: [
         { key: 'name', label: 'Runner', render: (r) => `<strong>${Utils.escapeHtml(r.name)}</strong>` },
         { key: 'classYear', label: 'Class' },
+        {
+          key: 'eligLeft', label: 'Elig', numeric: true,
+          title: 'Seasons of eligibility the athlete will give your program (transferring uses one year — they move up a class)',
+          render: (r) => r.eligLeft > 0
+            ? `${r.eligLeft} yr${r.eligLeft === 1 ? '' : 's'}`
+            : '<span style="color:var(--text-faint);">final</span>'
+        },
         { key: 'overall', label: 'OVR', numeric: true, render: (r) => UI.ratingBadge(r.overall) },
         { key: 'potential', label: 'POT', numeric: true, render: (r) => UI.ratingBadge(r.potential) },
         { key: 'from', label: 'From' },

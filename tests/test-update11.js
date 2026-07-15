@@ -291,6 +291,83 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   if (!(rank.v4 > rank.v3 * 1.8)) fail('a 4-star must be worth far more than a 3-star: ' + JSON.stringify(rank));
   console.log('ranking quality:', JSON.stringify(rank));
 
+  // ---- 3d) Portal: the player's active pursuit is a real edge, and every
+  //          transfer ages a year of eligibility across the move ----
+  const portalRun = await page.evaluate(() => {
+    const g = window.XCD.ui.state.game;
+    const P = window.XCD.engine.Portal;
+    const out = { pursued: 0, landed: 0, offerLimit: P.PLAYER_OFFER_LIMIT, aging: [], err: null };
+    try {
+      // Sim forward, and each fall-portal week pursue level-appropriate
+      // transfers up to the offer limit; record eligibility of committed
+      // transfers just before the rollover, then verify they aged.
+      let pendingCheck = null;
+      for (let s = 0; s < 5 && (out.pursued < 40 || out.aging.length < 6); s++) {
+        const yr = g.year;
+        while (g.year === yr) {
+          g.weeklyFlow.trainingConfirmed = true;
+          g.weeklyFlow.recruitingDone = true;
+          g.recruiting.auto = true;
+          if (g.portal && g.portal.open && !g.portal.summer) {
+            const mine = g.getRoster(g.playerSchoolId, 'M').concat(g.getRoster(g.playerSchoolId, 'W'))
+              .map((a) => a.currentOverall).sort((x, y) => y - x);
+            const fifth = mine[4] || 45;
+            g.portal.entries.filter((e) => !e.destination &&
+              !e.offers.includes(g.playerSchoolId) && e.fromSchoolId !== g.playerSchoolId)
+              .map((e) => g.getAthlete(e.athleteId)).filter(Boolean)
+              .filter((a) => a.currentOverall >= fifth - 6 && a.currentOverall <= fifth + 10)
+              .sort((a, b) => b.currentOverall - a.currentOverall)
+              .slice(0, 10).forEach((a) => P.playerOffer(g, a.id));
+          }
+          if (g.week === P.DECISION_WEEK) {
+            pendingCheck = [];
+            g.portal.entries.forEach((e) => {
+              if (e.offers && e.offers.includes(g.playerSchoolId)) {
+                out.pursued++;
+                if (e.destination === g.playerSchoolId) out.landed++;
+              }
+              // Snapshot committed transfers for the aging check.
+              if (e.destination && pendingCheck.length < 30) {
+                const a = g.getAthlete(e.athleteId);
+                if (a) pendingCheck.push({ id: a.id, to: e.destination, elig: a.eligibilityRemaining, cyIdx: window.XCD.data.CLASS_YEARS.indexOf(a.classYear), yoc: a.yearsOnCampus });
+              }
+            });
+          }
+          g.advanceWeek();
+        }
+        // Post-rollover: every snapshot transfer must have aged (used a year
+        // of eligibility and moved up a class) or graduated out.
+        (pendingCheck || []).forEach((snap) => {
+          if (out.aging.length >= 6) return;
+          const a = g.world.athletes[snap.id];
+          const aged = !a /* graduated */ ||
+            (a.eligibilityRemaining === snap.elig - 1 && a.yearsOnCampus === snap.yoc + 1);
+          out.aging.push({ before: snap.elig, after: a ? a.eligibilityRemaining : 'grad', aged });
+        });
+        pendingCheck = null;
+      }
+    } catch (e) { out.err = e.message + '\n' + e.stack; }
+    return out;
+  });
+  if (portalRun.err) fail('portal run crash: ' + portalRun.err);
+  else {
+    if (portalRun.offerLimit < 5) fail('player should be able to pursue more transfers at once: ' + portalRun.offerLimit);
+    const landPct = portalRun.pursued ? portalRun.landed / portalRun.pursued : 0;
+    // Active pursuit must be a real edge — the player lands a solid share of
+    // level-appropriate targets (was a ~20-30% coin flip before Update 11.1).
+    if (portalRun.pursued < 15) fail('not enough player pursuits sampled: ' + portalRun.pursued);
+    // Baseline (pure appeal, no pursuit edge) was a ~20-25% coin flip; the
+    // active-pursuit edge must lift a mid program well clear of that. Kept a
+    // touch below the observed ~50-60% average so a weak-appeal random dynasty
+    // doesn't flake.
+    else if (landPct < 0.35) fail(`player still can't land level-appropriate transfers: ${(landPct * 100).toFixed(0)}% (${portalRun.landed}/${portalRun.pursued})`);
+    // Every transfer must age a year of eligibility across the move.
+    const notAged = portalRun.aging.filter((r) => !r.aged);
+    if (!portalRun.aging.length) fail('no transfers sampled for the eligibility-aging check');
+    if (notAged.length) fail('transfers did not age eligibility: ' + JSON.stringify(notAged));
+  }
+  console.log('portal:', JSON.stringify(portalRun));
+
   // ---- 4) Coaching carousel: accepting a job ends the offseason search ----
   const carousel = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
