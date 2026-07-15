@@ -24,7 +24,7 @@ node tests/test-staff.js       # Assistant value (dev/chemistry/morale/recruitin
 node tests/test-facilities.js  # Five-facility overhaul: shape + old-save migration, rehab/indoor-track/training-center implications, success+size fundraising, panel UI
 node tests/test-100seasons.js  # Century soak (~9 min): talent stability, health rates, staffing/roster/facility integrity, records, save size + round-trip
 node tests/test-updatex.js     # Update X: 9,600-recruit classes, DIII "Offer Roster Spot" wording, mandatory signing for offered recruits, near-universal CPU signing coverage, Auto Recruiting real economy, intimate portal markets (2-4 suitors), CPU championship fitness
-node tests/test-update11.js    # Update 11: division signing targets (DI 6-8, DII/DIII 4-8) with full coverage, any-signee class rankings, diamonds in the rough (perceived vs true potential, noisy scout notes), division-preference recruits, 2-4 suitor portal, summer transfer window (DI cuts → DII/DIII, weeks 1-3), carousel closes after accepting a job
+node tests/test-update11.js    # Update 11: recruit-to-need signing targets (quality over quantity — full coverage, ~3-5/gender, <15% of DI freshmen cut), quality-weighted class rankings (3 four-stars > 8 three-stars; top classes star-heavy), diamonds in the rough (perceived vs true potential, noisy scout notes), division-preference recruits, 2-4 suitor portal, summer transfer window (DI cuts → DII/DIII, weeks 1-3), carousel closes after accepting a job, transfer-in risk grace
 ```
 
 Each script prints `PASS` or `FAIL` with details and exits non-zero on failure.

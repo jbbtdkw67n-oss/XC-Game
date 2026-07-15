@@ -16,13 +16,20 @@ Recruiting rebalanced across all three divisions, a second recruiting
 window every summer, hidden gems worth hunting, and a coaching carousel
 that respects a handshake.
 
-- **Every school recruits, every year.** Division-tuned signing targets:
-  DI programs sign **6–8** per gender, DII and DIII **4–8** — dynamic on
-  both ends (graduation-heavy rosters recruit aggressively, young or
-  bursting lower-division rosters recruit replacements only). The
-  national class expanded to **4,800 per gender (9,600 recruits)** so all
-  727 programs can genuinely fill rosters, and the weekly recruiting
-  economy grew to match.
+- **Every school recruits to real need — quality over quantity.** A
+  program recruits to fill its *genuine* roster holes (open spots plus a
+  modest allowance to upgrade past weak, replaceable underclassmen), never
+  a flat quota. A blue blood with a full, strong roster signs a **small,
+  elite class**; a rebuilding program or one with bad juniors recruits
+  aggressively. No program signs 20 kids it will only cut — offer caps are
+  tight and scale with prestige (strong programs land nearly every offer),
+  so a class you sign is a class you keep. The national pool is **4,800
+  per gender (9,600 recruits)** so all 727 programs fill their rosters.
+- **Class rankings reward talent, not volume.** A recruit's worth to a
+  class rises steeply with star rating, and extra signees count with
+  diminishing weight — so **three 4-stars outrank eight 3-stars**, and a
+  compact haul of blue-chips beats a big class of role players. Landing a
+  stud is what moves you up the board.
 - **Recruits distribute like real kids.** Lower-rated recruits weigh the
   school down the road and the chance to actually race far more than a
   brand name; a real slice of every class (mostly 2–3★, some 4★)

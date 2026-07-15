@@ -73,11 +73,10 @@
         leaving.forEach((a) => {
           eventNeeds[a.preferredDistance] = (eventNeeds[a.preferredDistance] || 0) + 1;
         });
-        const returning = roster.length - leaving.length;
         need[gender] = {
           leaving: leaving.length,
           eventNeeds,
-          target: signingTarget(school, leaving.length, returning)
+          target: signingTarget(school, roster)
         };
       });
       rosterMarks[school.id] = marks;
@@ -112,21 +111,55 @@
   }
 
   /*
-   * How many signees a program chases this cycle (Update 11). Every school
-   * recruits every year: Division I signs big classes (6-8; the roster
-   * limit turns the overflow into summer-portal cuts that feed the lower
-   * divisions), while DII/DIII fill genuine roster spots (4-8). Dynamic on
-   * both ends — graduation-heavy rosters recruit aggressively, young and
-   * already-bursting lower-division rosters recruit only to replace losses.
+   * How many signees a program chases this cycle (Update 11.1: quality over
+   * quantity). A program recruits to GENUINE need, never a flat quota:
+   *
+   *   target = open roster spots + a modest "improvement" allowance
+   *
+   * Open spots come from the roster ceiling (DI's hard 14; a healthy squad
+   * at the uncapped lower divisions). The improvement allowance lets a
+   * program with weak, replaceable underclassmen bring in a bigger class to
+   * upgrade past them — and because the roster trim keeps the highest-ceiling
+   * athletes, those new freshmen survive while the weak returners are cut.
+   *
+   * The upshot: a blue blood with a full, strong roster signs a SMALL, ELITE
+   * class (it has nothing to fix and few holes), while a rebuilding program
+   * or one with bad juniors recruits aggressively. No program signs 20 kids
+   * it will only cut.
+   *
+   * `roster` is the full squad array for one gender.
    */
-  function signingTarget(school, leaving, returning) {
+  function signingTarget(school, roster) {
     const div = school.division || 'DI';
-    const [floor, cap] = D.RECRUITING.TARGETS[div] || D.RECRUITING.TARGETS.DI;
-    const shortfall = Math.max(0, 14 - returning);
-    const base = Math.max(leaving, shortfall);
-    // A lower-division roster already bursting recruits replacements only.
-    if (div !== 'DI' && returning >= 18) return Utils.clamp(base, 2, cap);
-    return Utils.clamp(Math.max(base, floor), floor, cap);
+    const cap = (D.RECRUITING.TARGETS[div] || D.RECRUITING.TARGETS.DI)[1];
+    const leaving = roster.filter((a) =>
+      a.redshirt !== 'True' && a.redshirt !== 'Medical' &&
+      (a.eligibilityRemaining <= 1 || a.classYear === 'Graduate')).length;
+    const returning = roster.length - leaving;
+    // Genuine open spots under the roster ceiling. DI is the hard 14; the
+    // uncapped lower divisions aim for a healthy squad a hair deeper (they
+    // don't trim, so this is where their rosters naturally settle).
+    const ceiling = div === 'DI' ? 14 : 15;
+    const openSpots = Math.max(0, ceiling - returning);
+
+    // Improvement recruiting: weak, developing-capped underclassmen who
+    // aren't going to become contributors are soft roster holes. The bar
+    // rises with the program's level, so a blue blood counts more of its
+    // roster as "not good enough" than a small program does.
+    const weakBar = 34 + school.prestige * 0.35;
+    const weakReturners = roster.filter((a) =>
+      a.redshirt !== 'True' && a.redshirt !== 'Medical' &&
+      a.eligibilityRemaining >= 2 && a.classYear !== 'Graduate' &&
+      (a.potential || 50) < weakBar && (a.currentOverall || 40) < weakBar).length;
+    const upgrade = Math.min(3, Math.round(weakReturners * 0.5));
+
+    // A full roster recruits only to genuinely upgrade weak spots — no
+    // youth-quota bloat, at any division.
+    if (returning >= ceiling) return Utils.clamp(upgrade, 0, cap);
+    // Otherwise: fill the holes, plus the upgrade allowance, with a small
+    // youth floor when there's real room so every program stays replenished.
+    const target = Math.max(openSpots + upgrade, openSpots >= 1 ? 2 : 0);
+    return Utils.clamp(target, 0, cap);
   }
 
   /* ================================================================ *
@@ -416,6 +449,33 @@
     return perceivedPotential(r) * 0.62 + r.currentOverall * 0.38;
   }
 
+  /*
+   * A single recruit's worth to a class ranking (Update 11.1). Value rises
+   * STEEPLY with star rating — a four-star is worth far more than a
+   * three-star, a five-star more still — so landing genuine talent, not
+   * padding a class with bodies, is what moves the needle. The perceived
+   * ceiling and current ability refine ordering within a star tier.
+   */
+  function recruitValue(r) {
+    return Math.pow(r.starRating, 3.4) * 12 + perceivedPotential(r) * 1.6 + r.currentOverall * 0.6;
+  }
+
+  /*
+   * A class's ranking score (Update 11.1). The signees are valued, sorted
+   * best-first, and summed with a DIMINISHING weight per additional recruit,
+   * so a compact class of blue-chips outranks a big class of role players —
+   * three four-stars beat eight three-stars. A small, capped depth bonus
+   * rewards actually filling a class without ever rivaling real talent.
+   */
+  function classScore(recs) {
+    const valued = recs.map(recruitValue).sort((a, b) => b - a);
+    let score = 0;
+    let weight = 1;
+    valued.forEach((v) => { score += v * weight; weight *= 0.86; });
+    score += Math.min(recs.length, 8) * 4; // modest depth credit
+    return Math.round(score);
+  }
+
   function rankPool(pool) {
     pool.sort((a, b) => recruitComposite(b) - recruitComposite(a));
     const n = pool.length;
@@ -662,16 +722,24 @@
    * roster spots, not scholarships (Update X, Part 3) — the cap follows
    * genuine roster need instead of a scholarship count.
    */
+  /*
+   * How many live offers (+ commits) a program may float for one gender
+   * (Update 11.1). Offers exceed signings because recruits decline — but
+   * strong programs LAND most of their offers, so they extend only a few
+   * beyond their target, while weaker programs cast a wider net against more
+   * declines. This is what stops a blue blood from hoarding 20 offers for a
+   * four-man class and then cutting the overflow.
+   */
   function offerCap(school, gender, needTarget) {
-    const division = D.divisionFor(school);
-    if (division.scholarshipModel === 'none') {
-      return Math.max(6, (needTarget || 4) * 2);
-    }
-    // DI/DII (Update 11): the cap tracks the genuine class target — big
-    // classes need offer room, and contested recruits sign elsewhere, so a
-    // staff chasing 7 signees realistically floats 12-14 offers.
-    const avail = gender === 'M' ? school.scholarshipsAvailableM : school.scholarshipsAvailableW;
-    return Math.max(4, Math.floor(avail / 1.3), (needTarget || 4) * 2);
+    const target = Math.max(1, needTarget || 4);
+    const prestige = school.prestige || 50;
+    // A tight cushion over the target — a few recruits pick a better offer
+    // elsewhere, so a program floats slightly more than it will sign. Strong
+    // programs land nearly every offer (small cushion); weaker programs face
+    // more declines (a bit more). Kept small on purpose: outstanding offers
+    // above the target are exactly what turns into freshmen you then cut.
+    const cushion = prestige >= 78 ? 1 : prestige >= 58 ? 2 : 3;
+    return Math.max(4, target + cushion);
   }
 
   /*
@@ -759,10 +827,7 @@
     }
     if (actionKey === 'offer') {
       const roster = gameState.getRoster(school.id, rec.gender);
-      const leaving = roster.filter((a) =>
-        a.redshirt !== 'True' && a.redshirt !== 'Medical' &&
-        (a.eligibilityRemaining <= 1 || a.classYear === 'Graduate')).length;
-      const needTarget = signingTarget(school, leaving, roster.length - leaving);
+      const needTarget = signingTarget(school, roster);
       if (scholarshipsUsed(gameState, school.id, rec.gender) >= offerCap(school, rec.gender, needTarget)) {
         return { ok: false, message: terms.capped };
       }
@@ -984,12 +1049,19 @@
     //    weeks are a genuine closing sweep so no class goes unsigned for
     //    want of paperwork.
     const talentBar = 34 + school.prestige * 0.62 + o.urgency * 12;
+    // Quality over quantity (Update 11.1): a high-prestige program doesn't
+    // spend offers on recruits well beneath its level — a blue blood chases
+    // blue-chips, not depth pieces — unless it's genuinely desperate late in
+    // the cycle. The floor rises with prestige and lifts once the closing
+    // sweep begins, so a strong roster ends up with a small, elite class.
+    const talentFloor = school.prestige >= 72 && o.urgency < 2 ? school.prestige * 0.5 : 0;
     // In the closing sweep a program short on bodies offers on contact —
-    // a roster spot in hand beats an empty locker. Update 11: bars start
-    // lower — real classes (DI 6-8, DII/DIII 4-8) need offers moving early,
-    // not a season of pen-pal letters followed by a panic.
+    // a roster spot in hand beats an empty locker. Bars start low so offers
+    // move early rather than a season of letters followed by a panic.
     const interestBar = o.urgency >= 2 ? -1 : o.urgency === 1 ? 10 : 20;
-    if (!st.offered && st.interest > interestBar && recruitComposite(rec) <= talentBar && affordable('offer')) {
+    const composite = recruitComposite(rec);
+    if (!st.offered && st.interest > interestBar &&
+        composite <= talentBar && composite >= talentFloor && affordable('offer')) {
       const oc = ctxOfferCount(o.ctx, school.id, rec.gender);
       if (oc < offerCap(school, rec.gender, o.need.target)) return 'offer';
     }
@@ -1248,12 +1320,12 @@
       }
     }
 
-    // Rank the signing classes.
+    // Rank the signing classes (Update 11.1: quality over quantity).
     const ranking = Object.entries(classes)
       .map(([sid, recs]) => ({
         schoolId: sid,
         division: (gameState.getSchool(sid) || {}).division || 'DI',
-        score: Math.round(recs.reduce((sum, r) => sum + Math.pow(r.starRating, 2.2) * 10 + recruitComposite(r) / 4, 0)),
+        score: classScore(recs),
         count: recs.length,
         stars: Math.round(recs.reduce((s, r) => s + r.starRating, 0) / recs.length * 10) / 10
       }))
@@ -1455,6 +1527,8 @@
     fitScore,
     distanceMiles,
     recruitComposite,
+    recruitValue,
+    classScore,
     perceivedPotential,
     signingTarget,
     weeklyPoints,

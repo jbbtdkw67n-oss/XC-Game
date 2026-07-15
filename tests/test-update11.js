@@ -115,6 +115,11 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
           recs.forEach((r) => {
             if (r.signed) bySchool[r.committedTo] = (bySchool[r.committedTo] || 0) + 1;
           });
+          // Track the DI signees so we can measure how many get cut at the
+          // rollover — over-recruiting waste (Kentucky signed 22, kept ~10).
+          out.diSignedIds = recs.filter((r) => r.signed &&
+            (g.getSchool(r.committedTo) || {}).division === 'DI')
+            .map((r) => ({ id: r.id, to: r.committedTo }));
           const div = { DI: { signed: 0, schools: 0, signees: 0 }, DII: { signed: 0, schools: 0, signees: 0 }, DIII: { signed: 0, schools: 0, signees: 0 } };
           Object.values(g.world.schools).forEach((s) => {
             const d = div[s.division || 'DI'];
@@ -130,15 +135,34 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
             };
           });
           const classes = g.history.recruitingClasses[yr] || [];
+          const diClasses = classes.filter((e) => e.division === 'DI');
           out.rankings = {
             diii: classes.filter((e) => e.division === 'DIII').length,
             lowStar: classes.filter((e) => e.avgStars <= 2).length,
-            total: classes.length
+            total: classes.length,
+            // Quality-first check: the top DI classes must be genuinely
+            // star-heavy — no 2.6-avg class ranking near the top anymore.
+            top5AvgStars: +(diClasses.slice(0, 5).reduce((s, e) => s + e.avgStars, 0) / Math.min(5, diClasses.length)).toFixed(2),
+            top5MaxCount: Math.max(...diClasses.slice(0, 5).map((e) => e.count))
           };
           continue;
         }
         g.advanceWeek();
       }
+
+      // The season rolled over: signees enrolled, DI trimmed to 14. Measure
+      // how many just-signed DI freshmen were cut — the over-recruiting waste.
+      let diCut = 0;
+      (out.diSignedIds || []).forEach((s) => {
+        const a = g.world.athletes[s.id];
+        if (!a || a.schoolId !== s.to) diCut++;
+      });
+      out.waste = {
+        diSigned: (out.diSignedIds || []).length,
+        diCut,
+        diCutPct: (out.diSignedIds || []).length ? +(diCut / out.diSignedIds.length).toFixed(3) : 0
+      };
+      delete out.diSignedIds;
 
       // Year 2: the summer window (weeks 1-3, DII/DIII exclusive).
       out.summer = {
@@ -189,12 +213,22 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       if (s.DIII.coverage < 0.95) fail('every DIII school should sign a class: coverage ' + s.DIII.coverage);
       if (s.DII.coverage < 0.95) fail('every DII school should sign a class: coverage ' + s.DII.coverage);
       if (s.DI.coverage < 0.95) fail('every DI school should sign a class: coverage ' + s.DI.coverage);
-      if (s.DI.avgPerGender < 5.5 || s.DI.avgPerGender > 9.5) fail('DI classes should average ~6-8 per gender: ' + s.DI.avgPerGender);
-      if (s.DII.avgPerGender < 3.5 || s.DII.avgPerGender > 8.5) fail('DII classes should average ~4-8 per gender: ' + s.DII.avgPerGender);
-      if (s.DIII.avgPerGender < 3.5 || s.DIII.avgPerGender > 8.5) fail('DIII classes should average ~4-8 per gender: ' + s.DIII.avgPerGender);
+      // Recruit-to-need (Update 11.1): classes track real roster holes, not a
+      // flat quota. A 14-cap DI roster fills ~3-4 spots/gender plus a modest
+      // upgrade allowance — not 6-8 signees it will only cut.
+      if (s.DI.avgPerGender < 2.5 || s.DI.avgPerGender > 6) fail('DI classes should average ~3-5 per gender (recruit-to-need): ' + s.DI.avgPerGender);
+      if (s.DII.avgPerGender < 2.5 || s.DII.avgPerGender > 7) fail('DII classes should average ~3-6 per gender: ' + s.DII.avgPerGender);
+      if (s.DIII.avgPerGender < 2.5 || s.DIII.avgPerGender > 7) fail('DIII classes should average ~3-6 per gender: ' + s.DIII.avgPerGender);
     }
+    // Over-recruiting waste: the vast majority of DI signees must stick.
+    // (The bug this fixes: Kentucky signed 22 and kept ~10 — a 55% cut rate.)
+    if (!sim.waste || sim.waste.diSigned < 500) fail('waste sample missing: ' + JSON.stringify(sim.waste));
+    else if (sim.waste.diCutPct > 0.15) fail('too many DI freshmen cut — programs are over-recruiting: ' + JSON.stringify(sim.waste));
     if (!sim.rankings || sim.rankings.diii < 25) fail('DIII class rankings board too thin: ' + JSON.stringify(sim.rankings));
     if (sim.rankings && sim.rankings.lowStar === 0) fail('classes with no 3-star recruits must still be ranked');
+    // Quality over quantity: the top DI classes must be star-heavy, not big
+    // and mediocre (the reported bug: a 2.6-avg class ranking 6th).
+    if (sim.rankings && sim.rankings.top5AvgStars < 3.4) fail('top-5 DI classes should be genuinely elite (avg stars): ' + sim.rankings.top5AvgStars);
     if (sim.portalOffers.length) {
       const avg = sim.portalOffers.reduce((a, b) => a + b, 0) / sim.portalOffers.length;
       const max = Math.max(...sim.portalOffers);
@@ -237,6 +271,25 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     fail('the arrival grace must zero out transfer risk: ' + JSON.stringify(grace));
   }
   console.log('grace:', JSON.stringify(grace));
+
+  // ---- 3c) Class-ranking quality: three 4-stars outrank eight 3-stars ----
+  const rank = await page.evaluate(() => {
+    const RE = window.XCD.engine.Recruiting;
+    const mk = (star, pot, ovr) => ({ starRating: star, perceivedPotential: pot, potential: pot, currentOverall: ovr });
+    return {
+      threeFours: RE.classScore([mk(4, 80, 62), mk(4, 78, 60), mk(4, 82, 64)]),
+      eightThrees: RE.classScore(Array.from({ length: 8 }, () => mk(3, 66, 52))),
+      oneFive: RE.classScore([mk(5, 92, 72)]),
+      tenTwos: RE.classScore(Array.from({ length: 10 }, () => mk(2, 50, 42))),
+      // A recruit's value must rise steeply with star rating.
+      v4: RE.recruitValue(mk(4, 78, 60)),
+      v3: RE.recruitValue(mk(3, 66, 52))
+    };
+  });
+  if (!(rank.threeFours > rank.eightThrees)) fail('three 4-stars must outrank eight 3-stars: ' + JSON.stringify(rank));
+  if (!(rank.oneFive > rank.tenTwos)) fail('a single 5-star must outrank ten 2-stars: ' + JSON.stringify(rank));
+  if (!(rank.v4 > rank.v3 * 1.8)) fail('a 4-star must be worth far more than a 3-star: ' + JSON.stringify(rank));
+  console.log('ranking quality:', JSON.stringify(rank));
 
   // ---- 4) Coaching carousel: accepting a job ends the offseason search ----
   const carousel = await page.evaluate(() => {

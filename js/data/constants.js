@@ -471,11 +471,12 @@
     SIGNING_WEEK: 19,       // national signing day (offseason)
     EARLY_COMMIT_WEEK: 3,   // earliest anyone verbals
     AI_SIGNEES_TARGET: 5,   // fallback signing target when roster needs are unknown
-    // Yearly signing targets by division (Update 11): every school attempts
-    // to fill its roster every cycle. [floor, cap] on the dynamic target.
-    // (Contested recruits sign elsewhere, so realized classes land a touch
-    // under target — the DI floor sits high so classes land at 6-8.)
-    TARGETS: { DI: [7, 10], DII: [4, 8], DIII: [4, 8] }
+    // Per-gender signing-target CAPS by division (Update 11.1). The real
+    // target is computed from genuine roster need (open spots + an
+    // improvement allowance) in signingTarget(); these are just the ceilings
+    // that keep even a full rebuild believable. A steady program replaces
+    // its ~3-4 graduating runners; a rebuild pushes toward the cap. [_, cap].
+    TARGETS: { DI: [2, 7], DII: [2, 8], DIII: [2, 8] }
   };
 
   /*
