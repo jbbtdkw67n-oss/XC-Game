@@ -547,6 +547,8 @@
         fundraisedYear: this.fundraisedYear || null,
         culture: this.culture,
         jobOffers: this.jobOffers,
+        // Update 11: accepting a job closes the carousel for the season.
+        jobSearchClosedYear: this.jobSearchClosedYear || null,
         weeklyFlow: this.weeklyFlow,
         offseasonReport: this.offseasonReport || null,
         staffHiredYear: this.staffHiredYear || null,

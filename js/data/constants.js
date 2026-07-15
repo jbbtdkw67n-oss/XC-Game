@@ -269,6 +269,10 @@
   // Hidden motivations: discovered through phone calls / home visits.
   // Each has a key used by the fit engine to weight appeal.
   D.MOTIVATIONS = [
+    // 'small-school' is special (Update 11): never rolled randomly — it is
+    // attached only to recruits who carry a genuine division preference for
+    // DII/DIII, and is discoverable through the normal scouting reveals.
+    { key: 'small-school', label: 'Drawn to the small-school experience', assigned: true },
     { key: 'homebody', label: 'Wants to stay close to home' },
     { key: 'title-chaser', label: 'Dreams of contending for national titles' },
     { key: 'scholar', label: 'Values elite academics' },
@@ -309,7 +313,7 @@
     campusVisit:   { label: 'Campus Visit',         points: 6, cost: 2000, relationship: 8,  interest: 14, scout: 5, reveal: 0.25, requires: 'interest30' },
     hostOvernight: { label: 'Host Overnight',       points: 4, cost: 1000, relationship: 10, interest: 9, scout: 3,  reveal: 0.15, requires: 'visited' },
     meetTeam:      { label: 'Invite to Meet Team',  points: 2, cost: 200,  relationship: 5,  interest: 4, scout: 2,  reveal: 0.08 },
-    offer:         { label: 'Offer Scholarship',    points: 3, cost: 0,    relationship: 6,  interest: 10, scout: 0, reveal: 0 }
+    offer:         { label: 'Offer Scholarship',    points: 2, cost: 0,    relationship: 6,  interest: 10, scout: 0, reveal: 0 }
   };
 
   // Weekly cap on actions per recruit (prevents interest-dumping).
@@ -458,13 +462,44 @@
 
   // Recruiting calendar (within the 21-week year)
   D.RECRUITING = {
-    // Update X: 1,800 per gender (3,600 nationally) so all 727 programs across
-    // three divisions can genuinely sign classes. Generational-talent odds are
-    // per CLASS (below), not per recruit, so the every-7-10-years cadence holds.
-    CLASS_SIZE_PER_GENDER: 1800,
+    // Update 11: 4,800 per gender (9,600 nationally). Every one of the 727
+    // programs now recruits real classes every cycle (DI 6-8, DII/DIII 4-8
+    // signees), so the national class expanded to sustain all of them.
+    // Generational-talent odds are per CLASS (below), not per recruit, so
+    // the every-7-10-years cadence holds.
+    CLASS_SIZE_PER_GENDER: 4800,
     SIGNING_WEEK: 19,       // national signing day (offseason)
     EARLY_COMMIT_WEEK: 3,   // earliest anyone verbals
-    AI_SIGNEES_TARGET: 5    // fallback signing target when roster needs are unknown
+    AI_SIGNEES_TARGET: 5,   // fallback signing target when roster needs are unknown
+    // Yearly signing targets by division (Update 11): every school attempts
+    // to fill its roster every cycle. [floor, cap] on the dynamic target.
+    // (Contested recruits sign elsewhere, so realized classes land a touch
+    // under target — the DI floor sits high so classes land at 6-8.)
+    TARGETS: { DI: [7, 10], DII: [4, 8], DIII: [4, 8] }
+  };
+
+  /*
+   * Diamonds in the rough (Update 11). A small slice of every class hides an
+   * elite development ceiling behind modest ratings: the scouting consensus
+   * (rankings, stars, displayed potential) reads their PERCEIVED ceiling,
+   * while the real one stays hidden until college development reveals it.
+   * They tend to share tells — huge work ethic, coachability, consistency,
+   * late physical growth — surfaced only as soft scouting notes that plenty
+   * of ordinary grinders also earn, so nothing ever outs a gem outright.
+   */
+  D.HIDDEN_GEMS = {
+    SHARE_MIN: 0.03,   // 3-7% of each class carries hidden upside
+    SHARE_MAX: 0.07,
+    HINTS: [
+      'Improving rapidly.',
+      'Exceptional training habits.',
+      'Late bloomer.',
+      'Raw but talented.',
+      'Huge upside.',
+      'Coaches rave about the work ethic.',
+      'Body still catching up to the engine.',
+      'Outworked everyone at camp.'
+    ]
   };
 
   /* ------------------------------------------------------------------ *
@@ -563,6 +598,8 @@
 
   /* Transfer portal entry reasons (Part 4) — every departure has a story. */
   D.PORTAL_REASONS = {
+    rosterCut:    'Roster cut',
+    walkOnCut:    'Walk-on cut',
     racing:       'Lack of racing opportunities',
     coachLeft:    'Coach departed',
     culture:      'Poor team culture',

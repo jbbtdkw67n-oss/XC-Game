@@ -1,12 +1,14 @@
 // Update X test suite. Verifies the recruiting & portal realism overhaul:
-//  - class volume: 3,600 recruits nationally (1,800 per gender)
+//  - class volume: 9,600 recruits nationally (4,800 per gender — Update 11
+//    expanded the class so all 727 programs sign real classes every cycle)
 //  - Division III uses "Offer Roster Spot" wording (engine + UI), DI keeps
 //    "Offer Scholarship"; DIII offer caps don't collapse to the DI formula
 //  - commitment logic: every recruit with >= 1 offer signs somewhere
 //  - CPU recruiting participation: nearly every program (esp. DIII) signs
 //  - Auto Recruiting spends the player's real points/budget and scouts
-//  - transfer portal: elite transfers draw ~9-10 suitors, offers ledger
-//    (inBySchool) feeds staff reputation
+//  - transfer portal: an intimate 2-4 suitor market per athlete (Update 11
+//    reverted the big bidding wars), offers ledger (inBySchool) feeds
+//    staff reputation
 //  - CPU fitness: ranked teams' varsity arrives at nationals rested
 //  - generational talent odds unchanged (still ~1 per 7-10 classes)
 const { chromium } = require('playwright');
@@ -32,8 +34,8 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       pTwo: D.GENERATIONAL.P_TWO
     };
   });
-  if (classInfo.perGender !== 1800) fail('class size per gender should be 1800, got ' + classInfo.perGender);
-  if (classInfo.total !== 3600) fail('national class should hold 3600 recruits, got ' + classInfo.total);
+  if (classInfo.perGender !== 4800) fail('class size per gender should be 4800, got ' + classInfo.perGender);
+  if (classInfo.total !== 9600) fail('national class should hold 9600 recruits, got ' + classInfo.total);
   // ~1 per 7-8 classes per gender: odds must not scale with the bigger class.
   if (Math.abs(classInfo.pOne - 0.062) > 1e-9 || Math.abs(classInfo.pTwo - 0.004) > 1e-9) {
     fail('generational odds changed: ' + JSON.stringify(classInfo));
@@ -164,10 +166,10 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     });
     const eliteAvg = sim.portalElite.length
       ? sim.portalElite.reduce((a, b) => a + b, 0) / sim.portalElite.length : 0;
-    // Elite transfers should regularly see big bidding wars. Small yearly
-    // samples swing, so assert on the average with a floor.
-    if (sim.portalElite.length && eliteAvg < 6) {
-      fail(`elite transfers averaged only ${eliteAvg.toFixed(1)} suitors: ${JSON.stringify(sim.portalElite)}`);
+    // Update 11: the portal is an intimate market again — 2-4 programs
+    // pursue each athlete, elite names included. Assert on the average.
+    if (sim.portalElite.length && (eliteAvg < 1.5 || eliteAvg > 4.6)) {
+      fail(`elite transfers should average 2-4 suitors, got ${eliteAvg.toFixed(1)}: ${JSON.stringify(sim.portalElite)}`);
     }
     sim.fitness.forEach((f, i) => {
       if (f.fat > 30) fail(`year ${i + 1}: CPU varsity arrived at nationals fatigued (${f.fat})`);

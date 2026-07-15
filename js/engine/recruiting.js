@@ -73,17 +73,11 @@
         leaving.forEach((a) => {
           eventNeeds[a.preferredDistance] = (eventNeeds[a.preferredDistance] || 0) + 1;
         });
-        // Sign enough to cover the losses AND fill back to a full squad of
-        // 14 — empty roster spots trigger aggressive recruiting. A roster
-        // already bursting (lower divisions carry no hard limit) recruits
-        // only to replace departures, so squads stay believable over
-        // decades-long dynasties.
         const returning = roster.length - leaving.length;
-        const shortfall = Math.max(0, 14 - returning);
         need[gender] = {
           leaving: leaving.length,
           eventNeeds,
-          target: Utils.clamp(Math.max(leaving.length, shortfall, returning >= 16 ? 0 : 2), 0, 9)
+          target: signingTarget(school, leaving.length, returning)
         };
       });
       rosterMarks[school.id] = marks;
@@ -117,6 +111,24 @@
     return { rosterMarks, needs, pools, commitCounts, offerCounts };
   }
 
+  /*
+   * How many signees a program chases this cycle (Update 11). Every school
+   * recruits every year: Division I signs big classes (6-8; the roster
+   * limit turns the overflow into summer-portal cuts that feed the lower
+   * divisions), while DII/DIII fill genuine roster spots (4-8). Dynamic on
+   * both ends — graduation-heavy rosters recruit aggressively, young and
+   * already-bursting lower-division rosters recruit only to replace losses.
+   */
+  function signingTarget(school, leaving, returning) {
+    const div = school.division || 'DI';
+    const [floor, cap] = D.RECRUITING.TARGETS[div] || D.RECRUITING.TARGETS.DI;
+    const shortfall = Math.max(0, 14 - returning);
+    const base = Math.max(leaving, shortfall);
+    // A lower-division roster already bursting recruits replacements only.
+    if (div !== 'DI' && returning >= 18) return Utils.clamp(base, 2, cap);
+    return Utils.clamp(Math.max(base, floor), floor, cap);
+  }
+
   /* ================================================================ *
    * Recruit class generation
    * ================================================================ */
@@ -145,7 +157,9 @@
       };
     }
 
-    const motivationPool = rng.shuffle(D.MOTIVATIONS.map((m) => m.key));
+    // 'assigned' motivations (small-school) are never rolled randomly — they
+    // attach only through the division-preference pass in generateClass.
+    const motivationPool = rng.shuffle(D.MOTIVATIONS.filter((m) => !m.assigned).map((m) => m.key));
     const motivations = motivationPool.slice(0, rng.int(2, 3));
 
     const imp = (base) => Utils.clamp(Math.round(rng.gaussian(base, 18)), 15, 100);
@@ -311,6 +325,37 @@
         });
       }
 
+      // Diamonds in the rough (Update 11): 3-7% of the class hides an elite
+      // ceiling behind modest ratings. The scouting consensus (rankings,
+      // stars, displayed potential) reads `perceivedPotential`; the real
+      // `potential` drives college development. Gems share the classic
+      // tells — huge work ethic, coachability, consistency, late growth —
+      // but the tells are never proof.
+      const gemShare = rng.float(D.HIDDEN_GEMS.SHARE_MIN, D.HIDDEN_GEMS.SHARE_MAX);
+      const gemCount = Math.round(pool.length * gemShare);
+      const gemCandidates = pool.filter((r) =>
+        !r.generational && r.potential >= 38 && r.potential <= 70);
+      for (let gi = 0; gi < gemCount && gemCandidates.length; gi++) {
+        const pick = gemCandidates.splice(rng.int(0, gemCandidates.length - 1), 1)[0];
+        pick.hiddenGem = true;
+        pick.perceivedPotential = pick.potential; // what every scout believes
+        pick.potential = Utils.clamp(pick.potential + rng.int(12, 32), 72, 96);
+        pick.peakOverall = pick.potential;
+        pick.workEthic = Math.max(pick.workEthic, rng.int(82, 99));
+        pick.coachability = Math.max(pick.coachability, rng.int(78, 97));
+        pick.consistency = Math.max(pick.consistency, rng.int(66, 92));
+        pick.devProfile = rng.bool(0.6) ? 'late' : 'normal'; // late physical growth
+        pick.scoutNotes = rng.shuffle(D.HIDDEN_GEMS.HINTS.slice()).slice(0, 2);
+      }
+      // The tells are noisy on purpose: plenty of ordinary grinders earn the
+      // same scouting lines, so a note never outs a gem by itself.
+      pool.forEach((r) => {
+        if (r.scoutNotes || r.generational) return;
+        if ((r.workEthic >= 84 && rng.bool(0.5)) || rng.bool(0.04)) {
+          r.scoutNotes = [rng.choice(D.HIDDEN_GEMS.HINTS)];
+        }
+      });
+
       // Generational spawn roll (Part 12.5): weighted odds, no pattern.
       // Averages ~1 per 7-8 classes across both genders; streaks and long
       // droughts both happen, and (very rarely) two land in one class.
@@ -320,7 +365,7 @@
       const G = D.GENERATIONAL;
       const roll = rng.next();
       const count = roll < G.P_TWO ? 2 : roll < G.P_TWO + G.P_ONE ? 1 : 0;
-      const eligible = pool.filter((r) => r.source !== 'JUCO' && !r.generational);
+      const eligible = pool.filter((r) => r.source !== 'JUCO' && !r.generational && !r.hiddenGem);
       for (let g = 0; g < count && eligible.length; g++) {
         const idx = rng.int(0, eligible.length - 1);
         const pick = eligible.splice(idx, 1)[0];
@@ -329,6 +374,19 @@
 
       rankPool(pool);
       assignHsCredentials(pool, rng); // 5K PBs + state titles (Section 16)
+
+      // Division preference (Update 11): a real slice of the class — mostly
+      // 2-3 stars, some 4s and 1s — actively prefers the DII/DIII experience
+      // (small campuses, guaranteed racing, coaches who know their name) and
+      // will pick a strong lower-division program over a Division I bench.
+      // Discoverable through scouting via the 'small-school' motivation.
+      pool.forEach((r) => {
+        if (r.generational) return;
+        const p = { 1: 0.18, 2: 0.22, 3: 0.20, 4: 0.06, 5: 0 }[r.starRating] || 0;
+        if (!rng.bool(p)) return;
+        r.divisionPreference = rng.bool(0.5) ? 'DII' : 'DIII';
+        if (!r.motivations.includes('small-school')) r.motivations.push('small-school');
+      });
     });
 
     gameState.world.recruits = recruits;
@@ -343,9 +401,19 @@
     return recruits;
   }
 
+  // The ceiling the scouting world BELIEVES in (Update 11): hidden gems
+  // carry a modest perceived potential while their real one stays secret,
+  // so every public-facing read — rankings, stars, boards, AI valuation,
+  // the fog-of-war POT display — goes through this helper.
+  function perceivedPotential(r) {
+    return r.perceivedPotential ?? r.potential;
+  }
+
   // Composite value drives stars & rankings: mostly ceiling, some floor.
+  // Built on the PERCEIVED ceiling so hidden gems rank like the modest
+  // prospects everyone believes they are.
   function recruitComposite(r) {
-    return r.potential * 0.62 + r.currentOverall * 0.38;
+    return perceivedPotential(r) * 0.62 + r.currentOverall * 0.38;
   }
 
   function rankPool(pool) {
@@ -381,7 +449,7 @@
     // Blend in a share of upside — the nation's top-ranked preps ARE fast —
     // but keep it minor and noisy, so slow kids can hide elite ceilings and
     // fast ones can be nearly finished products.
-    const m = engine * 0.72 + (r.potential || 60) * 0.28;
+    const m = engine * 0.72 + (perceivedPotential(r) || 60) * 0.28;
     const base = r.gender === 'M' ? 1233 - m * 5.33 : 1440 - m * 6.5;
     const noise = rng.gaussian(0, 14);
     // Realistic bounds: national-record realm at the front (~14:03 boys /
@@ -420,7 +488,8 @@
    * ================================================================ */
   function projectedFreshmanOverall(recruit) {
     // Rough one-summer improvement estimate used for playing-time math.
-    return recruit.currentOverall + Math.round((recruit.potential - recruit.currentOverall) * 0.15);
+    // Reads the perceived ceiling — nobody projects a hidden gem correctly.
+    return recruit.currentOverall + Math.round((perceivedPotential(recruit) - recruit.currentOverall) * 0.15);
   }
 
   function playingTimeScore(gameState, school, recruit, ctx) {
@@ -517,6 +586,24 @@
     // classroom drive the choice more than athletics.
     fit += (school.academics - 55) * Math.max(0, division.academicEmphasis - 0.9) * 0.12;
 
+    // Division preference (Update 11): some recruits genuinely want the
+    // DII/DIII experience and read a Division I offer as a bench sentence.
+    // A strong lower-division program beats a blue blood for these kids.
+    if (recruit.divisionPreference) {
+      const divKey = school.division || 'DI';
+      if (divKey === recruit.divisionPreference) fit += 16;
+      else if (divKey === 'DI') fit -= 14;
+      else fit += 6; // the other lower division still beats DI for them
+    }
+
+    // Lower-rated recruits (Update 11): prestige can't carry the pitch to a
+    // 1-2 star kid — they weigh the school down the road and the chance to
+    // actually race far more, and a big brand name barely moves them.
+    if ((recruit.starRating || 2) <= 2) {
+      fit += (scores.location - 50) * 0.10 + (scores.playingTime - 50) * 0.08
+        - Math.max(0, school.prestige - 60) * 0.06;
+    }
+
     return Utils.clamp(fit, 5, 99);
   }
 
@@ -542,8 +629,11 @@
   // rating directly buys recruiting resources (Update 5, Part 16): an elite
   // recruiter (99) gets meaningfully more weekly points than a weak one.
   function schoolWeeklyPoints(gameState, school, coach) {
-    let pts = 8 + Math.round(coach.recruiting / 6) +
-      Math.round((coach.reputation || 10) / 30);
+    // Update 11: the weekly point pool grew with the bigger classes — every
+    // staff (player and CPU alike, same economy) works enough names to sign
+    // DI 6-8 / DII-DIII 4-8 while contested recruits still walk elsewhere.
+    let pts = 11 + Math.round(coach.recruiting / 5) +
+      Math.round((coach.reputation || 10) / 25);
     // The recruiting-coordinator assistant adds a little pull; don't
     // double-count when the coach in question IS the assistant.
     const assistant = gameState.getCoach(school.assistantId);
@@ -575,10 +665,13 @@
   function offerCap(school, gender, needTarget) {
     const division = D.divisionFor(school);
     if (division.scholarshipModel === 'none') {
-      return Math.max(6, (needTarget || 4) + 3);
+      return Math.max(6, (needTarget || 4) * 2);
     }
+    // DI/DII (Update 11): the cap tracks the genuine class target — big
+    // classes need offer room, and contested recruits sign elsewhere, so a
+    // staff chasing 7 signees realistically floats 12-14 offers.
     const avail = gender === 'M' ? school.scholarshipsAvailableM : school.scholarshipsAvailableW;
-    return Math.max(4, Math.floor(avail / 2));
+    return Math.max(4, Math.floor(avail / 1.3), (needTarget || 4) * 2);
   }
 
   /*
@@ -669,7 +762,7 @@
       const leaving = roster.filter((a) =>
         a.redshirt !== 'True' && a.redshirt !== 'Medical' &&
         (a.eligibilityRemaining <= 1 || a.classYear === 'Graduate')).length;
-      const needTarget = Math.max(leaving, 14 - (roster.length - leaving), 2);
+      const needTarget = signingTarget(school, leaving, roster.length - leaving);
       if (scholarshipsUsed(gameState, school.id, rec.gender) >= offerCap(school, rec.gender, needTarget)) {
         return { ok: false, message: terms.capped };
       }
@@ -762,7 +855,7 @@
       const elite = school.prestige >= 75;
       const boardCap = elite && committed === 0 && week <= D.RECRUITING.SIGNING_WEEK - 3
         ? 4
-        : Utils.clamp(need.target * 2, 6, 12);
+        : Utils.clamp(need.target * 2, 6, 16);
       if (board[gender].length >= boardCap) return;
 
       // Target recruits whose composite matches the program's level, with
@@ -779,7 +872,7 @@
       // The late scramble (Update X): a program still short of its class in
       // the final month stops fighting lost bidding wars and shops
       // down-market for the overlooked — recruits nobody has offered yet.
-      const scramble = week >= D.RECRUITING.SIGNING_WEEK - 5 && committed < need.target;
+      const scramble = week >= D.RECRUITING.SIGNING_WEEK - 8 && committed < need.target;
       if (scramble) lo = Math.max(0, lo - 50);
       // The first wave shops only at the very top of the window.
       if (elite && boardCap === 4) lo = Math.max(lo, hi - 30);
@@ -798,6 +891,16 @@
         // Event balance (Update X): graduating seniors leave a hole in their
         // event group — recruits who fill it are prioritized for the board.
         if (need.eventNeeds[r.preferredDistance]) keepChance = Math.min(1, keepChance + 0.25);
+        // Program identity (Update 11): staffs recruit athletes who fit how
+        // they actually train — volume programs hunt aerobic engines, speed
+        // programs hunt the kick.
+        const tp = coach && coach.trainingPhilosophy;
+        if (tp === 'high-mileage' || tp === 'strength-endurance') {
+          keepChance += (r.stamina || 55) > (r.speed || 55) + 6 ? 0.15 : -0.08;
+        } else if (tp === 'speed') {
+          keepChance += (r.speed || 55) > (r.stamina || 55) + 6 ? 0.15 : -0.08;
+        }
+        keepChance = Utils.clamp(keepChance, 0.1, 1);
         // Scrambling programs chase uncontested names: an offer-free recruit
         // is a near-certain add, a bidding war is mostly a waste of a slot.
         if (scramble) {
@@ -882,8 +985,10 @@
     //    want of paperwork.
     const talentBar = 34 + school.prestige * 0.62 + o.urgency * 12;
     // In the closing sweep a program short on bodies offers on contact —
-    // a roster spot in hand beats an empty locker.
-    const interestBar = o.urgency >= 2 ? -1 : o.urgency === 1 ? 14 : 28;
+    // a roster spot in hand beats an empty locker. Update 11: bars start
+    // lower — real classes (DI 6-8, DII/DIII 4-8) need offers moving early,
+    // not a season of pen-pal letters followed by a panic.
+    const interestBar = o.urgency >= 2 ? -1 : o.urgency === 1 ? 10 : 20;
     if (!st.offered && st.interest > interestBar && recruitComposite(rec) <= talentBar && affordable('offer')) {
       const oc = ctxOfferCount(o.ctx, school.id, rec.gender);
       if (oc < offerCap(school, rec.gender, o.need.target)) return 'offer';
@@ -953,7 +1058,8 @@
         if (committedCount >= need.target) return;
         // Urgency rises as signing day nears with the class still short:
         // 1 = push harder and lower the bars, 2 = the final closing sweep.
-        const urgency = weeksLeft <= 2 ? 2 : weeksLeft <= 6 ? 1 : 0;
+        // Update 11: both fire earlier — bigger classes need a longer close.
+        const urgency = weeksLeft <= 3 ? 2 : weeksLeft <= 8 ? 1 : 0;
 
         const targets = board[gender]
           .map((id) => gameState.world.recruits[id])
@@ -975,9 +1081,13 @@
 
         // Points are shared across both squads (like the player's), with a
         // soft per-gender ceiling so the first squad can't spend everything.
-        const genderPointCap = Math.ceil(econ.points * 0.62);
+        const genderPointCap = Math.ceil(econ.points * 0.7);
         let spentHere = 0;
-        const workCount = Math.min(targets.length, (aggressive ? 6 : 5) + urgency * 2);
+        // Bigger classes need a wider weekly rotation (Update 11): staffs
+        // chasing 6-8 signees work more names per week than replacement-only
+        // programs, on the same point economy.
+        const workCount = Math.min(targets.length,
+          (aggressive ? 6 : 5) + urgency * 2 + Math.max(0, need.target - 4));
         for (let i = 0; i < workCount; i++) {
           const rec = targets[i];
           if (econ.points <= 0 || spentHere >= genderPointCap) break;
@@ -1160,7 +1270,17 @@
       entry.divisionRank = divCounters[entry.division];
     });
 
-    gameState.history.recruitingClasses[gameState.year] = ranking.slice(0, 120).map((entry) => ({
+    // Every signing class is ranked (Update 11): a single signee of any star
+    // level puts a program on its division's board — there is no talent
+    // threshold. The stored ledger keeps each division's top 60 (plus the
+    // player's class wherever it lands) so saves stay a sane size while the
+    // rankings screen always has a full board for DI, DII, and DIII alike.
+    const storedPerDiv = {};
+    const stored = ranking.filter((entry) => {
+      storedPerDiv[entry.division] = (storedPerDiv[entry.division] || 0) + 1;
+      return storedPerDiv[entry.division] <= 60 || entry.schoolId === gameState.playerSchoolId;
+    });
+    gameState.history.recruitingClasses[gameState.year] = stored.map((entry) => ({
       rank: entry.rank,
       divisionRank: entry.divisionRank,
       division: entry.division,
@@ -1219,8 +1339,11 @@
       // Update X: gains are larger and division-weighted — a top-5 DI class
       // is a bigger résumé line than a top DII or DIII class, because the
       // recruiting competition is fiercer at the higher level.
+      // Update 11: the lower-division discount softened (DIII 0.5 → 0.7,
+      // DII 0.7 → 0.85) so a DIII assistant who recruits well builds a real
+      // résumé at a livable pace — the climb is slower than DI, not hopeless.
       if (gameState.isAssistant() && coach && playerRank >= 0) {
-        const divW = { DI: 1, DII: 0.7, DIII: 0.5 }[playerDiv] ?? 1;
+        const divW = { DI: 1, DII: 0.85, DIII: 0.7 }[playerDiv] ?? 1;
         let repGain = 0;
         if (playerRank < 3) repGain = 9;
         else if (playerRank < 5) repGain = 7.5;
@@ -1266,6 +1389,12 @@
         delete athlete.playerKnowledge;
         delete athlete.importance;
         delete athlete.motivations;
+        // The recruiting fog lifts at enrollment (Update 11): the athlete's
+        // real ceiling becomes canonical — a hidden gem's development from
+        // here on is the discovery the recruitment never allowed.
+        delete athlete.perceivedPotential;
+        delete athlete.scoutNotes;
+        delete athlete.divisionPreference;
         athlete.recalculateOverall();
         gameState.world.athletes[athlete.id] = athlete;
         (rec.gender === 'M' ? school.rosterM : school.rosterW).push(athlete.id);
@@ -1326,6 +1455,8 @@
     fitScore,
     distanceMiles,
     recruitComposite,
+    perceivedPotential,
+    signingTarget,
     weeklyPoints,
     schoolWeeklyPoints,
     scholarshipsUsed,

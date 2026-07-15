@@ -147,10 +147,16 @@
         </div>
         <div style="text-align:right;">
           <div style="font-size:26px; font-weight:800;">${fogRange(rec.currentOverall, scout)}</div>
-          <div style="font-size:12px; color:var(--text-dim);">OVERALL • POT ${fogRange(rec.potential, scout, 44)}</div>
+          <div style="font-size:12px; color:var(--text-dim);">OVERALL • POT ${fogRange(RE().perceivedPotential(rec), scout, 44)}</div>
           <div style="font-size:12px; color:var(--text-faint); margin-top:2px;">Scouted ${scout}%</div>
         </div>
       </div>
+
+      ${scout >= 35 && rec.scoutNotes && rec.scoutNotes.length ? `
+      <div class="card" style="padding:8px 12px; margin-bottom:14px; border-left:3px solid var(--accent);">
+        <span style="font-size:12px; color:var(--text-dim);">Scout's notebook:</span>
+        <em style="font-size:13px;">&ldquo;${rec.scoutNotes.map((n) => Utils.escapeHtml(n)).join(' ')}&rdquo;</em>
+      </div>` : ''}
 
       <div class="grid cols-3" style="margin-bottom:14px;">
         <div>

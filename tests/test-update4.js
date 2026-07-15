@@ -74,7 +74,10 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   const sim = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     g.recruiting.auto = true;
-    for (let i = 0; i < 66; i++) { g.weeklyFlow.trainingConfirmed = true; g.weeklyFlow.recruitingDone = true; g.advanceWeek(); }
+    // 63 weeks = exactly 3 seasons, landing on Week 1 — the only week the
+    // schedule is still editable since the Week 1 admin phase (the rest
+    // test below needs an unlocked week).
+    for (let i = 0; i < 63; i++) { g.weeklyFlow.trainingConfirmed = true; g.weeklyFlow.recruitingDone = true; g.advanceWeek(); }
     const L = window.XCD.engine.Legacy;
     // accolade coverage: types present across active + alumni
     const types = {}; let multiDiv = 0;

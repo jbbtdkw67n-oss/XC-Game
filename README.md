@@ -10,6 +10,55 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 9.0 — Update 11: Recruiting Balance & The Healthy Ecosystem
+
+Recruiting rebalanced across all three divisions, a second recruiting
+window every summer, hidden gems worth hunting, and a coaching carousel
+that respects a handshake.
+
+- **Every school recruits, every year.** Division-tuned signing targets:
+  DI programs sign **6–8** per gender, DII and DIII **4–8** — dynamic on
+  both ends (graduation-heavy rosters recruit aggressively, young or
+  bursting lower-division rosters recruit replacements only). The
+  national class expanded to **4,800 per gender (9,600 recruits)** so all
+  727 programs can genuinely fill rosters, and the weekly recruiting
+  economy grew to match.
+- **Recruits distribute like real kids.** Lower-rated recruits weigh the
+  school down the road and the chance to actually race far more than a
+  brand name; a real slice of every class (mostly 2–3★, some 4★)
+  actively **prefers the DII/DIII experience** and will pick a strong
+  small program over a Division I bench — discoverable through scouting
+  as the "small-school" motivation. Programs recruit to their identity:
+  volume staffs hunt aerobic engines, speed staffs hunt the kick, and
+  graduation holes drive the board.
+- **The summer transfer window.** Division I cut day now feeds a real
+  second market: every roster cut (walk-ons included) enters a portal
+  window across Summer Training **weeks 1–3, exclusive to DII and DIII
+  programs**, who aggressively evaluate every available body — roster
+  shortages, playing time, distance from home, program fit, and coaching
+  stability all matter. Former DI athletes become impact runners a level
+  down; nobody vanishes from the sport unclaimed.
+- **Diamonds in the rough.** 3–7% of every class hides an elite ceiling
+  behind modest stars and rankings. Scouts see a believable (wrong)
+  potential; the tells — huge work ethic, coachability, consistency,
+  late growth — surface only as soft scouting notes that plenty of
+  ordinary grinders also earn. Finding one is the payoff.
+- **Class rankings take any signees.** A single signee of any star level
+  puts a program on its division's recruiting board — no star threshold.
+  DIII boards are fully populated, and low-star classes rank.
+- **An intimate portal again.** The fall transfer portal reverted to
+  **2–4 pursuing schools per athlete** — top programs still chase the
+  top names and small programs the overlooked, only the market size came
+  back down.
+- **The carousel respects a handshake.** Accepting any coaching job
+  immediately clears every remaining offer, closes the market to you for
+  the rest of that offseason, and the accepted chair is final for the
+  season. Passed-over schools keep searching and fill their vacancies
+  with other candidates; next offseason opens fresh. And the DIII
+  assistant climb is real: lower-division recruiting résumés carry more
+  weight, and summer-window signings build a small-school recruiter's
+  reputation.
+
 ## Version 8.0 — Update X: Recruiting Realism & The Living Transfer Market
 
 The recruiting world wakes up: real bidding wars in the portal, a fully

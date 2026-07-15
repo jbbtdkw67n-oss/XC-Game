@@ -16,14 +16,20 @@
     if (!portal) {
       const lastSummary = game.history.portalSummaries &&
         game.history.portalSummaries[game.year - 1];
+      const lastSummer = game.history.summerPortals &&
+        (game.history.summerPortals[game.year] || game.history.summerPortals[game.year - 1]);
       container.innerHTML = `
         <div class="screen-header"><h1>Transfer Portal</h1></div>
         <div class="card" style="color:var(--text-dim);">
           The portal window opens after nationals (Week ${Portal().ENTRY_WEEK}) and closes at
           Week ${Portal().DECISION_WEEK}. ${lastSummary ? `Last cycle: ${lastSummary.entries} entries, ${lastSummary.moved} transfers.` : ''}
+          <br><br>☀️ The <strong>summer window</strong> (Weeks 1-${Portal().SUMMER_FINAL_WEEK}) reopens the portal
+          exclusively for Division II and III programs, stocked with Division I roster cuts.
+          ${lastSummer ? `Last summer: ${lastSummer.entries} cuts entered, ${lastSummer.placed} continued their careers at DII/DIII programs.` : ''}
         </div>`;
       return;
     }
+    const summer = !!portal.summer;
 
     const entries = portal.entries
       .map((e) => ({ e, a: game.getAthlete(e.athleteId) }))
@@ -34,7 +40,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>Transfer Portal — ${portal.open ? 'OPEN' : 'Closed'}</h1>
+        <h1>${summer ? '☀️ Summer Transfer Window' : 'Transfer Portal'} — ${portal.open ? 'OPEN' : 'Closed'}</h1>
         <div class="actions">
           <span class="phase-pill" style="padding:5px 14px;">Pursuing ${myOffers}/${Portal().PLAYER_OFFER_LIMIT}</span>
           <div class="pill-tabs">
@@ -45,6 +51,13 @@
         </div>
       </div>
 
+      ${summer ? `
+        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent); padding:10px 14px; font-size:13px;">
+          ☀️ Division I roster cuts looking to continue their careers. This window is
+          <strong>exclusive to Division II and III programs</strong>${(game.getPlayerSchool().division || 'DI') === 'DI'
+            ? ' — as a Division I coach you can only watch the market move.'
+            : ' — pursue up to ' + Portal().PLAYER_OFFER_LIMIT + ' before it closes at the end of Week ' + Portal().SUMMER_FINAL_WEEK + '.'}
+        </div>` : ''}
       ${myDepartures.length ? `
         <div class="card" style="margin-bottom:16px; border-left:3px solid var(--danger);">
           <h2>Leaving Your Program</h2>

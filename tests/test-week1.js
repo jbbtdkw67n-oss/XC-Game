@@ -146,11 +146,16 @@ async function run() {
     const atLimit = school.rosterM.length;
     const r3 = P.cutAthlete(g, school.rosterM[0]); // now at the limit — refused
     const cutA = g.world.athletes[victim1];
+    // Update 11: a Week 1 cut enters the summer transfer window (DII/DIII
+    // only) instead of teleporting straight onto a new roster.
+    const inSummerWindow = !!(g.portal && g.portal.summer &&
+      g.portal.entries.some((e) => e.athleteId === victim1));
     return {
       before, blockedConfirm,
       cut1: r1.ok, cut2: r2.ok, atLimit,
       overCutRefused: !r3.ok,
-      landedSomewhere: !cutA || (cutA.schoolId && cutA.schoolId !== g.playerSchoolId),
+      landedSomewhere: !cutA || inSummerWindow ||
+        (cutA.schoolId && cutA.schoolId !== g.playerSchoolId),
       after: g.rosterLimitStatus()
     };
   });

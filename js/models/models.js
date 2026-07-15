@@ -479,6 +479,19 @@
         stateRank: 0,
         regionalRank: 0,
 
+        // Diamonds in the rough (Update 11). When `hiddenGem` is set, the
+        // recruit's true `potential` is elite but every public-facing read —
+        // rankings, stars, the scouted POT display — uses `perceivedPotential`
+        // instead, so the gem is never obvious during recruiting.
+        hiddenGem: false,
+        perceivedPotential: null, // null = ratings are honest; number = the scouting consensus
+        scoutNotes: null,         // soft scouting lines ("Late bloomer.") — gems AND ordinary grinders
+
+        // Division preference (Update 11): some recruits genuinely want the
+        // DII/DIII experience and will pick a strong lower-division program
+        // over riding a Division I bench. 'DII' | 'DIII' | null.
+        divisionPreference: null,
+
         // Hidden decision drivers (revealed to the player via scouting)
         motivations: [],         // keys into XCD.data.MOTIVATIONS
         parentsInfluence: 50,

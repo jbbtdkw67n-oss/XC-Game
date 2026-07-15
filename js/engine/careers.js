@@ -33,7 +33,14 @@
    * Update 6, Section 10: elite programs also occasionally court a proven
    * head coach for a top assistant job — career paths bend both ways.
    */
+  // Once a position is accepted, the carousel is closed to the player until
+  // the next hiring cycle (Update 11) — no lingering or late offers.
+  function searchClosed(gameState) {
+    return gameState.jobSearchClosedYear === gameState.year;
+  }
+
   function generateOffers(gameState, rng) {
+    if (searchClosed(gameState)) return;
     generateHeadCoachOffers(gameState, rng);
     maybeEliteAssistantOffer(gameState, rng);
   }
@@ -140,6 +147,7 @@
    * have their own promotion market.
    */
   function evolveJobMarket(gameState, rng) {
+    if (searchClosed(gameState)) return; // committed for the season — no new listings
     if (gameState.isAssistant()) return;
     if (gameState.seasonPhase !== 'Offseason' || gameState.week >= OFFER_EXPIRY_WEEK) return;
     const school = gameState.getPlayerSchool();
@@ -263,6 +271,7 @@
    *    the staff ladder without waiting for a head chair.
    */
   function generateAssistantOffers(gameState, rng) {
+    if (searchClosed(gameState)) return;
     const coach = gameState.getPlayerCoach();
     const home = gameState.getPlayerSchool();
     const rep = coach.reputation || 12;
@@ -336,6 +345,18 @@
     }
   }
 
+  /*
+   * Accepting ANY position ends the offseason job search (Update 11): every
+   * remaining offer disappears, no school may extend a new one until the
+   * next hiring cycle, and the accepted chair is final for the season. The
+   * schools that were passed over keep searching — their vacancies fill
+   * through the normal carousel — and next offseason opens fresh.
+   */
+  function closeJobSearch(gameState) {
+    gameState.jobOffers = null;
+    gameState.jobSearchClosedYear = gameState.year;
+  }
+
   function acceptOffer(gameState, schoolId) {
     const offers = gameState.jobOffers;
     if (!offers || !offers.offers.some((o) => o.schoolId === schoolId)) {
@@ -378,7 +399,7 @@
       gameState.recruiting.budgetLeft = Math.round(newSchool.budget.recruiting * 0.5);
       gameState.recruiting.board = { M: [], W: [] };
       gameState.lastPlayerMeetId = null;
-      gameState.jobOffers = null;
+      closeJobSearch(gameState);
       gameState.weeklyFlow.trainingConfirmed = true; // the head coach plans now
 
       gameState.career.stops = gameState.career.stops || [];
@@ -426,7 +447,7 @@
       gameState.recruiting.budgetLeft = Math.round(newSchool.budget.recruiting * 0.5);
       gameState.recruiting.board = { M: [], W: [] };
       gameState.lastPlayerMeetId = null;
-      gameState.jobOffers = null;
+      closeJobSearch(gameState);
       gameState.weeklyFlow.trainingConfirmed = true; // still an assistant — the head coach plans
 
       gameState.career.stops = gameState.career.stops || [];
@@ -473,7 +494,7 @@
       gameState.culture.captains = { M: [], W: [] };
       gameState.recruiting.budgetLeft = Math.round(newSchool.budget.recruiting * 0.5);
       gameState.lastPlayerMeetId = null;
-      gameState.jobOffers = null;
+      closeJobSearch(gameState);
       gameState.weeklyFlow.trainingConfirmed = false; // now a head coach — you plan again
 
       gameState.career.stops = gameState.career.stops || [];
@@ -518,7 +539,7 @@
     gameState.culture.captains = { M: [], W: [] };
     gameState.recruiting.budgetLeft = Math.round(newSchool.budget.recruiting * 0.5); // mid-cycle move
     gameState.lastPlayerMeetId = null;
-    gameState.jobOffers = null;
+    closeJobSearch(gameState);
 
     gameState.career.stops = gameState.career.stops || [];
     gameState.career.stops.push({ school: newSchool.name, startYear: gameState.year + 1 });
@@ -546,6 +567,9 @@
   }
 
   function applyForJob(gameState, schoolId) {
+    if (searchClosed(gameState)) {
+      return { ok: false, message: 'You already accepted a position this offseason — the carousel reopens next cycle.' };
+    }
     const market = gameState.jobOffers;
     const offer = market && market.offers.find((o) => o.schoolId === schoolId);
     if (!offer) return { ok: false, message: 'That opening is no longer listed.' };
