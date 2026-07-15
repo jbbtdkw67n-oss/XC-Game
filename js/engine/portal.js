@@ -245,6 +245,18 @@
   function transferRisk(gameState, athlete) {
     const school = athlete.schoolId && gameState.getSchool(athlete.schoolId);
     if (!school || athlete.isRecruit) return null;
+    // A just-arrived transfer (Update 11) is committed to the program they
+    // chose — no transfer risk during their first season on the new campus.
+    // Whatever drove them out of their old school does not follow them in.
+    if (athlete.transferGraceYear === gameState.year) {
+      return {
+        score: 0,
+        level: window.XCD.data.transferRiskLevel(0),
+        reasons: [],
+        anchors: ['Just transferred in — settling into the new program'],
+        graduating: athlete.eligibilityRemaining < 2
+      };
+    }
     const { u, reasons, anchors } = unhappiness(gameState, athlete, school);
     const R = window.XCD.data.PORTAL_REASONS;
     let score = u;
@@ -275,6 +287,8 @@
         school[key].forEach((id) => {
           const a = gameState.world.athletes[id];
           if (!a || a.eligibilityRemaining < 2 || isRedshirted(a)) return;
+          // A transfer in their grace season stays put — they just got here.
+          if (a.transferGraceYear === gameState.year) return;
           const { u, reason } = unhappiness(gameState, a, school);
           let p = Utils.clamp((u - 14) / 130, 0, 0.5);
           // The Zero Morale Rule (Section 14): athletes at rock bottom almost
@@ -688,6 +702,7 @@
     a.morale = 72;
     a.coachRelationship = 55;
     a.teamRelationship = 50;
+    a.transferGraceYear = gameState.year; // committed to the new program (Update 11)
     const engine = ((a.vo2Max || 55) + (a.stamina || 55)) / 2;
     a.fitness = Utils.clamp(Math.round(44 + (engine - 55) * 0.4 + rng.int(-12, 18)), 34, 84);
     a.fatigue = Utils.clamp(Math.min(a.fatigue, rng.int(6, 22)), 0, 100);
@@ -789,6 +804,13 @@
       to[key].push(a.id);
       a.schoolId = to.id;
       a.morale = 72;
+      // A transfer chose this program — they arrive committed, not still
+      // looking to leave. Reset the bonds that pushed them out of their old
+      // school to a fresh baseline, and grant a first-season grace so their
+      // transfer risk reads low (Update 11).
+      a.coachRelationship = 62;
+      a.teamRelationship = 58;
+      a.transferGraceYear = gameState.year;
 
       // The transfer-success ledger (Update X): who landed whom, and how
       // good they were — feeds staff reputation at the yearly progression.
@@ -877,6 +899,7 @@
     a.morale = 68;
     a.coachRelationship = 55;
     a.teamRelationship = 50;
+    a.transferGraceYear = gameState.year; // a fresh start — no lingering flight risk
     return to;
   }
 

@@ -154,17 +154,30 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       const summary = (g.history.summerPortals || {})[g.year] || null;
       const landedDivs = {};
       let vanished = 0;
+      let riskChecked = 0;
+      let riskHigh = 0; // just-transferred athletes must NOT read high risk
+      let graceMissing = 0;
       entryIds.forEach((id) => {
         const a = g.world.athletes[id];
         if (!a) return; // walked away — recorded as alumni, a legal outcome
         if (!a.schoolId) { vanished++; return; }
         const s = g.getSchool(a.schoolId);
         landedDivs[s.division || 'DI'] = (landedDivs[s.division || 'DI'] || 0) + 1;
+        // A just-arrived transfer should read zero/very-low transfer risk.
+        if (a.transferGraceYear !== g.year) graceMissing++;
+        const risk = window.XCD.engine.Portal.transferRisk(g, a);
+        if (risk) {
+          riskChecked++;
+          if (risk.score > 8) riskHigh++;
+        }
       });
       out.summer.closedByW4 = !g.portal || !g.portal.summer;
       out.summer.summary = summary;
       out.summer.landedDivs = landedDivs;
       out.summer.vanished = vanished;
+      out.summer.riskChecked = riskChecked;
+      out.summer.riskHigh = riskHigh;
+      out.summer.graceMissing = graceMissing;
     } catch (e) { out.err = e.message + '\n' + e.stack; }
     return out;
   });
@@ -198,8 +211,32 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     if (!sim.summer.summary || sim.summer.summary.placed + sim.summer.summary.walkedAway !== sim.summer.summary.entries) {
       fail('summer summary must account for every entry: ' + JSON.stringify(sim.summer.summary));
     }
+    // Just-transferred athletes must not carry their old high transfer risk.
+    if (!sim.summer.riskChecked) fail('no transferred athletes available to check transfer risk');
+    if (sim.summer.graceMissing) fail(sim.summer.graceMissing + ' transferred-in athletes missing the arrival grace flag');
+    if (sim.summer.riskHigh) fail(sim.summer.riskHigh + '/' + sim.summer.riskChecked + ' just-transferred athletes still read elevated transfer risk');
   }
   console.log('season sim:', JSON.stringify(sim));
+
+  // ---- 3b) The arrival grace overrides even a maximally-unhappy athlete:
+  //          whatever drove them out does not follow them in ----
+  const grace = await page.evaluate(() => {
+    const g = window.XCD.ui.state.game;
+    const P = window.XCD.engine.Portal;
+    const a = Object.values(g.world.athletes).find((x) => x.schoolId && !x.isRecruit && x.eligibilityRemaining >= 2);
+    // Manufacture the exact bug: a runner who'd read Very High risk.
+    a.morale = 1; a.coachRelationship = 10; a.teamRelationship = 10;
+    a.seasonRaces = 0; a.currentOverall = 80;
+    const before = P.transferRisk(g, a);
+    a.transferGraceYear = g.year; // ...but they just transferred in
+    const after = P.transferRisk(g, a);
+    return { beforeScore: before.score, beforeLevel: before.level.key, afterScore: after.score, afterLevel: after.level.key };
+  });
+  if (grace.beforeScore <= 8) fail('test setup wrong — the athlete should read high risk without grace: ' + JSON.stringify(grace));
+  if (grace.afterScore !== 0 || grace.afterLevel !== 'very-low') {
+    fail('the arrival grace must zero out transfer risk: ' + JSON.stringify(grace));
+  }
+  console.log('grace:', JSON.stringify(grace));
 
   // ---- 4) Coaching carousel: accepting a job ends the offseason search ----
   const carousel = await page.evaluate(() => {

@@ -92,6 +92,10 @@
         careerInjuries: [], // { year, week, type, weeks, major }
         potentialLostToInjury: 0, // ceiling permanently lost to major injuries
         redshirt: 'None',  // None | True | Medical | Used
+        // The season a transfer arrived (Update 11): during it, their
+        // transfer risk reads zero and they never re-enter the portal — a
+        // fresh start at the program they chose.
+        transferGraceYear: null,
         eligibilityRemaining: 4,
         yearsOnCampus: 1,  // NCAA five-year clock
         seasonRaces: 0,    // races run this season (blocks redshirting)
