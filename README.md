@@ -23,8 +23,10 @@ that respects a handshake.
   elite class**; a rebuilding program or one with bad juniors recruits
   aggressively. No program signs 20 kids it will only cut — offer caps are
   tight and scale with prestige (strong programs land nearly every offer),
-  so a class you sign is a class you keep. The national pool is **4,800
-  per gender (9,600 recruits)** so all 727 programs fill their rosters.
+  so a class you sign is a class you keep. The national pool is right-sized
+  to the 727-program world — **3,000 per gender (6,000 recruits)**: enough
+  that every school fills its class with real recruits, with a realistic
+  unsigned tail, and lean enough that the talent pool never waters down.
 - **Class rankings reward talent, not volume.** A recruit's worth to a
   class rises steeply with star rating, and extra signees count with
   diminishing weight — so **three 4-stars outrank eight 3-stars**, and a

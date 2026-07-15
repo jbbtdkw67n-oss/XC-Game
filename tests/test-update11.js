@@ -55,8 +55,8 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       prefMissingMotivation
     };
   });
-  if (cls.perGender !== 4800 || cls.m !== 4800 || cls.w !== 4800) {
-    fail('class should be 4800 per gender: ' + JSON.stringify(cls));
+  if (cls.perGender !== 3000 || cls.m !== 3000 || cls.w !== 3000) {
+    fail('class should be 3000 per gender: ' + JSON.stringify(cls));
   }
   ['gemPctM', 'gemPctW'].forEach((k) => {
     if (cls[k] < 0.02 || cls[k] > 0.09) fail(`${k} should land in ~3-7%: ${(cls[k] * 100).toFixed(1)}%`);

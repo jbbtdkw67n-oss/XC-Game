@@ -23,7 +23,7 @@ node tests/test-week1.js       # Week 1 admin phase: checklist gates Week 2, sch
 node tests/test-staff.js       # Assistant value (dev/chemistry/morale/recruiting/peaking wiring), free-agent pool, comparison panel + profiles, open job market (all chairs, Interest %, apply/reject flow, offseason-only)
 node tests/test-facilities.js  # Five-facility overhaul: shape + old-save migration, rehab/indoor-track/training-center implications, success+size fundraising, panel UI
 node tests/test-100seasons.js  # Century soak (~9 min): talent stability, health rates, staffing/roster/facility integrity, records, save size + round-trip
-node tests/test-updatex.js     # Update X: 9,600-recruit classes, DIII "Offer Roster Spot" wording, mandatory signing for offered recruits, near-universal CPU signing coverage, Auto Recruiting real economy, intimate portal markets (2-4 suitors), CPU championship fitness
+node tests/test-updatex.js     # Update X: 6,000-recruit classes, DIII "Offer Roster Spot" wording, mandatory signing for offered recruits, near-universal CPU signing coverage, Auto Recruiting real economy, intimate portal markets (2-4 suitors), CPU championship fitness
 node tests/test-update11.js    # Update 11: recruit-to-need signing targets (quality over quantity — full coverage, ~3-5/gender, <15% of DI freshmen cut), quality-weighted class rankings (3 four-stars > 8 three-stars; top classes star-heavy), diamonds in the rough (perceived vs true potential, noisy scout notes), division-preference recruits, 2-4 suitor portal, summer transfer window (DI cuts → DII/DIII, weeks 1-3), carousel closes after accepting a job, transfer-in risk grace
 ```
 

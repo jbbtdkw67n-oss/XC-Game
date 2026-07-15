@@ -1,6 +1,7 @@
 // Update X test suite. Verifies the recruiting & portal realism overhaul:
-//  - class volume: 9,600 recruits nationally (4,800 per gender — Update 11
-//    expanded the class so all 727 programs sign real classes every cycle)
+//  - class volume: 6,000 recruits nationally (3,000 per gender — Update 11.1
+//    right-sized the class to the 727-program world: every school still
+//    signs, with a realistic unsigned tail and no talent dilution)
 //  - Division III uses "Offer Roster Spot" wording (engine + UI), DI keeps
 //    "Offer Scholarship"; DIII offer caps don't collapse to the DI formula
 //  - commitment logic: every recruit with >= 1 offer signs somewhere
@@ -34,8 +35,8 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       pTwo: D.GENERATIONAL.P_TWO
     };
   });
-  if (classInfo.perGender !== 4800) fail('class size per gender should be 4800, got ' + classInfo.perGender);
-  if (classInfo.total !== 9600) fail('national class should hold 9600 recruits, got ' + classInfo.total);
+  if (classInfo.perGender !== 3000) fail('class size per gender should be 3000, got ' + classInfo.perGender);
+  if (classInfo.total !== 6000) fail('national class should hold 6000 recruits, got ' + classInfo.total);
   // ~1 per 7-8 classes per gender: odds must not scale with the bigger class.
   if (Math.abs(classInfo.pOne - 0.062) > 1e-9 || Math.abs(classInfo.pTwo - 0.004) > 1e-9) {
     fail('generational odds changed: ' + JSON.stringify(classInfo));

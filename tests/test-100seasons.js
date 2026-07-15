@@ -89,10 +89,10 @@ async function run() {
   ok(world.champYears >= 100, 'a century of champions must be in the records: ' + world.champYears);
   ok(world.facAvg >= 35 && world.facAvg <= 90, 'AI facility investment must stay believable: avg ' + world.facAvg);
   ok(world.reload, 'the century-old save must round-trip cleanly');
-  // A fresh Update-11 world is ~60 MB: ~34k living athletes plus the
-  // 9,600-recruit national class dominate (storage is IndexedDB, so tens
+  // A fresh Update-11 world is ~55 MB: ~34k living athletes plus the
+  // 6,000-recruit national class dominate (storage is IndexedDB, so tens
   // of MB are fine). History adds ~0.4 MB/season, so a century lands
-  // ~105 MB — anything near 130 would mean genuine bloat/leaked refs.
+  // ~100 MB — anything near 130 would mean genuine bloat/leaked refs.
   ok(world.saveMB < 130, 'the save must stay a sane size: ' + world.saveMB + ' MB');
   console.log('century integrity:', JSON.stringify(world));
   console.log(`100 seasons in ${((Date.now() - t0) / 1000).toFixed(0)}s`);

@@ -262,7 +262,7 @@
     return UI.renderSortableTable(container, {
       rows,
       emptyMessage: opts.emptyMessage,
-      // The national pool is ~1,200/gender. Rendering hundreds of heavy
+      // The national pool is 3,000/gender. Rendering hundreds of heavy
       // rows (meters, stars, badges) on every view is what pushed
       // memory-limited Safari over the edge, so the visible window is
       // capped — sorting/searching still spans the full class.

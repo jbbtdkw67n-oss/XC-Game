@@ -462,12 +462,14 @@
 
   // Recruiting calendar (within the 21-week year)
   D.RECRUITING = {
-    // Update 11: 4,800 per gender (9,600 nationally). Every one of the 727
-    // programs now recruits real classes every cycle (DI 6-8, DII/DIII 4-8
-    // signees), so the national class expanded to sustain all of them.
-    // Generational-talent odds are per CLASS (below), not per recruit, so
-    // the every-7-10-years cadence holds.
-    CLASS_SIZE_PER_GENDER: 4800,
+    // Update 11.1: 3,000 per gender (6,000 nationally). Right-sized to the
+    // 727-program world: steady-state demand is ~2,450 signees per gender
+    // (recruit-to-need classes replacing graduates), so this comfortably
+    // fills every school's class with real recruits while leaving a
+    // realistic ~18% unsigned tail — enough competition to feel alive,
+    // lean enough that the talent pool never waters down. Generational-talent
+    // odds are per CLASS (below), not per recruit, so the cadence holds.
+    CLASS_SIZE_PER_GENDER: 3000,
     SIGNING_WEEK: 19,       // national signing day (offseason)
     EARLY_COMMIT_WEEK: 3,   // earliest anyone verbals
     AI_SIGNEES_TARGET: 5,   // fallback signing target when roster needs are unknown
