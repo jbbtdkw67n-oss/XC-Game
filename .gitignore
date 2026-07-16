@@ -1,3 +1,6 @@
 node_modules/
 package-lock.json
 package.json
+
+# Scratch/diagnostic probes (temporary, not part of the suite)
+tests/_*.js
