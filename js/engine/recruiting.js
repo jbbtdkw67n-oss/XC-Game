@@ -619,6 +619,14 @@
     if (mot.includes('spotlight')) fit += school.conferenceTier === 1 ? 10 : school.conferenceTier >= 3 ? -6 : 0;
     if (mot.includes('underdog')) fit += school.prestige < 55 ? 8 : school.prestige > 80 ? -5 : 0;
     if (mot.includes('facilities-hound')) fit += school.facilitiesOverall >= 75 ? 6 : 0;
+    // "Wants to play for an elite coach" (Update 13, Phase 4): coach
+    // reputation IS the pitch. A Legend on the door is a decisive draw; an
+    // unknown assistant with a modest name struggles to compete for this kid —
+    // another concrete reason to build a reputation over a career.
+    if (mot.includes('elite-coach')) {
+      const rep = coach ? (coach.reputation || 25) : 25;
+      fit += rep >= 80 ? 22 : rep >= 66 ? 14 : rep >= 50 ? 6 : rep >= 34 ? 0 : -12;
+    }
 
     // Climate preference (visible) folds in lightly.
     fit += (climateScore(school, recruit) - 60) * 0.1;
@@ -665,6 +673,34 @@
     }
 
     return Utils.clamp(fit, 5, 99);
+  }
+
+  /*
+   * A recruit's approximate commitment chance FOR a given school (Update 13):
+   * the school's share of the appeal^3 weighting among the recruit's serious
+   * suitors — the same math the commit engine uses to pick a winner. Used to
+   * gate the Sway action (you can't sway a kid who isn't really considering
+   * you) and available to the UI as a legible percentage.
+   */
+  function commitChance(gameState, school, recruit) {
+    if (!recruit || recruit.signed) return 0;
+    const suitors = Object.keys(recruit.interests || {}).filter((sid) => {
+      const s = recruit.interests[sid];
+      return s && (s.offered || s.interest >= 15) && gameState.getSchool(sid);
+    });
+    if (!suitors.includes(school.id)) {
+      const st = recruit.getSchoolState(school.id);
+      if (!st || (!st.offered && st.interest < 15)) return 0;
+      suitors.push(school.id);
+    }
+    const pool = suitors
+      .map((sid) => ({ sid, a: appeal(gameState, gameState.getSchool(sid), recruit, null) }))
+      .sort((x, y) => y.a - x.a)
+      .slice(0, 3); // commit choice is drawn from the top three suitors
+    const denom = pool.reduce((s, p) => s + Math.pow(Math.max(p.a, 1), 3), 0);
+    const mine = pool.find((p) => p.sid === school.id);
+    if (!mine || denom <= 0) return 0;
+    return Math.pow(Math.max(mine.a, 1), 3) / denom;
   }
 
   // Total appeal = long-term fit + relationship built through recruiting.
@@ -775,6 +811,30 @@
       int += rec.starRating >= 4 ? 0 : 4; // lower-rated kids are flattered
     }
 
+    // Sway (Update 13, Phase 4): resolve the momentum swing. Better recruiters
+    // (and more coachable recruits) succeed more often; occasionally the pitch
+    // falls flat or even costs a touch of momentum.
+    if (actionKey === 'sway') {
+      const roll = rand();
+      const successChance = Utils.clamp(0.42 + coach.recruiting / 260 + rec.coachability / 500, 0.35, 0.82);
+      let outcome;
+      if (roll < successChance) {                 // a genuine momentum swing
+        int = (5 + rand() * 5) * recruitingMul;   // ~5-10 interest
+        rel = 3;
+        outcome = 'boost';
+      } else if (roll < successChance + 0.20) {   // just a warmer relationship
+        int = 0; rel = 4;
+        outcome = 'relationship';
+      } else if (roll < successChance + 0.32) {   // no effect
+        int = 0; rel = 0;
+        outcome = 'none';
+      } else {                                    // a misstep — lost momentum
+        int = -3; rel = -2;
+        outcome = 'backfire';
+      }
+      if (school.id === gameState.playerSchoolId) st._swayOutcome = outcome;
+    }
+
     st.relationship = Utils.clamp(st.relationship + rel, 0, 100);
     st.interest = Utils.clamp(st.interest + int, 0, 100);
 
@@ -825,6 +885,17 @@
     if (action.requires === 'visited' && !st.visited) {
       return { ok: false, message: 'An overnight requires a campus visit first.' };
     }
+    // Sway gate (Update 13, Phase 4): you can't magically pull in a recruit
+    // with no interest. They must already be considering you — modest interest
+    // AND a realistic (>~10%) chance of choosing your program.
+    if (action.requires === 'sway') {
+      if (st.interest < 20) {
+        return { ok: false, message: `${rec.lastName} isn't considering you enough to sway yet — build a relationship and some interest first.` };
+      }
+      if (commitChance(gameState, school, rec) < 0.10) {
+        return { ok: false, message: `${rec.lastName}'s commitment chance is too low to sway — you need a real foot in the door first.` };
+      }
+    }
     if (actionKey === 'offer') {
       const roster = gameState.getRoster(school.id, rec.gender);
       const needTarget = signingTarget(school, roster);
@@ -850,9 +921,18 @@
       campusVisit: `${rec.fullName} toured campus.`,
       hostOvernight: `${rec.fullName} stayed overnight with the team.`,
       meetTeam: `${rec.fullName} met the squad.`,
+      sway: (() => {
+        switch (st._swayOutcome) {
+          case 'boost': return `You swayed ${rec.fullName} — real momentum toward your program.`;
+          case 'relationship': return `A strong conversation with ${rec.fullName} — the relationship is stronger, if not the interest yet.`;
+          case 'none': return `${rec.fullName} heard you out, but nothing moved.`;
+          default: return `The pitch to ${rec.fullName} fell flat — you may have lost a little momentum.`;
+        }
+      })(),
       offer: `${terms.made} ${rec.fullName}!`
     };
     let message = messages[actionKey];
+    delete st._swayOutcome; // transient — never persist into saves
     if (discovered) {
       const label = D.MOTIVATIONS.find((m) => m.key === discovered)?.label || discovered;
       message += ` You learned something: ${label.toLowerCase()}.`;
@@ -1019,6 +1099,8 @@
     if (actionKey === 'offer' && st.offered) return false;
     if (action.requires === 'interest30' && st.interest < 30) return false;
     if (action.requires === 'visited' && !st.visited) return false;
+    if (action.requires === 'sway' &&
+        (st.interest < 20 || commitChance(gameState, school, rec) < 0.10)) return false;
 
     econ.points -= action.points;
     econ.budget -= action.cost;
@@ -1076,6 +1158,15 @@
     // 2) The big sell: get them to campus, then keep them overnight.
     if (!st.visited && st.interest >= 30 && affordable('campusVisit')) return 'campusVisit';
     if (st.visited && !st.overnight && st.interest >= 45 && affordable('hostOvernight')) return 'hostOvernight';
+    // 2b) Sway (Update 13, Phase 8): a strong, well-regarded staff selectively
+    //     swings a recruit who's already offered and interested but still
+    //     undecided — spent only when there's a real foot in the door and the
+    //     race isn't already won. Lower-tier staffs rarely reach for it.
+    if (st.offered && !rec.committedTo && st.interest >= 30 && affordable('sway') &&
+        o.coachRecruiting >= 66 && o.rng && o.rng.bool(o.coachRecruiting >= 80 ? 0.22 : 0.13)) {
+      const cc = commitChance(gameState, school, rec);
+      if (cc >= 0.12 && cc < 0.6) return 'sway';
+    }
     // 3) Work the family when the bond is the bottleneck.
     if (st.relationship < 55 && affordable('homeVisit')) return 'homeVisit';
     // 4) Keep contact flowing at whatever the budget allows.
@@ -1166,7 +1257,7 @@
           const st = rec.getSchoolState(school.id, true);
           while ((econ.actions[rec.id] || 0) < D.MAX_ACTIONS_PER_RECRUIT_WEEK &&
                  econ.points > 0 && spentHere < genderPointCap) {
-            const key = chooseAIAction(gameState, school, rec, st, { econ, weekSpend, urgency, need, ctx });
+            const key = chooseAIAction(gameState, school, rec, st, { econ, weekSpend, urgency, need, ctx, coachRecruiting: coach.recruiting || 55, rng });
             if (!key) break;
             const cost = D.RECRUIT_ACTIONS[key];
             if (!tryAIAction(gameState, school, coach, rec, key, econ, rng, ctx)) break;
@@ -1524,6 +1615,7 @@
     startNewWeek,
     doAction,
     appeal,
+    commitChance,
     fitScore,
     distanceMiles,
     recruitComposite,

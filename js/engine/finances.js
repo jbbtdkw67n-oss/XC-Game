@@ -122,6 +122,25 @@
         Math.round(school.budget.total * 0.5)
       );
 
+      // Facility maintenance decay (Update 13, Phase 3): buildings age. Every
+      // facility slowly loses a very small amount of quality — a single point
+      // once every few years, on average — so a program that never reinvests
+      // gradually slips. Upgrades (+4/step) and the AI's yearly projects
+      // comfortably outpace it, and a generous floor means no program is ever
+      // punished into ruin simply for existing. Decay is applied BEFORE the AI
+      // reinvests below, so smart programs stay ahead of the wear.
+      const DECAY_FLOOR = 25;
+      Object.keys(school.facilities).forEach((key) => {
+        const level = school.facilities[key];
+        if (level <= DECAY_FLOOR) return; // never grind a program down to nothing
+        // Higher-end facilities cost a touch more to keep pristine; roughly a
+        // 1-point loss every three years at a typical level.
+        const wearChance = 0.24 + Math.max(0, level - 70) / 260; // ~0.24–0.35
+        if (rng.bool(wearChance)) {
+          school.facilities[key] = Math.max(DECAY_FLOOR, level - 1);
+        }
+      });
+
       // AI schools invest in their weakest facilities (max 2 projects/year).
       if (school.id !== gameState.playerSchoolId) {
         for (let i = 0; i < 2; i++) {

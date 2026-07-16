@@ -469,7 +469,7 @@
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
             <span style="font-size:13px;">Upgrade Points: <strong style="color:${coach.upgradePoints ? 'var(--gold)' : 'var(--text-dim)'};">${coach.upgradePoints || 0}</strong></span>
-            <span style="font-size:11.5px; color:var(--text-faint);">1 point = +2 to a rating</span>
+            <span style="font-size:11.5px; color:var(--text-faint);">1 point = +1 to a rating</span>
           </div>
           ${COACH_ATTRS.map(([key, label, hint]) => `
             <div class="attr-row" style="margin-bottom:6px;" title="${hint}">
@@ -477,7 +477,7 @@
               <div style="flex:1; margin:0 10px;">${UI.meter(coach[key])}</div>
               ${UI.ratingBadge(coach[key])}
               <button class="btn small" data-coach-upg="${key}" style="margin-left:8px;"
-                ${(coach.upgradePoints || 0) > 0 && coach[key] < 99 ? '' : `disabled title="${coach[key] >= 99 ? 'Maxed out' : 'Earn points via titles, All-Americans, top classes, and beating expectations'}"`}>+2</button>
+                ${(coach.upgradePoints || 0) > 0 && coach[key] < 99 ? '' : `disabled title="${coach[key] >= 99 ? 'Maxed out' : 'Earn points via titles, All-Americans, top classes, and beating expectations'}"`}>+1</button>
             </div>`).join('')}
           <div style="font-size:12px; color:var(--text-faint); margin-top:6px;">
             Earn upgrade points with conference/regional/national titles, individual champions,
@@ -695,7 +695,7 @@
         const key = btn.dataset.coachUpg;
         if ((coach.upgradePoints || 0) <= 0 || coach[key] >= 99) return;
         coach.upgradePoints -= 1;
-        coach[key] = Math.min(99, coach[key] + 2);
+        coach[key] = Math.min(99, coach[key] + 1);
         UI.toast(`${COACH_ATTRS.find(([k]) => k === key)[1]} improved to ${coach[key]}.`, 'success');
         render(outerContainer);
       });

@@ -250,6 +250,7 @@
         isPlayer: false,
         yearsAtSchool: 0,
         hotSeat: 0, // 0-100, drives firing risk
+        hotSeatYears: 0, // consecutive seasons on the Hot Seat (3 → fired, Update 13)
         careerRecord: {
           wins: 0, losses: 0, conferenceTitles: 0, regionalTitles: 0, nationalTitles: 0,
           seasons: 0, allAmericans: 0, allConference: 0, indivNatChamps: 0, indivConfChamps: 0,
@@ -265,6 +266,12 @@
       this.migrateLegacyRatings(data);
       this.migrateUpdate2(data);
       this.migrateUpdate4(data);
+      // Update 13: baseline the Coach-of-the-Year reputation trackers so only
+      // awards earned AFTER this point add reputation — a loaded save never
+      // retro-awards its existing COY history.
+      const cr = this.careerRecord;
+      if (cr._repNatCOY === undefined) cr._repNatCOY = cr.natCOY || 0;
+      if (cr._repConfCOY === undefined) cr._repConfCOY = cr.confCOY || 0;
     }
 
     // Saves from before Update 4: assign philosophies deterministically so
@@ -356,7 +363,7 @@
     }
 
     get reputationLevel() {
-      return window.XCD.data.reputationLevel(this.reputation || 0);
+      return window.XCD.data.reputationLevel(this.reputation || 0, this.role);
     }
 
     hasTendency(key) { return (this.tendencies || []).includes(key); }

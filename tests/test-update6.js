@@ -85,7 +85,7 @@ async function run() {
   ok(training.legacyMapped, 'legacy recovery plans must map to easy');
   ok(training.recovWeekTone === 'good', 'recovery week should read as strategy, not a warning');
   ok(training.doubleSimPunished, 'two race sims in a week must be punished');
-  ok(training.phases === 6, 'expected 6 periodization phases');
+  ok(training.phases === 7, 'expected 7 periodization phases (Update 13 adds Postseason Recovery + Track Prep, replacing Transition)');
   ok(training.buildFitsBuild && training.buildFightsChamp && training.recovFitsChamp, 'phase fit logic wrong');
 
   // ---- 3) CPU training intelligence tiers ----

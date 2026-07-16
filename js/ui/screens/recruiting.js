@@ -119,6 +119,10 @@
       else if (key === 'offer' && st.offered) disabledReason = 'Already offered';
       else if (a.requires === 'interest30' && st.interest < 30) disabledReason = 'Needs 30 interest';
       else if (a.requires === 'visited' && !st.visited) disabledReason = 'Needs campus visit first';
+      else if (a.requires === 'sway') {
+        if (st.interest < 20) disabledReason = 'Needs modest interest to sway';
+        else if (RE().commitChance(game, school, rec) < 0.10) disabledReason = 'Commit chance too low to sway';
+      }
       const label = key === 'offer' ? terms.action : a.label;
       return `
         <button class="btn small" data-action="${key}" ${disabledReason ? `disabled title="${disabledReason}"` : ''}>

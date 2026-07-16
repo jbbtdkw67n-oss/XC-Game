@@ -388,6 +388,7 @@
       coach.schoolId = newSchool.id;
       coach.yearsAtSchool = 0;
       coach.hotSeat = 0;
+      coach.hotSeatYears = 0;
       newSchool.assistantId = coach.id;
       gameState.playerSchoolId = newSchool.id;
       Legacy.openStint(gameState, coach, newSchool, gameState.year + 1);
@@ -477,6 +478,7 @@
         Legacy.closeStint(gameState, incumbent, newSchool, gameState.year);
         incumbent.schoolId = null;
         incumbent.hotSeat = 0;
+        incumbent.hotSeatYears = 0;
         incumbent.poolYears = 0;
       }
       coach.role = 'Head';
@@ -485,6 +487,7 @@
       coach.schoolId = newSchool.id;
       coach.yearsAtSchool = 0;
       coach.hotSeat = 0;
+      coach.hotSeatYears = 0;
       gameState.playerSchoolId = newSchool.id;
       Legacy.openStint(gameState, coach, newSchool, gameState.year + 1);
       newSchool.coachChangedYear = gameState.year;
@@ -529,6 +532,7 @@
     // job. Reputation transfers; the seat starts Stable, and expectations
     // are recalculated against the new school only.
     coach.hotSeat = 0;
+    coach.hotSeatYears = 0;
     gameState.playerSchoolId = newSchool.id;
     Legacy.openStint(gameState, coach, newSchool, gameState.year + 1);
     newSchool.coachChangedYear = gameState.year;
@@ -648,6 +652,7 @@
         c.schoolId = school.id;
         c.yearsAtSchool = 0;
         c.hotSeat = 0;
+        c.hotSeatYears = 0;
         Legacy.openStint(gameState, c, school, gameState.year);
         school.coachChangedYear = gameState.year;
         gameState.logNews(`POACHED: ${school.name} hires ${c.fullName} away from ${from.name} (${(c.reputationLevel || {}).label || 'rising name'}).`);
@@ -685,6 +690,7 @@
         promo.schoolId = school.id;
         promo.yearsAtSchool = 0;
         promo.hotSeat = 0;
+        promo.hotSeatYears = 0;
         school.coachId = promo.id;
         Legacy.openStint(gameState, promo, school, gameState.year);
         school.coachChangedYear = gameState.year;
@@ -907,6 +913,7 @@
         Legacy.closeStint(gameState, incumbent, newSchool, year);
         incumbent.schoolId = null;
         incumbent.hotSeat = 0;
+        incumbent.hotSeatYears = 0;
         incumbent.poolYears = 0; // hits the open market, not oblivion
         gameState.logNews(`${newSchool.name} moves on from ${incumbent.fullName} to hand the program to a new voice.`);
       }

@@ -48,29 +48,53 @@
     const rank = bestRank(gameState, school.id);
     let delta = 0;
 
+    // Reputation Rebalance (Update 13): a national standing must reflect
+    // SUSTAINED excellence over many years, not a couple of good seasons.
+    // Accomplishments — titles, podiums, top classes, development — are the
+    // engine of a reputation; simply competing contributes only a trickle.
     // Results against the size of the job: overachieving a small program
-    // builds a name faster than treading water at a blue blood.
+    // builds a name faster than treading water at a blue blood — but the
+    // passive, expectation-based gains are now modest.
     const expectedRank = Math.round((1 - school.prestige / 100) * total * 0.9) + 5;
     const over = expectedRank - rank;
-    delta += Utils.clamp(over / 45, -2.0, 2.5);
-    if (rank <= 10) delta += 1.0;
-    else if (rank <= 30) delta += 0.5;
+    delta += Utils.clamp(over / 70, -1.8, 1.2);
+    if (rank <= 5) delta += 0.7;         // a genuine national podium showing
+    else if (rank <= 15) delta += 0.4;
+    else if (rank <= 40) delta += 0.15;
 
-    // Titles are the currency of legend.
+    // Titles are the currency of legend — the dominant, lasting input.
     const conf = (gameState.history.conferenceChampions || {})[year] || {};
-    if (conf[`${school.conference}-M`] === school.name) delta += 1.2;
-    if (conf[`${school.conference}-W`] === school.name) delta += 1.2;
+    if (conf[`${school.conference}-M`] === school.name) delta += 1.1;
+    if (conf[`${school.conference}-W`] === school.name) delta += 1.1;
     const nat = (gameState.history.nationalChampions || {})[year] || {};
     ['M', 'W'].forEach((g) => {
       const key = (school.division || 'DI') === 'DI' ? g : `${school.division}-${g}`;
-      if (nat[key] && nat[key].teamId === school.id) delta += 4.5;
+      if (nat[key] && nat[key].teamId === school.id) delta += 4.0;
+      // National runner-up / podium team also builds a name (Update 13).
+      else {
+        const row = gameState.rankings && gameState.rankings[g].find((r) => r.schoolId === school.id);
+        if (row && row.rank === 2) delta += 1.6;
+        else if (row && row.rank <= 4) delta += 0.9;
+      }
     });
 
-    // Development: turning rosters into better runners gets noticed.
+    // Coach of the Year is a marquee honor — it should move the needle. This
+    // runs once per coach per rollover, so newly-won awards (the difference
+    // since last season's baseline) add reputation exactly once.
+    const cr = coach.careerRecord || {};
+    const gainedNat = (cr.natCOY || 0) - (cr._repNatCOY || 0);
+    const gainedConf = (cr.confCOY || 0) - (cr._repConfCOY || 0);
+    if (gainedNat > 0) delta += gainedNat * 1.2;
+    if (gainedConf > 0) delta += gainedConf * 0.4;
+    cr._repNatCOY = cr.natCOY || 0;
+    cr._repConfCOY = cr.confCOY || 0;
+
+    // Development & All-Americans: turning rosters into better runners, and
+    // producing national-caliber athletes, gets a coach noticed.
     const roster = gameState.getRoster(school.id, 'M').concat(gameState.getRoster(school.id, 'W'));
     if (roster.length) {
       const avgDev = Utils.average(roster.map((a) => a.seasonDev || 0));
-      delta += Utils.clamp((avgDev - 2.2) * 0.35, -1.0, 1.0);
+      delta += Utils.clamp((avgDev - 2.2) * 0.28, -0.9, 0.8);
     }
 
     // Roster exodus stings; a locked-in locker room quietly builds trust.
@@ -81,17 +105,24 @@
     // seen as a program on the move.
     const ps = (gameState.history.portalSummaries || {})[year];
     const haul = ps && ps.inBySchool && ps.inBySchool[school.id];
-    if (haul && haul.elite) delta += Math.min(1.2, haul.elite * 0.5);
+    if (haul && haul.elite) delta += Math.min(1.0, haul.elite * 0.45);
 
-    // Longevity: staying employed is itself a reputation.
-    delta += 0.15;
+    // Longevity: staying employed contributes only a very small amount —
+    // existing for decades is not, by itself, a reputation (Update 13).
+    delta += 0.04;
 
     // Bad seasons bite, and long droughts erode legends.
     if (over < -total * 0.18) delta -= 1.2;
     if (coach.reputation >= 70 && rank > 40) delta -= 0.8;
 
-    delta += (rng.next() - 0.5) * 0.6; // media noise
-    coach.reputation = Utils.clamp(Math.round((coach.reputation + Utils.clamp(delta, -5, 7)) * 10) / 10, 1, 99);
+    delta += (rng.next() - 0.5) * 0.4; // media noise
+    // Diminishing returns near the summit (Update 13): reaching Legend
+    // requires DECADES of success — each rung above National Coach is
+    // harder to climb, so multi-title dynasties rise steadily while average
+    // coaches plateau well short of the top tiers.
+    let applied = Utils.clamp(delta, -5, 6);
+    if (applied > 0) applied *= Utils.clamp(1 - (coach.reputation || 20) / 155, 0.28, 1);
+    coach.reputation = Utils.clamp(Math.round((coach.reputation + applied) * 10) / 10, 1, 99);
   }
 
   /*
@@ -111,21 +142,25 @@
     const total = divisionSize(gameState, school.division);
     const rank = bestRank(gameState, school.id);
     const divW = ASSISTANT_DIV_WEIGHT[school.division || 'DI'] ?? 1;
-    let delta = 0.4; // early-career assistants generally build a name
+    // Reputation Rebalance (Update 13): climbing the assistant ladder to
+    // Legend should take 15-25 SUCCESSFUL seasons. Signing classes and
+    // sharing in title runs still build a name — but simply holding a seat
+    // barely moves it, and the gains taper as the reputation grows.
+    let delta = 0.12; // early-career assistants build a name only slowly
 
     // Team success: the whole staff shares in a nationally relevant season.
-    if (rank <= total * 0.05) delta += 2.0 * divW;
-    else if (rank <= total * 0.15) delta += 1.3 * divW;
-    else if (rank <= total * 0.40) delta += 0.5 * divW;
+    if (rank <= total * 0.05) delta += 1.3 * divW;
+    else if (rank <= total * 0.15) delta += 0.85 * divW;
+    else if (rank <= total * 0.40) delta += 0.32 * divW;
 
     // Titles: hardware on the program's mantle burnishes every résumé on staff.
     const conf = (gameState.history.conferenceChampions || {})[year] || {};
-    if (conf[`${school.conference}-M`] === school.name) delta += 0.8 * divW;
-    if (conf[`${school.conference}-W`] === school.name) delta += 0.8 * divW;
+    if (conf[`${school.conference}-M`] === school.name) delta += 0.55 * divW;
+    if (conf[`${school.conference}-W`] === school.name) delta += 0.55 * divW;
     const nat = (gameState.history.nationalChampions || {})[year] || {};
     ['M', 'W'].forEach((g) => {
       const key = (school.division || 'DI') === 'DI' ? g : `${school.division}-${g}`;
-      if (nat[key] && nat[key].teamId === school.id) delta += 3.0 * divW;
+      if (nat[key] && nat[key].teamId === school.id) delta += 2.1 * divW;
     });
 
     // THIS season's recruiting class — the assistant's signature work and
@@ -134,11 +169,11 @@
     const entry = classes.find((e) => e.schoolId === school.id);
     if (entry) {
       const r = entry.divisionRank || entry.rank;
-      if (r <= 3) delta += 3.4 * divW;
-      else if (r <= 5) delta += 2.8 * divW;
-      else if (r <= 10) delta += 2.0 * divW;
-      else if (r <= 25) delta += 1.0 * divW;
-      else if (r <= 60) delta += 0.4 * divW;
+      if (r <= 3) delta += 2.4 * divW;
+      else if (r <= 5) delta += 1.9 * divW;
+      else if (r <= 10) delta += 1.35 * divW;
+      else if (r <= 25) delta += 0.7 * divW;
+      else if (r <= 60) delta += 0.28 * divW;
     }
 
     // Transfer portal success: landing elite portal athletes is a modern
@@ -147,22 +182,26 @@
     const ps = (gameState.history.portalSummaries || {})[year];
     const haul = ps && ps.inBySchool && ps.inBySchool[school.id];
     if (haul) {
-      if (haul.elite) delta += Math.min(2.0, haul.elite * 0.8) * divW;
-      else if (haul.count >= 2) delta += 0.4 * divW;
+      if (haul.elite) delta += Math.min(1.4, haul.elite * 0.6) * divW;
+      else if (haul.count >= 2) delta += 0.28 * divW;
     }
 
     // Player development: a room that visibly improves reflects on the staff.
     const roster = gameState.getRoster(school.id, 'M').concat(gameState.getRoster(school.id, 'W'));
     if (roster.length) {
       const avgDev = Utils.average(roster.map((a) => a.seasonDev || 0));
-      delta += Utils.clamp((avgDev - 2.2) * 0.3, -0.6, 0.9);
+      delta += Utils.clamp((avgDev - 2.2) * 0.24, -0.6, 0.7);
     }
 
-    if ((coach.recruiting || 55) >= 70) delta += 0.5; // recruiting is their calling card
+    if ((coach.recruiting || 55) >= 70) delta += 0.35; // recruiting is their calling card
     if (coach.age > 55) delta -= 0.7; // long-tenured assistants who never stepped up plateau
-    delta += (rng.next() - 0.5) * 0.4;
+    delta += (rng.next() - 0.5) * 0.3;
+    // Diminishing returns near the top: the final rungs to a Legend
+    // Assistant reputation demand many more seasons of sustained success.
+    let applied = Utils.clamp(delta, -3, 6);
+    if (applied > 0) applied *= Utils.clamp(1 - (coach.reputation || 12) / 150, 0.3, 1);
     coach.reputation = Utils.clamp(
-      Math.round((coach.reputation + Utils.clamp(delta, -3, 8)) * 10) / 10, 1, 92);
+      Math.round((coach.reputation + applied) * 10) / 10, 1, 92);
   }
 
   /* ---------------- Rating progression ---------------- */
@@ -240,14 +279,15 @@
   /* ---------------- Identity helpers ---------------- */
   // Weekly volume philosophy (Part 6): tendencies set the baseline.
   function preferredMileage(coach, gender) {
-    let base = 72;
+    // Mileage scaling (Update 13, Phase 7): men average ~75 mpw, women ~60.
+    let base = 75;
     if (coach) {
       if (coach.hasTendency && coach.hasTendency('mileage-heavy')) base = 92;
       else if (coach.hasTendency && coach.hasTendency('low-mileage')) base = 56;
       if (coach.hasTendency && coach.hasTendency('aggressive')) base += 4;
       if (coach.hasTendency && coach.hasTendency('conservative')) base -= 4;
     }
-    if (gender === 'W') base -= 8;
+    if (gender === 'W') base -= 15; // women race 6K on lower volume
     return Utils.clamp(base, D.MILEAGE.MIN, D.MILEAGE.MAX);
   }
 

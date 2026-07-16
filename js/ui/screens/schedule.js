@@ -7,69 +7,103 @@
   const Utils = window.XCD.core.Utils;
   const Races = () => window.XCD.engine.Races;
 
+  // Meet results with Men/Women tabs (Update 13, Phase 9): both squads' full
+  // results are viewable from the Schedule screen, not just the men's.
   function meetResultModal(game, meet, gender) {
-    const res = meet.results[gender];
-    if (!res) { UI.toast('No results for that race yet.'); return; }
     const ft = Races().formatTime;
+    // Default to the requested gender, but fall back to whichever raced.
+    let active = gender && meet.results[gender] ? gender
+      : meet.results.M ? 'M' : meet.results.W ? 'W' : null;
+    if (!active) { UI.toast('No results for that race yet.'); return; }
 
-    const teamRows = res.teamScores.map((t) => {
-      const school = game.getSchool(t.schoolId);
-      const mine = t.schoolId === game.playerSchoolId;
-      return `<tr class="clickable" data-school="${t.schoolId}" ${mine ? 'style="background:var(--accent-soft);"' : ''}>
-        <td>${t.place}</td>
-        <td><strong>${Utils.escapeHtml(school ? school.name : '?')}</strong></td>
-        <td class="num">${t.points}</td>
-        <td style="color:var(--text-dim); font-size:12px;">${t.scorers.join(' + ')}</td>
-      </tr>`;
-    }).join('');
+    // The full results body for one gender — rebuilt when a tab is clicked.
+    function bodyFor(g) {
+      const res = meet.results[g];
+      if (!res) return '<div class="card" style="padding:16px; color:var(--text-dim);">No results recorded for this race.</div>';
 
-    const shown = res.finishers.slice(0, 30);
-    const mineExtra = (res.finishers.length > 30)
-      ? res.finishers.filter((f) => f.schoolId === game.playerSchoolId && f.place > 30)
-      : [];
-    const indivRows = shown.concat(mineExtra).map((f) => {
-      const school = game.getSchool(f.schoolId);
-      const mine = f.schoolId === game.playerSchoolId;
-      return `<tr class="clickable" data-ath="${f.athleteId}" ${mine ? 'style="background:var(--accent-soft);"' : ''}>
-        <td>${f.place}</td>
-        <td>${Utils.escapeHtml(f.name)} <span style="color:var(--text-faint); font-size:11px;">${f.classYear || ''}</span></td>
-        <td>${Utils.escapeHtml(school ? school.name : '?')}</td>
-        <td class="num">${ft(f.time)}</td>
-      </tr>`;
-    }).join('');
+      const teamRows = res.teamScores.map((t) => {
+        const school = game.getSchool(t.schoolId);
+        const mine = t.schoolId === game.playerSchoolId;
+        return `<tr class="clickable" data-school="${t.schoolId}" ${mine ? 'style="background:var(--accent-soft);"' : ''}>
+          <td>${t.place}</td>
+          <td><strong>${Utils.escapeHtml(school ? school.name : '?')}</strong></td>
+          <td class="num">${t.points}</td>
+          <td style="color:var(--text-dim); font-size:12px;">${t.scorers.join(' + ')}</td>
+        </tr>`;
+      }).join('');
+
+      const shown = res.finishers.slice(0, 30);
+      const mineExtra = (res.finishers.length > 30)
+        ? res.finishers.filter((f) => f.schoolId === game.playerSchoolId && f.place > 30)
+        : [];
+      const indivRows = shown.concat(mineExtra).map((f) => {
+        const school = game.getSchool(f.schoolId);
+        const mine = f.schoolId === game.playerSchoolId;
+        return `<tr class="clickable" data-ath="${f.athleteId}" ${mine ? 'style="background:var(--accent-soft);"' : ''}>
+          <td>${f.place}</td>
+          <td>${Utils.escapeHtml(f.name)} <span style="color:var(--text-faint); font-size:11px;">${f.classYear || ''}</span></td>
+          <td>${Utils.escapeHtml(school ? school.name : '?')}</td>
+          <td class="num">${ft(f.time)}</td>
+        </tr>`;
+      }).join('');
+
+      return `
+        <h3 style="margin:0 0 10px;">${g === 'M' ? "Men's" : "Women's"} ${Races().distKey(res.distanceM)}</h3>
+        <div class="grid cols-2">
+          <div class="card" style="padding:12px;">
+            <h3>Team Scores</h3>
+            <div class="table-wrap" style="max-height:340px; overflow-y:auto;">
+              <table class="data"><thead><tr><th>Pl</th><th>Team</th><th class="num">Pts</th><th>Scorers</th></tr></thead>
+              <tbody>${teamRows}</tbody></table>
+            </div>
+          </div>
+          <div class="card" style="padding:12px;">
+            <h3>Individuals${res.finisherCount > shown.length ? ` (top ${shown.length} of ${res.finisherCount})` : ''}</h3>
+            <div class="table-wrap" style="max-height:340px; overflow-y:auto;">
+              <table class="data"><thead><tr><th>Pl</th><th>Runner</th><th>School</th><th class="num">Time</th></tr></thead>
+              <tbody>${indivRows}</tbody></table>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    const tabBtn = (g, label) => `<button class="btn small ${g === active ? 'primary' : ''}" data-meet-gender="${g}"
+      ${meet.results[g] ? '' : 'disabled title="Did not race"'}>${label}</button>`;
 
     UI.showModal(`
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
-      <h2>${Utils.escapeHtml(meet.name)} — ${gender === 'M' ? "Men's" : "Women's"} ${Races().distKey(res.distanceM)}</h2>
-      <div style="color:var(--text-dim); font-size:13px; margin-bottom:14px;">
+      <h2 style="margin:0 0 4px;">${Utils.escapeHtml(meet.name)}</h2>
+      <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">
         Week ${meet.week} • ${meet.conditions.tempF}°F${meet.conditions.rain ? ' • Rain' : ''} •
         Hills ${meet.conditions.hilliness}/100 • ${meet.conditions.altitude} altitude
       </div>
-      <div class="grid cols-2">
-        <div class="card" style="padding:12px;">
-          <h3>Team Scores</h3>
-          <div class="table-wrap" style="max-height:340px; overflow-y:auto;">
-            <table class="data"><thead><tr><th>Pl</th><th>Team</th><th class="num">Pts</th><th>Scorers</th></tr></thead>
-            <tbody>${teamRows}</tbody></table>
-          </div>
-        </div>
-        <div class="card" style="padding:12px;">
-          <h3>Individuals${res.finisherCount > shown.length ? ` (top ${shown.length} of ${res.finisherCount})` : ''}</h3>
-          <div class="table-wrap" style="max-height:340px; overflow-y:auto;">
-            <table class="data"><thead><tr><th>Pl</th><th>Runner</th><th>School</th><th class="num">Time</th></tr></thead>
-            <tbody>${indivRows}</tbody></table>
-          </div>
-        </div>
-      </div>`, (modal) => {
+      <div class="pill-tabs" style="display:flex; gap:6px; margin-bottom:14px;">
+        ${tabBtn('M', 'Men')}
+        ${tabBtn('W', 'Women')}
+      </div>
+      <div id="meet-result-body">${bodyFor(active)}</div>`, (modal) => {
       // Universal profile navigation from meet results (Update 4, Part 4;
-      // Update 12: graduated legends resolve too).
-      modal.querySelectorAll('[data-ath]').forEach((tr) => {
-        tr.addEventListener('click', () => UI.openAthlete(game, tr.dataset.ath));
-      });
-      modal.querySelectorAll('[data-school]').forEach((tr) => {
-        tr.addEventListener('click', () => {
-          const s = game.getSchool(tr.dataset.school);
-          if (s && UI.showSchoolCard) UI.showSchoolCard(s, game);
+      // Update 12: graduated legends resolve too). Rewired on each tab switch.
+      const wireRows = () => {
+        modal.querySelectorAll('[data-ath]').forEach((tr) => {
+          tr.addEventListener('click', () => UI.openAthlete(game, tr.dataset.ath));
+        });
+        modal.querySelectorAll('[data-school]').forEach((tr) => {
+          tr.addEventListener('click', () => {
+            const s = game.getSchool(tr.dataset.school);
+            if (s && UI.showSchoolCard) UI.showSchoolCard(s, game);
+          });
+        });
+      };
+      wireRows();
+      modal.querySelectorAll('[data-meet-gender]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          if (btn.disabled) return;
+          active = btn.dataset.meetGender;
+          modal.querySelector('#meet-result-body').innerHTML = bodyFor(active);
+          modal.querySelectorAll('[data-meet-gender]').forEach((b) =>
+            b.classList.toggle('primary', b.dataset.meetGender === active));
+          wireRows();
         });
       });
     });

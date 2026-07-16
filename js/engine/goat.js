@@ -15,6 +15,25 @@
   const Utils = window.XCD.core.Utils;
   const LIST_SIZE = 40;
 
+  // Division weighting (Update 13, Phase 6): a Division I accomplishment
+  // carries slightly greater weight than an equivalent DII one, which in turn
+  // edges a DIII one — the field is deeper the higher you go. The gap is
+  // noticeable but not overwhelming, so a dominant lower-division career still
+  // ranks among the all-time greats.
+  const DIV_WEIGHT = { DI: 1.0, DII: 0.9, DIII: 0.82 };
+  const divWeight = (d) => DIV_WEIGHT[d || 'DI'] ?? 1.0;
+
+  // A coach/program record's predominant division, for career-level weighting.
+  function predominantDivision(stints, fallback) {
+    if (!stints || !stints.length) return fallback || 'DI';
+    const tally = {};
+    stints.forEach((s) => {
+      const yrs = Math.max(1, (s.endYear || s.startYear) - s.startYear + 1);
+      tally[s.division || 'DI'] = (tally[s.division || 'DI'] || 0) + yrs;
+    });
+    return Object.entries(tally).sort((a, b) => b[1] - a[1])[0][0];
+  }
+
   /* ---------------- Athlete legacy score ---------------- */
   // Weighted accolade values. A national title is worth ten conference
   // titles and twenty-five all-conference nods — majors dominate.
@@ -37,7 +56,11 @@
   // seasons } — built by normalizeAthlete/normalizeAlumni below.
   function athleteScore(rec) {
     let score = 0;
-    (rec.accolades || []).forEach((acc) => { score += ATH_WEIGHTS[acc.type] || 0; });
+    // Each accolade is weighted by the division it was earned in (Update 13):
+    // a DI All-American edges a DII one, which edges a DIII one.
+    (rec.accolades || []).forEach((acc) => {
+      score += (ATH_WEIGHTS[acc.type] || 0) * divWeight(acc.division);
+    });
     const s = rec.stats || {};
     score += (s.wins || 0) * 3;                 // career meet wins
     score += (s.top5 || 0) * 0.8;               // career podium consistency
@@ -112,8 +135,10 @@
   }
 
   /* ---------------- Coach legacy score ---------------- */
-  function coachScore(cr, winPct) {
-    return Math.round((
+  function coachScore(cr, winPct, division) {
+    // The accomplishment core is weighted by the division the career was
+    // built in (Update 13); longevity and win rate are division-neutral.
+    const accomplishments = (
       (cr.nationalTitles || 0) * 100 +      // by far the strongest factor
       (cr.natRunnerUp || 0) * 38 +
       (cr.natCOY || 0) * 28 +
@@ -123,7 +148,10 @@
       (cr.top25 || 0) * 4 +
       (cr.nationalsAppearances || 0) * 5 +
       (cr.indivNatChamps || 0) * 18 +
-      (cr.allAmericans || 0) * 2 +
+      (cr.allAmericans || 0) * 2
+    ) * divWeight(division);
+    return Math.round((
+      accomplishments +
       (winPct || 0) * 0.5 +
       (cr.wins || 0) * 0.015 +
       Math.min(30, cr.seasons || 0) * 1.2   // longevity
@@ -138,6 +166,7 @@
       rows.push({
         kind: 'active', coachId: c.id, name: c.fullName, isPlayer: !!c.isPlayer,
         school: school ? school.name : 'Free agent', schoolId: school ? school.id : null,
+        division: predominantDivision(c.stints, school ? school.division : 'DI'),
         years: 'active', cr, winPct: c.winPct || 0, record: null
       });
     });
@@ -146,12 +175,13 @@
         kind: 'retired', coachId: null, name: rec.name, isPlayer: !!rec.isPlayer,
         school: (rec.stints && rec.stints.length) ? rec.stints[rec.stints.length - 1].school : '—',
         schoolId: null,
+        division: predominantDivision(rec.stints, 'DI'),
         years: `ret. ${rec.year}`, cr: rec.careerRecord || {}, winPct: rec.winPct || 0,
         record: rec
       });
     });
     rows.forEach((r) => {
-      r.score = coachScore(r.cr, r.winPct);
+      r.score = coachScore(r.cr, r.winPct, r.division);
       r.natTitles = r.cr.nationalTitles || 0;
       r.natRunnerUp = r.cr.natRunnerUp || 0;
       r.coy = (r.cr.natCOY || 0) + (r.cr.confCOY || 0);
@@ -169,7 +199,8 @@
   /* ---------------- Program legacy score ---------------- */
   function programScore(prog, school) {
     const winPct = window.XCD.engine.Legacy.programWinPct(prog);
-    return Math.round((
+    // A program's hardware is weighted by its division (Update 13).
+    const hardware = (
       (prog.natTitles || 0) * 100 +
       (prog.natRunnerUp || 0) * 40 +
       (prog.podiums || 0) * 10 +
@@ -179,7 +210,10 @@
       (prog.ncaaAppearances || 0) * 4 +
       (prog.ncaaStreakBest || 0) * 3 +
       (prog.indivNatChamps || 0) * 14 +
-      (prog.allAmericans || 0) * 1.5 +
+      (prog.allAmericans || 0) * 1.5
+    ) * divWeight(school && school.division);
+    return Math.round((
+      hardware +
       winPct * 0.6 +
       (prog.wins || 0) * 0.01 +
       Math.min(50, prog.seasonsPlayed || 0) * 0.8 +
@@ -221,13 +255,15 @@
   // roster quality, how the five actually raced, margin of victory, raw
   // team score, and the strength of the field they beat.
   function teamScore(t) {
+    // A national-title run is weighted by its division (Update 13): the same
+    // dominance at DI edges DII edges DIII, without erasing a great DIII team.
     return Math.round((
       (t.teamOverall || 0) * 1.6 +
       (t.teamPerformance || 0) * 1.2 +
       Utils.clamp(t.margin || 0, 0, 150) * 0.9 +
       Utils.clamp(160 - (t.teamScore || 160), 0, 140) * 0.5 +
       (t.sos || 50) * 0.6
-    ) * 10) / 10;
+    ) * divWeight(t.division) * 10) / 10;
   }
 
   function teams(gameState) {

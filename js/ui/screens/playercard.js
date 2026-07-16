@@ -17,6 +17,53 @@
     ['consistency', 'Consistency'], ['coachability', 'Coachability']
   ];
 
+  const ACC_ICON = {
+    natChampTeam: '🏆', natChampIndiv: '🥇', natRunnerUp: '🥈', runnerOfYear: '🏅',
+    allAmerican: '🇺🇸', freshmanOfYear: '🌱', regChamp: '🗺', confChamp: '🥇',
+    confRunnerOfYear: '🏅', confFreshmanOfYear: '🌱',
+    allConference: '🏅', academicAllAmerican: '📚', nxnChampion: '👟', nxnAllAmerican: '🎽'
+  };
+
+  // Accolades grouped logically (Update 13, Phase 5): National, Regional,
+  // Conference, Academic, and High School honors in their own sections rather
+  // than one long undifferentiated list. Chronological order is preserved
+  // within each group.
+  const ACC_GROUPS = [
+    { label: 'National', types: ['natChampIndiv', 'natChampTeam', 'natRunnerUp', 'runnerOfYear', 'allAmerican', 'freshmanOfYear'] },
+    { label: 'Regional', types: ['regChamp'] },
+    { label: 'Conference', types: ['confChamp', 'confRunnerOfYear', 'confFreshmanOfYear', 'allConference'] },
+    { label: 'Academic', types: ['academicAllAmerican'] },
+    { label: 'High School', types: ['nxnChampion', 'nxnAllAmerican'] }
+  ];
+
+  function accoladesCard(accolades, Legacy) {
+    if (!accolades || !accolades.length) return '';
+    const label = (acc) => Legacy && Legacy.accoladeLabel
+      ? Legacy.accoladeLabel(acc) : `${acc.year} ${acc.label || acc.type}`;
+    const row = (acc) => `<div class="attr-row" style="padding:4px 0;">
+      <span>${ACC_ICON[acc.type] || '🎖'} ${Utils.escapeHtml(label(acc))}</span></div>`;
+    let seen = 0;
+    const sections = ACC_GROUPS.map((grp) => {
+      const rows = accolades.filter((a) => grp.types.includes(a.type));
+      if (!rows.length) return '';
+      seen += rows.length;
+      return `<div style="margin-bottom:6px;">
+        <div style="font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-faint); margin:4px 0;">${grp.label} — ${rows.length}</div>
+        ${rows.map(row).join('')}</div>`;
+    }).join('');
+    // Any accolade type not in a known group still shows (forward-compatible).
+    const other = accolades.filter((a) => !ACC_GROUPS.some((g) => g.types.includes(a.type)));
+    const otherHtml = other.length ? `<div style="margin-bottom:6px;">
+      <div style="font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-faint); margin:4px 0;">Other — ${other.length}</div>
+      ${other.map(row).join('')}</div>` : '';
+    return `
+      <div class="card" style="padding:12px; margin-bottom:14px;">
+        <h3>Career Accolades — ${accolades.length}</h3>
+        <div style="max-height:240px; overflow-y:auto;">${sections}${otherHtml}</div>
+      </div>`;
+  }
+  UI._accoladesCard = accoladesCard;
+
   UI.showPlayerCard = function (athlete, game) {
     const school = athlete.schoolId ? game.getSchool(athlete.schoolId) : null;
     const heightFt = Math.floor(athlete.heightIn / 12);
@@ -47,22 +94,7 @@
     // division, conference, and year — a complete historical record that
     // preserves honors earned across multiple divisions/conferences.
     const accolades = Legacy ? Legacy.accoladesFor(athlete) : [];
-    const ACC_ICON = {
-      natChampTeam: '🏆', natChampIndiv: '🥇', natRunnerUp: '🥈', runnerOfYear: '🏅',
-      allAmerican: '🇺🇸', freshmanOfYear: '🌱', regChamp: '🗺', confChamp: '🥇',
-      confRunnerOfYear: '🏅', confFreshmanOfYear: '🌱',
-      allConference: '🏅', academicAllAmerican: '📚'
-    };
-    const accoladesHtml = accolades.length ? `
-      <div class="card" style="padding:12px; margin-bottom:14px;">
-        <h3>Career Accolades — ${accolades.length}</h3>
-        <div style="max-height:220px; overflow-y:auto;">
-          ${accolades.map((acc) => `
-            <div class="attr-row" style="padding:4px 0;">
-              <span>${ACC_ICON[acc.type] || '🎖'} ${Utils.escapeHtml(Legacy.accoladeLabel(acc))}</span>
-            </div>`).join('')}
-        </div>
-      </div>` : '';
+    const accoladesHtml = accoladesCard(accolades, Legacy);
 
     // Transfer Risk Indicator (spec Part 2, Section 14): the athlete's
     // Transfer Desire as a five-step level; expanding it reveals exactly
@@ -235,18 +267,12 @@
     const GOAT = window.XCD.engine.GOAT;
     const badges = rec.badges || [];
     const accolades = (rec.accolades || []).slice()
-      .sort((a, b) => (b.year - a.year));
+      .sort((a, b) => (a.year - b.year)); // chronological within each grouped section
     const stats = rec.stats || {};
     const legacyScore = rec.legacyScore ?? (GOAT ? GOAT.athleteScore({
       accolades: rec.accolades || [], stats,
       seasons: (rec.overallHistory || []).length || 4
     }) : '—');
-    const ACC_ICON = {
-      natChampTeam: '🏆', natChampIndiv: '🥇', natRunnerUp: '🥈', runnerOfYear: '🏅',
-      allAmerican: '🇺🇸', freshmanOfYear: '🌱', regChamp: '🗺', confChamp: '🥇',
-      confRunnerOfYear: '🏅', confFreshmanOfYear: '🌱',
-      allConference: '🏅', academicAllAmerican: '📚'
-    };
     const oh = rec.overallHistory || [];
     const winPct = stats.races ? Math.round((stats.wins / stats.races) * 1000) / 10 : 0;
     const school = rec.schoolId && game ? game.getSchool(rec.schoolId) : null;
@@ -285,16 +311,9 @@
         <div class="stat-tile"><div class="label">Seasons</div><div class="value">${oh.length || '—'}</div></div>
       </div>
 
-      ${accolades.length ? `
-      <div class="card" style="padding:12px; margin-bottom:14px;">
-        <h3>Career Accolades — ${accolades.length}</h3>
-        <div style="max-height:260px; overflow-y:auto;">
-          ${accolades.map((acc) => `
-            <div class="attr-row" style="padding:4px 0;">
-              <span>${ACC_ICON[acc.type] || '🎖'} ${Utils.escapeHtml(Legacy ? Legacy.accoladeLabel(acc) : `${acc.year} ${acc.label}`)}</span>
-            </div>`).join('')}
-        </div>
-      </div>` : '<div class="card" style="padding:12px; margin-bottom:14px; color:var(--text-dim);">A career remembered for the wins, not the hardware.</div>'}
+      ${accolades.length
+        ? accoladesCard(accolades, Legacy)
+        : '<div class="card" style="padding:12px; margin-bottom:14px; color:var(--text-dim);">A career remembered for the wins, not the hardware.</div>'}
 
       ${stats.prs && Object.keys(stats.prs).length ? `
       <div class="card" style="padding:12px; margin-bottom:14px;">

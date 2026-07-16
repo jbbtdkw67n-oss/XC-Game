@@ -275,6 +275,10 @@
     { key: 'small-school', label: 'Drawn to the small-school experience', assigned: true },
     { key: 'homebody', label: 'Wants to stay close to home' },
     { key: 'title-chaser', label: 'Dreams of contending for national titles' },
+    // Update 13, Phase 4: the name on the office door is the whole pitch. A
+    // recruit with this motivation is heavily swayed by coach REPUTATION —
+    // Legends get a major bonus, unknown assistants struggle to compete.
+    { key: 'elite-coach', label: 'Wants to play for an elite coach' },
     { key: 'scholar', label: 'Values elite academics' },
     { key: 'impact', label: 'Wants to score for the varsity right away' },
     { key: 'project', label: 'Wants a program that develops runners long-term' },
@@ -313,6 +317,13 @@
     campusVisit:   { label: 'Campus Visit',         points: 6, cost: 2000, relationship: 8,  interest: 14, scout: 5, reveal: 0.25, requires: 'interest30' },
     hostOvernight: { label: 'Host Overnight',       points: 4, cost: 1000, relationship: 10, interest: 9, scout: 3,  reveal: 0.15, requires: 'visited' },
     meetTeam:      { label: 'Invite to Meet Team',  points: 2, cost: 200,  relationship: 5,  interest: 4, scout: 2,  reveal: 0.08 },
+    // Sway (Update 13, Phase 4): a focused push to swing a recruit's momentum
+    // your way. NOT a Flip — it only nudges a recruit who is already genuinely
+    // considering you (modest interest AND >~10% commitment chance). Outcomes
+    // vary: a real momentum swing, just a stronger relationship, nothing, or
+    // (rarely) a misstep that costs a little momentum. Base interest/relationship
+    // are 0 here — the engine resolves the swing with a randomized outcome.
+    sway:          { label: 'Sway',                 points: 3, cost: 5000, relationship: 0,  interest: 0, scout: 1,  reveal: 0.06, requires: 'sway' },
     offer:         { label: 'Offer Scholarship',    points: 2, cost: 0,    relationship: 6,  interest: 10, scout: 0, reveal: 0 }
   };
 
@@ -334,11 +345,19 @@
   // genuinely restorative Easy Run (legacy plans with 'recovery' auto-map).
   // Championship Simulation joined the hard sessions: a full race-effort
   // rehearsal — big fitness/sharpness payoff, big fatigue and injury risk.
+  // Easy Run fatigue eased (Update 13, Phase 7): easy running is genuine
+  // recovery, so its net fatigue is a touch lower (−4) — fresher legs across a
+  // training block without touching the hard-day balance.
   D.WORKOUTS = {
     rest:      { label: 'Rest Day',          short: 'Rest',  fatigue: -13, injury: 0.0, hard: false, attrs: {}, isRest: true },
-    easy:      { label: 'Easy Run',          short: 'Easy',  fatigue: -3, injury: 0.4, hard: false, attrs: { stamina: 0.5 } },
+    easy:      { label: 'Easy Run',          short: 'Easy',  fatigue: -4, injury: 0.4, hard: false, attrs: { stamina: 0.5 } },
     long:      { label: 'Long Run',          short: 'Long',  fatigue: 10, injury: 1.1, hard: true,  attrs: { stamina: 3.0, vo2Max: 1.0 } },
     tempo:     { label: 'Tempo',             short: 'Tempo', fatigue: 9,  injury: 1.0, hard: true,  attrs: { lactateThreshold: 3.0, stamina: 1.0 } },
+    // Double Threshold (Update 13, Phase 7): two threshold sessions in a day —
+    // roughly twice the physiological benefit of one Tempo, fatigue on par
+    // with an Interval session, and a higher injury risk when overused. An
+    // advanced tool that should complement, not replace, single tempo work.
+    double:    { label: 'Double Threshold', short: '2×Thr', fatigue: 12, injury: 1.25, hard: true, attrs: { lactateThreshold: 6.0, stamina: 2.0 } },
     hills:     { label: 'Hills',             short: 'Hills', fatigue: 11, injury: 1.4, hard: true,  attrs: { vo2Max: 2.0, speed: 2.0, runningEconomy: 2.0 } },
     intervals: { label: 'Intervals',         short: 'Int',   fatigue: 12, injury: 1.3, hard: true,  attrs: { vo2Max: 3.0, speed: 1.0 } },
     speed:     { label: 'Speed Development', short: 'Spd',   fatigue: 8,  injury: 1.2, hard: true,  attrs: { speed: 3.0, runningEconomy: 2.0 } },
@@ -355,13 +374,19 @@
    * training phases; plans that match the phase develop athletes best,
    * and AI staffs follow the same calendar. `fit` inspects a plan meta.
    * ------------------------------------------------------------------ */
+  // Periodization (Update 13, Phase 7 fix): the Build phase advice and its
+  // evaluation now AGREE. "2-3 quality sessions plus the long run" means the
+  // long run does NOT count against the quality budget — a week of 2-3 hard
+  // workouts and a long run (up to 4 hard total including the long run) is the
+  // textbook build week and develops as such (see planMetaFor).
   D.TRAINING_PHASES = [
     { key: 'base',        label: 'Base Phase',         icon: '🧱', upTo: 3,
       ideal: 'Aerobic volume: a long run, tempo work, plenty of easy running — no more than 2 hard days.',
       fit: (m) => m.hasLong && m.hardDays >= 1 && m.hardDays <= 2 },
     { key: 'build',       label: 'Build Phase',        icon: '📈', upTo: 7,
-      ideal: 'Classic quality: 2-3 hard sessions plus the long run, real recovery between.',
-      fit: (m) => m.hasLong && m.hardDays >= 2 && m.hardDays <= 3 },
+      ideal: 'Classic quality: 2-3 quality sessions plus the long run, real recovery between.',
+      // Quality = hard days minus the long run; 2-3 quality + long run fits.
+      fit: (m) => m.hasLong && (m.hardDays - 1) >= 2 && (m.hardDays - 1) <= 3 },
     { key: 'specific',    label: 'Specific Phase',     icon: '🎯', upTo: 11,
       ideal: 'Race-specific work: 2-3 hard days including intervals, speed, or a championship simulation.',
       fit: (m) => m.hardDays >= 2 && m.hardDays <= 3 && (m.speedDays > 0 || m.racesimDays > 0) },
@@ -371,9 +396,18 @@
     { key: 'championship', label: 'Championship Phase', icon: '🏆', upTo: 15,
       ideal: 'The taper: one hard touch at most, rest days banked, everything else easy.',
       fit: (m) => m.hardDays <= 1 && (m.restDays > 0 || m.easyDays >= 4) },
-    { key: 'transition',  label: 'Transition Phase',   icon: '🍂', upTo: 99,
-      ideal: 'Let the body absorb the season: easy running, genuine rest, no forced quality.',
-      fit: (m) => m.hardDays <= 1 }
+    // Postseason recovery (Update 13, Phase 7): the week immediately after
+    // Nationals is a mandatory complete recovery week — skip it and
+    // development stalls and injury resistance slips (enforced in the engine).
+    { key: 'recovery',    label: 'Postseason Recovery', icon: '🛌', upTo: 16,
+      ideal: 'One complete recovery week: easy running and rest, zero quality — the body must absorb the season before track prep.',
+      fit: (m) => m.hardDays === 0 && (m.restDays > 0 || m.easyDays >= 5) },
+    // Track preparation (Update 13, Phase 7): once the mandatory recovery week
+    // is banked, 2-3 quality workouts are exactly right as athletes turn
+    // toward the track season.
+    { key: 'trackprep',   label: 'Track Preparation',  icon: '🏟', upTo: 99,
+      ideal: 'Track prep: 2-3 quality workouts as the athletes turn toward the track season.',
+      fit: (m) => m.hardDays >= 2 && m.hardDays <= 3 }
   ];
   D.trainingPhaseForWeek = (week) => D.TRAINING_PHASES.find((p) => week <= p.upTo) ||
     D.TRAINING_PHASES[D.TRAINING_PHASES.length - 1];
@@ -512,7 +546,10 @@
   D.MILEAGE = {
     MIN: 30,
     MAX: 120,
-    DEFAULT: { M: 70, W: 60 },
+    // Mileage scaling (Update 13, Phase 7): women race 6K and generally train
+    // on less volume than men, who race 8K/10K — men average ~75 mpw, women
+    // ~60 mpw across the world (tendencies still shift individual programs).
+    DEFAULT: { M: 75, W: 60 },
     // Named presets for the training screen (per-athlete deltas are
     // applied relative to the squad's program mileage).
     PRESETS: [
@@ -539,8 +576,23 @@
     { min: 0,  label: 'Unknown Assistant',  icon: '❔' }
   ];
 
-  D.reputationLevel = function (rep) {
-    return D.REPUTATION_LEVELS.find((l) => rep >= l.min) || D.REPUTATION_LEVELS[D.REPUTATION_LEVELS.length - 1];
+  // Assistant-coach reputation ladder (Update 13): a recruiting coordinator
+  // climbs a named track of their own — Unknown → Local Recruiter →
+  // Respected Assistant → Elite Assistant → National Recruiter → Legend
+  // Assistant — realistically over 15-25 successful seasons under the
+  // rebalanced (slower) reputation gains.
+  D.ASSISTANT_REPUTATION_LEVELS = [
+    { min: 80, label: 'Legend Assistant',   icon: '👑' },
+    { min: 64, label: 'National Recruiter', icon: '🌟' },
+    { min: 48, label: 'Elite Assistant',    icon: '🎯' },
+    { min: 32, label: 'Respected Assistant',icon: '🤝' },
+    { min: 16, label: 'Local Recruiter',    icon: '🏫' },
+    { min: 0,  label: 'Unknown',            icon: '❔' }
+  ];
+
+  D.reputationLevel = function (rep, role) {
+    const table = role === 'Assistant' ? D.ASSISTANT_REPUTATION_LEVELS : D.REPUTATION_LEVELS;
+    return table.find((l) => rep >= l.min) || table[table.length - 1];
   };
 
   /* ------------------------------------------------------------------ *

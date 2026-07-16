@@ -90,7 +90,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     const c = window.XCD.ui.state.game.getPlayerCoach();
     return { recruiting: c.recruiting, pts: c.upgradePoints };
   });
-  if (after.recruiting !== before + 2) errors.push(`Upgrade spend broken: ${before} -> ${after.recruiting}`);
+  if (after.recruiting !== before + 1) errors.push(`Upgrade spend broken: ${before} -> ${after.recruiting}`);
   console.log('spend check:', before, '->', JSON.stringify(after));
 
   console.log(errors.length ? 'FAIL\n' + errors.join('\n---\n') : 'PASS');

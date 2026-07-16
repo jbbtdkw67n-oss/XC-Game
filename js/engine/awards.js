@@ -116,14 +116,21 @@
         gameState.logNews(`${mine.length} of your ${label} runners earn All-America honors: ${mine.map((f) => f.name).join(', ')}.`);
       }
 
-      // Coach of the Year: biggest climb from preseason to final poll, within division.
+      // Coach of the Year (Update 13, Phase 5): the award goes to a coach with
+      // EITHER a dominant team OR one who drastically overperformed. A national
+      // powerhouse that was elite all year earns it even without a big climb;
+      // so does a coach who dragged a middling program up the poll. The winner
+      // maximizes climb-from-preseason PLUS a dominance bonus for a genuinely
+      // elite final standing.
       const pre = season.preseasonRanks && season.preseasonRanks[gender];
       if (pre) {
+        const dominanceBonus = (rank) => rank === 1 ? 30 : rank <= 3 ? 18 : rank <= 8 ? 9 : rank <= 15 ? 4 : 0;
         let best = null;
         divRankings(gender).slice(0, 40).forEach((r) => {
           const preRank = pre[r.schoolId] || 200;
           const climb = preRank - r.rank;
-          if (!best || climb > best.climb) best = { schoolId: r.schoolId, climb, finalRank: r.rank };
+          const coyScore = Math.max(0, climb) + dominanceBonus(r.rank);
+          if (!best || coyScore > best.coyScore) best = { schoolId: r.schoolId, climb, finalRank: r.rank, coyScore };
         });
         if (best) {
           const school = gameState.getSchool(best.schoolId);
@@ -155,16 +162,19 @@
           if (r.classYear === 'Freshman' && (!confFrosh[s.conference] || r.rank < confFrosh[s.conference].rank)) confFrosh[s.conference] = r;
         });
 
-      // Conference Coach of the Year: biggest preseason→final climb within
-      // each conference in this division (all conferences, every year).
+      // Conference Coach of the Year (Update 13, Phase 5): same dual test as
+      // the national award — the best combination of climb-from-preseason and
+      // a dominant final standing wins each conference.
       const confCoach = {};
       if (pre) {
+        const dominanceBonus = (rank) => rank === 1 ? 30 : rank <= 3 ? 18 : rank <= 8 ? 9 : rank <= 15 ? 4 : rank <= 30 ? 2 : 0;
         divRankings(gender).forEach((r) => {
           const s = gameState.getSchool(r.schoolId);
           if (!s) return;
           const climb = (pre[r.schoolId] || 200) - r.rank;
+          const coyScore = Math.max(0, climb) + dominanceBonus(r.rank);
           const cur = confCoach[s.conference];
-          if (!cur || climb > cur.climb) confCoach[s.conference] = { schoolId: r.schoolId, climb };
+          if (!cur || coyScore > cur.coyScore) confCoach[s.conference] = { schoolId: r.schoolId, climb, coyScore };
         });
       }
 
@@ -343,33 +353,54 @@
       const underperformance = (actualPct - expectedPct) * pressure; // positive = worse than expected
 
       coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(underperformance * 55), 0, 100);
+      // Successful seasons reduce Hot Seat pressure GRADUALLY (spec Part 2);
+      // a single decent year eases the seat but does not erase years of
+      // failure outright.
       if (underperformance < -0.08) coach.hotSeat = Math.max(0, coach.hotSeat - 18);
       // A top-15% squad in either gender actively cools the chair.
       if (Math.min(mPct, wPct) <= 0.15) coach.hotSeat = Math.max(0, coach.hotSeat - 25);
 
-      // The player's seat heats up too (Update 5, Part 5) so the job-security
-      // label means something — but the player is never auto-fired here; their
-      // dynasty continues, with warnings, until they choose to move on.
+      // Hot Seat counter (Update 13, Phase 2): once a coach is genuinely on
+      // the Hot Seat, a clock starts. Three consecutive seasons on the Hot
+      // Seat and the coach is fired — no exceptions. A good season lowers the
+      // pressure (and, if it pulls them off the Hot Seat, resets the clock),
+      // so the standing is always legible; but one decent year in the middle
+      // of a slide does not by itself save the job.
+      const onHotSeat = window.XCD.data.seatStatus(coach.hotSeat).key === 'hot';
+      coach.hotSeatYears = onHotSeat ? (coach.hotSeatYears || 0) + 1 : 0;
+
+      // The player is never auto-fired (Legacy Dynasty Mode): their dynasty
+      // continues, with escalating warnings, until they choose to move on —
+      // but they always know exactly where they stand, counter and all.
       if (coach.isPlayer) {
-        if (coach.hotSeat >= 60 && coach.yearsAtSchool >= 3) {
-          gameState.logNews(`🔥 HOT SEAT: The ${school.name} administration expected more — another poor season could cost you the job.`);
-        } else if (coach.hotSeat >= 34 && coach.hotSeat < 60) {
+        if (onHotSeat) {
+          const yrsLeft = Math.max(0, 3 - coach.hotSeatYears);
+          if (coach.hotSeatYears >= 3) {
+            gameState.logNews(`🔥 HOT SEAT (Year ${coach.hotSeatYears}): ${school.name}'s patience is gone. A program elsewhere is the realistic path forward — explore the carousel before the decision is made for you.`);
+          } else {
+            gameState.logNews(`🔥 HOT SEAT (Year ${coach.hotSeatYears} of 3): ${school.name} expected more. ${yrsLeft} more season${yrsLeft === 1 ? '' : 's'} on the Hot Seat and the job is gone.`);
+          }
+        } else if (coach.hotSeat >= 34) {
           gameState.logNews(`🟠 Warm seat: results are trailing expectations at ${school.name}. Boosters are restless.`);
         }
         return;
       }
 
-      if (coach.hotSeat >= 60 && coach.yearsAtSchool >= 3 && rng.bool(0.45) && fired < 20) {
+      // AI coaches: three consecutive Hot Seat seasons is an automatic
+      // dismissal. (The fired<20 cap only paces the news feed — a coach who
+      // has hit the three-year mark is always let go.)
+      if (coach.hotSeatYears >= 3 && fired < 40) {
         fired++;
         gameState.history.firings = (gameState.history.firings || 0) + 1;
         window.XCD.engine.Legacy.closeStint(gameState, coach, school, gameState.year);
         coach.schoolId = null;   // into the free-agent pool
         coach.hotSeat = 0;
+        coach.hotSeatYears = 0;
         coach.poolYears = 0;
         coach.reputation = Utils.clamp((coach.reputation || 25) - 6, 1, 99); // firings sting
         school.coachId = null;   // the chair sits open until the carousel
         school.coachChangedYear = gameState.year;
-        gameState.logNews(`FIRED: ${school.name} lets ${coach.fullName} go after ${coach.yearsAtSchool} seasons. The search for a successor begins.`);
+        gameState.logNews(`FIRED: ${school.name} lets ${coach.fullName} go after three seasons on the Hot Seat. The search for a successor begins.`);
       }
     });
   }

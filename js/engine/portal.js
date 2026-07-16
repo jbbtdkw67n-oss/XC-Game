@@ -39,6 +39,12 @@
   const PLAYER_PURSUIT_BONUS = 16;
   const PLAYER_PURSUIT_WEIGHT = 6;
 
+  // Transfer Portal Nerf (Update 13, Phase 4): desire-driven portal entries
+  // are throttled to ~75% of their former rate — the portal was providing too
+  // much talent. (The Zero Morale Rule and DI summer roster cuts are separate
+  // and unaffected.)
+  const PORTAL_ENTRY_SCALE = 0.75;
+
   // Rank a portal entry's suitors by the athlete's real appeal, with the
   // player's own program credited for actively pursuing (see above).
   function rankedOffers(gameState, entry, a, fromSchool) {
@@ -335,7 +341,11 @@
           // A transfer in their grace season stays put — they just got here.
           if (a.transferGraceYear === gameState.year) return;
           const { u, reason } = unhappiness(gameState, a, school);
-          let p = Utils.clamp((u - 14) / 130, 0, 0.5);
+          // Transfer Portal Nerf (Update 13, Phase 4): the portal was providing
+          // too much talent. Entry probability is scaled to ~75% of its former
+          // rate, so meaningfully fewer runners churn each cycle and rosters
+          // are built more through recruiting and development than the portal.
+          let p = Utils.clamp((u - 14) / 130, 0, 0.5) * PORTAL_ENTRY_SCALE;
           // The Zero Morale Rule (Section 14): athletes at rock bottom almost
           // always leave. The only rare exceptions are exceptionally strong
           // bonds (and seniors, who never enter — they finish out the career).

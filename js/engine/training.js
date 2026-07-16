@@ -37,6 +37,29 @@
     return D.DEFAULT_WEEK_PLAN.slice();
   }
 
+  /*
+   * Reset Ideal Training (Update 13, Phase 7): a smart default that generates
+   * a plan appropriate for the CURRENT periodization phase, so the "reset"
+   * button no longer just drops a generic balanced week onto a taper or a
+   * postseason recovery week. Full day-by-day customization is untouched — this
+   * is only a better starting point. Each template is built to satisfy its
+   * phase's `fit` check (see D.TRAINING_PHASES).
+   */
+  const IDEAL_PHASE_PLANS = {
+    base:         ['easy', 'tempo', 'easy', 'easy', 'easy', 'long', 'easy'],       // aerobic base, 1 quality + long
+    build:        ['easy', 'intervals', 'easy', 'tempo', 'easy', 'long', 'easy'],  // 2 quality + long — textbook build
+    specific:     ['easy', 'intervals', 'easy', 'speed', 'easy', 'long', 'easy'],  // race-specific quality
+    peak:         ['easy', 'speed', 'rest', 'easy', 'easy', 'long', 'easy'],       // sharpen while shedding load
+    championship: ['easy', 'easy', 'rest', 'easy', 'tempo', 'rest', 'easy'],       // the taper
+    recovery:     ['easy', 'easy', 'rest', 'easy', 'easy', 'rest', 'easy'],        // mandatory postseason down week
+    trackprep:    ['easy', 'intervals', 'easy', 'tempo', 'easy', 'easy', 'easy']   // 2-3 quality — track prep
+  };
+
+  function idealPlanForPhase(gameState) {
+    const phase = D.trainingPhaseForWeek(gameState.week);
+    return (IDEAL_PHASE_PLANS[phase.key] || D.DEFAULT_WEEK_PLAN).slice();
+  }
+
   function normalizePlan(plan) {
     const days = Array.isArray(plan) ? plan.slice(0, 7) : [];
     while (days.length < 7) days.push('easy');
@@ -56,6 +79,7 @@
     race:      ['easy', 'tempo', 'rest', 'easy', 'easy', 'easy', 'easy'],            // taper into the meet
     taper:     ['easy', 'easy', 'rest', 'easy', 'tempo', 'rest', 'easy'],            // championship taper
     build:     ['easy', 'intervals', 'easy', 'tempo', 'easy', 'long', 'easy'],       // classic in-season week
+    double:    ['easy', 'double', 'easy', 'tempo', 'easy', 'long', 'easy'],          // elite threshold-block week
     sharpen:   ['easy', 'speed', 'easy', 'intervals', 'rest', 'long', 'easy'],       // late-season sharpening
     sharpsim:  ['easy', 'racesim', 'easy', 'speed', 'rest', 'long', 'easy'],         // elite: rehearse the championship
     strength:  ['easy', 'hills', 'easy', 'tempo', 'easy', 'long', 'easy'],           // hill/strength emphasis
@@ -114,7 +138,28 @@
       if (craft < 45 && coachRoll(coach, week, 13) < 0.2) return AI_TEMPLATES.build.slice(); // trains through races
       return (restful ? AI_TEMPLATES.taper : AI_TEMPLATES.race).slice();
     }
-    if (week <= CAL.SUMMER_WEEKS || week >= CAL.OFFSEASON_START) return AI_TEMPLATES.base.slice();
+    // Postseason recovery (Update 13, Phase 8): the week immediately after
+    // Nationals is a mandatory complete recovery week. Any competent staff
+    // takes it; a poor staff sometimes skips it and pays the price (stalled
+    // development, eroded durability — enforced in processAthlete).
+    if (week === CAL.OFFSEASON_START) {
+      if (craft >= 45 || coachRoll(coach, week, 41) < 0.7) return AI_TEMPLATES.recovery.slice();
+      return AI_TEMPLATES.base.slice();
+    }
+    // Track prep (weeks 17+) and the summer base block: aerobic base with a
+    // little quality — after the mandated down week, 2-3 quality days are fine.
+    if (week > CAL.OFFSEASON_START || week <= CAL.SUMMER_WEEKS) return AI_TEMPLATES.base.slice();
+    // Double Threshold (Update 13, Phase 8): elite threshold-minded staffs work
+    // a controlled double day through the build/specific phases — big lactate-
+    // threshold gains their advanced athletes can absorb. Norwegian staffs, who
+    // handle the load best, reach for it a little more often. Lesser staffs
+    // leave it alone (they don't understand when to use it).
+    const philoKey = coach && coach.trainingPhilosophy;
+    if (craft >= 68 && (philoKey === 'norwegian' || philoKey === 'threshold') &&
+        week < CAL.CONFERENCE_WEEK - 2 &&
+        coachRoll(coach, week, 37) < (philoKey === 'norwegian' ? 0.40 : 0.26)) {
+      return AI_TEMPLATES.double.slice();
+    }
     // Fatigue-responsive recovery (Update X): a tired squad gets an easy
     // week to absorb the work. Better staffs notice at a lower threshold.
     const recoveryTrigger = craft >= 65 ? 60 : craft >= 45 ? 66 : 76;
@@ -226,7 +271,8 @@
       return {
         fatigue: -16, fitness: 0, injuryMult: 0.2, devMult: 0.15,
         attrWeights: {}, hardDays: 0, hasLong: false, easyDays: 0,
-        quality: { label: 'Resting', tone: 'warn' }, hillsDays: 0, speedDays: 0, racesimDays: 0
+        quality: { label: 'Resting', tone: 'warn' }, hillsDays: 0, speedDays: 0,
+        tempoDays: 0, doubleDays: 0, racesimDays: 0
       };
     }
     const loadMult = override === 'reduced' ? 0.55 : 1;
@@ -239,6 +285,8 @@
     let hillsDays = 0;
     let speedDays = 0;
     let racesimDays = 0;
+    let tempoDays = 0;
+    let doubleDays = 0;
     let restDays = 0;
     const attrWeights = {};
 
@@ -251,6 +299,8 @@
       if (key === 'easy') easyDays++;
       if (key === 'hills') hillsDays++;
       if (key === 'speed' || key === 'intervals') speedDays++;
+      if (key === 'tempo') tempoDays++;
+      if (key === 'double') doubleDays++;
       if (key === 'racesim') racesimDays++;
       for (const [attr, wt] of Object.entries(w.attrs)) {
         attrWeights[attr] = (attrWeights[attr] || 0) + wt;
@@ -278,6 +328,10 @@
     // Multiple race simulations in one week is reckless — the body can only
     // absorb one full championship effort.
     if (racesimDays >= 2) { injuryMult *= 1 + (racesimDays - 1) * 0.35; fatigue += (racesimDays - 1) * 5; }
+    // Double Threshold overuse (Update 13, Phase 7): one double is a potent,
+    // manageable stimulus; stacking two or more in a week sharply raises injury
+    // risk and fatigue — it can't simply replace every tempo day.
+    if (doubleDays >= 2) { injuryMult *= 1 + (doubleDays - 1) * 0.30; fatigue += (doubleDays - 1) * 4; }
 
     // Development quality: 2-3 hard days is the sweet spot; more is
     // overtraining, fewer is undertraining.
@@ -295,6 +349,13 @@
     const hardVariety = new Set(days.filter((d) => D.WORKOUTS[d].hard)).size;
     const balanced = hardDays >= 2 && hardDays <= 3 && hasLong && easyDays >= 3;
     if (balanced) devMult += 0.12;               // the reward for a textbook week
+    // Build-phase advice/eval fix (Update 13, Phase 7): "2-3 quality sessions
+    // PLUS the long run" is a textbook week, not overtraining. The long run is
+    // aerobic, not a fourth quality stressor — so a week of 3 quality days and
+    // a long run (4 hard total including the long run) develops like an optimal
+    // block rather than being penalized as "very heavy".
+    const qualityPlusLong = hasLong && hardDays === 4 && easyDays >= 2;
+    if (qualityPlusLong) devMult = Math.max(devMult, 1.15) + 0.10;
     if (hardVariety >= 3) devMult += 0.05;       // varied stimulus
     if (hardDays >= 5) fatigue += 6;             // overtraining tax
 
@@ -310,6 +371,7 @@
 
     let quality;
     if (hardDays >= 5) quality = { label: 'Overtraining — injuries & burnout likely', tone: 'bad' };
+    else if (qualityPlusLong) quality = { label: 'Textbook build week — 3 quality sessions + a long run', tone: 'good' };
     else if (hardDays === 4) quality = { label: 'Very heavy — watch fatigue closely', tone: 'warn' };
     else if (restDays >= 3) quality = { label: 'Rest-heavy — fresh, but development stalls', tone: 'warn' };
     else if (balanced) quality = { label: `Balanced — optimal development${restDays ? ' (rest day included)' : ''}`, tone: 'good' };
@@ -323,7 +385,7 @@
       injuryMult: injuryMult * loadMult,
       devMult: devMult * loadMult,
       attrWeights,
-      hardDays, hasLong, hillsDays, speedDays, racesimDays, restDays, easyDays, quality,
+      hardDays, hasLong, hillsDays, speedDays, tempoDays, doubleDays, racesimDays, restDays, easyDays, quality,
       loadMult
     };
   }
@@ -358,6 +420,44 @@
       durability: (e.durability || 1),
       strength
     };
+  }
+
+  /*
+   * Signature fatigue relief (Update 13, Phase 7). Every training philosophy
+   * inflicts a little less fatigue on the work it is BUILT around — Norwegian
+   * staffs handle double-threshold and tempo sessions more efficiently, high-
+   * mileage programs tolerate big weeks better, speed staffs recover from
+   * intervals faster, and so on. Returns a multiplier (≤1) applied to the
+   * week's positive fatigue, so each philosophy has a genuine comfort zone.
+   */
+  function philoFatigueRelief(philoKey, planMeta, mileage) {
+    let relief = 0; // fraction of positive weekly fatigue to shave off
+    switch (philoKey) {
+      case 'norwegian':
+        relief = (planMeta.doubleDays || 0) * 0.07 + (planMeta.tempoDays || 0) * 0.03;
+        break;
+      case 'threshold':
+        relief = (planMeta.tempoDays || 0) * 0.055 + (planMeta.doubleDays || 0) * 0.035;
+        break;
+      case 'speed':
+        relief = (planMeta.speedDays || 0) * 0.045; // speed + intervals
+        break;
+      case 'high-mileage':
+        relief = mileage >= 82 ? Math.min(0.13, 0.05 + (mileage - 82) / 260) : 0;
+        break;
+      case 'strength-endurance':
+        relief = (planMeta.hillsDays || 0) * 0.055 + (planMeta.hasLong ? 0.03 : 0);
+        break;
+      case 'polarized':
+        relief = (planMeta.easyDays || 0) >= 4 ? 0.05 : 0.02;
+        break;
+      case 'balanced':
+        relief = 0.025; // a little comfort everywhere, a signature nowhere
+        break;
+      default:
+        relief = 0;
+    }
+    return Utils.clamp(1 - relief, 0.72, 1);
   }
 
   // Apply a philosophy's attribute emphasis to a plan's dev weights.
@@ -625,6 +725,9 @@
     // Training philosophy shifts how much fatigue the work accumulates (only
     // the load side — recovery is unaffected).
     if (weeklyFatigue > 0) weeklyFatigue *= philo.fatigueMult;
+    // Signature fatigue relief (Update 13, Phase 7): the philosophy's own
+    // bread-and-butter work tires its athletes a little less.
+    if (weeklyFatigue > 0) weeklyFatigue *= philoFatigueRelief(philo.key, planMeta, mMeta.mileage);
     if (weeklyFatigue > 0) weeklyFatigue += altFatigue;
     athlete.fatigue = Math.round(Utils.clamp(athlete.fatigue + weeklyFatigue - recoveryRate, 0, 100));
 
@@ -763,6 +866,25 @@
       }
     }
 
+    // Postseason recovery (Update 13, Phase 7): the week immediately after
+    // Nationals must be a COMPLETE recovery week. Take it and the body absorbs
+    // the season (the recoveryWeek bonus above). Skip it — pile quality onto a
+    // depleted athlete the week after the championship — and development stalls
+    // while injury resistance slips. After this one week the trackprep phase
+    // welcomes 2-3 quality sessions again.
+    if (gameState.week === CAL.OFFSEASON_START && athlete.health !== 'Injured') {
+      if (recoveryWeek) {
+        dev += 0.5; // banked championship fatigue converts cleanly to development
+      } else {
+        dev *= 0.4; // development stalls without the mandated down week
+        athlete.injuryResistance = Utils.clamp(athlete.injuryResistance - 1, 10, 99);
+        if (isPlayerSchool && !gameState._skippedRecoveryLogged) {
+          gameState.logNews('⚠️ No postseason recovery week: skipping the mandatory down week after Nationals stalls development and chips away at your runners\' durability. Bank an easy week before starting track prep.');
+          gameState._skippedRecoveryLogged = true;
+        }
+      }
+    }
+
     // A championship simulation is a confidence rehearsal too: a fit runner
     // comes out believing; a buried one just gets more tired.
     if ((planMeta.racesimDays || 0) > 0 && athlete.health !== 'Injured') {
@@ -786,6 +908,17 @@
     // Tiny chance of a durability gain — Injury Resistance barely moves.
     // Strength-Endurance philosophies build fatigue resistance a bit faster.
     if (rng.bool(0.01 * (philo.durability || 1)) && athlete.injuryResistance < 95) athlete.injuryResistance += 1;
+    // Intelligent workload management builds durable runners over time
+    // (Update 13, Phase 7): a healthy week at sane fatigue, at or below the
+    // body's safe mileage, with no accumulated overload, slowly reinforces
+    // Injury Resistance. This is how a patient coach forges iron-legged
+    // athletes over a career rather than breaking them down.
+    const wellManaged = athlete.health === 'Healthy' && athlete.fatigue < 58 &&
+      (athlete.highLoadWeeks || 0) === 0 && (mMeta.mileage - safeMileage(athlete)) <= 0;
+    if (wellManaged && athlete.injuryResistance < 95 &&
+        rng.bool(0.02 * (philo.durability || 1))) {
+      athlete.injuryResistance += 1;
+    }
 
     athlete.recalculateOverall();
     athlete.lastDelta = athlete.currentOverall - before;
@@ -804,6 +937,12 @@
       // Injuries dent confidence (Update 5, Part 7) — the longer the layoff,
       // the bigger the hit to belief.
       athlete.confidence = Utils.clamp((athlete.confidence ?? 60) - Math.min(8, 2 + injury.totalWeeks), 10, 99);
+      // Each injury slightly erodes Injury Resistance (Update 13, Phase 7):
+      // an injured body is a touch more fragile afterward — more so after a
+      // major layoff — so repeated breakdowns compound while smart management
+      // (above) slowly rebuilds durability.
+      const irHit = injury.totalWeeks >= MAJOR_INJURY_WEEKS ? 2 : 1;
+      athlete.injuryResistance = Utils.clamp(athlete.injuryResistance - irHit, 10, 99);
       if (isPlayerSchool) {
         gameState.logNews(`Injury: ${athlete.fullName} — ${injury.type}, out ~${injury.totalWeeks} week${injury.totalWeeks > 1 ? 's' : ''}.`);
       }
@@ -899,6 +1038,8 @@
   function processWeek(gameState, rng) {
     const playerId = gameState.playerSchoolId;
     const phase = D.trainingPhaseForWeek(gameState.week);
+    // Reset the once-per-postseason skipped-recovery notice outside week 16.
+    if (gameState.week !== CAL.OFFSEASON_START) gameState._skippedRecoveryLogged = false;
 
     for (const school of Object.values(gameState.world.schools)) {
       const coach = gameState.getCoach(school.coachId);
@@ -1095,6 +1236,8 @@
     processWeek,
     offseasonDevelopment,
     defaultPlan,
+    idealPlanForPhase,
+    philoFatigueRelief,
     normalizePlan,
     aiPlan,
     aiMileage,

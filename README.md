@@ -10,6 +10,61 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 11.0 — Update 13: Balance, Realism, Coach Progression & Training Overhaul
+
+A tuning-focused update that refines nearly every existing system so they
+interact more believably. The goal: national championships stay *hard* to win,
+sustained dynasties feel *earned*, no single strategy dominates, and every
+coaching decision matters over decades of play.
+
+- **Coach reputation, rebalanced.** Reputation now reflects *sustained*
+  excellence, not a couple of good seasons. Titles, podiums, top recruiting
+  classes, Coach-of-the-Year awards, development, and long-term consistency
+  drive it; simply existing barely moves the needle, and each rung toward the
+  top is harder to climb. Reaching **Legend** as a head coach now takes
+  decades; the assistant ladder (**Unknown → Local Recruiter → Respected
+  Assistant → Elite Assistant → National Recruiter → Legend Assistant**)
+  realistically takes 15–25 successful seasons.
+- **Coach upgrades.** 1 upgrade point now buys **+1** to a rating (was +2), so
+  overall pacing stays balanced against the slower reputation curve.
+- **Hot Seat with a clock.** Once a coach is genuinely on the Hot Seat a
+  counter starts — **three consecutive Hot Seat seasons and they're fired, no
+  exceptions.** Good seasons ease the pressure gradually; the player always
+  sees exactly where they stand (a "Year X of 3" countdown on the profile).
+- **Facility maintenance.** Facilities now slowly decay — a point every few
+  years — so programs must reinvest. Upgrades easily outpace the wear, and a
+  generous floor means no program is ever punished into ruin.
+- **Recruiting depth.** The transfer portal provides less free talent
+  (entries throttled to ~75%). A new **"Wants to play for an elite coach"**
+  recruit motivation makes coach reputation a decisive draw. A new recruiting
+  action — **Sway ($5,000)** — nudges the momentum of a recruit already
+  considering you (needs modest interest and a real commitment chance); it can
+  boost interest, warm the relationship, do nothing, or occasionally cost a
+  little momentum. It is *not* a commitment flip.
+- **Training overhaul.** A new **Double Threshold** workout (≈2× a tempo's
+  benefit at interval-level fatigue, higher injury risk if overused). The
+  **Build phase** advice and evaluation now agree — "2–3 quality sessions plus
+  the long run" is rewarded, not penalized. A mandatory **postseason recovery
+  week** after Nationals (skip it and development stalls and durability slips),
+  then track-prep quality. **Reset Ideal Training** generates a smart,
+  phase-appropriate default (customization intact). Easy runs are a touch less
+  tiring, women scale to ~60 mpw vs men's ~75, and each training philosophy
+  now handles its signature work (double thresholds for Norwegian, big weeks
+  for High Mileage, etc.) with a little less fatigue. Smart, long-term workload
+  management slowly builds durable runners; injuries chip away at durability.
+- **Smarter CPU.** Elite staffs periodize intelligently, work double
+  thresholds when appropriate, bank the postseason recovery week, scale
+  mileage by gender, and selectively use Sway; weaker staffs make mistakes.
+- **GOAT weighting.** Division I accomplishments carry slightly more weight
+  than DII, which edge DIII — noticeable but not overwhelming, so dominant
+  lower-division careers still rank among the all-time greats.
+- **Profile & UI cleanup.** Coach profiles gain a chronological
+  **Championships** section; athlete profiles group accolades logically
+  (National / Regional / Conference / Academic / High School). **Coach of the
+  Year** now goes to a dominant team *or* a drastic overperformer. Meet results
+  opened from the Schedule now have **Men / Women tabs** — both squads are
+  fully viewable.
+
 ## Version 10.0 — Update 12: Living History & Legacy System
 
 The history of the universe comes alive. Every championship, award, and

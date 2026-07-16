@@ -31,8 +31,8 @@
     const retired = !!opts.retired || (!coach.schoolId && !coach.id);
     const school = (coach.schoolId && game) ? game.getSchool(coach.schoolId) : null;
     const repLabel = coach.reputationLabel ||
-      ((D.reputationLevel(coach.reputation || 0) || {}).label || '');
-    const repIcon = (D.reputationLevel(coach.reputation || 0) || {}).icon || '';
+      ((D.reputationLevel(coach.reputation || 0, coach.role) || {}).label || '');
+    const repIcon = (D.reputationLevel(coach.reputation || 0, coach.role) || {}).icon || '';
     const archIcon = (D.COACH_ARCHETYPES.find((a) => a.key === coach.archetype) || {}).icon || '🧢';
 
     const winPct = coach.winPct !== undefined ? coach.winPct
@@ -73,7 +73,12 @@
           ${(!retired && school && coach.role !== 'Assistant' && coach.reputation !== undefined) ? (() => {
             const st = D.seatStatus(coach.hotSeat || 0);
             const color = st.key === 'hot' ? 'var(--danger)' : st.key === 'warm' ? 'var(--warning)' : 'var(--success)';
-            return `<div class="sub" title="${st.desc}">Job security: <span style="color:${color}; font-weight:600;">${st.icon} ${st.label}</span></div>`;
+            // Hot Seat counter (Update 13): three consecutive Hot Seat seasons
+            // and the job is gone — surface the clock so it's never a surprise.
+            const yrs = coach.hotSeatYears || 0;
+            const clock = (st.key === 'hot' && yrs >= 1)
+              ? ` <span style="color:var(--danger); font-weight:600;">— Year ${yrs} of 3</span>` : '';
+            return `<div class="sub" title="${st.desc} Three straight seasons on the Hot Seat ends the tenure.">Job security: <span style="color:${color}; font-weight:600;">${st.icon} ${st.label}</span>${clock}</div>`;
           })() : ''}
         </div>
         <div style="text-align:right;">
@@ -110,6 +115,47 @@
           <div class="attr-row" style="margin-top:6px;"><span class="attr-name">Style</span><span style="font-size:12px; color:var(--text-dim);">${tendencyLabels(coach).join(', ') || '—'}</span></div>
         </div>
       </div>
+
+      ${(() => {
+        // Championships, chronologically (Update 13, Phase 5): a clean,
+        // year-by-year record of the team titles this coach won, reconstructed
+        // from history by matching their coaching stints to each season's
+        // champions. National titles match by team; conference titles match by
+        // the program's name that season (realignment-safe).
+        if (!game || !stints.length) return '';
+        const H = game.history || {};
+        const short = { DI: 'D1', DII: 'D2', DIII: 'D3' };
+        const champs = [];
+        const nowYear = game.year;
+        stints.forEach((st) => {
+          const end = st.endYear || nowYear;
+          for (let y = st.startYear; y <= end; y++) {
+            const nat = (H.nationalChampions || {})[y] || {};
+            const conf = (H.conferenceChampions || {})[y] || {};
+            ['M', 'W'].forEach((g) => {
+              const key = (st.division || 'DI') === 'DI' ? g : `${st.division}-${g}`;
+              if (nat[key] && nat[key].teamId === st.schoolId) {
+                champs.push({ year: y, tier: 0, label: `🏆 NCAA ${short[st.division || 'DI'] || ''} Champion (${g === 'M' ? "Men's" : "Women's"})` });
+              }
+            });
+            Object.entries(conf).forEach(([ckey, name]) => {
+              if (name !== st.school) return;
+              const g = ckey.endsWith('-M') ? 'M' : 'W';
+              const confName = ckey.slice(0, -2);
+              champs.push({ year: y, tier: 1, label: `🥇 ${confName} Champion (${g === 'M' ? "Men's" : "Women's"})` });
+            });
+          }
+        });
+        if (!champs.length) return '';
+        champs.sort((a, b) => a.year - b.year || a.tier - b.tier);
+        return `
+        <div class="card" style="padding:12px; margin-bottom:14px;">
+          <h3>Championships — ${champs.length}</h3>
+          <div style="max-height:180px; overflow-y:auto;">
+            ${champs.map((c) => `<div class="attr-row" style="padding:4px 0;"><span>${c.year} — ${c.label}</span></div>`).join('')}
+          </div>
+        </div>`;
+      })()}
 
       ${(() => {
         const Legacy = window.XCD.engine.Legacy;

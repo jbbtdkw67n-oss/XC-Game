@@ -16,6 +16,7 @@
     easy: 'Genuinely easy running. Sheds fatigue, keeps the aerobic system ticking — the recovery currency of every good week.',
     long: 'The weekly cornerstone: big stamina, some VO₂ Max.',
     tempo: 'Threshold running — builds Lactate Threshold.',
+    double: 'Double Threshold: two threshold sessions in a day — roughly twice a tempo\'s benefit at interval-level fatigue. Excellent for advanced runners; stacking multiple in a week spikes injury risk.',
     hills: 'Hill repeats: VO₂ Max, Speed, Economy + hill toughness. High injury risk.',
     intervals: 'Track work: VO₂ Max and some Speed. The hardest day.',
     speed: 'Sprint mechanics: Speed and Running Economy.',
@@ -103,7 +104,7 @@
           <h2 style="margin:0;">This Week's Plan — ${activeGender === 'M' ? "Men's" : "Women's"} Squad</h2>
           <div style="display:flex; gap:8px;">
             <button class="btn small" id="btn-copy-plan">Copy to ${activeGender === 'M' ? 'Women' : 'Men'}</button>
-            <button class="btn small" id="btn-balanced">Reset to Balanced Week</button>
+            <button class="btn small" id="btn-balanced" title="Generate a smart default plan for the current periodization phase — you can still customize every day">Reset Ideal Training</button>
             <button class="btn small ${game.weeklyFlow?.trainingConfirmed ? '' : 'primary'}" id="btn-confirm-plan">
               ${game.weeklyFlow?.trainingConfirmed ? '✓ Plan Confirmed' : '✓ Confirm Weekly Plan'}
             </button>
@@ -354,9 +355,10 @@
     });
 
     container.querySelector('#btn-balanced').addEventListener('click', () => {
-      game.training[activeGender] = TE().defaultPlan();
+      game.training[activeGender] = TE().idealPlanForPhase(game);
       render(container);
-      UI.toast('Plan reset to a balanced training week.');
+      const phase = D.trainingPhaseForWeek(game.week);
+      UI.toast(`Ideal training generated for the ${phase.label}. Customize any day you like.`);
     });
     container.querySelector('#btn-copy-plan').addEventListener('click', () => {
       const other = activeGender === 'M' ? 'W' : 'M';
