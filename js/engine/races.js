@@ -1293,7 +1293,10 @@
       sos,
       fieldSize: res.teamScores.length,
       individual: indiv ? indiv.name : '',
-      individualId: indiv ? indiv.athleteId : null
+      individualId: indiv ? indiv.athleteId : null,
+      // The title-team roster, preserved forever for the program archive's
+      // Roster Link (Update 12, Phase 4) — the seven who toed the line.
+      roster: champScorers.map((f) => ({ name: f.name, athleteId: f.athleteId, place: f.place }))
     });
 
     const label = gender === 'M' ? "men's" : "women's";

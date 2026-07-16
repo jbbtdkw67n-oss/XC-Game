@@ -58,6 +58,15 @@ function assert(cond, msg) { if (!cond) { console.log('FAIL: ' + msg); process.e
   assert(goat.champTeams > 0, 'championship team snapshots recorded (' + goat.champTeams + ')');
   console.log('GOAT:', JSON.stringify(goat));
 
+  // --- Championship snapshots carry a roster (for the archive Roster Link) ---
+  const rosterOk = await page.evaluate(() => {
+    const g = window.XCD.ui.state.game;
+    const ct = g.history.championTeams || [];
+    return ct.length && ct.every((t) => Array.isArray(t.roster) && t.roster.length >= 5 &&
+      typeof t.teamOverall === 'number' && (t.margin === null || typeof t.margin === 'number'));
+  });
+  assert(rosterOk, 'champion-team snapshots carry a 5+ runner roster and rating fields');
+
   // --- History screen: every GOAT + board + archive sub-view renders ---
   await page.evaluate(() => window.XCD.ui.navigate('history'));
   await page.waitForTimeout(80);

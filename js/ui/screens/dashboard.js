@@ -67,7 +67,7 @@
           <thead><tr><th>Athlete</th><th>Class</th><th class="num">Work Ethic</th><th>Overall</th><th>Attribute Gains</th></tr></thead>
           <tbody>
             ${rows.map((e) => `
-              <tr>
+              <tr class="${e.id ? 'clickable' : ''}" ${e.id ? `data-ath="${e.id}"` : ''}>
                 <td><strong>${Utils.escapeHtml(e.name)}</strong>${e.incoming ? ' <span style="color:var(--text-faint); font-size:10px;" title="Incoming — first summer on campus">NEW</span>' : ''}</td>
                 <td>${e.classYear}</td>
                 <td class="num">${e.workEthic}</td>
@@ -87,7 +87,12 @@
       </p>
       ${section('M', "Men's Squad")}
       ${section('W', "Women's Squad")}
-    `);
+    `, (modal) => {
+      // Every athlete in the progression report opens their profile (Phase 3).
+      modal.querySelectorAll('[data-ath]').forEach((tr) => {
+        tr.addEventListener('click', () => UI.openAthlete(UI.state.game, tr.dataset.ath));
+      });
+    });
   }
 
   // Season W/L from the player's completed meets (dual-meet-style ledger).
@@ -432,7 +437,7 @@
           <div class="stat-tile"><div class="label">Record (W–L)</div><div class="value">${rec.w}–${rec.l}</div><div class="sub">${completed.length} meet${completed.length === 1 ? '' : 's'} raced</div></div>
           <div class="stat-tile"><div class="label">National Rank</div><div class="value">${rm.rank}<span style="font-size:13px; color:var(--text-faint);"> M</span> · ${rw.rank}<span style="font-size:13px; color:var(--text-faint);"> W</span></div><div class="sub">${window.XCD.data.divisionFor(school).label}</div></div>
           <div class="stat-tile"><div class="label">Conf. Standing</div><div class="value">${csM ? '#' + csM.pos : '—'}<span style="font-size:13px; color:var(--text-faint);"> M</span> · ${csW ? '#' + csW.pos : '—'}<span style="font-size:13px; color:var(--text-faint);"> W</span></div><div class="sub">${Utils.escapeHtml(school.conference)}</div></div>
-          <div class="stat-tile"><div class="label">Next Opponent</div><div class="value" style="font-size:15px;">${nextOpponent ? (nextOpponent.rank < 999 ? '#' + nextOpponent.rank + ' ' : '') + Utils.escapeHtml(nextOpponent.school.name) : '—'}</div><div class="sub">${nextField ? 'Wk ' + nextField.week + ' field' : 'season complete'}</div></div>
+          <div class="stat-tile"><div class="label">Next Opponent</div><div class="value" style="font-size:15px;">${nextOpponent ? (nextOpponent.rank < 999 ? '#' + nextOpponent.rank + ' ' : '') + `<span class="clickable" data-school="${nextOpponent.sid}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(nextOpponent.school.name)}</span>` : '—'}</div><div class="sub">${nextField ? 'Wk ' + nextField.week + ' field' : 'season complete'}</div></div>
         </div>
         <div class="grid cols-2">
           <div>
@@ -489,6 +494,14 @@
 
     container.querySelectorAll('[data-ath]').forEach((tr) => {
       tr.addEventListener('click', () => UI.showPlayerCard(game.getAthlete(tr.dataset.ath), game));
+    });
+    // Program names on the dashboard (next opponent) open the school profile.
+    container.querySelectorAll('[data-school]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const s = game.getSchool(el.dataset.school);
+        if (s && UI.showSchoolCard) UI.showSchoolCard(s, game);
+      });
     });
     const markReviewed = () => { if (game.week === 1 && game.week1) game.week1.progressionReviewed = true; };
     const reportBtn = container.querySelector('#btn-offseason-report');

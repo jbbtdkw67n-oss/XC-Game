@@ -43,7 +43,7 @@
 
     (H.championTeams || []).forEach((t) => {
       if (t.schoolId !== sid) return;
-      teamNat.push({ year: t.year, gender: t.gender, division: t.division, coach: t.coachName, teamOverall: t.teamOverall, teamScore: t.teamScore });
+      teamNat.push({ year: t.year, gender: t.gender, division: t.division, coach: t.coachName, teamOverall: t.teamOverall, teamScore: t.teamScore, roster: t.roster || [] });
     });
 
     Object.keys(H.nationalChampions || {}).forEach((year) => {
@@ -196,10 +196,10 @@
 
       ${sectionTable('🏆 Team National Championships',
         ['Year', 'Squad', 'Coach', 'Team OVR', 'Score', 'Roster'],
-        h.teamNat.map((t) => `<tr>
+        h.teamNat.map((t, ti) => `<tr>
           <td>${t.year}</td><td>${gTag(t.gender)}</td><td>${coachLink(t.coach)}</td>
           <td class="num">${t.teamOverall || '—'}</td><td class="num">${t.teamScore ?? '—'}</td>
-          <td><span class="clickable" data-view-roster="${t.year}-${t.gender}" style="cursor:pointer; color:var(--accent-hover);">View ▸</span></td>
+          <td>${(t.roster && t.roster.length) ? `<span class="clickable" data-view-roster="${ti}" style="cursor:pointer; color:var(--accent-hover);">View ▸</span>` : '—'}</td>
         </tr>`),
         'No national team titles yet — the banner awaits.')}
 
@@ -257,9 +257,29 @@
       </div>`;
 
     wireProgramClicks(game, body);
-    // Roster links jump to the championship season's summary (best effort).
+    // Roster link: the title team's seven, each opening their profile (Phase 4).
     body.querySelectorAll('[data-view-roster]').forEach((el) => {
-      el.addEventListener('click', () => UI.toast('Championship rosters are preserved in each athlete\'s profile — click any champion to explore.', 'info'));
+      el.addEventListener('click', () => {
+        const t = h.teamNat[Number(el.dataset.viewRoster)];
+        if (!t || !t.roster || !t.roster.length) return;
+        UI.showModal(`
+          <button class="btn small modal-close" data-modal-close>✕ Close</button>
+          <h2>🏆 ${t.year} ${gTag(t.gender)} National Champions</h2>
+          <div style="color:var(--text-dim); font-size:12.5px; margin-bottom:10px;">${Utils.escapeHtml(school.name)} • Team OVR ${t.teamOverall || '—'} • Team score ${t.teamScore ?? '—'}</div>
+          <div class="table-wrap"><table class="data">
+            <thead><tr><th>Finish</th><th>Runner</th></tr></thead>
+            <tbody>${t.roster.map((r) => `
+              <tr class="clickable" data-ath="${r.athleteId || ''}" data-ath-name="${Utils.escapeHtml(r.name)}" style="cursor:pointer;">
+                <td>${Utils.ordinal(r.place)}</td>
+                <td style="color:var(--accent-hover);">${Utils.escapeHtml(r.name)}</td>
+              </tr>`).join('')}</tbody>
+          </table></div>
+        `, (modal) => {
+          modal.querySelectorAll('[data-ath]').forEach((tr) => {
+            tr.addEventListener('click', () => UI.openAthlete(game, tr.dataset.ath, tr.dataset.athName));
+          });
+        });
+      });
     });
   }
 
