@@ -118,7 +118,7 @@
      * Ids are unique per generation, so regenerating from the same seed
      * would produce identical data but different ids.
      */
-    static newGame({ schoolId, dynastyName, coachFirstName, coachLastName, archetype, portrait, trainingPhilosophy, racePhilosophy, startRole, age, hometown, almaMater, seed, world }) {
+    static newGame({ schoolId, dynastyName, coachFirstName, coachLastName, archetype, portrait, gender, appearance, trainingPhilosophy, racePhilosophy, startRole, age, hometown, almaMater, seed, world }) {
       const gs = new GameState();
       gs.dynastyName = dynastyName || `${coachLastName} Dynasty`;
       gs.dynastyId = GameState.newDynastyId();
@@ -147,6 +147,8 @@
         almaMater: almaMater || '',
         archetype: arch.key,
         portrait: portrait || '🧢',
+        gender: gender === 'W' ? 'W' : 'M',
+        appearance: (appearance && appearance.skin !== undefined) ? { ...appearance, gender: gender === 'W' ? 'W' : 'M' } : null,
         recruiting: 50, training: 50, peaking: 50, culture: 50,
         // Coaching philosophies (Update 4). Training philosophy is permanent;
         // race philosophy can be changed later on the My Program screen.

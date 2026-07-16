@@ -73,6 +73,22 @@
     return `<div class="meter ${colorClass}"><span style="width:${Utils.clamp(value, 0, 100)}%"></span></div>`;
   };
 
+  /*
+   * Championship honor window for a meet (Update 12): at nationals the top
+   * N finishers earn All-America honors; at a conference championship the
+   * top N earn All-Conference — N comes from the division's rules. Result
+   * tables highlight those finishers in gold. Null for every other meet.
+   */
+  UI.meetHonorInfo = function (meet) {
+    if (!meet) return null;
+    const D = window.XCD.data;
+    const champ = (D.divisionFor(meet.division || 'DI') || {}).championship;
+    if (!champ) return null;
+    if (meet.type === 'national') return { count: champ.allAmericans, label: 'All-American', icon: '🇺🇸' };
+    if (meet.type === 'conference') return { count: champ.allConference, label: 'All-Conference', icon: '🏅' };
+    return null;
+  };
+
   /* ---------------- Sortable table ----------------
    * config: {
    *   columns: [{ key, label, numeric?, render?(row) -> html, sortValue?(row) }],
@@ -230,7 +246,7 @@
                 <span style="color:var(--text-faint);">→</span>
                 <button class="${cls(2, f.recruitingDone)}" data-flow-nav="recruiting" style="cursor:pointer;">${f.recruitingDone ? '✓' : '2'} Recruiting</button>
                 <span style="color:var(--text-faint);">→</span>
-                <span class="${cls(3, false)}">3 Advance</span>
+                <button class="${cls(3, false)}" data-flow-advance style="cursor:pointer;" title="Advance the week once training and recruiting are wrapped">3 Advance</button>
               </div>`;
             })()}
             <div style="display:flex; gap:8px;">
@@ -259,6 +275,13 @@
 
     root.querySelectorAll('[data-flow-nav]').forEach((btn) => {
       btn.addEventListener('click', () => UI.navigate(btn.dataset.flowNav));
+    });
+    // Step 3 in the flow strip is the same action as the Advance button.
+    root.querySelectorAll('[data-flow-advance]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const adv = document.getElementById('btn-advance-week');
+        if (adv) adv.click();
+      });
     });
 
     document.getElementById('btn-advance-week').addEventListener('click', async () => {

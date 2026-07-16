@@ -384,6 +384,7 @@ table.data td.num, table.data th.num { text-align: right; }
 
 /* ---------- Player card ---------- */
 .player-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.player-card-header .who { flex: 1; min-width: 0; }
 .player-card-header .who h2 { margin-bottom: 2px; }
 .player-card-header .who .sub { color: var(--text-dim); font-size: 13px; }
 .attr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 18px; }
@@ -478,6 +479,8 @@ table.data td.num, table.data th.num { text-align: right; }
   border: 1px solid var(--border);
   color: var(--text-dim);
   white-space: nowrap;
+  background: none; /* flow steps render as buttons too */
+  font-family: inherit;
 }
 .flow-step.done { border-color: var(--success); color: var(--success); }
 .flow-step.current { border-color: var(--accent); color: var(--accent-hover); font-weight: 700; }
@@ -535,6 +538,29 @@ table.data td.num, table.data th.num { text-align: right; }
   display: flex; align-items: center; justify-content: center;
   border: 1px solid var(--border); border-radius: 50%; background: var(--accent-soft);
 }
+/* Avatar builder (Update 12): live human preview + appearance sliders */
+.avatar-builder {
+  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+  border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 4px;
+}
+.avatar-builder > div:first-child { flex: 0 0 auto; margin: 0 auto; }
+.avatar-sliders { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 14px; }
+.avatar-slider input[type="range"] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
+  border-radius: 3px; background: var(--accent-soft); outline: none; cursor: pointer;
+  accent-color: var(--accent);
+}
+.avatar-slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 20px; height: 20px;
+  border-radius: 50%; background: var(--accent); border: none; cursor: pointer;
+}
+.avatar-slider input[type="range"]::-moz-range-thumb {
+  width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: none; cursor: pointer;
+}
+.avatar-slider-label {
+  text-align: center; font-size: 12.5px; color: var(--text-dim); margin-top: 4px;
+}
+
 .wizard-summary-box {
   border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 13px;
 }

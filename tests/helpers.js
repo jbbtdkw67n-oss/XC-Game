@@ -9,8 +9,8 @@ async function walkCoachWizard(page, { archetype = 'Developer', role = null } = 
   await page.waitForSelector('#coach-first');
   if (role) await page.click(`[data-role="${role}"]`);
   await page.click('#btn-next');
-  // Step 2: Appearance
-  await page.waitForSelector('[data-portrait]');
+  // Step 2: Appearance (Update 12: human avatar builder with sliders)
+  await page.waitForSelector('#coach-avatar-preview');
   await page.click('#btn-next');
   // Step 3: Archetype (required)
   await page.waitForSelector('[data-arch]');

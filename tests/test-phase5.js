@@ -15,8 +15,9 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   await page.click('#btn-new');
   await page.waitForSelector('#coach-first');
   await page.click('#btn-next');
-  await page.waitForSelector('[data-portrait]');
-  await page.click('[data-portrait="🕶"]');
+  // Update 12: the appearance step is a human avatar builder with sliders.
+  await page.waitForSelector('#coach-avatar-preview');
+  await page.$eval('[data-app="skin"]', (el) => { el.value = '5'; el.dispatchEvent(new Event('input')); });
   await page.click('#btn-next');
   await page.waitForSelector('[data-arch]');
   const nextDisabled = await page.$eval('#btn-next', (b) => b.disabled);
@@ -38,7 +39,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     const g = window.XCD.ui.state.game;
     const c = g.getPlayerCoach();
     return {
-      archetype: c.archetype, portrait: c.portrait,
+      archetype: c.archetype, skin: c.appearance && c.appearance.skin, gender: c.gender,
       ratings: { recruiting: c.recruiting, training: c.training, peaking: c.peaking, culture: c.culture },
       legacy: ['raceStrategy', 'development', 'loyalty', 'charisma', 'discipline', 'personality'].filter((k) => c[k] !== undefined),
       overall: c.overallRating
@@ -46,7 +47,8 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   });
   console.log('player coach:', JSON.stringify(coach));
   if (coach.archetype !== 'Tactician') errors.push('Archetype not applied');
-  if (coach.portrait !== '🕶') errors.push('Portrait not applied');
+  if (coach.skin !== 5) errors.push('Avatar appearance not applied: skin=' + coach.skin);
+  if (coach.gender !== 'M' && coach.gender !== 'W') errors.push('Coach gender missing: ' + coach.gender);
   if (coach.ratings.peaking !== 64) errors.push('Archetype bonus missing: peaking=' + coach.ratings.peaking);
   if (coach.legacy.length) errors.push('Legacy coach attrs present: ' + coach.legacy);
 

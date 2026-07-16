@@ -936,6 +936,9 @@
       almaMater: spec.almaMater || '',
       archetype: arch.key,
       portrait: spec.portrait || '🧢',
+      gender: spec.gender === 'W' ? 'W' : 'M',
+      appearance: (spec.appearance && spec.appearance.skin !== undefined)
+        ? { ...spec.appearance, gender: spec.gender === 'W' ? 'W' : 'M' } : null,
       recruiting: 50, training: 50, peaking: 50, culture: 50,
       trainingPhilosophy: (D.trainingPhilosophy(spec.trainingPhilosophy) || {}).key || 'balanced',
       racePhilosophy: (D.racePhilosophy(spec.racePhilosophy) || {}).key || 'even',

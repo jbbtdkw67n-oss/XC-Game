@@ -99,7 +99,7 @@
       searchKeys: ['name', 'from', 'reason', 'classYear'],
       onRowClick: (row) => UI.showPlayerCard(row.a, game),
       columns: [
-        { key: 'name', label: 'Runner', render: (r) => `<strong>${Utils.escapeHtml(r.name)}</strong>` },
+        { key: 'name', label: 'Runner', render: (r) => `${UI.avatar(r.a, { size: 24 })} <strong>${Utils.escapeHtml(r.name)}</strong>` },
         { key: 'classYear', label: 'Class' },
         {
           key: 'eligLeft', label: 'Elig', numeric: true,

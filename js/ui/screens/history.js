@@ -14,6 +14,7 @@
   let awardDiv = 'DI';  // Awards page division filter (Update 4, Part 6)
   let awardYear = '';   // Awards page year filter
   let goatSub = 'athletes';   // GOAT Lists sub-page
+  const goatFilters = { query: '', division: '', gender: '', status: '' }; // Update 12: GOAT list filters
   let boardSub = 'programs';  // Leaderboards sub-page
   const boardFilters = { query: '', division: '', conference: '' };
   const DIV_LABELS = { DI: 'D1', DII: 'D2', DIII: 'D3' };
@@ -81,14 +82,14 @@
           </div>
           ${game.history.playerCareers.map((p, i) => `
             <div class="attr-row clickable" data-lineage="${i}" style="cursor:pointer;">
-              <span>${p.portrait || '🧢'} <strong>${Utils.escapeHtml(p.name)}</strong>
+              <span>${UI.avatar(p, { size: 24, outfit: 'suit' })} <strong>${Utils.escapeHtml(p.name)}</strong>
                 <span style="color:var(--text-faint); font-size:12px;">retired ${p.retiredYear}</span></span>
               <span style="color:var(--text-dim); font-size:12.5px;">
                 ${(p.careerRecord || {}).seasons || 0} szn • ${(p.careerRecord || {}).nationalTitles || 0} natl • ${(p.careerRecord || {}).conferenceTitles || 0} conf • ${p.winPct || 0}%
               </span>
             </div>`).join('')}
           <div class="attr-row" style="background:var(--accent-soft); border-radius:6px; padding:6px 8px;">
-            <span>${coach.portrait || '🧢'} <strong>${Utils.escapeHtml(coach.fullName)}</strong> <span style="color:var(--accent); font-size:12px;">(current)</span></span>
+            <span>${UI.avatar(coach, { size: 24, outfit: 'suit' })} <strong>${Utils.escapeHtml(coach.fullName)}</strong> <span style="color:var(--accent); font-size:12px;">(current)</span></span>
             <span style="color:var(--text-dim); font-size:12.5px;">${c.seasons} szn • ${c.nationalTitles} natl • ${c.conferenceTitles} conf</span>
           </div>
         </div>` : ''}
@@ -139,30 +140,94 @@
    * ================================================================ */
   function goat(game, el) {
     const GOAT = window.XCD.engine.GOAT;
-    const data = GOAT.get(game);
+    const f = goatFilters;
+
+    // Which filters make sense for the current sub-list.
+    const hasGender = goatSub === 'athletes' || goatSub === 'teams';
+    const hasStatus = goatSub === 'athletes' || goatSub === 'coaches';
 
     el.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
         <div class="pill-tabs">
           <button data-goat="athletes" class="${goatSub === 'athletes' ? 'active' : ''}">🏃 Greatest Athletes</button>
           <button data-goat="coaches" class="${goatSub === 'coaches' ? 'active' : ''}">🧢 Greatest Coaches</button>
           <button data-goat="programs" class="${goatSub === 'programs' ? 'active' : ''}">🏫 Greatest Programs</button>
           <button data-goat="teams" class="${goatSub === 'teams' ? 'active' : ''}">🏆 Greatest Teams</button>
         </div>
-        <span style="color:var(--text-faint); font-size:12px;">Weighted legacy scores • recalculated every offseason${data.year ? ` • through ${data.year}` : ''}</span>
+        <span style="color:var(--text-faint); font-size:12px;">Weighted legacy scores • through ${game.year}</span>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px;">
+        <input type="text" id="goat-search" class="search-input" placeholder="Search names, schools…" value="${Utils.escapeHtml(f.query)}" style="max-width:210px;">
+        <select id="goat-div" class="search-input" style="padding:6px 10px;">
+          <option value="">All Divisions</option>
+          ${['DI', 'DII', 'DIII'].map((d) => `<option value="${d}" ${f.division === d ? 'selected' : ''}>${DIV_LABELS[d]}</option>`).join('')}
+        </select>
+        ${hasGender ? `
+        <select id="goat-gender" class="search-input" style="padding:6px 10px;">
+          <option value="">Men &amp; Women</option>
+          <option value="M" ${f.gender === 'M' ? 'selected' : ''}>Men</option>
+          <option value="W" ${f.gender === 'W' ? 'selected' : ''}>Women</option>
+        </select>` : ''}
+        ${hasStatus ? `
+        <select id="goat-status" class="search-input" style="padding:6px 10px;">
+          <option value="">Active &amp; Retired</option>
+          <option value="active" ${f.status === 'active' ? 'selected' : ''}>Active</option>
+          <option value="retired" ${f.status === 'retired' ? 'selected' : ''}>Retired</option>
+        </select>` : ''}
+        ${(f.query || f.division || f.gender || f.status) ? '<button class="btn small" id="goat-clear">✕ Clear Filters</button>' : ''}
       </div>
       <div id="goat-body"></div>`;
 
     const body = el.querySelector('#goat-body');
-    ({ athletes: goatAthletes, coaches: goatCoaches, programs: goatPrograms, teams: goatTeams })[goatSub](game, body, data);
+
+    // Filters recompute the ranking live over the FULL historical universe
+    // (not just the stored top 40), so "Greatest DIII Women" is a real list.
+    const drawBody = () => {
+      const q = f.query.trim().toLowerCase();
+      const matches = (r, keys) => !q || keys.some((k) => String(r[k] || '').toLowerCase().includes(q));
+      const divOk = (r) => !f.division || (r.division || 'DI') === f.division;
+      let rows;
+      if (goatSub === 'athletes') {
+        rows = GOAT.athletes(game).filter((r) => divOk(r) &&
+          (!f.gender || r.gender === f.gender) &&
+          (!f.status || (f.status === 'active') === (r.kind === 'active')) &&
+          matches(r, ['name', 'school']));
+        goatAthletes(game, body, rows.slice(0, GOAT.LIST_SIZE));
+      } else if (goatSub === 'coaches') {
+        rows = GOAT.coaches(game).filter((r) => divOk(r) &&
+          (!f.status || (f.status === 'active') === (r.kind === 'active')) &&
+          matches(r, ['name', 'school']));
+        goatCoaches(game, body, rows.slice(0, GOAT.LIST_SIZE));
+      } else if (goatSub === 'programs') {
+        rows = GOAT.programs(game).filter((r) => divOk(r) && matches(r, ['name', 'conference']));
+        goatPrograms(game, body, rows.slice(0, GOAT.LIST_SIZE));
+      } else {
+        rows = GOAT.teams(game).filter((r) => divOk(r) &&
+          (!f.gender || r.gender === f.gender) &&
+          matches(r, ['school', 'coachName']));
+        goatTeams(game, body, rows.slice(0, GOAT.LIST_SIZE));
+      }
+    };
+    drawBody();
+
+    el.querySelector('#goat-search').addEventListener('input', (e) => { f.query = e.target.value; drawBody(); });
+    el.querySelector('#goat-div').addEventListener('change', (e) => { f.division = e.target.value; drawBody(); });
+    const gSel = el.querySelector('#goat-gender');
+    if (gSel) gSel.addEventListener('change', (e) => { f.gender = e.target.value; drawBody(); });
+    const sSel = el.querySelector('#goat-status');
+    if (sSel) sSel.addEventListener('change', (e) => { f.status = e.target.value; drawBody(); });
+    const clearBtn = el.querySelector('#goat-clear');
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+      f.query = ''; f.division = ''; f.gender = ''; f.status = '';
+      goat(game, el);
+    });
 
     el.querySelectorAll('[data-goat]').forEach((btn) => {
       btn.addEventListener('click', () => { goatSub = btn.dataset.goat; goat(game, el); });
     });
   }
 
-  function goatAthletes(game, el, data) {
-    const rows = data.athletes || [];
+  function goatAthletes(game, el, rows) {
     el.innerHTML = `
       <div class="card">
         <h2>🐐 Greatest Athletes of All Time</h2>
@@ -176,7 +241,7 @@
             ${rows.map((r, i) => `
               <tr class="clickable" data-gath="${i}" ${r.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>${i + 1}</td>
-                <td><strong>${r.generational ? '⭐ ' : ''}${Utils.escapeHtml(r.name)}</strong> <span style="color:var(--text-faint); font-size:11px;">${r.years === 'active' ? '● active' : Utils.escapeHtml(r.years || '')}</span></td>
+                <td>${UI.avatar(r, { size: 22 })} <strong>${r.generational ? '⭐ ' : ''}${Utils.escapeHtml(r.name)}</strong> <span style="color:var(--text-faint); font-size:11px;">${r.years === 'active' ? '● active' : Utils.escapeHtml(r.years || '')}</span></td>
                 <td>${r.gender}</td>
                 <td>${Utils.escapeHtml(r.school)}</td>
                 <td class="num">${r.natTitles}</td>
@@ -187,7 +252,7 @@
                 <td class="num"><strong>${r.score}</strong></td>
               </tr>`).join('')}
           </tbody></table></div>`
-        : '<div style="color:var(--text-dim);">Careers are still being written — the first legends will appear after a season or two.</div>'}
+        : '<div style="color:var(--text-dim);">No careers match the current filters — the first legends appear after a season or two.</div>'}
       </div>`;
     el.querySelectorAll('[data-gath]').forEach((tr) => {
       tr.addEventListener('click', () => {
@@ -197,8 +262,7 @@
     });
   }
 
-  function goatCoaches(game, el, data) {
-    const rows = data.coaches || [];
+  function goatCoaches(game, el, rows) {
     const active = window.XCD.engine.Careers.coachRankings(game).slice(0, 40);
     const registry = (game.history.coachRegistry || []).slice().reverse();
 
@@ -215,7 +279,7 @@
             ${rows.map((r, i) => `
               <tr class="clickable" data-gcoach="${i}" ${r.isPlayer ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>${i + 1}</td>
-                <td><strong>${Utils.escapeHtml(r.name)}</strong>${r.isPlayer ? ' (You)' : ''} <span style="color:var(--text-faint); font-size:11px;">${r.years === 'active' ? '● active' : Utils.escapeHtml(r.years || '')}</span></td>
+                <td>${UI.avatar(r.coachId ? game.getCoach(r.coachId) || r : (r.record || r), { size: 22, outfit: 'suit' })} <strong>${Utils.escapeHtml(r.name)}</strong>${r.isPlayer ? ' (You)' : ''} <span style="color:var(--text-faint); font-size:11px;">${r.years === 'active' ? '● active' : Utils.escapeHtml(r.years || '')}</span></td>
                 <td>${Utils.escapeHtml(r.school)}</td>
                 <td class="num">${r.natTitles}</td>
                 <td class="num">${r.natRunnerUp}</td>
@@ -227,7 +291,7 @@
                 <td class="num"><strong>${r.score}</strong></td>
               </tr>`).join('')}
           </tbody></table></div>`
-        : '<div style="color:var(--text-dim);">The first coaching legends emerge after a season.</div>'}
+        : '<div style="color:var(--text-dim);">No coaching careers match the current filters.</div>'}
       </div>
 
       <div class="card" style="margin-bottom:16px;">
@@ -280,7 +344,7 @@
       const filtered = registry.filter((c) => !q || c.name.toLowerCase().includes(q));
       list.innerHTML = filtered.slice(0, 40).map((c, i) => `
         <div class="attr-row clickable" data-reg="${i}" style="padding:8px 0; align-items:flex-start; cursor:pointer;">
-          <span style="min-width:220px;"><strong>${c.portrait || '🧢'} ${Utils.escapeHtml(c.name)}</strong>${c.isPlayer ? ' (You)' : ''}
+          <span style="min-width:220px;">${UI.avatar(c, { size: 24, outfit: 'suit' })} <strong>${Utils.escapeHtml(c.name)}</strong>${c.isPlayer ? ' (You)' : ''}
             <div style="color:var(--text-dim); font-size:12px;">${Utils.escapeHtml(c.reputationLabel || '')} • ${c.reason === 'retired' ? `retired ${c.year}, age ${c.age}` : `left the profession ${c.year}`}</div>
           </span>
           <span style="font-size:12.5px; color:var(--text-dim); text-align:right;">
@@ -296,8 +360,7 @@
     el.querySelector('#coach-search').addEventListener('input', (e) => draw(e.target.value.toLowerCase()));
   }
 
-  function goatPrograms(game, el, data) {
-    const rows = data.programs || [];
+  function goatPrograms(game, el, rows) {
     el.innerHTML = `
       <div class="card">
         <h2>🐐 Greatest Programs of All Time</h2>
@@ -324,7 +387,7 @@
                 <td class="num"><strong>${r.score}</strong></td>
               </tr>`).join('')}
           </tbody></table></div>`
-        : '<div style="color:var(--text-dim);">Program histories begin with the first completed season.</div>'}
+        : '<div style="color:var(--text-dim);">No programs match the current filters.</div>'}
       </div>`;
     el.querySelectorAll('[data-gprog]').forEach((tr) => {
       tr.addEventListener('click', () => {
@@ -334,8 +397,7 @@
     });
   }
 
-  function goatTeams(game, el, data) {
-    const rows = data.teams || [];
+  function goatTeams(game, el, rows) {
     el.innerHTML = `
       <div class="card">
         <h2>🐐 Greatest Teams of All Time</h2>
@@ -362,7 +424,7 @@
                 <td class="num"><strong>${r.score}</strong></td>
               </tr>`).join('')}
           </tbody></table></div>`
-        : '<div style="color:var(--text-dim);">No national champions crowned yet — the first title team starts the list.</div>'}
+        : '<div style="color:var(--text-dim);">No championship teams match the current filters — the first title team starts the list.</div>'}
       </div>`;
     el.querySelectorAll('[data-gteam]').forEach((tr) => {
       tr.addEventListener('click', () => {
@@ -788,7 +850,7 @@
     }
     const table = UI.renderSortableTable(tableEl, {
       columns: [
-        { key: 'name', label: 'Legend', render: (r) => `<strong>${r.portrait || '🏛'} ${Utils.escapeHtml(r.name)}</strong>` },
+        { key: 'name', label: 'Legend', render: (r) => `${UI.avatar(r, { size: 24, outfit: 'jersey' })} <strong>${r.generational ? '⭐ ' : ''}${Utils.escapeHtml(r.name)}</strong>` },
         { key: 'gender', label: '' },
         { key: 'school', label: 'School' },
         { key: 'wins', label: 'Wins', numeric: true, sortValue: (r) => r.stats.wins, render: (r) => r.stats.wins },

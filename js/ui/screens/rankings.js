@@ -57,7 +57,7 @@
             ${rows.map((r) => `
               <tr class="clickable" data-coach="${r.coachId}" ${r.isPlayer ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>#${r.rank}</td>
-                <td><strong>${Utils.escapeHtml(r.name)}</strong>${r.isPlayer ? ' <span style="color:var(--accent);">(You)</span>' : ''}</td>
+                <td>${UI.avatar(game.getCoach(r.coachId) || { name: r.name }, { size: 22, outfit: 'suit' })} <strong>${Utils.escapeHtml(r.name)}</strong>${r.isPlayer ? ' <span style="color:var(--accent);">(You)</span>' : ''}</td>
                 <td>${Utils.escapeHtml(r.school)}</td>
                 <td style="font-size:12px; color:var(--text-dim);">${Utils.escapeHtml(r.personality)}</td>
                 <td class="num">${r.natTitles}</td>
@@ -91,7 +91,7 @@
             ${list.map((r) => `
               <tr class="clickable" data-ath="${r.athleteId}" ${r.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>#${r.rank}</td>
-                <td><strong>${r.generational ? '⭐ ' : ''}${Utils.escapeHtml(r.name)}</strong></td>
+                <td>${UI.avatar(game.getAthlete(r.athleteId) || { name: r.name, gender: activeGender }, { size: 22 })} <strong>${r.generational ? '⭐ ' : ''}${Utils.escapeHtml(r.name)}</strong></td>
                 <td>${r.classYear}</td>
                 <td class="clickable-school" data-school="${r.schoolId}" style="cursor:pointer;">${Utils.escapeHtml(r.school)}</td>
                 <td class="num">${preseason ? r.proj : window.XCD.engine.Races.formatTime(r.pace)}</td>

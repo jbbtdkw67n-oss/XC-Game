@@ -29,7 +29,7 @@
 
     const rosterRows = (roster) => roster.slice(0, 10).map((a) => `
       <tr class="clickable" data-ath="${a.id}">
-        <td>${Utils.escapeHtml(a.fullName)}</td>
+        <td>${UI.avatar(a, { size: 22 })} ${Utils.escapeHtml(a.fullName)}</td>
         <td>${a.classYear}</td>
         <td class="num">${UI.ratingBadge(a.currentOverall)}</td>
       </tr>`).join('');
@@ -44,7 +44,7 @@
       <div class="card" style="padding:12px; margin-bottom:14px;">
         <h3>Head Coach</h3>
         <div class="attr-row ${coach ? 'clickable' : ''}" ${coach ? 'id="school-coach-row" style="cursor:pointer;"' : ''}>
-          <span>${coach ? Utils.escapeHtml(coach.fullName) : 'Vacant'}${coach ? ' <span style="color:var(--text-faint); font-size:11px;">(view profile)</span>' : ''}</span>
+          <span>${coach ? `${UI.avatar(coach, { size: 22, outfit: 'suit' })} ${Utils.escapeHtml(coach.fullName)}` : 'Vacant'}${coach ? ' <span style="color:var(--text-faint); font-size:11px;">(view profile)</span>' : ''}</span>
           <span class="attr-name">${coach ? `${Utils.escapeHtml(coach.archetype || coach.personality || '')} • OVR ${coach.overallRating} • Age ${coach.age}` : ''}</span>
         </div>
       </div>

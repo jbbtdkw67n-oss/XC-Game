@@ -440,7 +440,7 @@
       <div class="grid cols-2">
         <div class="card">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-            <h2 style="margin:0;">${coach.portrait || '🧢'} ${coach.role === 'Assistant' ? 'Assistant Coach' : 'Head Coach'} — ${Utils.escapeHtml(coach.fullName)}</h2>
+            <h2 style="margin:0;">${UI.avatar(coach, { size: 30, outfit: 'suit' })} ${coach.role === 'Assistant' ? 'Assistant Coach' : 'Head Coach'} — ${Utils.escapeHtml(coach.fullName)}</h2>
             <div style="display:flex; gap:6px;">
               ${window.XCD.engine.Careers.canRetire(game) ? '<button class="btn small" id="btn-retire-coach" title="Retire this coach — the dynasty continues with a successor you create">🏁 Retire</button>' : ''}
               <button class="btn small" id="btn-coach-profile">Full Profile</button>
@@ -457,7 +457,7 @@
             if (!partner) return '';
             const partnerRole = partner.role === 'Assistant' ? 'Assistant Coach' : 'Head Coach';
             return `<div style="font-size:12.5px; margin:0 0 10px;">
-              ${partnerRole}: <span class="clickable" id="btn-partner-coach" style="cursor:pointer; color:var(--accent-hover);">${partner.portrait || '🧢'} ${Utils.escapeHtml(partner.fullName)}</span>
+              ${partnerRole}: <span class="clickable" id="btn-partner-coach" style="cursor:pointer; color:var(--accent-hover);">${UI.avatar(partner, { size: 22, outfit: 'suit' })} ${Utils.escapeHtml(partner.fullName)}</span>
               <span style="color:var(--text-faint);"> • ${Utils.escapeHtml(partner.archetype || '')} • Overall ${partner.overallRating}</span>
               ${coach.role !== 'Assistant' ? ' <button class="btn small" id="btn-manage-staff" style="margin-left:6px;" title="Compare assistant candidates and reshape your staff">Manage Staff</button>' : ''}
             </div>`;
@@ -620,7 +620,7 @@
         return `
         <div class="attr-row" style="align-items:flex-start; padding:8px 0;">
           <div style="flex:1;">
-            <div><strong>${c.portrait || '🧢'} ${Utils.escapeHtml(c.fullName)}</strong>
+            <div><strong>${UI.avatar(c, { size: 22, outfit: 'suit' })} ${Utils.escapeHtml(c.fullName)}</strong>
               <span style="color:var(--text-faint); font-size:11.5px;"> ${tag}</span>
               ${veteran && !tag ? '<span class="rating r-good" style="font-size:10px;" title="A real free agent from the coaching pool — career history and all">Free Agent</span>' : ''}</div>
             <div style="color:var(--text-dim); font-size:12px; margin-top:2px;">

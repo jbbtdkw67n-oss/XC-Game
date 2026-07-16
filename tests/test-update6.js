@@ -27,8 +27,8 @@ async function run() {
   await page.fill('#coach-town', 'Cedarfalls, OR');
   await page.fill('#coach-alma', 'Willamette State');
   await page.click('#btn-next');                       // → appearance
-  await page.waitForSelector('[data-portrait]');
-  await page.click('#rand-portrait');                  // randomize works
+  await page.waitForSelector('#coach-avatar-preview'); // Update 12: avatar builder
+  await page.click('#rand-avatar');                    // randomize works
   await page.click('#btn-next');                       // → archetype
   await page.waitForSelector('[data-arch]');
   ok(await page.$eval('#btn-next', (b) => b.disabled), 'archetype must be mandatory');
@@ -216,7 +216,7 @@ async function run() {
   await page.fill('#coach-first', 'Nova');
   await page.fill('#coach-last', 'Reyes');
   await page.click('#btn-next');
-  await page.waitForSelector('[data-portrait]');
+  await page.waitForSelector('#coach-avatar-preview');
   await page.click('#btn-next');
   await page.waitForSelector('[data-arch]');
   await page.click('[data-arch="Recruiter"]');

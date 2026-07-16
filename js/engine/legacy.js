@@ -310,6 +310,8 @@
     gameState.history.coachRegistry.push({
       name: coach.fullName,
       portrait: coach.portrait,
+      gender: coach.gender || null,
+      appearance: coach.appearance ? { ...coach.appearance } : null,
       archetype: coach.archetype,
       hometown: coach.hometown || '',
       almaMater: coach.almaMater || '',

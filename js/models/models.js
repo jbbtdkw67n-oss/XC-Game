@@ -193,8 +193,13 @@
         firstName: '',
         lastName: '',
         age: 40,
+        gender: null, // 'M' | 'W' — derived from the first name when absent
         archetype: 'Developer', // Recruiter | Developer | Tactician | Players Coach
         portrait: '🧢',
+        // Human avatar (Update 12): { gender, skin, hair, hairStyle, beard }.
+        // Player coaches build theirs in the creation wizard; AI coaches
+        // derive a deterministic one at render time (null here).
+        appearance: null,
         // Where the coach is from and ran/studied — biography shown on the
         // profile card (player coaches set these in the creation wizard).
         hometown: '',
@@ -272,6 +277,12 @@
       const cr = this.careerRecord;
       if (cr._repNatCOY === undefined) cr._repNatCOY = cr.natCOY || 0;
       if (cr._repConfCOY === undefined) cr._repConfCOY = cr.confCOY || 0;
+      // Coaches from before Update 12 carry no gender — infer it from the
+      // first name so avatars and pronouns stay consistent forever.
+      if (this.gender !== 'M' && this.gender !== 'W') {
+        const D = window.XCD.data || {};
+        this.gender = (D.FIRST_NAMES_W || []).includes(this.firstName) ? 'W' : 'M';
+      }
     }
 
     // Saves from before Update 4: assign philosophies deterministically so

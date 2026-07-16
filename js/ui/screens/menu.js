@@ -139,6 +139,8 @@
         coachLastName: coach.last,
         archetype: coach.archetype,
         portrait: coach.portrait,
+        gender: coach.gender,
+        appearance: coach.appearance,
         trainingPhilosophy: coach.trainingPhilosophy,
         racePhilosophy: coach.racePhilosophy,
         startRole: coach.startRole,

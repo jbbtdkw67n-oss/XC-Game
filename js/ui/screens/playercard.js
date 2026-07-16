@@ -154,11 +154,12 @@
     UI.showModal(`
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
       <div class="player-card-header">
+        <div style="flex:0 0 auto; margin-right:14px;">${UI.avatar(athlete, { size: 64, outfit: 'jersey' })}</div>
         <div class="who">
           <h2>${athlete.generational ? '⭐ ' : ''}${Utils.escapeHtml(athlete.fullName)}</h2>
           <div class="sub">
             ${athlete.classYear} • ${athlete.gender === 'M' ? "Men's" : "Women's"} •
-            ${Utils.escapeHtml(athlete.hometownCity)}, ${athlete.hometownState} •
+            ${Utils.escapeHtml(athlete.hometownCity)}, ${athlete.hometownState === 'INT' ? Utils.escapeHtml(athlete.country || 'Intl') : athlete.hometownState} •
             ${heightFt}'${heightIn}" / ${athlete.weightLb} lb • Age ${athlete.age}
           </div>
           <div class="sub">
@@ -280,6 +281,7 @@
     UI.showModal(`
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
       <div class="player-card-header">
+        <div style="flex:0 0 auto; margin-right:14px;">${UI.avatar(rec, { size: 64, outfit: 'jersey' })}</div>
         <div class="who">
           <h2>${rec.generational ? '⭐ ' : '🏛 '}${Utils.escapeHtml(rec.name)}</h2>
           <div class="sub">

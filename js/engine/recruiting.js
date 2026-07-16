@@ -179,7 +179,11 @@
 
     let hometown;
     if (international) {
-      hometown = { city: `${rng.choice(D.TOWN_ROOTS)}${rng.choice(D.TOWN_SUFFIXES)}`, state: 'INT', region: 'International' };
+      // Real hometowns abroad (Update 12): a Kenyan recruit is from Iten or
+      // Eldoret, a Norwegian from Bergen — not a procedural American town.
+      const pool = D.namesFor(country);
+      const city = pool.cities ? rng.choice(pool.cities) : `${rng.choice(D.TOWN_ROOTS)}${rng.choice(D.TOWN_SUFFIXES)}`;
+      hometown = { city, state: 'INT', region: 'International' };
     } else {
       const states = Object.keys(D.STATE_REGION);
       const state = rng.choice(states);
@@ -217,11 +221,14 @@
       : decisionStyleRoll < 0.7 ? rng.int(9, 14)
       : rng.int(15, D.RECRUITING.SIGNING_WEEK);
 
-    const firstName = gender === 'M' ? rng.choice(D.FIRST_NAMES_M) : rng.choice(D.FIRST_NAMES_W);
+    // Names true to origin (Update 12): international recruits draw from
+    // their country's own name pool — Vincent Kipruto, not Tyler Smith.
+    const namePool = D.namesFor(country);
+    const firstName = rng.choice(gender === 'M' ? namePool.M : namePool.W);
 
     const recruit = new M.Recruit({
       firstName,
-      lastName: rng.choice(D.LAST_NAMES),
+      lastName: rng.choice(namePool.last),
       gender,
       hometownCity: Utils.capitalize(hometown.city),
       hometownState: hometown.state,

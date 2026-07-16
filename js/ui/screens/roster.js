@@ -53,7 +53,7 @@
       searchKeys: ['firstName', 'lastName', 'classYear', 'hometownState', 'personality'],
       onRowClick: (a) => UI.showPlayerCard(a, game),
       columns: [
-        { key: 'lastName', label: 'Name', render: (a) => `<strong>${Utils.escapeHtml(a.fullName)}</strong>${a.isWalkOn ? ' <span style="color:var(--text-faint); font-size:10px;" title="Walk-on">WO</span>' : ''}` },
+        { key: 'lastName', label: 'Name', render: (a) => `${UI.avatar(a, { size: 24 })} <strong>${Utils.escapeHtml(a.fullName)}</strong>${a.isWalkOn ? ' <span style="color:var(--text-faint); font-size:10px;" title="Walk-on">WO</span>' : ''}` },
         { key: 'classYear', label: 'Class', sortValue: (a) => window.XCD.data.CLASS_YEARS.indexOf(a.classYear) },
         { key: 'hometownState', label: 'From', render: (a) => `${Utils.escapeHtml(a.hometownCity)}, ${a.hometownState}` },
         { key: 'currentOverall', label: 'OVR', numeric: true, render: (a) => UI.ratingBadge(a.currentOverall) },

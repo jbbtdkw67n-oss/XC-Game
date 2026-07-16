@@ -42,7 +42,7 @@
 
     const rosterRows = (roster) => roster.slice(0, 10).map((a) => `
       <tr class="clickable" data-ath="${a.id}">
-        <td>${a.generational ? '⭐ ' : ''}${Utils.escapeHtml(a.fullName)}</td>
+        <td>${UI.avatar(a, { size: 22 })} ${a.generational ? '⭐ ' : ''}${Utils.escapeHtml(a.fullName)}</td>
         <td>${a.classYear}</td>
         <td class="num">${UI.ratingBadge(a.currentOverall)}</td>
       </tr>`).join('') || '<tr><td colspan="3" style="color:var(--text-dim);">No roster.</td></tr>';
@@ -88,7 +88,7 @@
           <div class="sub">${divLabel} • ${Utils.escapeHtml(school.conference)} • ${school.region} • ${(D.STATE_NAMES || {})[school.state] || school.state}</div>
           <div class="sub">
             Head Coach:
-            ${coach ? `<span class="clickable" id="sc-coach" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(coach.fullName)}</span> — ${Utils.escapeHtml(coach.archetype || '')}` : 'Vacant'}
+            ${coach ? `<span class="clickable" id="sc-coach" style="cursor:pointer; color:var(--accent-hover);">${UI.avatar(coach, { size: 20, outfit: 'suit' })} ${Utils.escapeHtml(coach.fullName)}</span> — ${Utils.escapeHtml(coach.archetype || '')}` : 'Vacant'}
             ${coach ? (() => {
               const st = D.seatStatus(coach.hotSeat || 0);
               const color = st.key === 'hot' ? 'var(--danger)' : st.key === 'warm' ? 'var(--warning)' : 'var(--success)';

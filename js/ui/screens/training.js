@@ -161,7 +161,7 @@
               const overVolume = miles > safe;
               return `
               <tr>
-                <td class="clickable" data-ath="${a.id}" style="cursor:pointer;"><strong>${Utils.escapeHtml(a.fullName)}</strong>${a.isWalkOn ? ' <span style="color:var(--text-faint); font-size:10px;">WO</span>' : ''}${a.generational ? ' <span title="Generational Recruit">⭐</span>' : ''}</td>
+                <td class="clickable" data-ath="${a.id}" style="cursor:pointer;">${UI.avatar(a, { size: 22 })} <strong>${Utils.escapeHtml(a.fullName)}</strong>${a.isWalkOn ? ' <span style="color:var(--text-faint); font-size:10px;">WO</span>' : ''}${a.generational ? ' <span title="Generational Recruit">⭐</span>' : ''}</td>
                 <td>${a.classYear}</td>
                 <td class="num">${UI.ratingBadge(a.currentOverall)}</td>
                 <td class="num" style="color:${(a.seasonDev || 0) > 0 ? 'var(--success)' : 'var(--text-faint)'};">${(a.seasonDev || 0) > 0 ? '+' + a.seasonDev : a.seasonDev || '—'}</td>
@@ -348,8 +348,15 @@
     });
 
     container.querySelector('#btn-confirm-plan').addEventListener('click', () => {
+      // Order-independent with Done Recruiting: if recruiting is already
+      // wrapped, confirming training completes the week — no bouncing back.
       game.weeklyFlow = game.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
       game.weeklyFlow.trainingConfirmed = true;
+      if (game.weeklyFlow.recruitingDone) {
+        UI.toast('Training plan locked in. Ready to advance the week.', 'success');
+        UI.renderShell();
+        return;
+      }
       UI.toast('Training plan locked in. Next: recruiting.', 'success');
       UI.navigate('recruiting');
     });

@@ -61,6 +61,7 @@
     UI.showModal(`
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
       <div class="player-card-header">
+        <div style="flex:0 0 auto; margin-right:14px;">${UI.avatar(coach, { size: 64, outfit: 'suit' })}</div>
         <div class="who">
           <h2>${archIcon} ${Utils.escapeHtml(coach.fullName || coach.name || `${coach.firstName || ''} ${coach.lastName || ''}`)}${coach.isPlayer ? ' <span style="color:var(--accent);">(You)</span>' : ''}</h2>
           <div class="sub">
@@ -117,56 +118,66 @@
       </div>
 
       ${(() => {
-        // Championships, chronologically (Update 13, Phase 5): a clean,
-        // year-by-year record of the team titles this coach won, reconstructed
-        // from history by matching their coaching stints to each season's
-        // champions. National titles match by team; conference titles match by
-        // the program's name that season (realignment-safe).
-        if (!game || !stints.length) return '';
-        const H = game.history || {};
+        // Career Accolades (Update 12): the coach's full trophy ledger,
+        // organized like the athlete profile — National, Regional, and
+        // Conference honors in their own sections, chronological within
+        // each. Team championships are reconstructed from history by
+        // matching the coach's stints to each season's champions (national
+        // titles match by team id; regional/conference titles match by the
+        // program's name that season, realignment-safe); Coach-of-the-Year
+        // awards come from the permanent coach accolade ledger.
+        const H = game ? (game.history || {}) : {};
         const short = { DI: 'D1', DII: 'D2', DIII: 'D3' };
-        const champs = [];
-        const nowYear = game.year;
-        stints.forEach((st) => {
-          const end = st.endYear || nowYear;
-          for (let y = st.startYear; y <= end; y++) {
-            const nat = (H.nationalChampions || {})[y] || {};
-            const conf = (H.conferenceChampions || {})[y] || {};
-            ['M', 'W'].forEach((g) => {
-              const key = (st.division || 'DI') === 'DI' ? g : `${st.division}-${g}`;
-              if (nat[key] && nat[key].teamId === st.schoolId) {
-                champs.push({ year: y, tier: 0, label: `🏆 NCAA ${short[st.division || 'DI'] || ''} Champion (${g === 'M' ? "Men's" : "Women's"})` });
-              }
-            });
-            Object.entries(conf).forEach(([ckey, name]) => {
-              if (name !== st.school) return;
-              const g = ckey.endsWith('-M') ? 'M' : 'W';
-              const confName = ckey.slice(0, -2);
-              champs.push({ year: y, tier: 1, label: `🥇 ${confName} Champion (${g === 'M' ? "Men's" : "Women's"})` });
-            });
-          }
-        });
-        if (!champs.length) return '';
-        champs.sort((a, b) => a.year - b.year || a.tier - b.tier);
-        return `
-        <div class="card" style="padding:12px; margin-bottom:14px;">
-          <h3>Championships — ${champs.length}</h3>
-          <div style="max-height:180px; overflow-y:auto;">
-            ${champs.map((c) => `<div class="attr-row" style="padding:4px 0;"><span>${c.year} — ${c.label}</span></div>`).join('')}
-          </div>
-        </div>`;
-      })()}
-
-      ${(() => {
+        const groups = [
+          { label: 'National', rows: [] },
+          { label: 'Regional', rows: [] },
+          { label: 'Conference', rows: [] }
+        ];
+        if (game && stints.length) {
+          const nowYear = game.year;
+          stints.forEach((st) => {
+            const end = st.endYear || nowYear;
+            for (let y = st.startYear; y <= end; y++) {
+              const nat = (H.nationalChampions || {})[y] || {};
+              ['M', 'W'].forEach((g) => {
+                const key = (st.division || 'DI') === 'DI' ? g : `${st.division}-${g}`;
+                if (nat[key] && nat[key].teamId === st.schoolId) {
+                  groups[0].rows.push({ year: y, html: `🏆 ${y} NCAA ${short[st.division || 'DI'] || ''} Team National Champions (${g === 'M' ? "Men's" : "Women's"})` });
+                }
+              });
+              Object.entries((H.regionalChampions || {})[y] || {}).forEach(([rkey, name]) => {
+                if (name !== st.school) return;
+                const g = rkey.endsWith('-M') ? 'M' : 'W';
+                groups[1].rows.push({ year: y, html: `🗺 ${y} ${Utils.escapeHtml(rkey.slice(0, -2))} Regional Champions (${g === 'M' ? "Men's" : "Women's"})` });
+              });
+              Object.entries((H.conferenceChampions || {})[y] || {}).forEach(([ckey, name]) => {
+                if (name !== st.school) return;
+                const g = ckey.endsWith('-M') ? 'M' : 'W';
+                groups[2].rows.push({ year: y, html: `🥇 ${y} ${Utils.escapeHtml(ckey.slice(0, -2))} Champions (${g === 'M' ? "Men's" : "Women's"})` });
+              });
+            }
+          });
+        }
         const Legacy = window.XCD.engine.Legacy;
-        const accs = Legacy ? Legacy.coachAccoladesFor(coach) : [];
-        if (!accs.length) return '';
-        const short = { DI: 'D1', DII: 'D2', DIII: 'D3' };
+        (Legacy ? Legacy.coachAccoladesFor(coach) : []).forEach((a) => {
+          const row = {
+            year: a.year,
+            html: `🏅 ${a.year} ${a.conference ? Utils.escapeHtml(a.conference) : (short[a.division] || a.division || '')} ${Utils.escapeHtml(a.label)}`
+          };
+          (a.conference ? groups[2] : groups[0]).rows.push(row);
+        });
+        const total = groups.reduce((s, gp) => s + gp.rows.length, 0);
+        if (!total) return '';
+        groups.forEach((gp) => gp.rows.sort((x, y) => x.year - y.year));
         return `
         <div class="card" style="padding:12px; margin-bottom:14px;">
-          <h3>Coach Awards — ${accs.length}</h3>
-          <div style="max-height:160px; overflow-y:auto;">
-            ${accs.map((a) => `<div class="attr-row" style="padding:4px 0;"><span>🏅 ${a.year} ${a.conference ? Utils.escapeHtml(a.conference) : (short[a.division] || a.division || '')} ${Utils.escapeHtml(a.label)}</span></div>`).join('')}
+          <h3>Career Accolades — ${total}</h3>
+          <div style="max-height:260px; overflow-y:auto;">
+            ${groups.filter((gp) => gp.rows.length).map((gp) => `
+              <div style="margin-bottom:6px;">
+                <div style="font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-faint); margin:4px 0;">${gp.label} — ${gp.rows.length}</div>
+                ${gp.rows.map((r) => `<div class="attr-row" style="padding:4px 0;"><span>${r.html}</span></div>`).join('')}
+              </div>`).join('')}
           </div>
         </div>`;
       })()}

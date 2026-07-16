@@ -33,11 +33,18 @@
       first: 'Alex', last: 'Carter', dynName: '',
       age: 34, hometown: '', almaMater: '',
       startRole: 'Head',
+      gender: 'M',
       portrait: D.COACH_PORTRAITS[0],
+      // The human avatar (Update 12): built slider-by-slider on the
+      // Appearance step and worn on every profile for the whole career.
+      appearance: { gender: 'M', skin: 2, hair: 5, hairStyle: 2, beard: 0 },
       archetype: null,
       trainingPhilosophy: 'balanced',
       racePhilosophy: 'even'
     }, opts.initial || {});
+    if (!spec.appearance || spec.appearance.skin === undefined) {
+      spec.appearance = { gender: spec.gender || 'M', skin: 2, hair: 5, hairStyle: 2, beard: 0 };
+    }
 
     let step = 0;
 
@@ -162,43 +169,77 @@
       });
     }
 
-    /* ---------------- Step 2: Appearance ---------------- */
+    /* ---------------- Step 2: Appearance ---------------- *
+     * A human avatar builder (Update 12): choose your gender, then shape
+     * the person with sliders — skin color, hair color, hair style, and
+     * beard style — over a live preview. This face follows the whole
+     * career, onto every historical profile.
+     */
     function renderAppearance() {
+      const AV = UI.AVATAR;
+      const app = spec.appearance;
+      app.gender = spec.gender;
+      if (spec.gender === 'W') app.beard = 0;
+
+      const slider = (key, label, max) => `
+        <div class="avatar-slider" data-slider="${key}" ${key === 'beard' && spec.gender === 'W' ? 'style="display:none;"' : ''}>
+          <input type="range" min="0" max="${max}" step="1" value="${app[key]}" data-app="${key}">
+          <div class="avatar-slider-label">${label}</div>
+        </div>`;
+
       root.innerHTML = frame(
         'Your <span>Look</span>',
-        'Pick a portrait — this face follows your whole career, onto every historical profile.',
+        'Build your coach — this face follows your whole career, onto every historical profile.',
         `
-        <div class="wizard-preview">
-          <div class="wizard-preview-face" id="preview-face">${spec.portrait}</div>
-          <div>
-            <div style="font-weight:700; font-size:16px;">${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)}</div>
-            <div style="color:var(--text-dim); font-size:13px;">${spec.startRole === 'Assistant' ? 'Assistant Coach' : 'Head Coach'} • Age ${spec.age}${spec.hometown ? ' • ' + Utils.escapeHtml(spec.hometown) : ''}</div>
-            <button type="button" class="btn" id="rand-portrait" style="margin-top:8px; padding:4px 12px; font-size:12px;">🎲 Randomize</button>
+        <div class="field" style="margin-bottom:12px;">
+          <label>Coach</label>
+          <div class="pill-tabs" id="gender-tabs">
+            <button type="button" data-g="M" class="${spec.gender === 'M' ? 'active' : ''}">👔 Male Coach</button>
+            <button type="button" data-g="W" class="${spec.gender === 'W' ? 'active' : ''}">👔 Female Coach</button>
           </div>
         </div>
-        <div class="field" style="margin-bottom:0;">
-          <label>Portrait</label>
-          <div class="portrait-row" style="flex-wrap:wrap;">
-            ${D.COACH_PORTRAITS.map((p) => `
-              <button type="button" class="portrait-pick ${p === spec.portrait ? 'selected' : ''}" data-portrait="${p}">${p}</button>`).join('')}
+        <div class="avatar-builder">
+          <div style="text-align:center;">
+            <div id="coach-avatar-preview">${UI.avatarSvg(app, { size: 132, outfit: 'suit' })}</div>
+            <div style="font-weight:700; font-size:15px; margin-top:6px;">${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)}</div>
+            <div style="color:var(--text-dim); font-size:12.5px;">${spec.startRole === 'Assistant' ? 'Assistant Coach' : 'Head Coach'} • Age ${spec.age}${spec.hometown ? ' • ' + Utils.escapeHtml(spec.hometown) : ''}</div>
+            <button type="button" class="btn" id="rand-avatar" style="margin-top:8px; padding:4px 12px; font-size:12px;">🎲 Randomize</button>
+          </div>
+          <div class="avatar-sliders">
+            ${slider('skin', 'Skin Color', AV.SKIN_TONES.length - 1)}
+            ${slider('hair', 'Hair Color', AV.HAIR_COLORS.length - 1)}
+            ${slider('hairStyle', 'Hair Style', AV.HAIR_STYLE_COUNT - 1)}
+            ${slider('beard', 'Beard Style', AV.BEARD_STYLE_COUNT - 1)}
           </div>
         </div>`,
         { nextLabel: 'Next: Archetype →' }
       );
 
-      const select = (p) => {
-        spec.portrait = p;
-        root.querySelector('#preview-face').textContent = p;
-        root.querySelectorAll('[data-portrait]').forEach((n) => n.classList.toggle('selected', n.dataset.portrait === p));
+      const redraw = () => {
+        root.querySelector('#coach-avatar-preview').innerHTML = UI.avatarSvg(app, { size: 132, outfit: 'suit' });
       };
-      root.querySelectorAll('[data-portrait]').forEach((el) => {
-        el.addEventListener('click', () => select(el.dataset.portrait));
+      root.querySelectorAll('[data-app]').forEach((inp) => {
+        inp.addEventListener('input', () => {
+          app[inp.dataset.app] = Number(inp.value);
+          redraw();
+        });
       });
-      root.querySelector('#rand-portrait').addEventListener('click', () => {
-        select(D.COACH_PORTRAITS[Math.floor(Math.random() * D.COACH_PORTRAITS.length)]);
+      root.querySelectorAll('#gender-tabs [data-g]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          spec.gender = btn.dataset.g;
+          renderAppearance(); // re-render: beard slider shows/hides with gender
+        });
+      });
+      root.querySelector('#rand-avatar').addEventListener('click', () => {
+        app.skin = Math.floor(Math.random() * AV.SKIN_TONES.length);
+        app.hair = Math.floor(Math.random() * AV.HAIR_COLORS.length);
+        app.hairStyle = Math.floor(Math.random() * AV.HAIR_STYLE_COUNT);
+        app.beard = spec.gender === 'M' ? Math.floor(Math.random() * AV.BEARD_STYLE_COUNT) : 0;
+        root.querySelectorAll('[data-app]').forEach((inp) => { inp.value = app[inp.dataset.app]; });
+        redraw();
       });
 
-      wireNav(null);
+      wireNav(() => { app.gender = spec.gender; });
     }
 
     /* ---------------- Step 3: Archetype ---------------- */
@@ -305,7 +346,7 @@
         'One last look before it becomes official.',
         `
         <div class="wizard-preview">
-          <div class="wizard-preview-face">${spec.portrait}</div>
+          <div>${UI.avatarSvg(Object.assign({}, spec.appearance, { gender: spec.gender }), { size: 72, outfit: 'suit' })}</div>
           <div>
             <div style="font-weight:700; font-size:17px;">${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)}</div>
             <div style="color:var(--text-dim); font-size:13px;">

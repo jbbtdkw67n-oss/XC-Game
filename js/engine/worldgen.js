@@ -224,6 +224,7 @@
     const coach = new M.Coach({
       firstName,
       lastName: rng.choice(D.LAST_NAMES),
+      gender,
       age: role === 'Assistant' ? rng.int(25, 52) : rng.int(25, 75),
       role,
       archetype: archetype.key,

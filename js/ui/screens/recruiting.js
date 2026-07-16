@@ -133,6 +133,7 @@
     UI.showModal(`
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
       <div class="player-card-header">
+        <div style="flex:0 0 auto; margin-right:14px;">${UI.avatar(rec, { size: 64, outfit: 'jersey' })}</div>
         <div class="who">
           <h2>${rec.generational ? '⭐ ' : ''}${stars(rec.starRating)} ${Utils.escapeHtml(rec.fullName)}${rec.nxn && rec.nxn.champion ? ' <span title="NXN Champion">👟</span>' : rec.nxn && rec.nxn.allAmerican ? ' <span title="NXN All-American">🎽</span>' : ''}${rec.hsStateChampion ? ' <span title="HS State Champion">🏵</span>' : ''}</h2>
           ${rec.generational ? '<div class="sub" style="color:var(--gold, #d4af37); font-weight:700;">GENERATIONAL RECRUIT — the story of this class</div>' : ''}
@@ -278,7 +279,7 @@
       columns: [
         { key: 'starRating', label: 'Stars', numeric: true, render: (r) => stars(r.starRating) },
         { key: 'nationalRank', label: 'Natl', numeric: true, render: (r) => `#${r.nationalRank}` },
-        { key: 'lastName', label: 'Name', render: (r) => `${r.generational ? '<span title="Generational Recruit">⭐</span> ' : ''}${r.nxn && r.nxn.champion ? '<span title="NXN Champion">👟</span> ' : r.nxn && r.nxn.allAmerican ? '<span title="NXN All-American">🎽</span> ' : ''}<strong>${Utils.escapeHtml(r.fullName)}</strong>${r.source !== 'HS' ? ` <span style="font-size:10px; color:var(--warning);">${r.source}</span>` : ''}` },
+        { key: 'lastName', label: 'Name', render: (r) => `${UI.avatar(r, { size: 24 })} ${r.generational ? '<span title="Generational Recruit">⭐</span> ' : ''}${r.nxn && r.nxn.champion ? '<span title="NXN Champion">👟</span> ' : r.nxn && r.nxn.allAmerican ? '<span title="NXN All-American">🎽</span> ' : ''}<strong>${Utils.escapeHtml(r.fullName)}</strong>${r.source !== 'HS' ? ` <span style="font-size:10px; color:var(--warning);">${r.source}</span>` : ''}` },
         { key: 'hometownState', label: 'From', render: (r) => r.hometownState === 'INT' ? Utils.escapeHtml(r.country) : `${Utils.escapeHtml(r.hometownCity)}, ${r.hometownState}` },
         {
           key: 'dist', label: 'Dist', numeric: true,
@@ -464,16 +465,18 @@
     });
 
     container.querySelector('#btn-finish-recruiting').addEventListener('click', () => {
+      // The two weekly steps are order-independent: Done Recruiting always
+      // registers, whether or not the training plan is confirmed yet — no
+      // step ever has to be pressed twice.
       game.weeklyFlow = game.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
+      game.weeklyFlow.recruitingDone = true;
+      const unspent = R.pointsLeft > 0 ? ` (${R.pointsLeft} point${R.pointsLeft > 1 ? 's' : ''} unspent)` : '';
       if (!game.weeklyFlow.trainingConfirmed) {
-        UI.toast('Set your training plan first (Step 1).', 'error');
+        UI.toast(`Recruiting wrapped${unspent}. Confirm the training plan and you're ready to advance.`, 'success');
         UI.navigate('training');
         return;
       }
-      game.weeklyFlow.recruitingDone = true;
-      UI.toast(R.pointsLeft > 0
-        ? `Recruiting wrapped with ${R.pointsLeft} point${R.pointsLeft > 1 ? 's' : ''} unspent. Ready to advance.`
-        : 'Recruiting wrapped. Ready to advance the week.', 'success');
+      UI.toast(`Recruiting wrapped${unspent}. Ready to advance the week.`, 'success');
       UI.renderShell();
     });
 
