@@ -153,14 +153,26 @@
     else if (rank <= total * 0.15) delta += 0.85 * divW;
     else if (rank <= total * 0.40) delta += 0.32 * divW;
 
-    // Titles: hardware on the program's mantle burnishes every résumé on staff.
+    // Titles: hardware on the program's mantle burnishes every résumé on
+    // staff. Championships are a marquee line for an assistant and should
+    // visibly raise the reputation — so the title reward is tracked
+    // separately and shielded from the diminishing-returns taper below,
+    // ensuring a conference or national title always moves the needle even
+    // for an already-decorated coordinator.
+    let titleBump = 0;
     const conf = (gameState.history.conferenceChampions || {})[year] || {};
-    if (conf[`${school.conference}-M`] === school.name) delta += 0.55 * divW;
-    if (conf[`${school.conference}-W`] === school.name) delta += 0.55 * divW;
+    if (conf[`${school.conference}-M`] === school.name) titleBump += 1.0 * divW;
+    if (conf[`${school.conference}-W`] === school.name) titleBump += 1.0 * divW;
     const nat = (gameState.history.nationalChampions || {})[year] || {};
     ['M', 'W'].forEach((g) => {
       const key = (school.division || 'DI') === 'DI' ? g : `${school.division}-${g}`;
-      if (nat[key] && nat[key].teamId === school.id) delta += 2.1 * divW;
+      if (nat[key] && nat[key].teamId === school.id) titleBump += 3.5 * divW;
+      // A national runner-up / podium finish is a résumé line too.
+      else {
+        const row = gameState.rankings && gameState.rankings[g].find((r) => r.schoolId === school.id);
+        if (row && row.rank === 2) titleBump += 1.2 * divW;
+        else if (row && row.rank <= 4) titleBump += 0.6 * divW;
+      }
     });
 
     // THIS season's recruiting class — the assistant's signature work and
@@ -197,9 +209,13 @@
     if (coach.age > 55) delta -= 0.7; // long-tenured assistants who never stepped up plateau
     delta += (rng.next() - 0.5) * 0.3;
     // Diminishing returns near the top: the final rungs to a Legend
-    // Assistant reputation demand many more seasons of sustained success.
+    // Assistant reputation demand many more seasons of sustained success —
+    // but only the non-title inputs are tapered. Championships (titleBump)
+    // are added on top at nearly full value, so winning always visibly
+    // raises an assistant's reputation even when they're already decorated.
     let applied = Utils.clamp(delta, -3, 6);
     if (applied > 0) applied *= Utils.clamp(1 - (coach.reputation || 12) / 150, 0.3, 1);
+    applied += titleBump * Utils.clamp(1 - (coach.reputation || 12) / 260, 0.7, 1);
     coach.reputation = Utils.clamp(
       Math.round((coach.reputation + applied) * 10) / 10, 1, 92);
   }
@@ -387,6 +403,7 @@
   window.XCD.engine.Coaching = {
     yearlyProgression,
     updateReputation,
+    updateAssistantReputation,
     progressRatings,
     preferredMileage,
     mediaPull,
