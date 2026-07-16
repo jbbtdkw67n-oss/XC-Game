@@ -20,10 +20,12 @@
       schoolId: school ? school.id : null,
       division: (school && school.division) || 'DI',
       wins: 0, losses: 0, meetWins: 0,
-      confTitles: 0, regionalTitles: 0, natTitles: 0,
+      confTitles: 0, regionalTitles: 0, natTitles: 0, natRunnerUp: 0,
       ncaaAppearances: 0, podiums: 0, bestFinish: null, highestRank: null,
-      indivConfChamps: 0, indivNatChamps: 0,
+      indivConfChamps: 0, indivNatChamps: 0, indivRegChamps: 0,
       allAmericans: 0, allConference: 0,
+      // Season ledgers (Update 12): stamped once a year at awards week.
+      seasonsPlayed: 0, top25Finishes: 0, ncaaStreak: 0, ncaaStreakBest: 0,
       topClasses: [],  // { year, rank }
       coaches: []      // { coachId, name, startYear, endYear }
     };
@@ -78,9 +80,10 @@
 
   // Sort key so profiles read chronologically then by prestige of the honor.
   const ACC_ORDER = {
-    natChampTeam: 0, natChampIndiv: 1, runnerOfYear: 2, allAmerican: 3,
-    freshmanOfYear: 4, confChamp: 5, confRunnerOfYear: 6, confFreshmanOfYear: 7,
-    allConference: 8, academicAllAmerican: 9
+    natChampTeam: 0, natChampIndiv: 1, natRunnerUp: 2, runnerOfYear: 3,
+    allAmerican: 4, freshmanOfYear: 5, regChamp: 6, confChamp: 7,
+    confRunnerOfYear: 8, confFreshmanOfYear: 9,
+    allConference: 10, academicAllAmerican: 11
   };
 
   Legacy.recordAccolade = function (athlete, acc) {
@@ -127,7 +130,9 @@
     const hy = athlete.honorYears || {};
     const defs = [
       ['natChamp', '🏆', 'National Champion'],
+      ['natRunnerUp', '🥈', 'National Runner-Up'],
       ['allAmerican', '🇺🇸', 'All-American'],
+      ['regChamp', '🗺', 'Regional Champion'],
       ['confChamp', '🥇', 'Conference Champion'],
       ['allConference', '🏅', 'All-Conference'],
       // Nike Cross Nationals prep honors (Update 5, Part 9) — permanent, and
@@ -165,6 +170,7 @@
     const school = gameState.getSchool(athlete.schoolId);
     gameState.history.alumni = gameState.history.alumni || [];
     gameState.history.alumni.push({
+      athleteId: athlete.id,
       name: athlete.fullName,
       gender: athlete.gender,
       school: school ? school.name : '?',
@@ -186,11 +192,24 @@
         prs: athlete.careerStats.personalBests
       }
     });
-    // The ledger is permanent but bounded: keep the most decorated 600.
+    // Stamp the GOAT-formula legacy score at graduation (Update 12) — it
+    // both ranks the all-time lists and decides who history keeps.
+    const rec = gameState.history.alumni[gameState.history.alumni.length - 1];
+    const GOAT = window.XCD.engine.GOAT;
+    rec.legacyScore = GOAT ? GOAT.athleteScore({
+      accolades: rec.accolades,
+      stats: rec.stats,
+      seasons: rec.overallHistory.length || 4
+    }) : 0;
+    // The ledger is permanent but bounded: keep the most significant 600 —
+    // champions and legends stay forever; marginal careers fade (Phase 7).
     if (gameState.history.alumni.length > 600) {
       gameState.history.alumni.sort((a, b) =>
-        (b.badges.length * 10 + b.stats.wins) - (a.badges.length * 10 + a.stats.wins));
+        (b.legacyScore ?? (b.badges.length * 10 + b.stats.wins)) -
+        (a.legacyScore ?? (a.badges.length * 10 + a.stats.wins)));
       gameState.history.alumni.length = 600;
+      // Chronological reading order survives the cut.
+      gameState.history.alumni.sort((a, b) => (a.gradYear || 0) - (b.gradYear || 0));
     }
   };
 
@@ -313,6 +332,98 @@
       coachingTree: (coach.coachingTree || []).map((t) => ({ ...t })),
       isPlayer: !!coach.isPlayer
     });
+  };
+
+  /* ---------------- Season ledgers (Update 12) ------------------------ *
+   * Runs once per year at awards week, when the final polls are in. Stamps
+   * every program (and its coach) with the season's permanent footprint:
+   * seasons played, final top-25 finishes, and NCAA-appearance streaks —
+   * the raw material of the GOAT lists and legacy leaderboards.
+   */
+  Legacy.recordSeasonLedgers = function (gameState) {
+    const season = gameState.season;
+    const rankings = gameState.rankings || {};
+
+    // Which programs made a nationals field this year (either gender)?
+    const inNationals = new Set();
+    Object.values((season && season.championships) || {}).forEach((champ) => {
+      ['M', 'W'].forEach((g) => ((champ.fieldIds || {})[g] || []).forEach((id) => inNationals.add(id)));
+    });
+
+    // Final-poll top-25 per gender, within each division's own poll.
+    const top25 = new Set();
+    ['M', 'W'].forEach((g) => {
+      (rankings[g] || []).forEach((r) => { if (r.rank <= 25) top25.add(`${r.schoolId}-${g}`); });
+    });
+
+    Object.values(gameState.world.schools).forEach((school) => {
+      const prog = Legacy.program(gameState, school.id);
+      prog.seasonsPlayed = (prog.seasonsPlayed || 0) + 1;
+
+      let t25 = 0;
+      ['M', 'W'].forEach((g) => { if (top25.has(`${school.id}-${g}`)) t25 += 1; });
+      if (t25) prog.top25Finishes = (prog.top25Finishes || 0) + t25;
+
+      if (inNationals.has(school.id)) {
+        prog.ncaaStreak = (prog.ncaaStreak || 0) + 1;
+        if (prog.ncaaStreak > (prog.ncaaStreakBest || 0)) prog.ncaaStreakBest = prog.ncaaStreak;
+      } else {
+        prog.ncaaStreak = 0;
+      }
+
+      // The coach's résumé mirrors the program's season footprint.
+      const coach = gameState.getCoach(school.coachId);
+      if (coach) {
+        coach.careerRecord.top25 = (coach.careerRecord.top25 || 0) + t25;
+      }
+    });
+  };
+
+  /* ---------------- Notable-people pruning (Update 12, Phase 7) ------- *
+   * History remembers the significant, not everyone. The coach registry
+   * keeps only careers with genuine weight — champions, award winners,
+   * long tenures, exceptional winners — while brief, unremarkable careers
+   * fade a few years after they end. Player careers are never pruned.
+   */
+  Legacy.coachNotable = function (rec) {
+    const cr = rec.careerRecord || {};
+    const games = (cr.wins || 0) + (cr.losses || 0);
+    const winPct = games ? (cr.wins / games) * 100 : 0;
+    return !!(rec.isPlayer ||
+      (cr.nationalTitles || 0) > 0 ||
+      (cr.natRunnerUp || 0) > 0 ||
+      (cr.natCOY || 0) > 0 ||
+      (cr.confCOY || 0) >= 3 ||
+      (cr.conferenceTitles || 0) >= 2 ||
+      (cr.regionalTitles || 0) >= 2 ||
+      (cr.indivNatChamps || 0) > 0 ||
+      (cr.allAmericans || 0) >= 8 ||
+      (cr.seasons || 0) >= 18 ||
+      ((cr.seasons || 0) >= 8 && winPct >= 62));
+  };
+
+  Legacy.pruneCoachRegistry = function (gameState) {
+    const H = gameState.history;
+    if (!H.coachRegistry || !H.coachRegistry.length) return 0;
+    const before = H.coachRegistry.length;
+    // A grace window: every retirement stays visible for a few years, then
+    // only the historically relevant remain in the permanent registry.
+    H.coachRegistry = H.coachRegistry.filter((rec) =>
+      Legacy.coachNotable(rec) || (gameState.year - (rec.year || gameState.year)) < 4);
+    // Hard bound for century saves: keep the most decorated if still huge.
+    if (H.coachRegistry.length > 400) {
+      const weight = (rec) => {
+        const cr = rec.careerRecord || {};
+        return (cr.nationalTitles || 0) * 100 + (cr.natCOY || 0) * 30 +
+          (cr.conferenceTitles || 0) * 10 + (cr.regionalTitles || 0) * 8 +
+          (cr.seasons || 0) + (rec.isPlayer ? 10000 : 0);
+      };
+      H.coachRegistry.sort((a, b) => weight(b) - weight(a));
+      H.coachRegistry.length = 400;
+      // Restore chronological order (oldest first) after the cut.
+      H.coachRegistry.sort((a, b) => (a.year || 0) - (b.year || 0));
+    }
+    return before - H.coachRegistry.length;
   };
 
   /* Signing-day hook: remember every program's best classes (Part 8). */

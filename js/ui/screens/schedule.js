@@ -61,12 +61,10 @@
           </div>
         </div>
       </div>`, (modal) => {
-      // Universal profile navigation from meet results (Update 4, Part 4).
+      // Universal profile navigation from meet results (Update 4, Part 4;
+      // Update 12: graduated legends resolve too).
       modal.querySelectorAll('[data-ath]').forEach((tr) => {
-        tr.addEventListener('click', () => {
-          const a = game.getAthlete(tr.dataset.ath);
-          if (a) UI.showPlayerCard(a, game);
-        });
+        tr.addEventListener('click', () => UI.openAthlete(game, tr.dataset.ath));
       });
       modal.querySelectorAll('[data-school]').forEach((tr) => {
         tr.addEventListener('click', () => {

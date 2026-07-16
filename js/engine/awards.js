@@ -51,6 +51,14 @@
     updatePlayerCareer(gameState);
     awardCoachUpgradePoints(gameState, rng);
     coachFirings(gameState, rng);
+
+    // Season ledgers (Update 12): seasons played, final top-25 finishes, and
+    // NCAA-appearance streaks stamp every program and coach — then the GOAT
+    // lists recalculate over the complete historical record, and the coach
+    // registry sheds careers without historical weight (Phase 7).
+    window.XCD.engine.Legacy.recordSeasonLedgers(gameState);
+    window.XCD.engine.GOAT.recalculate(gameState);
+    window.XCD.engine.Legacy.pruneCoachRegistry(gameState);
   }
 
   function computeDivisionAwards(gameState, season, natMeet, division) {
@@ -375,13 +383,22 @@
     // High bar: roughly multi-time All-Americans / champions only (~2-4 per class).
     if (score < 70) return false;
     const school = gameState.getSchool(athlete.schoolId);
+    const GOAT = window.XCD.engine.GOAT;
     gameState.history.hallOfFame = gameState.history.hallOfFame || [];
     gameState.history.hallOfFame.push({
+      athleteId: athlete.id,
       name: athlete.fullName,
       gender: athlete.gender,
+      portrait: athlete.generational ? '⭐' : '🏛',
       school: school ? school.name : '?',
       schoolId: athlete.schoolId,
       inducted: gameState.year,
+      // Years competed: first overall-history season through graduation.
+      yearsCompeted: (athlete.overallHistory && athlete.overallHistory.length)
+        ? `${athlete.overallHistory[0].year}–${gameState.year}`
+        : `${gameState.year}`,
+      badges: window.XCD.engine.Legacy.badgesFor(athlete),
+      accolades: (athlete.accolades || []).slice(),
       stats: {
         races: athlete.careerStats.races,
         wins: athlete.careerStats.wins,
@@ -390,7 +407,13 @@
         natChamp: h.natChamp,
         prs: athlete.careerStats.personalBests
       },
-      score: Math.round(score)
+      score: Math.round(score),
+      // The GOAT-formula legacy score, for cross-era comparisons.
+      legacyScore: GOAT ? GOAT.athleteScore({
+        accolades: athlete.accolades || [],
+        stats: athlete.careerStats,
+        seasons: (athlete.overallHistory || []).length || 4
+      }) : Math.round(score)
     });
     if (athlete.schoolId === gameState.playerSchoolId) {
       gameState.logNews(`🏛 ${athlete.fullName} graduates as a legend and enters the Hall of Fame.`);

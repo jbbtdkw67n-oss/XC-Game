@@ -290,7 +290,15 @@
         let v;
         if (p.absolute !== undefined) v = p.absolute;
         else if (p.scale !== undefined) v = Math.round(prog * p.scale);
-        else v = prog + (p.delta || 0);
+        else {
+          // Delta presets (+10 / −10, freshmen, redshirt) nudge each runner
+          // from their CURRENT effective load, so quick ±10 taps stack and
+          // individual overrides are adjusted rather than wiped.
+          const current = game.training.mileageOverrides[a.id] !== undefined
+            ? game.training.mileageOverrides[a.id]
+            : prog;
+          v = current + (p.delta || 0);
+        }
         v = Utils.clamp(v, D.MILEAGE.MIN, D.MILEAGE.MAX);
         if (v === prog) delete game.training.mileageOverrides[a.id];
         else game.training.mileageOverrides[a.id] = v;

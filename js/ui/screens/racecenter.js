@@ -340,7 +340,7 @@
     track.innerHTML = `
       <h2>Final — ${gDist(meet, activeGender)}</h2>
       <div style="margin:10px 0 14px; padding:12px; background:var(--accent-soft); border-radius:8px;">
-        🥇 <strong>${Utils.escapeHtml(winner.name)}</strong> (${Utils.escapeHtml(game.getSchool(winner.schoolId)?.name || '?')})
+        🥇 <strong class="clickable" data-ath="${winner.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(winner.name)}</strong> (<span class="clickable" data-school="${winner.schoolId}" style="cursor:pointer;">${Utils.escapeHtml(game.getSchool(winner.schoolId)?.name || '?')}</span>)
         — ${ft(winner.time)}
       </div>
       <div class="table-wrap" style="max-height:420px; overflow-y:auto;">
@@ -349,8 +349,9 @@
           <tbody>
             ${res.finishers.slice(0, 40).map((f) => `
               <tr ${f.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
-                <td>${f.place}</td><td>${Utils.escapeHtml(f.name)}</td>
-                <td style="font-size:12px;">${Utils.escapeHtml(game.getSchool(f.schoolId)?.name || '?')}</td>
+                <td>${f.place}</td>
+                <td class="clickable" data-ath="${f.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(f.name)}</td>
+                <td class="clickable" data-school="${f.schoolId}" style="font-size:12px; cursor:pointer;">${Utils.escapeHtml(game.getSchool(f.schoolId)?.name || '?')}</td>
                 <td class="num">${ft(f.time)}</td>
               </tr>`).join('')}
           </tbody>
@@ -358,10 +359,21 @@
       </div>`;
 
     board.innerHTML = `<h3>Final Team Scores</h3>` + res.teamScores.slice(0, 15).map((t) => `
-      <div class="attr-row" style="padding:3px 0;">
+      <div class="attr-row clickable" data-school="${t.schoolId}" style="padding:3px 0; cursor:pointer;">
         <span style="${t.schoolId === game.playerSchoolId ? 'color:var(--accent-hover); font-weight:700;' : ''}">${t.place}. ${Utils.escapeHtml(game.getSchool(t.schoolId)?.name || '?')}</span>
         <span>${t.points}</span>
       </div>`).join('');
+
+    // Every runner and team on the results board opens a profile (Phase 3).
+    const wire = (root) => {
+      root.querySelectorAll('[data-ath]').forEach((el) => {
+        el.addEventListener('click', (e) => { e.stopPropagation(); UI.openAthlete(game, el.dataset.ath); });
+      });
+      root.querySelectorAll('[data-school]').forEach((el) => {
+        el.addEventListener('click', (e) => { e.stopPropagation(); const s = game.getSchool(el.dataset.school); if (s) UI.showSchoolCard(s, game); });
+      });
+    };
+    wire(track); wire(board);
 
     const mySplits = res.splits && res.finishers.filter((f) => f.schoolId === game.playerSchoolId).slice(0, 7);
     teams.innerHTML = mySplits && mySplits.length ? `<h3>Your Splits (per ${(res.distanceM / 1000 / Races().SEGMENTS).toFixed(2)}km leg)</h3>` +

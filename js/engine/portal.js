@@ -598,7 +598,15 @@
       if (!a) return;
 
       const quality = a.currentOverall * 0.7 + a.potential * 0.3;
-      const cap = entry.suitorCap = entry.suitorCap ?? suitorTarget(quality, rng);
+      if (entry.suitorCap === undefined) {
+        entry.suitorCap = suitorTarget(quality, rng);
+        // Some low-appeal transfers draw no interest at all (Update 12):
+        // role players and walk-ons can go unpursued for the whole window —
+        // a chance for an alert program to add depth uncontested. Decided
+        // once and stored, so the cold market is stable across the weeks.
+        if (quality < 52 && rng.bool(0.4)) entry.suitorCap = 0;
+      }
+      const cap = entry.suitorCap;
       if (entry.offers.length >= cap) return;
       // Offers roll in across the window rather than landing all at once.
       const additions = Math.min(
@@ -627,7 +635,19 @@
       // bar, so weak matches never generate junk offers.
       const bar = 34;
       const interested = scored.filter((c) => c.s >= bar);
-      const pool = interested.length ? interested.slice(0, additions * 3) : scored.slice(0, 2);
+      let pool;
+      if (interested.length) {
+        pool = interested.slice(0, additions * 3);
+      } else if (quality >= 58) {
+        // A capable athlete always draws at least a courtesy look or two.
+        pool = scored.slice(0, 2);
+      } else {
+        // Some transfers simply aren't pursued (Update 12): role players and
+        // walk-ons can linger in the portal unclaimed — depth an alert program
+        // could add uncontested. Occasionally a low-key suitor still bites.
+        pool = rng.bool(0.35) ? scored.slice(0, 1) : [];
+      }
+      if (!pool.length) return;
       for (let i = 0; i < additions && pool.length; i++) {
         const pick = rng.weightedChoice(pool, (c) => Math.max(1, c.s - bar + 8));
         pool.splice(pool.indexOf(pick), 1);

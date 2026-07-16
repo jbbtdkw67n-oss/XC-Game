@@ -25,6 +25,7 @@ node tests/test-facilities.js  # Five-facility overhaul: shape + old-save migrat
 node tests/test-100seasons.js  # Century soak (~9 min): talent stability, health rates, staffing/roster/facility integrity, records, save size + round-trip
 node tests/test-updatex.js     # Update X: 6,000-recruit classes, DIII "Offer Roster Spot" wording, mandatory signing for offered recruits, near-universal CPU signing coverage, Auto Recruiting real economy, intimate portal markets (2-4 suitors), CPU championship fitness
 node tests/test-update11.js    # Update 11: recruit-to-need signing targets (quality over quantity — full coverage, ~3-5/gender, <15% of DI freshmen cut), quality-weighted class rankings (3 four-stars > 8 three-stars; top classes star-heavy), diamonds in the rough (perceived vs true potential, noisy scout notes), division-preference recruits, 2-4 suitor portal, summer transfer window (DI cuts → DII/DIII, weeks 1-3), carousel closes after accepting a job, transfer-in risk grace
+node tests/test-update12.js    # Update 12 (Living History & Legacy): GOAT lists (top-40, weighted legacy scores, dynamic recalc), championship-team snapshots, legacy leaderboards (sortable + division/conference filters), clickable profiles everywhere (incl. graduated legends), program history archive/records/hall of fame, mileage +10/-10 quick sets, unpursued transfers, D1/D2 regional 10K + Pre-Nats 8K distance fix, save round-trip of new history
 ```
 
 Each script prints `PASS` or `FAIL` with details and exits non-zero on failure.

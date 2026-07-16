@@ -48,8 +48,9 @@
     // preserves honors earned across multiple divisions/conferences.
     const accolades = Legacy ? Legacy.accoladesFor(athlete) : [];
     const ACC_ICON = {
-      natChampTeam: '🏆', natChampIndiv: '🥇', runnerOfYear: '🏅', allAmerican: '🇺🇸',
-      freshmanOfYear: '🌱', confChamp: '🥇', confRunnerOfYear: '🏅', confFreshmanOfYear: '🌱',
+      natChampTeam: '🏆', natChampIndiv: '🥇', natRunnerUp: '🥈', runnerOfYear: '🏅',
+      allAmerican: '🇺🇸', freshmanOfYear: '🌱', regChamp: '🗺', confChamp: '🥇',
+      confRunnerOfYear: '🏅', confFreshmanOfYear: '🌱',
       allConference: '🏅', academicAllAmerican: '📚'
     };
     const accoladesHtml = accolades.length ? `
@@ -219,5 +220,141 @@
         <div class="attr-grid">${attrRows(MENTAL_ATTRS)}</div>
       </div>
     `);
+  };
+
+  /*
+   * Legend card (Update 12, Phase 3): the profile of a GRADUATED athlete,
+   * rendered from an alumni / Hall of Fame ledger record — name, badges,
+   * full accolade history, career stats, and legacy score. This is what
+   * makes every historical name clickable forever, long after the live
+   * Athlete object has left the world.
+   */
+  UI.showLegendCard = function (rec, game) {
+    if (!rec) { UI.toast('That career is lost to history.', 'error'); return; }
+    const Legacy = window.XCD.engine.Legacy;
+    const GOAT = window.XCD.engine.GOAT;
+    const badges = rec.badges || [];
+    const accolades = (rec.accolades || []).slice()
+      .sort((a, b) => (b.year - a.year));
+    const stats = rec.stats || {};
+    const legacyScore = rec.legacyScore ?? (GOAT ? GOAT.athleteScore({
+      accolades: rec.accolades || [], stats,
+      seasons: (rec.overallHistory || []).length || 4
+    }) : '—');
+    const ACC_ICON = {
+      natChampTeam: '🏆', natChampIndiv: '🥇', natRunnerUp: '🥈', runnerOfYear: '🏅',
+      allAmerican: '🇺🇸', freshmanOfYear: '🌱', regChamp: '🗺', confChamp: '🥇',
+      confRunnerOfYear: '🏅', confFreshmanOfYear: '🌱',
+      allConference: '🏅', academicAllAmerican: '📚'
+    };
+    const oh = rec.overallHistory || [];
+    const winPct = stats.races ? Math.round((stats.wins / stats.races) * 1000) / 10 : 0;
+    const school = rec.schoolId && game ? game.getSchool(rec.schoolId) : null;
+
+    UI.showModal(`
+      <button class="btn small modal-close" data-modal-close>✕ Close</button>
+      <div class="player-card-header">
+        <div class="who">
+          <h2>${rec.generational ? '⭐ ' : '🏛 '}${Utils.escapeHtml(rec.name)}</h2>
+          <div class="sub">
+            ${rec.gender === 'M' ? "Men's" : "Women's"} •
+            <span class="${school ? 'clickable' : ''}" id="legend-school" ${school ? 'style="cursor:pointer; color:var(--accent-hover);"' : ''}>${Utils.escapeHtml(rec.school || '?')}</span>
+            ${rec.gradYear ? ` • Class of ${rec.gradYear}` : ''}${rec.yearsCompeted ? ` • Competed ${rec.yearsCompeted}` : ''}
+            ${rec.inducted ? ` • <span style="color:var(--gold, #d4a017);">Hall of Fame ’${String(rec.inducted).slice(2)}</span>` : ''}
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:30px; font-weight:800;">${legacyScore}</div>
+          <div style="font-size:12px; color:var(--text-dim);">LEGACY SCORE</div>
+        </div>
+      </div>
+
+      ${badges.length ? `
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px;">
+        ${badges.map((b) => `
+          <span style="background:var(--accent-soft); border:1px solid var(--border); border-radius:14px; padding:4px 10px; font-size:12.5px;"
+            title="${b.label}${b.years && b.years.length ? ' — ' + b.years.join(', ') : ''}">
+            ${b.icon} ${b.label}${b.years && b.years.length ? ` <span style="color:var(--text-dim);">${b.years.join(' · ')}</span>` : ''}
+          </span>`).join('')}
+      </div>` : ''}
+
+      <div class="grid cols-4" style="margin-bottom:14px;">
+        <div class="stat-tile"><div class="label">Races</div><div class="value">${stats.races ?? '—'}</div></div>
+        <div class="stat-tile"><div class="label">Wins</div><div class="value">${stats.wins ?? 0}</div><div class="sub">${winPct}% win rate</div></div>
+        <div class="stat-tile"><div class="label">Top-5 Finishes</div><div class="value">${stats.top5 ?? 0}</div></div>
+        <div class="stat-tile"><div class="label">Seasons</div><div class="value">${oh.length || '—'}</div></div>
+      </div>
+
+      ${accolades.length ? `
+      <div class="card" style="padding:12px; margin-bottom:14px;">
+        <h3>Career Accolades — ${accolades.length}</h3>
+        <div style="max-height:260px; overflow-y:auto;">
+          ${accolades.map((acc) => `
+            <div class="attr-row" style="padding:4px 0;">
+              <span>${ACC_ICON[acc.type] || '🎖'} ${Utils.escapeHtml(Legacy ? Legacy.accoladeLabel(acc) : `${acc.year} ${acc.label}`)}</span>
+            </div>`).join('')}
+        </div>
+      </div>` : '<div class="card" style="padding:12px; margin-bottom:14px; color:var(--text-dim);">A career remembered for the wins, not the hardware.</div>'}
+
+      ${stats.prs && Object.keys(stats.prs).length ? `
+      <div class="card" style="padding:12px; margin-bottom:14px;">
+        <h3>Personal Bests</h3>
+        ${Object.entries(stats.prs).sort().map(([k, t]) =>
+          `<div class="attr-row"><span class="attr-name">PR ${k}</span><span>${window.XCD.engine.Races.formatTime(t)}</span></div>`).join('')}
+      </div>` : ''}
+
+      ${oh.length >= 2 ? `
+      <div class="card" style="padding:12px;">
+        <h3>Career Progression</h3>
+        <div style="display:flex; align-items:flex-end; gap:3px; height:48px;">
+          ${oh.slice(-8).map((h) => `<div title="${h.year}: ${h.overall} OVR" style="flex:1; background:var(--accent); opacity:0.75; border-radius:2px 2px 0 0; height:${Math.max(6, h.overall * 0.48)}px;"></div>`).join('')}
+        </div>
+        <div style="font-size:11.5px; color:var(--text-faint); margin-top:4px;">${oh[0].year} (${oh[0].overall}) → ${oh[oh.length - 1].year} (${oh[oh.length - 1].overall})</div>
+      </div>` : ''}
+    `, (modal) => {
+      const se = modal.querySelector('#legend-school');
+      if (se && school) se.addEventListener('click', () => UI.showSchoolCard(school, game));
+    });
+  };
+
+  /*
+   * Universal athlete profile opener (Update 12, Phase 3): resolves a name
+   * to the right card no matter where the career stands — a live roster
+   * athlete, a recruit, a decorated alumnus, or a Hall of Famer. Every
+   * athlete click in the game routes through here so there are no dead ends.
+   */
+  UI.openAthlete = function (game, athleteId, fallbackName) {
+    if (athleteId) {
+      const live = game.getAthlete(athleteId) || (game.world.recruits || {})[athleteId];
+      if (live) { UI.showPlayerCard(live, game); return true; }
+      const alum = (game.history.alumni || []).find((x) => x.athleteId === athleteId);
+      if (alum) { UI.showLegendCard(alum, game); return true; }
+      const hof = (game.history.hallOfFame || []).find((x) => x.athleteId === athleteId);
+      if (hof) { UI.showLegendCard(hof, game); return true; }
+    }
+    if (fallbackName) {
+      const alum = (game.history.alumni || []).slice().reverse().find((x) => x.name === fallbackName);
+      if (alum) { UI.showLegendCard(alum, game); return true; }
+      const hof = (game.history.hallOfFame || []).slice().reverse().find((x) => x.name === fallbackName);
+      if (hof) { UI.showLegendCard(hof, game); return true; }
+    }
+    UI.toast('That career has faded from the historical record.', 'info');
+    return false;
+  };
+
+  // Universal coach opener: live coach, or the retired registry.
+  UI.openCoach = function (game, coachId, fallbackName) {
+    if (coachId) {
+      const live = game.getCoach(coachId);
+      if (live) { UI.showCoachCard(live, game); return true; }
+    }
+    if (fallbackName) {
+      const reg = (game.history.coachRegistry || []).slice().reverse().find((r) => r.name === fallbackName);
+      if (reg) { UI.showCoachCard(reg, game, { retired: true }); return true; }
+      const past = (game.history.playerCareers || []).slice().reverse().find((r) => r.name === fallbackName);
+      if (past) { UI.showCoachCard(past, game, { retired: true }); return true; }
+    }
+    UI.toast('That coaching career has faded from the registry.', 'info');
+    return false;
   };
 })();

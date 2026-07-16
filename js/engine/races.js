@@ -357,7 +357,7 @@
       division: 'DI',
       elite: cfg.pollWeight,
       preNationals: true,
-      distances: { M: 10000, W: 6000 }, // championship-distance preview
+      distances: { M: 8000, W: 6000 }, // Pre-Nationals runs the 8K (men) / 6K (women)
       conditions,
       results: { M: null, W: null }
     };
@@ -427,6 +427,14 @@
     const distances = (base.week >= CONFERENCE_WEEK || base.elite)
       ? { M: 8000, W: 6000 }
       : { M: 8000, W: 5000 };
+    if (base.type === 'regional') {
+      // Bug fix: NCAA regionals race the full championship 10K for men in
+      // Division I and II (Division III regionals stay at 8K, matching their
+      // nationals). Women race 6K everywhere.
+      const div = base.division || 'DI';
+      distances.M = (div === 'DI' || div === 'DII') ? 10000 : 8000;
+      distances.W = 6000;
+    }
     if (base.type === 'national') {
       const champ = D.divisionFor(base.division || 'DI').championship;
       distances.M = champ.nationalsDistanceM.M;
@@ -951,7 +959,7 @@
         const rKey = `${gender}-${key}`;
         const rec = school.records[rKey];
         if (!rec || f.time < rec.time) {
-          school.records[rKey] = { time: f.time, name: f.name, year: gameState.year };
+          school.records[rKey] = { time: f.time, name: f.name, athleteId: f.athleteId, year: gameState.year };
           if (f.schoolId === gameState.playerSchoolId) {
             gameState.logNews(`SCHOOL RECORD: ${f.name} runs ${formatTime(f.time)} for ${key} — fastest in ${school.name} history.`);
           }
@@ -964,8 +972,9 @@
       const nrec = gameState.history.records[nKey];
       if (!nrec || f.time < nrec.time) {
         gameState.history.records[nKey] = {
-          time: f.time, name: f.name,
-          school: gameState.getSchool(f.schoolId)?.name || '?', year: gameState.year
+          time: f.time, name: f.name, athleteId: f.athleteId,
+          school: gameState.getSchool(f.schoolId)?.name || '?',
+          schoolId: f.schoolId, year: gameState.year
         };
         if (nrec) gameState.logNews(`NATIONAL RECORD: ${f.name} (${gameState.getSchool(f.schoolId)?.name}) runs ${formatTime(f.time)} for ${key}!`);
       }
@@ -1015,6 +1024,20 @@
     H.conferenceChampions[gameState.year] = H.conferenceChampions[gameState.year] || {};
     H.conferenceChampions[gameState.year][`${meet.conference}-${gender}`] = school.name;
 
+    // Individual conference champions persist with full identity (Update 12,
+    // Phase 4) so program archives can list Year / Athlete / Coach forever.
+    const confWinner = res.finishers[0];
+    if (confWinner) {
+      H.confIndivChampions = H.confIndivChampions || {};
+      H.confIndivChampions[gameState.year] = H.confIndivChampions[gameState.year] || {};
+      const ws = gameState.getSchool(confWinner.schoolId);
+      H.confIndivChampions[gameState.year][`${meet.conference}-${gender}`] = {
+        name: confWinner.name, athleteId: confWinner.athleteId,
+        school: ws ? ws.name : '?', schoolId: confWinner.schoolId,
+        coach: (gameState.getCoach(ws && ws.coachId) || {}).fullName || ''
+      };
+    }
+
     // Individual conference champion + All-Conference honors (division rules)
     const division = meet.division || 'DI';
     const allConfCount = D.divisionFor(division).championship.allConference;
@@ -1047,16 +1070,39 @@
   function recordRegionalChampions(gameState, meet, gender) {
     const res = meet.results[gender];
     if (!res || !res.teamScores.length) return;
+    const Legacy = window.XCD.engine.Legacy;
     const champId = res.teamScores[0].schoolId;
     const school = gameState.getSchool(champId);
     const coach = gameState.getCoach(school.coachId);
     if (coach) coach.careerRecord.regionalTitles = (coach.careerRecord.regionalTitles || 0) + 1;
-    window.XCD.engine.Legacy.program(gameState, champId).regionalTitles += 1;
+    Legacy.program(gameState, champId).regionalTitles += 1;
 
     const H = gameState.history;
     H.regionalChampions = H.regionalChampions || {};
     H.regionalChampions[gameState.year] = H.regionalChampions[gameState.year] || {};
     H.regionalChampions[gameState.year][`${meet.region}-${gender}`] = school.name;
+
+    // Individual regional champion — a permanent honor (Update 12): stamped
+    // on the athlete's ledger, the program ledger, and the history books.
+    const regWinner = res.finishers[0];
+    if (regWinner) {
+      const a = gameState.world.athletes[regWinner.athleteId];
+      const division = meet.division || 'DI';
+      if (a) {
+        Legacy.athleteHonor(gameState, a, 'regChamp');
+        Legacy.recordAccolade(a, { year: gameState.year, division, conference: null, type: 'regChamp', label: `${meet.region} Regional Champion` });
+      }
+      const rprog = Legacy.program(gameState, regWinner.schoolId);
+      rprog.indivRegChamps = (rprog.indivRegChamps || 0) + 1;
+      H.regIndivChampions = H.regIndivChampions || {};
+      H.regIndivChampions[gameState.year] = H.regIndivChampions[gameState.year] || {};
+      const ws = gameState.getSchool(regWinner.schoolId);
+      H.regIndivChampions[gameState.year][`${meet.region}-${gender}`] = {
+        name: regWinner.name, athleteId: regWinner.athleteId,
+        school: ws ? ws.name : '?', schoolId: regWinner.schoolId,
+        coach: (gameState.getCoach(ws && ws.coachId) || {}).fullName || ''
+      };
+    }
 
     if (champId === gameState.playerSchoolId) {
       gameState.logNews(`🏆 REGIONAL CHAMPIONS! Your ${gender === 'M' ? 'men' : 'women'} win the ${meet.region} Regional!`);
@@ -1175,6 +1221,24 @@
       if (c) c.careerRecord.indivNatChamps += 1;
     }
 
+    // National runner-up — team and individual (Update 12, Phase 1): the
+    // silver medal is a career-defining line that GOAT scoring weighs heavily.
+    const ruTeam = res.teamScores[1];
+    if (ruTeam) {
+      const ruProg = Legacy.program(gameState, ruTeam.schoolId);
+      ruProg.natRunnerUp = (ruProg.natRunnerUp || 0) + 1;
+      const ruCoach = gameState.getCoach(gameState.getSchool(ruTeam.schoolId)?.coachId);
+      if (ruCoach) ruCoach.careerRecord.natRunnerUp = (ruCoach.careerRecord.natRunnerUp || 0) + 1;
+    }
+    const ruIndiv = res.finishers[1];
+    if (ruIndiv) {
+      const a2 = gameState.world.athletes[ruIndiv.athleteId];
+      if (a2) {
+        Legacy.athleteHonor(gameState, a2, 'natRunnerUp');
+        Legacy.recordAccolade(a2, { year: gameState.year, division, conference: null, type: 'natRunnerUp', label: 'Individual National Runner-Up' });
+      }
+    }
+
     // History keys are division-aware: DI keeps the legacy 'M'/'W' keys so
     // old saves and UI keep working; other divisions get prefixed keys.
     const H = gameState.history;
@@ -1192,6 +1256,45 @@
       individualSchoolId: indiv ? indiv.schoolId : null,
       individualTime: indiv ? indiv.time : 0
     };
+
+    // Greatest-Team snapshot (Update 12, Phase 1): a permanent record of every
+    // national-championship team, stamped with the measures that separate a
+    // good champion from a legendary one — team rating, race performance,
+    // margin of victory, team score, and strength of the field it beat.
+    const champScore = res.teamScores[0];
+    const runnerUp = res.teamScores[1] || null;
+    const scoringFive = champScorers.slice(0, 5);
+    const teamOverall = scoringFive.length
+      ? Math.round(Utils.average(scoringFive.map((f) => (gameState.world.athletes[f.athleteId] || {}).currentOverall || 0)))
+      : 0;
+    const avgScoringPlace = scoringFive.length
+      ? Utils.average(scoringFive.map((f) => f.place)) : 0;
+    // Performance = how the scoring five actually raced (lower places = higher).
+    const teamPerformance = Utils.clamp(Math.round(108 - avgScoringPlace * 1.1), 30, 99);
+    // Strength of schedule ≈ the average prestige of the field they beat.
+    const fieldPrestiges = res.teamScores
+      .map((t) => (gameState.getSchool(t.schoolId) || {}).prestige)
+      .filter((p) => typeof p === 'number');
+    const sos = fieldPrestiges.length ? Math.round(Utils.average(fieldPrestiges)) : 50;
+    H.championTeams = H.championTeams || [];
+    H.championTeams.push({
+      year: gameState.year,
+      division,
+      gender,
+      schoolId: champId,
+      school: school.name,
+      conference: school.conference,
+      coachId: school.coachId || null,
+      coachName: natCoach ? natCoach.fullName : '',
+      teamScore: champScore ? champScore.points : null,
+      margin: runnerUp && champScore ? runnerUp.points - champScore.points : null,
+      teamOverall,
+      teamPerformance,
+      sos,
+      fieldSize: res.teamScores.length,
+      individual: indiv ? indiv.name : '',
+      individualId: indiv ? indiv.athleteId : null
+    });
 
     const label = gender === 'M' ? "men's" : "women's";
     if (champId === gameState.playerSchoolId) {

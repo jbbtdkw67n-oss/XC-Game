@@ -516,6 +516,8 @@
     // Named presets for the training screen (per-athlete deltas are
     // applied relative to the squad's program mileage).
     PRESETS: [
+      { key: 'plus10',    label: '+10 mi',                   desc: 'Bump every runner +10 miles from their current load', delta: +10, filter: 'all' },
+      { key: 'minus10',   label: '−10 mi',                   desc: 'Ease every runner −10 miles from their current load',  delta: -10, filter: 'all' },
       { key: 'freshmen',  label: 'Freshmen preset',          desc: 'New arrivals absorb less volume', delta: -15, filter: 'freshmen' },
       { key: 'redshirt',  label: 'Redshirt preset',          desc: 'A quiet year of aerobic building', delta: +10, filter: 'redshirts' },
       { key: 'taper',     label: 'Championship taper',       desc: 'Cut volume, sharpen, race fast',   scale: 0.55, filter: 'all' },

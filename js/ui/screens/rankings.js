@@ -144,15 +144,11 @@
     body.querySelectorAll('[data-ath]').forEach((el) => {
       el.addEventListener('click', (e) => {
         e.stopPropagation();
-        const a = game.getAthlete(el.dataset.ath);
-        if (a) UI.showPlayerCard(a, game);
+        UI.openAthlete(game, el.dataset.ath);
       });
     });
     body.querySelectorAll('[data-coach]').forEach((el) => {
-      el.addEventListener('click', () => {
-        const c = game.getCoach(el.dataset.coach);
-        if (c) UI.showCoachCard(c, game);
-      });
+      el.addEventListener('click', () => UI.openCoach(game, el.dataset.coach));
     });
 
     container.querySelectorAll('[data-tab]').forEach((btn) => {

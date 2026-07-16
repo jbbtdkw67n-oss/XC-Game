@@ -10,6 +10,49 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+## Version 10.0 — Update 12: Living History & Legacy System
+
+The history of the universe comes alive. Every championship, award, and
+career is now a permanent, explorable part of a decades-deep record —
+great athletes, coaches, teams, and programs are remembered forever, while
+average competitors quietly fade after graduation.
+
+- **GOAT Lists (History → 🐐 GOAT Lists).** Four dynamic, weighted
+  all-time rankings — **Greatest Athlete, Coach, Program, and Team** —
+  recalculated every offseason over the complete historical record and
+  capped at the top 40. Scores are *weighted legacy* scores: national
+  championships dwarf conference hardware, and major honors dwarf minor
+  ones. **Greatest Team** works differently — only national champions
+  qualify, then dominance decides (team rating, race performance, margin of
+  victory, team score, strength of field), so legendary *teams* stand apart
+  from legendary *programs*. The old Coaches tab now lives here.
+- **Legacy Leaderboards.** Fully sortable, searchable historical
+  leaderboards for programs, coaches, and athletes — every column sorts
+  ascending/descending, with division and conference filters.
+- **Clickable profiles everywhere.** Every athlete, coach, and program name
+  — in meet results, rankings, records, champions, awards, the GOAT lists,
+  and program pages — opens the right profile, including **graduated
+  legends** via a permanent legend card that survives long after the live
+  athlete has left the world.
+- **Program History Expansion.** *My Program → History* becomes a complete
+  archive: team & individual national champions, conference & regional
+  titles (team and individual), and a full coach timeline with records,
+  titles, and achievements — all auto-updating after every season.
+- **Program Records & School Hall of Fame.** Every program tracks its own
+  all-time records (most titles, longest streaks, best coach, best athlete,
+  and more) and inducts only its historically significant careers into a
+  school Hall of Fame with legacy scores.
+- **Notable People system.** History keeps the significant, not everyone.
+  The coach registry sheds brief, unremarkable careers a few years after
+  they end; only champions, award winners, long tenures, and exceptional
+  winners persist. Undecorated athletes fade from the databases after
+  graduation.
+- **Quality-of-life & fixes.** Quick-set **+10 / −10 mileage** buttons on
+  the training planner; some transfer-portal athletes now go **unpursued**
+  by rival programs (uncontested depth for an alert coach); and a bug fix
+  so **D1 & D2 regionals race the 10K** (men) while **Pre-Nationals races
+  the 8K**.
+
 ## Version 9.0 — Update 11: Recruiting Balance & The Healthy Ecosystem
 
 Recruiting rebalanced across all three divisions, a second recruiting
