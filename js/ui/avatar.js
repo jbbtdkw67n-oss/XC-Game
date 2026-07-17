@@ -11,7 +11,8 @@
  *   - heritage (country of origin, or surname for US-born athletes)
  *     weights the skin-tone distribution so a Kenyan recruit or an
  *     athlete named Okafor reads correctly, and hair color follows skin,
- *   - coaches wear a blazer and tie; athletes wear their racing singlet.
+ *   - coaches wear a coaching polo (Update 13); athletes wear their
+ *     racing singlet, with straps that go up and over the shoulders.
  *
  * A player-created coach carries an explicit `appearance` object (built
  * in the creation wizard); everyone else derives theirs from a hash.
@@ -25,7 +26,10 @@
   const HAIR_COLORS = ['#E7CE8C', '#CBA45D', '#B0562B', '#8B5A2B', '#6E4526', '#4B3120', '#1F1B18', '#9C9C9C'];
   const HAIR_STYLE_COUNT = 8;
   const BEARD_STYLE_COUNT = 8;
-  const SUIT_COLORS = ['#3A4149', '#2E3A4E', '#4A3F35', '#37424A', '#252C36', '#503A3A'];
+  // Outfit palettes are deliberately bright (Update 13): the UI background
+  // is dark navy/charcoal (#0e1116–#2a3341), so no polo or singlet color may
+  // sit in that range — a shirt that blends into the page reads as a bug.
+  const POLO_COLORS = ['#e5534b', '#3d8bfd', '#34c98e', '#e8b339', '#9b6ef3', '#eb7a34', '#2ab7c9', '#d4507a', '#f2f5f8', '#8fd14f'];
   const JERSEY_COLORS = ['#3d8bfd', '#e5534b', '#34c98e', '#e8b339', '#9b6ef3', '#eb7a34', '#2ab7c9', '#d4507a'];
 
   /* Deterministic 32-bit hash of a string (FNV-1a). */
@@ -146,9 +150,15 @@
       // Every women's style shares a soft crown; variants add shape on top.
       const crown = `<path fill="${color}" d="M21 25 C20.6 13.5 26.5 10.5 32 10.5 C37.5 10.5 43.4 13.5 43 25 C41.5 17.8 37.5 15.8 32 15.8 C26.5 15.8 22.5 17.8 21 25 Z"/>`;
       if (s === 0) return `<path fill="${color}" d="M21 24 C20.4 13 27 10 32 10 C37 10 43.6 13 43 24 C40 17 36 15.4 32 15.8 C27 16.3 23 18 21 24 Z"/>`; // pixie
-      if (s === 3) return `<circle fill="${color}" cx="32" cy="16.5" r="11.8"/><path fill="${color}" d="M20.5 19 C20.5 25 21.5 28 23 30 L23 21 Z M43.5 19 C43.5 25 42.5 28 41 30 L41 21 Z"/>`; // curly
+      // Curly (Update 13 fix): the old full circle hung down to y≈28 and
+      // covered the face. The puff now hugs the crown — its inner edge stops
+      // at the hairline (y≈15) — with volume out to the sides of the head.
+      if (s === 3) return `<path fill="${color}" d="M19.5 22 C17.8 9.5 26 5.8 32 5.8 C38 5.8 46.2 9.5 44.5 22 C43.8 16.2 39.5 14.8 32 14.8 C24.5 14.8 20.2 16.2 19.5 22 Z"/><path fill="${color}" d="M19.8 18 C18.2 22 18.5 27 20.4 30 L22.5 20 Z M44.2 18 C45.8 22 45.5 27 43.6 30 L41.5 20 Z"/>`; // curly
       if (s === 5) return crown + `<circle fill="${color}" cx="32" cy="9.5" r="4.6"/>`; // bun
-      if (s === 7) return crown + `<path stroke="${color}" stroke-width="1.6" fill="none" d="M24.5 24 L24 46 M28 25 L27.5 47 M36 25 L36.5 47 M39.5 24 L40 46"/>`; // braids
+      // Braids (Update 13 fix): the plait strands used to run straight down
+      // the middle of the face (x 28/36). They now texture the hair panels
+      // that fall BESIDE the head (drawn by hairBack), never the face.
+      if (s === 7) return crown + `<path stroke="${shade(color, -26)}" stroke-width="1.4" fill="none" d="M22 26 L21.4 46 M24.2 27 L23.9 47.5 M42 26 L42.6 46 M39.8 27 L40.1 47.5"/>`; // braids
       return crown;
     }
     // Men
@@ -157,7 +167,7 @@
     if (s === 2) return `<path fill="${color}" d="M21.7 23 C22 14.4 26.5 11.3 32 11.3 C37.5 11.3 42 14.4 42.3 23 C40.2 16.8 36.8 15 32 15 C27.2 15 23.8 16.8 21.7 23 Z"/>`; // short
     if (s === 3) return `<path fill="${color}" d="M21.5 24.5 C21.3 13.6 26.5 10.7 32 10.7 C37.5 10.7 42.7 13.6 42.5 24.5 C41 17.4 37.3 15.3 32 15.3 C26.7 15.3 23 17.4 21.5 24.5 Z"/>`; // crew
     if (s === 4) return `<path fill="${color}" d="M21.5 23.5 C21.5 13.4 27 10.7 32 10.7 C38 10.7 42.7 13.3 42.7 19.5 C37.6 16.5 29.6 16.2 25.5 18.5 C23.5 19.8 22 21.4 21.5 23.5 Z"/>`; // side part
-    if (s === 5) return `<circle fill="${color}" cx="32" cy="15.5" r="11.8"/><path fill="${color}" d="M20.5 18 C20.5 23 21.5 26 23 28 L23 19 Z M43.5 18 C43.5 23 42.5 26 41 28 L41 19 Z"/>`; // curly / afro
+    if (s === 5) return `<path fill="${color}" d="M19.8 21 C18.2 8.8 26.5 5.5 32 5.5 C37.5 5.5 45.8 8.8 44.2 21 C43.5 15.6 39.5 14.2 32 14.2 C24.5 14.2 20.5 15.6 19.8 21 Z"/><path fill="${color}" d="M20 17.5 C18.6 21 18.9 25.5 20.5 28 L22.4 19.5 Z M44 17.5 C45.4 21 45.1 25.5 43.5 28 L41.6 19.5 Z"/>`; // curly / afro — crown puff only, off the face (Update 13)
     if (s === 6) return `<path fill="${color}" d="M21.3 24 C21 13 27 10.4 32 10.4 C37 10.4 43 13 42.7 24 C41.8 20 40.3 18.5 39.3 19.6 C37.8 17 35.8 16.4 34.3 17.4 C32.3 15.4 29.7 15.4 28.2 17.4 C26.2 16.4 24.2 17.6 23.7 19.6 C22.7 18.6 21.9 20.5 21.3 24 Z"/>`; // messy
     if (s === 7) return `<path fill="${color}" d="M21.2 23 C20.8 12.4 26.5 10 32 10 C37.5 10 43.2 12.4 42.8 23 C41 17.2 37.5 15.4 32 15.4 C26.5 15.4 23 17.2 21.2 23 Z"/>`; // long (front)
     return '';
@@ -176,20 +186,29 @@
   }
 
   function outfitSvg(app, kind, seed) {
-    if (kind === 'suit') {
-      const suit = SUIT_COLORS[(seed >>> 6) % SUIT_COLORS.length];
+    if (kind === 'suit' || kind === 'polo') {
+      // Coaching polo (Update 13): coaches dress like real XC coaches — a
+      // bright polo with a collar and button placket. A player-built coach
+      // picks the color in the wizard (app.polo); everyone else derives it.
+      const polo = POLO_COLORS[app.polo !== undefined && app.polo !== null
+        ? Math.max(0, Math.min(POLO_COLORS.length - 1, app.polo))
+        : (seed >>> 6) % POLO_COLORS.length];
+      const trim = shade(polo, -38);
       return `
-        <path fill="${suit}" d="M8.5 64 C10 47 19 40.5 32 40.5 C45 40.5 54 47 55.5 64 Z"/>
-        <path fill="#F4F6F8" d="M32 41 L26.2 45.5 L32 57 L37.8 45.5 Z"/>
-        <path fill="#9aa7b8" d="M32 45 L30.4 47.6 L32 55.5 L33.6 47.6 Z"/>
-        <path fill="${shade(suit, -18)}" d="M26.2 42 L32 41 L28.5 49.5 L23.5 44.5 Z M37.8 42 L32 41 L35.5 49.5 L40.5 44.5 Z"/>`;
+        <path fill="${polo}" d="M8.5 64 C10 47 19 40.5 32 40.5 C45 40.5 54 47 55.5 64 Z"/>
+        <path fill="${trim}" d="M25.8 41.4 L32 45.2 L38.2 41.4 L39.5 44.4 L32 49.2 L24.5 44.4 Z"/>
+        <path fill="${SKIN_TONES[app.skin] || SKIN_TONES[2]}" d="M30.5 44 L32 43.1 L33.5 44 L33 46.4 L31 46.4 Z"/>
+        <rect x="31.3" y="47.6" width="1.4" height="6.4" rx="0.7" fill="${trim}"/>`;
     }
-    // Racing singlet: skin shoulders with a colored tank over them.
+    // Racing singlet (Update 13): the colored singlet goes up and over the
+    // shoulders like a real race kit — straps follow the shoulder line, with
+    // a scoop neck and contrast neckline trim. Skin shows only at the arms.
     const jersey = app.jersey || JERSEY_COLORS[(seed >>> 9) % JERSEY_COLORS.length];
     const skin = SKIN_TONES[app.skin];
     return `
       <path fill="${skin}" d="M10 64 C11.5 48 20 41 32 41 C44 41 52.5 48 54 64 Z"/>
-      <path fill="${jersey}" d="M13.5 64 C14.5 51 21 44.5 26 43.5 L28 47.5 L32 45.5 L36 47.5 L38 43.5 C43 44.5 49.5 51 50.5 64 Z"/>`;
+      <path fill="${jersey}" d="M14.5 64 C15.5 51.5 20.5 43.8 26.5 41.6 C28 44.8 30 46.4 32 46.4 C34 46.4 36 44.8 37.5 41.6 C43.5 43.8 48.5 51.5 49.5 64 Z"/>
+      <path fill="${shade(jersey, -30)}" d="M26.5 41.6 C28 44.8 30 46.4 32 46.4 C34 46.4 36 44.8 37.5 41.6 L38.7 42.7 C37.1 46.1 34.6 47.8 32 47.8 C29.4 47.8 26.9 46.1 25.3 42.7 Z"/>`;
   }
 
   // Lighten/darken a #rrggbb color by `amt`.
@@ -202,7 +221,7 @@
 
   /*
    * Render an appearance as an SVG bust.
-   *   opts.outfit  'jersey' (default) | 'suit'
+   *   opts.outfit  'jersey' (default) | 'polo' ('suit' is a legacy alias)
    *   opts.size    pixel size (default 24)
    *   opts.round   circular crop with a subtle backdrop (default true)
    */
@@ -234,12 +253,12 @@
   UI.avatar = function (person, opts = {}) {
     const app = UI.appearanceFor(person, opts);
     const outfit = opts.outfit || ((person && (person.role === 'Head' || person.role === 'Assistant' ||
-      person.coachAccolades || person.careerRecord)) ? 'suit' : 'jersey');
+      person.coachAccolades || person.careerRecord)) ? 'polo' : 'jersey');
     return UI.avatarSvg(app, Object.assign({}, opts, { outfit }));
   };
 
   UI.AVATAR = {
-    SKIN_TONES, HAIR_COLORS, HAIR_STYLE_COUNT, BEARD_STYLE_COUNT,
+    SKIN_TONES, HAIR_COLORS, HAIR_STYLE_COUNT, BEARD_STYLE_COUNT, POLO_COLORS,
     hashStr
   };
 })();

@@ -339,7 +339,8 @@
     const winner = res.finishers[0];
     // Full individual results (Update 12): every finisher is published, and
     // at championship races the honor earners — All-Americans at nationals,
-    // All-Conference at the conference meet — are highlighted in gold.
+    // All-Conference at the conference meet — are marked with the honor
+    // emoji (Update 13: no gold highlighting — the symbol is the award).
     const honor = UI.meetHonorInfo(meet);
     track.innerHTML = `
       <h2>Final — ${gDist(meet, activeGender)}</h2>
@@ -347,8 +348,8 @@
         🥇 <strong class="clickable" data-ath="${winner.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(winner.name)}</strong> (<span class="clickable" data-school="${winner.schoolId}" style="cursor:pointer;">${Utils.escapeHtml(game.getSchool(winner.schoolId)?.name || '?')}</span>)
         — ${ft(winner.time)}
       </div>
-      ${honor ? `<div style="margin:0 0 10px; padding:8px 12px; border:1px solid var(--gold); border-radius:8px; color:var(--gold); font-size:12.5px;">
-        ${honor.icon} Championship race — the top ${honor.count} finishers earn <strong>${honor.label}</strong> honors, highlighted in gold below.
+      ${honor ? `<div style="margin:0 0 10px; padding:8px 12px; border:1px solid var(--border); border-radius:8px; color:var(--text-dim); font-size:12.5px;">
+        ${honor.icon} Championship race — the top ${honor.count} finishers earn <strong>${honor.label}</strong> honors, marked ${honor.icon} below.
       </div>` : ''}
       <h3 style="margin-bottom:6px;">Full Results — ${res.finishers.length} finishers</h3>
       <div class="table-wrap" style="max-height:420px; overflow-y:auto;">
@@ -356,15 +357,12 @@
           <thead><tr><th>Pl</th><th>Runner</th><th>School</th><th class="num">Time</th></tr></thead>
           <tbody>
             ${res.finishers.map((f) => {
-              const gold = honor && f.place <= honor.count;
+              const honored = honor && f.place <= honor.count;
               const mine = f.schoolId === game.playerSchoolId;
-              const rowStyle = gold
-                ? `background:rgba(212,160,23,0.13);${mine ? ' box-shadow:inset 3px 0 0 var(--accent);' : ''}`
-                : (mine ? 'background:var(--accent-soft);' : '');
               return `
-              <tr ${rowStyle ? `style="${rowStyle}"` : ''}>
+              <tr ${mine ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>${f.place}</td>
-                <td class="clickable" data-ath="${f.athleteId}" style="cursor:pointer; ${gold ? 'color:var(--gold); font-weight:600;' : 'color:var(--accent-hover);'}">${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: activeGender }, { size: 20 })} ${Utils.escapeHtml(f.name)}${gold ? ` <span title="${honor.label}">${honor.icon}</span>` : ''}</td>
+                <td class="clickable" data-ath="${f.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: activeGender }, { size: 20 })} ${Utils.escapeHtml(f.name)}${honored ? ` <span title="${honor.label}">${honor.icon}</span>` : ''}</td>
                 <td class="clickable" data-school="${f.schoolId}" style="font-size:12px; cursor:pointer;">${Utils.escapeHtml(game.getSchool(f.schoolId)?.name || '?')}</td>
                 <td class="num">${ft(f.time)}</td>
               </tr>`;

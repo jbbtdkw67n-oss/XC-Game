@@ -32,12 +32,32 @@ html, body {
   color: var(--text);
   font-family: var(--font);
   font-size: 15px;
+  /* Mobile / iOS groundwork (Update 13): no gray tap flashes, no surprise
+     text scaling in landscape, and taps that fire without the 300ms delay. */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
 }
+
+button, .clickable, .nav-item { touch-action: manipulation; }
 
 button { font-family: inherit; }
 
 /* ---------- Layout ---------- */
-#app { display: flex; height: 100vh; overflow: hidden; }
+#app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  /* Keep content clear of the iPhone notch / home indicator (paired with
+     viewport-fit=cover in index.html). env() is 0 everywhere else. */
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+}
+/* iOS Safari's URL bar makes 100vh overshoot; dvh tracks the real viewport. */
+@supports (height: 100dvh) {
+  #app, #menu-root { height: 100dvh; }
+}
 
 #sidebar {
   width: var(--sidebar-w);
@@ -283,6 +303,7 @@ table.data td.num, table.data th.num { text-align: right; }
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   background:
     radial-gradient(1200px 500px at 70% -10%, rgba(61, 139, 253, 0.16), transparent),
     radial-gradient(900px 500px at 10% 110%, rgba(52, 201, 142, 0.1), transparent),

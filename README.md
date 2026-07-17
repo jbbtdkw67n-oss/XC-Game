@@ -10,6 +10,42 @@ Open `index.html` in any modern browser. That's it.
 
 (If your browser restricts `file://` pages, serve the folder with any static server, e.g. `python3 -m http.server` and open http://localhost:8000.)
 
+On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
+Home Screen** — it installs as a full-screen, offline-capable app. See
+[`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
+
+## Version 11.1 — Update 13 (second wave): CPU Coach Progression, Avatar Wardrobe & iPhone Groundwork
+
+- **Championship results, decluttered.** The gold row/text highlighting is
+  gone from championship meet results — honor earners are now denoted purely
+  by their award emoji (🇺🇸 All-American, 🏅 All-Conference), everywhere
+  results are shown.
+- **CPU coaches use upgrade points.** Computer coaches now bank coach
+  upgrade points from the exact résumé lines the player earns — conference,
+  regional, and national titles, individual national champions,
+  All-Americans, top-10 recruiting classes, and beating preseason
+  expectations — and auto-spend them at the same +1-per-point rate,
+  favoring their archetype's signature rating. Rival staffs genuinely grow
+  with sustained success.
+- **Avatar fixes & wardrobe.**
+  - Fixed the bugged female hair styles that rendered in front of the face
+    (braid strands ran down the middle of the face; the curly style's puff
+    hung over the eyes). Curly/afro styles now hug the crown for men too.
+  - **Coaches wear polos** now, like real XC coaches — collar, placket and
+    all — replacing the blazer-and-tie. The coach creation wizard gains a
+    **Polo Color slider**.
+  - No polo or singlet color can blend into the dark UI background — both
+    palettes are curated bright.
+  - **Singlet straps go over the shoulders** like a real race kit, with a
+    scoop neck and contrast trim, instead of floating below bare shoulders.
+- **iPhone groundwork.** The game is now installable as a full-screen,
+  offline-capable web app (manifest, app icons, service worker, iOS meta
+  tags, notch-safe layout, touch-friendly taps), and the repo carries the
+  complete **Capacitor** scaffolding (`capacitor.config.json`,
+  `npm run ios:add`) to wrap the exact, feature-complete game as a native
+  iOS app. The step-by-step App Store path — what to install, what it
+  costs, how review works — lives in [`docs/APP-STORE.md`](docs/APP-STORE.md).
+
 ## Version 11.0 — Update 13: Balance, Realism, Coach Progression & Training Overhaul
 
 A tuning-focused update that refines nearly every existing system so they

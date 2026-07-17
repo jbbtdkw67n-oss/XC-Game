@@ -37,14 +37,16 @@
       portrait: D.COACH_PORTRAITS[0],
       // The human avatar (Update 12): built slider-by-slider on the
       // Appearance step and worn on every profile for the whole career.
-      appearance: { gender: 'M', skin: 2, hair: 5, hairStyle: 2, beard: 0 },
+      // `polo` (Update 13) is the coaching polo color the coach wears.
+      appearance: { gender: 'M', skin: 2, hair: 5, hairStyle: 2, beard: 0, polo: 1 },
       archetype: null,
       trainingPhilosophy: 'balanced',
       racePhilosophy: 'even'
     }, opts.initial || {});
     if (!spec.appearance || spec.appearance.skin === undefined) {
-      spec.appearance = { gender: spec.gender || 'M', skin: 2, hair: 5, hairStyle: 2, beard: 0 };
+      spec.appearance = { gender: spec.gender || 'M', skin: 2, hair: 5, hairStyle: 2, beard: 0, polo: 1 };
     }
+    if (spec.appearance.polo === undefined) spec.appearance.polo = 1;
 
     let step = 0;
 
@@ -171,9 +173,9 @@
 
     /* ---------------- Step 2: Appearance ---------------- *
      * A human avatar builder (Update 12): choose your gender, then shape
-     * the person with sliders — skin color, hair color, hair style, and
-     * beard style — over a live preview. This face follows the whole
-     * career, onto every historical profile.
+     * the person with sliders — skin color, hair color, hair style, beard
+     * style, and coaching polo color (Update 13) — over a live preview.
+     * This face follows the whole career, onto every historical profile.
      */
     function renderAppearance() {
       const AV = UI.AVATAR;
@@ -200,7 +202,7 @@
         </div>
         <div class="avatar-builder">
           <div style="text-align:center;">
-            <div id="coach-avatar-preview">${UI.avatarSvg(app, { size: 132, outfit: 'suit' })}</div>
+            <div id="coach-avatar-preview">${UI.avatarSvg(app, { size: 132, outfit: 'polo' })}</div>
             <div style="font-weight:700; font-size:15px; margin-top:6px;">${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)}</div>
             <div style="color:var(--text-dim); font-size:12.5px;">${spec.startRole === 'Assistant' ? 'Assistant Coach' : 'Head Coach'} • Age ${spec.age}${spec.hometown ? ' • ' + Utils.escapeHtml(spec.hometown) : ''}</div>
             <button type="button" class="btn" id="rand-avatar" style="margin-top:8px; padding:4px 12px; font-size:12px;">🎲 Randomize</button>
@@ -210,13 +212,14 @@
             ${slider('hair', 'Hair Color', AV.HAIR_COLORS.length - 1)}
             ${slider('hairStyle', 'Hair Style', AV.HAIR_STYLE_COUNT - 1)}
             ${slider('beard', 'Beard Style', AV.BEARD_STYLE_COUNT - 1)}
+            ${slider('polo', 'Polo Color', AV.POLO_COLORS.length - 1)}
           </div>
         </div>`,
         { nextLabel: 'Next: Archetype →' }
       );
 
       const redraw = () => {
-        root.querySelector('#coach-avatar-preview').innerHTML = UI.avatarSvg(app, { size: 132, outfit: 'suit' });
+        root.querySelector('#coach-avatar-preview').innerHTML = UI.avatarSvg(app, { size: 132, outfit: 'polo' });
       };
       root.querySelectorAll('[data-app]').forEach((inp) => {
         inp.addEventListener('input', () => {
@@ -235,6 +238,7 @@
         app.hair = Math.floor(Math.random() * AV.HAIR_COLORS.length);
         app.hairStyle = Math.floor(Math.random() * AV.HAIR_STYLE_COUNT);
         app.beard = spec.gender === 'M' ? Math.floor(Math.random() * AV.BEARD_STYLE_COUNT) : 0;
+        app.polo = Math.floor(Math.random() * AV.POLO_COLORS.length);
         root.querySelectorAll('[data-app]').forEach((inp) => { inp.value = app[inp.dataset.app]; });
         redraw();
       });
@@ -346,7 +350,7 @@
         'One last look before it becomes official.',
         `
         <div class="wizard-preview">
-          <div>${UI.avatarSvg(Object.assign({}, spec.appearance, { gender: spec.gender }), { size: 72, outfit: 'suit' })}</div>
+          <div>${UI.avatarSvg(Object.assign({}, spec.appearance, { gender: spec.gender }), { size: 72, outfit: 'polo' })}</div>
           <div>
             <div style="font-weight:700; font-size:17px;">${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)}</div>
             <div style="color:var(--text-dim); font-size:13px;">

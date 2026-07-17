@@ -33,18 +33,16 @@
       }).join('');
 
       // Full individual results (Update 12): every stored finisher is
-      // published; championship honor earners are highlighted in gold.
+      // published; championship honor earners are marked with the honor
+      // emoji (Update 13: no gold highlighting — the symbol is the award).
       const honor = UI.meetHonorInfo(meet);
       const indivRows = res.finishers.map((f) => {
         const school = game.getSchool(f.schoolId);
         const mine = f.schoolId === game.playerSchoolId;
-        const gold = honor && f.place <= honor.count;
-        const rowStyle = gold
-          ? `background:rgba(212,160,23,0.13);${mine ? ' box-shadow:inset 3px 0 0 var(--accent);' : ''}`
-          : (mine ? 'background:var(--accent-soft);' : '');
-        return `<tr class="clickable" data-ath="${f.athleteId}" ${rowStyle ? `style="${rowStyle}"` : ''}>
+        const honored = honor && f.place <= honor.count;
+        return `<tr class="clickable" data-ath="${f.athleteId}" ${mine ? 'style="background:var(--accent-soft);"' : ''}>
           <td>${f.place}</td>
-          <td ${gold ? 'style="color:var(--gold); font-weight:600;"' : ''}>${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: g }, { size: 20 })} ${Utils.escapeHtml(f.name)}${gold ? ` <span title="${honor.label}">${honor.icon}</span>` : ''} <span style="color:var(--text-faint); font-size:11px;">${f.classYear || ''}</span></td>
+          <td>${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: g }, { size: 20 })} ${Utils.escapeHtml(f.name)}${honored ? ` <span title="${honor.label}">${honor.icon}</span>` : ''} <span style="color:var(--text-faint); font-size:11px;">${f.classYear || ''}</span></td>
           <td>${Utils.escapeHtml(school ? school.name : '?')}</td>
           <td class="num">${ft(f.time)}</td>
         </tr>`;
@@ -52,8 +50,8 @@
 
       return `
         <h3 style="margin:0 0 10px;">${g === 'M' ? "Men's" : "Women's"} ${Races().distKey(res.distanceM)}</h3>
-        ${honor ? `<div style="margin:0 0 10px; padding:7px 12px; border:1px solid var(--gold); border-radius:8px; color:var(--gold); font-size:12.5px;">
-          ${honor.icon} Championship race — the top ${honor.count} finishers earn <strong>${honor.label}</strong> honors, highlighted in gold.
+        ${honor ? `<div style="margin:0 0 10px; padding:7px 12px; border:1px solid var(--border); border-radius:8px; color:var(--text-dim); font-size:12.5px;">
+          ${honor.icon} Championship race — the top ${honor.count} finishers earn <strong>${honor.label}</strong> honors, marked ${honor.icon}.
         </div>` : ''}
         <div class="grid cols-2">
           <div class="card" style="padding:12px;">

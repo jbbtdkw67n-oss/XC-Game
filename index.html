@@ -2,8 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Mobile / iOS groundwork (Update 13): viewport-fit lets the UI extend
+       under the iPhone notch (safe-area insets in CSS keep content clear),
+       and the apple-* tags make the game run full-screen from a home-screen
+       install or inside the Capacitor iOS shell. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="XC Dynasty">
+  <meta name="theme-color" content="#0e1116">
   <title>Cross Country Dynasty</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icon-180.png">
   <link rel="stylesheet" href="css/main.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏃</text></svg>">
 </head>
@@ -69,5 +80,15 @@
 
   <!-- Boot -->
   <script src="js/main.js"></script>
+  <!-- Offline/installed play (Update 13): the service worker precaches the
+       whole game. Only registered over http(s) — file:// (local play, the
+       test suite) and the Capacitor shell don't need or support it. -->
+  <script>
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => { /* offline play is a bonus, never an error */ });
+      });
+    }
+  </script>
 </body>
 </html>

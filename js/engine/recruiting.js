@@ -1479,6 +1479,18 @@
       });
     });
 
+    // CPU coaches earn the same top-10-class upgrade point the player earns
+    // (Update 13) and put it to work immediately — the CPU never banks.
+    ranking.forEach((entry) => {
+      if (entry.divisionRank > 10 || entry.schoolId === gameState.playerSchoolId) return;
+      const school = gameState.getSchool(entry.schoolId);
+      const coach = school && gameState.getCoach(school.coachId);
+      if (coach && !coach.isPlayer) {
+        coach.upgradePoints = (coach.upgradePoints || 0) + 1;
+        window.XCD.engine.Awards.cpuSpendUpgradePoints(coach, rng);
+      }
+    });
+
     // Generational signings are national news one more time.
     Object.entries(classes).forEach(([sid, recs]) => {
       recs.filter((r) => r.generational).forEach((r) => {

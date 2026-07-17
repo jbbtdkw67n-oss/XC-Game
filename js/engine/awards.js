@@ -274,25 +274,93 @@
       gameState.logNews(`📋 COACHING RÉSUMÉ: you earn ${pts} upgrade point${pts > 1 ? 's' : ''} — ${why.join(', ')}. Spend them on My Program.`);
     }
 
-    // AI coaches: a light version — titles improve their signature rating.
+    // CPU coaches run the same progression (Update 13): they bank upgrade
+    // points from the same résumé lines the player earns — conference,
+    // regional, and national titles, individual national champions,
+    // All-Americans, beating preseason expectations, and top recruiting
+    // classes (banked at signing day) — then spend every banked point.
+    awardCpuCoachUpgradePoints(gameState, rng);
+  }
+
+  /*
+   * Tally the season's résumé lines for every CPU-run program, bank them as
+   * upgrade points on the coach, and auto-spend the balance (Update 13).
+   * Point values mirror the player's ledger exactly; every division's own
+   * championships count, using that division's All-America window.
+   */
+  function awardCpuCoachUpgradePoints(gameState, rng) {
+    const season = gameState.season;
     const D = window.XCD.data;
+    const pts = {}; // schoolId -> points earned this season
+    const credit = (schoolId, p) => {
+      if (!schoolId || schoolId === gameState.playerSchoolId) return;
+      pts[schoolId] = (pts[schoolId] || 0) + p;
+    };
+
+    ['M', 'W'].forEach((gender) => {
+      // Conference and regional titles: +1 each.
+      [season.conferenceWeek, season.regionalWeek].forEach((week) => {
+        (season.byWeek[week] || []).forEach((meetId) => {
+          const res = season.meets[meetId] && season.meets[meetId].results[gender];
+          if (res && res.teamScores[0]) credit(res.teamScores[0].schoolId, 1);
+        });
+      });
+      // Every division's nationals: team title +3, individual champ +2,
+      // 1 point per two All-Americans (division's own honor window).
+      const natWeek = window.XCD.engine.Races.NATIONAL_WEEK;
+      (season.byWeek[natWeek] || []).forEach((meetId) => {
+        const meet = season.meets[meetId];
+        if (!meet || meet.type !== 'national') return;
+        const res = meet.results[gender];
+        if (!res) return;
+        if (res.teamScores[0]) credit(res.teamScores[0].schoolId, 3);
+        if (res.finishers[0]) credit(res.finishers[0].schoolId, 2);
+        const window_ = ((D.divisionFor(meet.division || 'DI') || {}).championship || {}).allAmericans || 40;
+        const aaBySchool = {};
+        res.finishers.slice(0, window_).forEach((f) => {
+          aaBySchool[f.schoolId] = (aaBySchool[f.schoolId] || 0) + 1;
+        });
+        Object.entries(aaBySchool).forEach(([sid, n]) => credit(sid, Math.ceil(n / 2)));
+      });
+      // Beating preseason expectations by 15+ poll spots: +1.
+      const pre = season.preseasonRanks && season.preseasonRanks[gender];
+      if (pre) {
+        (gameState.rankings[gender] || []).forEach((row) => {
+          const preRank = pre[row.schoolId] || 200;
+          if (preRank - row.rank >= 15) credit(row.schoolId, 1);
+        });
+      }
+    });
+
+    Object.entries(pts).forEach(([sid, p]) => {
+      const school = gameState.getSchool(sid);
+      const c = school && gameState.getCoach(school.coachId);
+      if (c && !c.isPlayer) c.upgradePoints = (c.upgradePoints || 0) + p;
+    });
+
+    // Spend: every CPU coach puts their whole balance to work now — the
+    // archetype's signature rating most of the time, the weakest rating
+    // otherwise — at the same +1-per-point rate the player pays.
     Object.values(gameState.world.schools).forEach((school) => {
       const c = gameState.getCoach(school.coachId);
       if (!c || c.isPlayer) return;
-      const yr = gameState.year;
-      let aiPts = 0;
-      const conf = (gameState.history.conferenceChampions || {})[yr] || {};
-      if (conf[`${school.conference}-M`] === school.name) aiPts++;
-      if (conf[`${school.conference}-W`] === school.name) aiPts++;
-      const nat = (gameState.history.nationalChampions || {})[yr] || {};
-      if (nat.M && nat.M.teamId === school.id) aiPts += 2;
-      if (nat.W && nat.W.teamId === school.id) aiPts += 2;
-      if (!aiPts) return;
-      const arch = (D.COACH_ARCHETYPES || []).find((a) => a.key === c.archetype);
-      const target = arch && rng.bool(0.6) ? arch.rating
-        : ['recruiting', 'training', 'peaking', 'culture'].sort((x, y) => c[x] - c[y])[0];
-      c[target] = Utils.clamp(c[target] + aiPts * 2, 20, 99);
+      cpuSpendUpgradePoints(c, rng);
     });
+  }
+
+  function cpuSpendUpgradePoints(coach, rng) {
+    const D = window.XCD.data;
+    const arch = (D.COACH_ARCHETYPES || []).find((a) => a.key === coach.archetype);
+    const keys = ['recruiting', 'training', 'peaking', 'culture'];
+    while ((coach.upgradePoints || 0) > 0) {
+      const open = keys.filter((k) => (coach[k] || 0) < 99);
+      if (!open.length) break;
+      const target = arch && open.includes(arch.rating) && rng.bool(0.6)
+        ? arch.rating
+        : open.sort((x, y) => (coach[x] || 0) - (coach[y] || 0))[0];
+      coach[target] = Utils.clamp((coach[target] || 0) + 1, 20, 99);
+      coach.upgradePoints -= 1;
+    }
   }
 
   /* Player career ledger */
@@ -517,5 +585,5 @@
     gameState.season.nxn = result;
   }
 
-  window.XCD.engine.Awards = { processPostNationals, considerHallOfFame, addHonor, runNXN, coachFirings };
+  window.XCD.engine.Awards = { processPostNationals, considerHallOfFame, addHonor, runNXN, coachFirings, cpuSpendUpgradePoints };
 })();

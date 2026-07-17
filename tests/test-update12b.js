@@ -91,7 +91,8 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       genderMismatch, nonDeterministic, beardedWomen,
       eastAfricans: eastAfricans.length, darkShare,
       athleteSvgOk: svg.includes('<svg') && svg.includes('ellipse'),
-      coachSuit: coachSvg.includes('#F4F6F8') // shirt triangle = suit outfit
+      // Update 13: coaches wear polos — the button placket rect is the marker.
+      coachPolo: coachSvg.includes('x="31.3"')
     };
   });
   console.log('avatars:', JSON.stringify(av));
@@ -102,7 +103,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   // so require a dominant share rather than unanimity.
   ok(av.darkShare >= 0.9, `east-african heritage must map to dark skin tones (got ${av.darkShare})`);
   ok(av.athleteSvgOk, 'athlete avatar SVG malformed');
-  ok(av.coachSuit, 'coach avatar must wear the suit outfit');
+  ok(av.coachPolo, 'coach avatar must wear the polo outfit');
 
   // Player coach appearance survives a save round-trip.
   const rt = await page.evaluate(() => {

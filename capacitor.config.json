@@ -1,0 +1,9 @@
+{
+  "appId": "com.xcdynasty.app",
+  "appName": "XC Dynasty",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#0e1116"
+  }
+}

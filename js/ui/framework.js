@@ -77,7 +77,7 @@
    * Championship honor window for a meet (Update 12): at nationals the top
    * N finishers earn All-America honors; at a conference championship the
    * top N earn All-Conference — N comes from the division's rules. Result
-   * tables highlight those finishers in gold. Null for every other meet.
+   * tables mark those finishers with the honor emoji. Null for every other meet.
    */
   UI.meetHonorInfo = function (meet) {
     if (!meet) return null;
