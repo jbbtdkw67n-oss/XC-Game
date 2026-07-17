@@ -119,14 +119,14 @@
         <h1>${(() => {
           const c = school.colors || ['#888', '#ccc'];
           return `<span style="display:inline-block; width:12px; height:22px; border-radius:3px; background:linear-gradient(${c[0]} 50%, ${c[1]} 50%); vertical-align:-3px; margin-right:8px;"></span>`;
-        })()}${Utils.escapeHtml(school.name)}${school.mascot ? ` <span style="color:var(--text-dim); font-weight:500; font-size:0.7em;">${Utils.escapeHtml(school.mascot)}</span>` : ''}</h1>
+        })()}${Utils.escapeHtml(school.name)}</h1>
         <div class="actions">
           <div class="pill-tabs">
             <button data-stab="overview" class="${activeTab === 'overview' ? 'active' : ''}">Overview</button>
             <button data-stab="history" class="${activeTab === 'history' ? 'active' : ''}">History</button>
           </div>
           <span style="color:var(--text-dim); font-size:13px;">
-            ${window.XCD.data.divisionFor(school).label} • ${Utils.escapeHtml(school.conference)} • ${school.region} • ${window.XCD.data.STATE_NAMES[school.state] || school.state}
+            ${school.mascot ? `🏛 <strong style="color:var(--text);">${Utils.escapeHtml(school.mascot)}</strong> • ` : ''}${window.XCD.data.divisionFor(school).label} • ${Utils.escapeHtml((window.XCD.data.WORLD && window.XCD.data.WORLD.confAbbr(school.conference)) || school.conference)} • ${school.region} • ${window.XCD.data.STATE_NAMES[school.state] || school.state}
           </span>
         </div>
       </div>

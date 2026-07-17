@@ -1,0 +1,52 @@
+{
+  "_readme": "Custom World template for Cross Country Dynasty. Load it from the main menu (🌍 Custom World → Choose File) or host it and pass ?world=<url>. EVERY field is optional — include only what you want to override; anything omitted keeps the built-in default. The applied world is saved with your dynasty.",
+
+  "org": { "abbr": "UCCA", "name": "United Collegiate Cross Country Association" },
+
+  "divisions": {
+    "labels": { "DA": "Premier Division", "DB": "Championship Division", "DC": "League Division" },
+    "short":  { "DA": "PR", "DB": "CH", "DC": "LG" }
+  },
+
+  "meets": {
+    "elite": [
+      { "name": "Autumn Open" },
+      { "name": "Harvest Classic" },
+      { "name": "Founders Invitational" },
+      { "name": "Capital Invitational" }
+    ],
+    "preview": "National Preview",
+    "conference": "Conference Championship",
+    "regional": "Regional Championship",
+    "national": "The Crown Final",
+    "highSchoolNationals": { "abbr": "PXN", "name": "Prep Cross Nationals" }
+  },
+
+  "awards": {
+    "runnerOfYear": "Runner of the Year",
+    "newcomerOfYear": "Rookie of the Year",
+    "coachOfYear": "Coach of the Year",
+    "allAmerican": "All-National First Team",
+    "academicElite": "Scholar Team",
+    "allConference": "All-Conference",
+    "nationalChampion": "National Champion",
+    "regionalChampion": "Regional Champion"
+  },
+
+  "mascots": ["Otters", "Time Racers", "Comets", "Wardens", "Foxhounds", "Gales"],
+  "palettes": [["#1d3f6e", "#c9a227"], ["#5a1f2b", "#d8c7a0"], ["#0f5a3c", "#f0e6c8"]],
+
+  "conferences": {
+    "Eastern League": { "tier": 1, "abbr": "EL" },
+    "Western League": { "tier": 1, "abbr": "WL" }
+  },
+
+  "prestigeSeeds": { "Riverdale City": 90, "Hill Valley": 88 },
+
+  "schools": [
+    ["Riverdale City", "NY", "Eastern League", "Otters", "#112233", "#c9a227", "DA"],
+    ["Hill Valley", "CA", "Western League", "Time Racers", "#0f5a3c", "#f0e6c8", "DA"],
+    ["Port Haven", "MA", "Eastern League", "Wardens", "#5a1f2b", "#d8c7a0", "DA"],
+    ["Mesa Grande", "AZ", "Western League", "Gales", "#8a4a1f", "#e0d0b0", "DA"]
+  ]
+}

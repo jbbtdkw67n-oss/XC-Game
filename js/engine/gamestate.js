@@ -129,6 +129,9 @@
       gs.year = 2026;
       gs.week = 1;
       gs.createdAt = Date.now();
+      // Persist any active custom world so this dynasty reloads with its own
+      // universe (labels, meets, conferences, awards) intact.
+      gs.customWorld = (window.XCD.data && window.XCD.data.CUSTOM_WORLD) || null;
 
       const school = gs.world.schools[schoolId];
       const arch = (D.COACH_ARCHETYPES || []).find((a) => a.key === archetype) || { key: 'Developer', rating: 'training' };
@@ -554,7 +557,8 @@
         weeklyFlow: this.weeklyFlow,
         offseasonReport: this.offseasonReport || null,
         staffHiredYear: this.staffHiredYear || null,
-        week1: this.week1
+        week1: this.week1,
+        customWorld: this.customWorld || (window.XCD.data && window.XCD.data.CUSTOM_WORLD) || null
       };
     }
 
@@ -562,6 +566,12 @@
       // Versioned migrations (Part 13): old saves are upgraded in place,
       // never rejected. Each migration moves a save one version forward.
       obj = GameState.migrateSave(obj);
+      // A custom-world dynasty carries its universe config in the save — re-apply
+      // it to the World Database before reviving so labels, meets, conferences,
+      // and awards match the schools stored in the save.
+      if (obj.customWorld && window.XCD.data && window.XCD.data.applyCustomWorld) {
+        window.XCD.data.applyCustomWorld(obj.customWorld);
+      }
       const gs = new GameState();
       Object.assign(gs, obj);
       // Revive plain objects back into class instances so methods/getters work.

@@ -87,8 +87,8 @@
           <h2>${(() => {
             const c = school.colors || ['#888', '#ccc'];
             return `<span style="display:inline-block; width:10px; height:18px; border-radius:2px; background:linear-gradient(${c[0]} 50%, ${c[1]} 50%); vertical-align:-2px; margin-right:6px;"></span>`;
-          })()}${Utils.escapeHtml(school.name)}${school.mascot ? ` <span style="color:var(--text-dim); font-weight:600;">${Utils.escapeHtml(school.mascot)}</span>` : ''}${school.id === game.playerSchoolId ? ' <span style="color:var(--accent);">★ (You)</span>' : ''}</h2>
-          <div class="sub">${divLabel} • ${Utils.escapeHtml(school.conference)} • ${school.region} • ${(D.STATE_NAMES || {})[school.state] || school.state}</div>
+          })()}${Utils.escapeHtml(school.name)}${school.id === game.playerSchoolId ? ' <span style="color:var(--accent);">★ (You)</span>' : ''}</h2>
+          <div class="sub">${school.mascot ? `🏛 <strong style="color:var(--text);">${Utils.escapeHtml(school.mascot)}</strong> • ` : ''}${divLabel} • ${Utils.escapeHtml((D.WORLD && D.WORLD.confAbbr(school.conference)) || school.conference)} • ${school.region} • ${(D.STATE_NAMES || {})[school.state] || school.state}</div>
           <div class="sub">
             Head Coach:
             ${coach ? `<span class="clickable" id="sc-coach" style="cursor:pointer; color:var(--accent-hover);">${UI.avatar(coach, { size: 20, outfit: 'suit' })} ${Utils.escapeHtml(coach.fullName)}</span> — ${Utils.escapeHtml(coach.archetype || '')}` : 'Vacant'}

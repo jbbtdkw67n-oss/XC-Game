@@ -15,6 +15,22 @@
             <button class="btn primary" id="btn-new">🏁 New Dynasty</button>
             <button class="btn" id="btn-load">💾 Load Dynasty</button>
             <button class="btn" id="btn-import">📂 Import Save File</button>
+            <button class="btn" id="btn-customworld">🌍 Custom World</button>
+          </div>
+          <div id="customworld-panel" style="display:none; margin-top:12px; text-align:left; background:var(--card,#161b22); border:1px solid var(--border,#2a3341); border-radius:10px; padding:12px;">
+            <div style="font-size:12.5px; color:var(--text-dim); margin-bottom:8px;">
+              Load a custom universe (schools, conferences, mascots, meets, awards, division names, colors)
+              from a URL or a JSON file. It applies to your <strong>next New Dynasty</strong> and is saved with it.
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:8px;">
+              <input class="search-input" id="customworld-url" placeholder="https://…/my-world.json" style="flex:1;">
+              <button class="btn small primary" id="btn-cw-url">Load URL</button>
+            </div>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <button class="btn small" id="btn-cw-file">📄 Choose File…</button>
+              <span id="customworld-status" style="font-size:12px; color:var(--text-faint);"></span>
+            </div>
+            <input type="file" id="customworld-file" accept=".json,application/json" style="display:none">
           </div>
           <input type="file" id="import-file" accept=".json,application/json" style="display:none">
         </div>
@@ -22,6 +38,7 @@
 
     root.querySelector('#btn-new').addEventListener('click', () => renderNewGame(root));
     root.querySelector('#btn-load').addEventListener('click', () => renderLoadMenu(root));
+    wireCustomWorld(root);
 
     const fileInput = root.querySelector('#import-file');
     root.querySelector('#btn-import').addEventListener('click', () => fileInput.click());
@@ -37,6 +54,46 @@
       } catch (err) {
         UI.toast('Import failed: ' + err.message, 'error');
       }
+    });
+  }
+
+  // Custom-world loader on the main menu. Applies a player-supplied universe
+  // (from a URL or JSON file) to the World Database so the next New Dynasty is
+  // built from it. The applied config rides along in the save.
+  function wireCustomWorld(root) {
+    const D = window.XCD.data;
+    const panel = root.querySelector('#customworld-panel');
+    const status = root.querySelector('#customworld-status');
+    const fileInput = root.querySelector('#customworld-file');
+    const setStatus = (msg, ok) => { status.textContent = msg; status.style.color = ok ? 'var(--success,#34c98e)' : 'var(--danger,#e5534b)'; };
+    if (D.CUSTOM_WORLD) setStatus('✓ Custom world active.', true);
+
+    root.querySelector('#btn-customworld').addEventListener('click', () => {
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    });
+    root.querySelector('#btn-cw-url').addEventListener('click', async () => {
+      const url = root.querySelector('#customworld-url').value.trim();
+      if (!url) { setStatus('Enter a URL first.', false); return; }
+      setStatus('Loading…', true);
+      try {
+        const r = await D.loadCustomWorldFromUrl(url);
+        setStatus(`✓ Loaded${r.schools ? ` (${r.schools} schools)` : ''}. Start a New Dynasty.`, true);
+      } catch (e) { setStatus('Failed: ' + (e.message || e), false); }
+    });
+    root.querySelector('#btn-cw-file').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const cfg = JSON.parse(reader.result);
+          const r = D.applyCustomWorld(cfg);
+          if (r.ok) setStatus(`✓ Loaded${r.schools ? ` (${r.schools} schools)` : ''}. Start a New Dynasty.`, true);
+          else setStatus('Failed: ' + r.error, false);
+        } catch (e) { setStatus('Invalid JSON: ' + (e.message || e), false); }
+      };
+      reader.readAsText(file);
     });
   }
 
