@@ -44,23 +44,23 @@
    * from it, and the prestige engine uses `heritage` as slow-decaying gravity).
    */
   D.PRESTIGE_SEEDS = {
-    // Division A blue bloods of distance running (fictional)
-    'Flagstaff': 96, 'Stillwater State': 92, 'Provo Summit': 92, 'Palo Alto': 90,
-    'Eugene': 90, 'Boulder': 90, 'Rainier': 86, 'Madison': 85,
-    'Ozark': 86, 'South Bend': 84, 'Salt City': 83, 'Ames State': 83,
-    'Sandia': 82, 'Narragansett': 81, 'Ann Arbor': 82, 'Anacostia': 81,
-    'Rose City': 80, 'Main Line': 82, 'Piedmont State': 80, 'Tuscaloosa': 80,
-    'Austin Plains': 79, 'Oxford Delta': 80, 'Greenville Falls': 78,
-    // Division B powers
-    'Underhill State': 63, 'Kirkwall Tech': 62, 'Falconry State': 62,
-    'Western Everglen': 58, 'Crestmoor State': 57, 'Harrowgate Harbor': 56,
-    'Glenrock Bethany': 55, 'Marshview Harbor': 55, 'Eelgrass': 54, 'Modoc': 53,
-    // Division C powers
-    'North Thornwood': 53, 'Baraboo': 52, 'Chequamegon': 51,
-    'Eastvale Grove': 51, 'Cedar Grove': 50, 'Vesper Grove': 50, 'Antietam': 50,
-    'Gasconade': 50, 'Mad River': 49, 'Sangamon': 49,
-    'Ambergate Harbor': 49, 'Ivywood Chapel': 48, 'Merrimac': 48,
-    'Slate Ridge': 47, 'Tallgrass Bend': 46
+    // Recognizable distance-running powers (fictional host-city identities)
+    "Flagstaff": 96, "Stillwater State": 92, "Provo Summit": 92,
+    "Palo Alto": 90, "Eugene": 90, "Boulder": 90,
+    "Rainier": 86, "Madison": 85, "Ozark": 86,
+    "South Bend": 84, "Salt City": 83, "Ames State": 83,
+    "Sandia": 82, "Narragansett": 81, "Ann Arbor": 82,
+    "Anacostia": 81, "Rose City": 80, "Main Line": 82,
+    "Raleigh State": 80, "Tuscaloosa": 80, "Austin Plains": 79,
+    "Oxford Delta": 80, "Greenville Falls": 78, "Underhill State": 63,
+    "Kirkwall Tech": 62, "Falconry State": 62, "Western Everglen": 58,
+    "Crestmoor State": 57, "Quintvale": 56, "Glenrock Bethany": 55,
+    "Glimmer": 55, "Camelback": 54, "Quarry": 53,
+    "North Thornwood": 53, "Oakmont": 52, "Verdant": 51,
+    "Fallowmere": 51, "Merrimac": 50, "Kirkwall": 50,
+    "Antietam": 50, "Juniperton": 50, "Tallgrass": 49,
+    "Sangamon": 49, "Yatesboro": 49, "Ivywood Chapel": 48,
+    "Bluffton": 48, "Quietwater": 47, "Maplecrest": 46
   };
 
   D.CLASS_YEARS = ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate'];
@@ -92,14 +92,13 @@
   // shown on the coach profile card — a mix of storied (fictional) distance
   // programs across all three divisions, drawn from the World Database roster.
   D.ALMA_MATERS = [
-    'Eugene', 'Palo Alto', 'Boulder', 'Flagstaff', 'Stillwater State',
-    'Provo Summit', 'Madison', 'Ozark', 'Main Line', 'Anacostia', 'Ann Arbor',
-    'South Bend', 'Rose City', 'Rainier', 'Salt City', 'Narragansett',
-    'Sandia', 'Greenville Falls', 'Austin Plains',
-    'Underhill State', 'Western Everglen', 'Kirkwall Tech', 'Falconry State',
-    'Crestmoor State', 'Modoc', 'North Thornwood', 'Chequamegon', 'Baraboo',
-    'Cedar Grove', 'Mad River', 'Vesper Grove', 'Merrimac', 'Ivywood Chapel',
-    'Antietam', 'Sangamon', 'Slate Ridge'
+    "Eugene", "Palo Alto", "Boulder", "Flagstaff", "Stillwater State",
+    "Provo Summit", "Madison", "Ozark", "Main Line", "Anacostia",
+    "Ann Arbor", "South Bend", "Rose City", "Rainier", "Salt City",
+    "Narragansett", "Sandia", "Greenville Falls", "Austin Plains", "Underhill State",
+    "Western Everglen", "Falconry State", "Kirkwall Tech", "Crestmoor State", "North Thornwood",
+    "Oakmont", "Merrimac", "Fallowmere", "Tallgrass", "Kirkwall",
+    "Yatesboro", "Quietwater", "Bluffton", "Antietam"
   ];
 
   /*

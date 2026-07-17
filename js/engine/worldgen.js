@@ -11,10 +11,12 @@
   // Programs known for elite academics (fictional). A recruiting bonus lands
   // on these campuses. Kept in sync with the World Database school roster.
   const ELITE_ACADEMICS = new Set([
-    'Palo Alto','Brookfield','South Bend','Anacostia','Oxbow','Waterloo','Quintel','Pinehollow College',
-    'Quailridge','Yandell','Moorcroft','Penrith','Ivywood','Oakhaven','Redfern','Frostpine','Salinas',
-    'Heron','Yarrow','Ann Arbor','Granite','Junction','Clearwater','Main Line','Timberline','Orchardton',
-    'Larkspur','Merriweather','Thornbury','Riverton','Fernwood'
+    "Palo Alto", "Durham", "South Bend", "Anacostia", "Nashville", "Museum District",
+    "Evanston", "Chestnut Hill", "Providence Hill", "Morningside", "Ithaca Heights", "Hanover",
+    "Cambridge", "University City", "Old Nassau", "Elm City", "Westwood", "University Park LA",
+    "Charlottesville", "Ann Arbor", "Berkeley", "Williamsburg", "River City VA", "Main Line",
+    "Lewisburg", "Bethlehem", "Easton", "Hamilton NY", "Bronx", "Winston",
+    "Davidson Town"
   ]);
 
   const MOUNTAIN_STATES = new Set(['CO','UT','WY','MT','ID','NM','AZ']);

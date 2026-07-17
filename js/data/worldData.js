@@ -73,6 +73,43 @@
     }
   };
 
+  /* -------------------------------------------------------------- *
+   * Conference abbreviations. Full names read well on detail pages;
+   * the short form is used in filters, dropdowns, and standings so the
+   * UI stays compact. None matches a real-world conference abbreviation.
+   * -------------------------------------------------------------- */
+  WORLD.CONFERENCE_ABBR = {
+    "Atlantic Alliance Conference": "AAL", "Heartland Ten Conference": "HT10", "Large 12 Conference": "L12",
+    "Southern Premier Conference": "SPC", "National Metro Conference": "NMC", "Western Peaks Conference": "WPC",
+    "Southern Horizon Conference": "SHC", "Continental Conference": "CNC", "Great Lakes Conference": "GLK",
+    "Empire Athletic Conference": "EAC", "Ancient Oaks League": "AO8", "Liberty Conference": "LBC",
+    "Seaboard Ten Conference": "SB10", "Tidewater Conference": "TWC", "Blue Ridge Conference": "BRC",
+    "Pacific Shores Conference": "PSH", "Great Sky Conference": "GSK", "Desert West Conference": "DWC",
+    "Golden Coast Conference": "GCC", "Azalea Conference": "AZC", "Piedmont Conference": "PMC",
+    "Frontier South Conference": "FSC", "Chesapeake Heritage Conference": "CHC", "Magnolia Heritage Conference": "MHC",
+    "Lakeland Metro Conference": "LMC", "Central Valley Conference": "CVL", "High Plains Conference": "HPC",
+    "Northern Coast Conference": "NCoast", "Hudson Valley Conference": "HVC", "Northern Frontier Conference": "NFR",
+    "River Valley Conference": "RVC", "Rocky Summit Conference": "RSC", "Great Lakes Interstate Conference": "GLI",
+    "Keystone Athletic Conference": "KAC", "Southern Highlands Conference": "SHL", "Republic Athletic Conference": "RPC",
+    "Midland Athletic Conference": "MDL", "Coastal Intercollegiate Conference": "CIC", "Deep South Athletic Conference": "DSC",
+    "Northern Sun Alliance": "NSA", "Prairie Heartland Conference": "PHC", "Golden State Athletic Conference": "GSA",
+    "Ozark Athletic Conference": "OZC", "Peach Country Conference": "PCC", "New England Ten Conference": "NE10x",
+    "Sunshine Coast Conference": "SCC", "Carolina Piedmont Conference": "CPC", "Cascadia Athletic Conference": "CAS",
+    "Pacific Rim Conference": "PRC", "Northwoods Athletic Conference": "NWA", "New England Scholars Conference": "NES",
+    "North Coast Scholars Conference": "NCS", "University Scholars Association": "USA8", "Empire State Athletic Conference": "ESA",
+    "Great Lakes Scholars Conference": "GLS", "Southern Scholars Conference": "SSC", "Prairie Colleges Conference": "PRA",
+    "Commonwealth Scholars Conference": "CWS", "Founders Scholars Conference": "FSA", "Liberty Scholars League": "LSL",
+    "Northland Colleges Conference": "NLC", "Empire Eight Colleges": "EE8", "Southern Athletic Alliance": "SAL",
+    "Ridgeline Colleges Conference": "RLC", "Capital Coast Conference": "CAP", "New England Colleges Conference": "NEC8",
+    "Waypoint Colleges Conference": "WPT", "Coastal East Conference": "CEC"
+  };
+
+  // Short conference label for compact UI. Falls back to the full name (custom
+  // worlds may add conferences without an abbreviation).
+  WORLD.confAbbr = function (name) {
+    return (name && WORLD.CONFERENCE_ABBR[name]) || name || '';
+  };
+
   /* ---------------- helper accessors (used everywhere) ---------------- */
 
   // Public label for a division key (or a school). Defaults to Division A so
@@ -202,6 +239,7 @@
       if (cfg.conferences && typeof cfg.conferences === 'object' && D.CONFERENCES) {
         Object.entries(cfg.conferences).forEach(([name, meta]) => {
           D.CONFERENCES[name] = (typeof meta === 'number') ? { tier: meta } : Object.assign({}, meta);
+          if (meta && meta.abbr) WORLD.CONFERENCE_ABBR[name] = String(meta.abbr);
         });
       }
       if (cfg.prestigeSeeds && typeof cfg.prestigeSeeds === 'object' && D.PRESTIGE_SEEDS) {
