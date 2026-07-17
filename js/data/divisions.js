@@ -1,21 +1,25 @@
 /*
  * Division layer — Update 2 (Part 13 foundation).
  *
- * Every rule that used to be a hard-coded Division I assumption lives here
+ * Every rule that used to be a hard-coded Division A assumption lives here
  * as data: scholarship limits, championship structure, recruiting scope,
  * budgets, NIL, and award counts. Schools carry a `division` key and every
  * engine resolves rules through XCD.data.divisionFor(school) instead of
- * assuming DI. Division II and III are fully specified but not yet
+ * assuming DI. Division B and C are fully specified but not yet
  * populated with schools — activating them is a data change (add schools
  * with division:'DII'/'DIII' + conferences), not an engine rewrite.
  */
 (function () {
   const D = window.XCD.data;
 
+  // Public division labels come from the World Database (worldData.js) — the
+  // single source of truth — so the fictional universe stays consistent.
+  const L = (D.WORLD && D.WORLD.DIVISION_LABELS) || { DI: 'Division A', DII: 'Division B', DIII: 'Division C' };
+
   D.DIVISIONS = {
     DI: {
       key: 'DI',
-      label: 'Division I',
+      label: L.DI,
       active: true,
       // Equivalency scholarship limits per gender (full-ride equivalents).
       scholarships: { M: 12.6, W: 18 },
@@ -39,8 +43,8 @@
     },
     DII: {
       key: 'DII',
-      label: 'Division II',
-      active: true, // Update 3: fully populated with real schools
+      label: L.DII,
+      active: true, // Update 3: fully populated
       scholarships: { M: 12.6, W: 12.6 },
       scholarshipModel: 'partial',
       nil: false,
@@ -62,8 +66,8 @@
     },
     DIII: {
       key: 'DIII',
-      label: 'Division III',
-      active: true, // Update 3: fully populated with real schools
+      label: L.DIII,
+      active: true, // Update 3: fully populated
       scholarships: { M: 0, W: 0 },
       scholarshipModel: 'none',
       nil: false,
@@ -97,7 +101,7 @@
   };
 
   /*
-   * Offer terminology (Update X, Part 3). Division III programs may NOT
+   * Offer terminology (Update X, Part 3). Division C programs may NOT
    * offer athletic scholarships — they offer roster spots. The recruiting
    * mechanics are identical; only the language changes, and it changes
    * EVERYWHERE an offer is referenced. DI/DII keep "scholarship" wording.

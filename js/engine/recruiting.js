@@ -292,7 +292,7 @@
     rec.potential = rng.int(96, 99);
     rec.peakOverall = rec.potential;
 
-    // Capable of contending for the NCAA title as a freshman.
+    // Capable of contending for the NXCA title as a freshman.
     const eliteStat = () => rng.gaussianRange(83, 3, 76, 92);
     ['vo2Max', 'lactateThreshold', 'runningEconomy', 'stamina', 'speed'].forEach((k) => { rec[k] = eliteStat(); });
     rec.workEthic = rng.int(88, 99);
@@ -339,7 +339,7 @@
 
       // Blue-chip floor (Update 5, Part 2): every recruiting class must carry
       // legitimate blue-chip talent so elite talent is continuously
-      // replenished and the average Division I runner stays as strong in
+      // replenished and the average Division A runner stays as strong in
       // Year 20 as in Year 1. If the natural roll produced too few genuine
       // blue-chippers, elevate the best near-misses into that tier.
       const BLUE_CHIP_FLOOR = 8;   // guaranteed elite prospects per gender
@@ -418,7 +418,7 @@
       // Division preference (Update 11): a real slice of the class — mostly
       // 2-3 stars, some 4s and 1s — actively prefers the DII/DIII experience
       // (small campuses, guaranteed racing, coaches who know their name) and
-      // will pick a strong lower-division program over a Division I bench.
+      // will pick a strong lower-division program over a Division A bench.
       // Discoverable through scouting via the 'small-school' motivation.
       pool.forEach((r) => {
         if (r.generational) return;
@@ -662,7 +662,7 @@
     fit += (school.academics - 55) * Math.max(0, division.academicEmphasis - 0.9) * 0.12;
 
     // Division preference (Update 11): some recruits genuinely want the
-    // DII/DIII experience and read a Division I offer as a bench sentence.
+    // DII/DIII experience and read a Division A offer as a bench sentence.
     // A strong lower-division program beats a blue blood for these kids.
     if (recruit.divisionPreference) {
       const divKey = school.division || 'DI';

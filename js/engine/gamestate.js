@@ -247,7 +247,7 @@
       };
     }
 
-    // Division I programs carry at most 14 athletes per squad; DII/DIII
+    // Division A programs carry at most 14 athletes per squad; DII/DIII
     // rosters are unlimited.
     static get DI_ROSTER_LIMIT() { return 14; }
 
@@ -314,10 +314,10 @@
         (this.season && this.week === this.season.nationalWeek ? this.season.nationalsMeetId : null) ||
         this.lastPlayerMeetId;
 
-      // Nike Cross Nationals runs the same week as NCAA Nationals (Update 5,
+      // High School Cross Nationals runs the same week as NXCA Nationals (Update 5,
       // Part 9): the high-school class crowns its champions, once per year.
       if (this.season && this.week === this.season.nationalWeek && !(this.season.nxn && this.season.nxn.year === this.year)) {
-        window.XCD.engine.Awards.runNXN(this, rng);
+        window.XCD.engine.Awards.runHSXN(this, rng);
       }
 
       // Training & development: every athlete in the world trains,
@@ -427,12 +427,12 @@
       //     progresses or regresses between seasons.
       window.XCD.engine.Training.offseasonDevelopment(this, rng);
 
-      // 2c) Division I roster limits (spec Part 2, Section 15): CPU programs
+      // 2c) Division A roster limits (spec Part 2, Section 15): CPU programs
       //     over 14 per squad make intelligent cuts; cut athletes move on
       //     through the portal to programs with room. The player's own cuts
       //     are a Week 1 checklist task, never automated.
       const trimmed = window.XCD.engine.Portal.trimRosters(this, rng);
-      if (trimmed) this.logNews(`Roster deadline: Division I programs trim to 14 per squad — ${trimmed} athletes move on.`);
+      if (trimmed) this.logNews(`Roster deadline: Division A programs trim to 14 per squad — ${trimmed} athletes move on.`);
 
       // 2d) A new season brings a fresh Week 1 administrative checklist.
       this.week1 = GameState.freshWeek1();
@@ -647,7 +647,7 @@
 
       // Tell the player when their dynasty was upgraded into the multi-division world.
       if (obj.__migratedDivisions) {
-        gs.logNews('🏛 Your dynasty has joined the new three-division NCAA: Division II and Division III programs now compete alongside you, with their own conferences, regionals, and championships. Your program, roster, and history carried over intact.');
+        gs.logNews('🏛 Your dynasty has joined the new three-division NXCA: Division B and Division C programs now compete alongside you, with their own conferences, regionals, and championships. Your program, roster, and history carried over intact.');
       }
       return gs;
     }
@@ -691,7 +691,7 @@
           Object.assign(obj.world.coaches, lower.coaches);
           Object.assign(obj.world.athletes, lower.athletes);
           obj.world.schoolOrder = (obj.world.schoolOrder || []).concat(lower.order);
-          obj.season = null;   // rebuild division-aware postseason + Pre-Nationals
+          obj.season = null;   // rebuild division-aware postseason + National Preview
           obj.rankings = null; // recompute per-division polls
           obj.__migratedDivisions = true;
         }

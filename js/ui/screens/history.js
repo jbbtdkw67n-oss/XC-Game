@@ -17,7 +17,7 @@
   const goatFilters = { query: '', division: '', gender: '', status: '' }; // Update 12: GOAT list filters
   let boardSub = 'programs';  // Leaderboards sub-page
   const boardFilters = { query: '', division: '', conference: '' };
-  const DIV_LABELS = { DI: 'D1', DII: 'D2', DIII: 'D3' };
+  const DIV_LABELS = window.XCD.data.DIVISION_SHORT || { DI: 'DA', DII: 'DB', DIII: 'DC' };
 
   // Map every conference to the division it belongs to (from the world).
   function confDivisions(game) {
@@ -366,11 +366,11 @@
         <h2>🐐 Greatest Programs of All Time</h2>
         <div style="color:var(--text-dim); font-size:12.5px; margin-bottom:8px;">
           Historical prestige: national championships and runner-up finishes lead, then top-25 seasons,
-          conference and regional titles, NCAA appearances, winning percentage, and longevity.
+          conference and regional titles, NXCA appearances, winning percentage, and longevity.
           Programs rise and fall throughout history.
         </div>
         ${rows.length ? `<div class="table-wrap"><table class="data">
-          <thead><tr><th>#</th><th>Program</th><th>Conference</th><th>Div</th><th class="num" title="National titles">NC</th><th class="num" title="National runner-up">RU</th><th class="num" title="Conference titles">Conf</th><th class="num" title="Top-25 final polls">Top25</th><th class="num" title="NCAA appearances">Apps</th><th class="num">Win%</th><th class="num">Legacy</th></tr></thead>
+          <thead><tr><th>#</th><th>Program</th><th>Conference</th><th>Div</th><th class="num" title="National titles">NC</th><th class="num" title="National runner-up">RU</th><th class="num" title="Conference titles">Conf</th><th class="num" title="Top-25 final polls">Top25</th><th class="num" title="NXCA appearances">Apps</th><th class="num">Win%</th><th class="num">Legacy</th></tr></thead>
           <tbody>
             ${rows.map((r, i) => `
               <tr class="clickable" data-gprog="${i}" ${r.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
@@ -586,7 +586,7 @@
 
   /*
    * Champions (Update 4, Part 5): national team + individual champions for
-   * D1/D2/D3, plus conference champions grouped by division → conference.
+   * DA/DB/DC, plus conference champions grouped by division → conference.
    * A division filter keeps the page readable; conference lists collapse.
    * Update 12: a year filter jumps straight to any season in history.
    */
@@ -684,7 +684,7 @@
   }
 
   /*
-   * Awards (Update 4, Part 6): national awards for D1/D2/D3 and conference
+   * Awards (Update 4, Part 6): national awards for DA/DB/DC and conference
    * awards for every conference. Division + year filters keep it browsable.
    */
   function awards(game, el) {
@@ -703,7 +703,7 @@
     const nameSpan = (x) => x ? `<span class="${x.athleteId ? 'clickable' : ''}" ${x.athleteId ? `data-ath="${x.athleteId}" data-ath-name="${Utils.escapeHtml(x.name)}" style="cursor:pointer; color:var(--accent-hover);"` : ''}>${Utils.escapeHtml(x.name)}</span> — ${Utils.escapeHtml(x.school)}` : '';
     const coachSpan = (x) => x ? `<span class="clickable" ${x.coachId ? `data-coach="${x.coachId}"` : 'data-coach=""'} data-coach-name="${Utils.escapeHtml(x.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(x.name)}</span> — ${Utils.escapeHtml(x.school)}` : '';
 
-    const body = !years.length ? '<div class="card" style="color:var(--text-dim);">Awards are handed out after each NCAA Championships.</div>'
+    const body = !years.length ? '<div class="card" style="color:var(--text-dim);">Awards are handed out after each NXCA Championships.</div>'
       : years.slice(0, 60).map((year) => {
         // Prefer the per-division slate; fall back to legacy top-level M/W.
         const slate = ((A[year].divisions || {})[awardDiv]) || (awardDiv === 'DI' ? A[year] : null);
@@ -714,10 +714,10 @@
           return `
             <h3 style="margin-top:10px;">${gender === 'M' ? 'Men' : 'Women'}</h3>
             ${g.runnerOfYear ? `<div class="attr-row"><span class="attr-name">Runner of the Year</span><span>${nameSpan(g.runnerOfYear)}</span></div>` : ''}
-            ${g.freshmanOfYear ? `<div class="attr-row"><span class="attr-name">Freshman of the Year</span><span>${nameSpan(g.freshmanOfYear)}</span></div>` : ''}
+            ${g.freshmanOfYear ? `<div class="attr-row"><span class="attr-name">Newcomer of the Year</span><span>${nameSpan(g.freshmanOfYear)}</span></div>` : ''}
             ${g.coachOfYear ? `<div class="attr-row"><span class="attr-name">Coach of the Year</span><span>${coachSpan(g.coachOfYear)}</span></div>` : ''}
             ${g.allAmericans && g.allAmericans.length ? `<div class="attr-row"><span class="attr-name">All-Americans</span><span style="font-size:12px; color:var(--text-dim);">${g.allAmericans.slice(0, 10).map((x) => `<span class="clickable" data-ath="${x.athleteId || ''}" data-ath-name="${Utils.escapeHtml(x.name)}" style="cursor:pointer;">${Utils.escapeHtml(x.name)}</span>`).join(', ')}${g.allAmericans.length > 10 ? '…' : ''}</span></div>` : ''}
-            ${g.academicAllAmericans && g.academicAllAmericans.length ? `<div class="attr-row"><span class="attr-name">Academic All-Americans</span><span style="font-size:12px; color:var(--text-dim);">${g.academicAllAmericans.slice(0, 5).map((x) => `<span class="clickable" data-ath="${x.athleteId || ''}" data-ath-name="${Utils.escapeHtml(x.name)}" style="cursor:pointer;">${Utils.escapeHtml(x.name)}</span>`).join(', ')}</span></div>` : ''}`;
+            ${g.academicAllAmericans && g.academicAllAmericans.length ? `<div class="attr-row"><span class="attr-name">Academic Elite Team members</span><span style="font-size:12px; color:var(--text-dim);">${g.academicAllAmericans.slice(0, 5).map((x) => `<span class="clickable" data-ath="${x.athleteId || ''}" data-ath-name="${Utils.escapeHtml(x.name)}" style="cursor:pointer;">${Utils.escapeHtml(x.name)}</span>`).join(', ')}</span></div>` : ''}`;
         };
 
         // Conference awards for every conference in this division.

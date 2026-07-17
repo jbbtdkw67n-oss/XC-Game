@@ -116,7 +116,10 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>${Utils.escapeHtml(school.name)}</h1>
+        <h1>${(() => {
+          const c = school.colors || ['#888', '#ccc'];
+          return `<span style="display:inline-block; width:12px; height:22px; border-radius:3px; background:linear-gradient(${c[0]} 50%, ${c[1]} 50%); vertical-align:-3px; margin-right:8px;"></span>`;
+        })()}${Utils.escapeHtml(school.name)}${school.mascot ? ` <span style="color:var(--text-dim); font-weight:500; font-size:0.7em;">${Utils.escapeHtml(school.mascot)}</span>` : ''}</h1>
         <div class="actions">
           <div class="pill-tabs">
             <button data-stab="overview" class="${activeTab === 'overview' ? 'active' : ''}">Overview</button>
@@ -190,7 +193,7 @@
       <div class="grid cols-4" style="margin-bottom:16px;">
         <div class="stat-tile"><div class="label">All-Time Record</div><div class="value">${prog.wins}-${prog.losses}</div><div class="sub">${winPct}% winning pct</div></div>
         <div class="stat-tile"><div class="label">National Titles</div><div class="value">${prog.natTitles}</div><div class="sub">${prog.natRunnerUp || 0} runner-up</div></div>
-        <div class="stat-tile"><div class="label">Best NCAA Finish</div><div class="value">${prog.bestFinish ? Utils.ordinal(prog.bestFinish) : '—'}</div><div class="sub">${prog.podiums} podiums</div></div>
+        <div class="stat-tile"><div class="label">Best NXCA Finish</div><div class="value">${prog.bestFinish ? Utils.ordinal(prog.bestFinish) : '—'}</div><div class="sub">${prog.podiums} podiums</div></div>
         <div class="stat-tile"><div class="label">Highest Ranking</div><div class="value">${prog.highestRank ? '#' + prog.highestRank : '—'}</div><div class="sub">prestige ${trendStr}</div></div>
       </div>
 
@@ -334,8 +337,8 @@
           <h2>Program Records</h2>
           ${rec('Most Wins (all-time)', prog.wins || 0)}
           ${rec('Highest Winning Percentage', `${winPct}%`, `${prog.wins}-${prog.losses} all-time`)}
-          ${rec('Most NCAA Appearances', prog.ncaaAppearances || 0)}
-          ${rec('Longest NCAA Appearance Streak', prog.ncaaStreakBest ? `${prog.ncaaStreakBest} yr${prog.ncaaStreakBest > 1 ? 's' : ''}` : '—')}
+          ${rec('Most NXCA Appearances', prog.ncaaAppearances || 0)}
+          ${rec('Longest NXCA Appearance Streak', prog.ncaaStreakBest ? `${prog.ncaaStreakBest} yr${prog.ncaaStreakBest > 1 ? 's' : ''}` : '—')}
           ${rec('Most All-Americans', prog.allAmericans || 0)}
           ${rec('Most All-Conference Athletes', prog.allConference || 0)}
           ${rec('Highest Ranked Finish', prog.highestRank ? `#${prog.highestRank}` : '—')}

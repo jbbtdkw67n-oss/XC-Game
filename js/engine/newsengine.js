@@ -82,23 +82,23 @@
     const season = gameState.season;
     const week = gameState.week;
 
-    // Pre-Nationals preview (Update 3): the marquee DI regular-season meet.
+    // National Preview preview (Update 3): the marquee DI regular-season meet.
     const pn = season.preNationals;
     if (pn && week === pn.week - 1 && pn.accepted && pn.accepted.length) {
       const favs = (gameState.rankings.M || [])
         .filter((r) => pn.accepted.includes(r.schoolId))
         .slice(0, 3).map((r) => r.name);
-      gameState.logNews(`📰 PRE-NATIONALS PREVIEW: ${pn.accepted.length} Division I programs race the NCAA Championship course next week. ${favs.length ? favs.join(', ') + ' headline the field.' : ''} Results will reshape the national title picture.`);
+      gameState.logNews(`📰 NATIONAL PREVIEW PREVIEW: ${pn.accepted.length} Division A programs race the NXCA Championship course next week. ${favs.length ? favs.join(', ') + ' headline the field.' : ''} Results will reshape the national title picture.`);
     }
 
     if (week === season.conferenceWeek - 1) {
       gameState.logNews(`Championship season begins: conference titles are decided next week.`);
     } else if (week === season.regionalWeek - 1) {
-      gameState.logNews(`Regionals next week — the top 2 teams in each region punch automatic tickets to the NCAA Championships.`);
+      gameState.logNews(`Regionals next week — the top 2 teams in each region punch automatic tickets to the NXCA Championships.`);
     } else if (week === season.nationalWeek - 1) {
       const favM = gameState.rankings.M[0];
       const favW = gameState.rankings.W[0];
-      gameState.logNews(`NCAA CHAMPIONSHIP PREVIEW: ${favM ? favM.name : '?'} leads the men's field; ${favW ? favW.name : '?'} is the women's favorite.`);
+      gameState.logNews(`NXCA CHAMPIONSHIP PREVIEW: ${favM ? favM.name : '?'} leads the men's field; ${favW ? favW.name : '?'} is the women's favorite.`);
     }
   }
 

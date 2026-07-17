@@ -10,7 +10,7 @@
       <div id="menu-root">
         <div class="menu-panel">
           <h1>Cross Country <span>Dynasty</span></h1>
-          <p class="tagline">Build a small program into the greatest dynasty in NCAA history.</p>
+          <p class="tagline">Build a small program into the greatest dynasty in NXCA history.</p>
           <div class="menu-buttons">
             <button class="btn primary" id="btn-new">🏁 New Dynasty</button>
             <button class="btn" id="btn-load">💾 Load Dynasty</button>
@@ -67,7 +67,7 @@
     let selectedId = null;
     let divFilter = 'DI'; // most players start in the division they know
 
-    const DIV_TABS = [['DI', 'Division I'], ['DII', 'Division II'], ['DIII', 'Division III']]
+    const DIV_TABS = [['DI', 'Division A'], ['DII', 'Division B'], ['DIII', 'Division C']]
       .filter(([k]) => D.divisionFor(k).active);
 
     root.innerHTML = `

@@ -20,15 +20,15 @@
   // Conference metadata: prestige tier drives starting budget/facilities/talent baseline.
   // tier 1 = Power conferences, tier 2 = strong mid-major, tier 3 = mid-major, tier 4 = low-major
   D.CONFERENCES = {
-    'ACC': { tier: 1 }, 'Big Ten': { tier: 1 }, 'Big 12': { tier: 1 }, 'SEC': { tier: 1 },
-    'Big East': { tier: 2 }, 'American': { tier: 2 }, 'Mountain West': { tier: 2 }, 'Atlantic 10': { tier: 2 },
-    'West Coast': { tier: 2 }, 'Ivy League': { tier: 2 },
-    'Sun Belt': { tier: 3 }, 'Conference USA': { tier: 3 }, 'MAC': { tier: 3 }, 'CAA': { tier: 3 },
-    'Patriot League': { tier: 3 }, 'Missouri Valley': { tier: 3 }, 'Southern': { tier: 3 }, 'Big Sky': { tier: 3 },
-    'WAC': { tier: 3 }, 'Big West': { tier: 3 },
-    'ASUN': { tier: 4 }, 'Big South': { tier: 4 }, 'Southland': { tier: 4 }, 'MEAC': { tier: 4 },
-    'SWAC': { tier: 4 }, 'Horizon': { tier: 4 }, 'Summit League': { tier: 4 }, 'America East': { tier: 4 },
-    'MAAC': { tier: 4 }, 'NEC': { tier: 4 }, 'OVC': { tier: 4 }, 'Independent': { tier: 4 }
+    'Atlantic Alliance Conference': { tier: 1 }, 'Heartland Ten Conference': { tier: 1 }, 'Large 12 Conference': { tier: 1 }, 'Southern Premier Conference': { tier: 1 },
+    'Empire Athletic Conference': { tier: 2 }, 'National Metro Conference': { tier: 2 }, 'Western Peaks Conference': { tier: 2 }, 'Seaboard Ten Conference': { tier: 2 },
+    'Pacific Shores Conference': { tier: 2 }, 'Ancient Oaks League': { tier: 2 },
+    'Southern Horizon Conference': { tier: 3 }, 'Continental Conference': { tier: 3 }, 'Great Lakes Conference': { tier: 3 }, 'Tidewater Conference': { tier: 3 },
+    'Liberty Conference': { tier: 3 }, 'Central Valley Conference': { tier: 3 }, 'Blue Ridge Conference': { tier: 3 }, 'Great Sky Conference': { tier: 3 },
+    'Desert West Conference': { tier: 3 }, 'Golden Coast Conference': { tier: 3 },
+    'Azalea Conference': { tier: 4 }, 'Piedmont Conference': { tier: 4 }, 'Frontier South Conference': { tier: 4 }, 'Chesapeake Heritage Conference': { tier: 4 },
+    'Magnolia Heritage Conference': { tier: 4 }, 'Lakeland Metro Conference': { tier: 4 }, 'High Plains Conference': { tier: 4 }, 'Northern Coast Conference': { tier: 4 },
+    'Hudson Valley Conference': { tier: 4 }, 'Northern Frontier Conference': { tier: 4 }, 'River Valley Conference': { tier: 4 }, 'Independent': { tier: 4 }
   };
 
   /*
@@ -44,24 +44,23 @@
    * from it, and the prestige engine uses `heritage` as slow-decaying gravity).
    */
   D.PRESTIGE_SEEDS = {
-    // Division I blue bloods of distance running
-    'Northern Arizona': 96, 'Oklahoma State': 92, 'BYU': 92, 'Stanford': 90,
-    'Oregon': 90, 'Colorado': 90, 'Washington': 86, 'Wisconsin': 85,
-    'Arkansas': 86, 'Notre Dame': 84, 'Syracuse': 83, 'Iowa State': 83,
-    'New Mexico': 82, 'Providence': 81, 'Michigan': 82, 'Georgetown': 81,
-    'Portland': 80, 'Villanova': 82, 'North Carolina State': 80, 'NC State': 80,
-    'Alabama': 80, 'Texas': 79, 'Ole Miss': 80, 'Furman': 78,
-    // Division II powers
-    'Adams State': 63, 'Colorado Mines': 62, 'Grand Valley State': 62,
-    'Western Colorado': 58, 'Chico State': 57, 'Augustana (SD)': 56,
-    'Colorado Christian': 55, 'Simon Fraser': 55, 'U-Mary': 55,
-    'Grand Canyon': 54, 'Cal Poly Pomona': 53,
-    // Division III powers
-    'North Central (IL)': 53, 'UW-La Crosse': 52, 'UW-Oshkosh': 51,
-    'Williams': 51, 'MIT': 50, 'Carleton': 50, 'Johns Hopkins': 50,
-    'Washington U. (MO)': 50, 'Middlebury': 49, 'Wheaton (IL)': 49,
-    'Calvin': 49, 'St. Olaf': 48, 'Amherst': 48, 'Pomona': 48,
-    'Haverford': 47, 'RPI': 46
+    // Division A blue bloods of distance running (fictional)
+    'Flagstaff': 96, 'Stillwater State': 92, 'Provo Summit': 92, 'Palo Alto': 90,
+    'Eugene': 90, 'Boulder': 90, 'Rainier': 86, 'Madison': 85,
+    'Ozark': 86, 'South Bend': 84, 'Salt City': 83, 'Ames State': 83,
+    'Sandia': 82, 'Narragansett': 81, 'Ann Arbor': 82, 'Anacostia': 81,
+    'Rose City': 80, 'Main Line': 82, 'Piedmont State': 80, 'Tuscaloosa': 80,
+    'Austin Plains': 79, 'Oxford Delta': 80, 'Greenville Falls': 78,
+    // Division B powers
+    'Underhill State': 63, 'Kirkwall Tech': 62, 'Falconry State': 62,
+    'Western Everglen': 58, 'Crestmoor State': 57, 'Harrowgate Harbor': 56,
+    'Glenrock Bethany': 55, 'Marshview Harbor': 55, 'Eelgrass': 54, 'Modoc': 53,
+    // Division C powers
+    'North Thornwood': 53, 'Baraboo': 52, 'Chequamegon': 51,
+    'Eastvale Grove': 51, 'Cedar Grove': 50, 'Vesper Grove': 50, 'Antietam': 50,
+    'Gasconade': 50, 'Mad River': 49, 'Sangamon': 49,
+    'Ambergate Harbor': 49, 'Ivywood Chapel': 48, 'Merrimac': 48,
+    'Slate Ridge': 47, 'Tallgrass Bend': 46
   };
 
   D.CLASS_YEARS = ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate'];
@@ -90,17 +89,17 @@
   ];
 
   // Alma-mater pool (Update 6, Phase 3): where a coach ran in college. Flavor
-  // shown on the coach profile card — a mix of storied distance programs
-  // across all three divisions.
+  // shown on the coach profile card — a mix of storied (fictional) distance
+  // programs across all three divisions, drawn from the World Database roster.
   D.ALMA_MATERS = [
-    'Oregon', 'Stanford', 'Colorado', 'Northern Arizona', 'Oklahoma State',
-    'BYU', 'Wisconsin', 'Arkansas', 'Villanova', 'Georgetown', 'Michigan',
-    'Notre Dame', 'Iona', 'Portland', 'Washington', 'Syracuse', 'Indiana',
-    'Providence', 'Colorado State', 'New Mexico', 'Furman', 'Butler', 'Tulsa',
-    'Adams State', 'Western Colorado', 'Grand Valley State', 'Colorado Mines',
-    'Chico State', 'Augustana', 'North Central', 'UW–La Crosse', 'MIT',
-    'Williams', 'Middlebury', 'Carleton', 'Pomona-Pitzer', 'SUNY Geneseo',
-    'Wartburg', 'Calvin', 'Haverford', 'Amherst', 'Johns Hopkins', 'Tufts'
+    'Eugene', 'Palo Alto', 'Boulder', 'Flagstaff', 'Stillwater State',
+    'Provo Summit', 'Madison', 'Ozark', 'Main Line', 'Anacostia', 'Ann Arbor',
+    'South Bend', 'Rose City', 'Rainier', 'Salt City', 'Narragansett',
+    'Sandia', 'Greenville Falls', 'Austin Plains',
+    'Underhill State', 'Western Everglen', 'Kirkwall Tech', 'Falconry State',
+    'Crestmoor State', 'Modoc', 'North Thornwood', 'Chequamegon', 'Baraboo',
+    'Cedar Grove', 'Mad River', 'Vesper Grove', 'Merrimac', 'Ivywood Chapel',
+    'Antietam', 'Sangamon', 'Slate Ridge'
   ];
 
   /*
@@ -209,8 +208,9 @@
       D.RACE_PHILOSOPHIES.find((p) => p.key === 'even');
   };
 
-  // Short division tags for accolade labels (DI → D1, etc.).
-  D.DIVISION_SHORT = { DI: 'D1', DII: 'D2', DIII: 'D3' };
+  // Short division tags for accolade labels (DI → DA, etc.). Sourced from the
+  // World Database (worldData.js) so labels live in exactly one place.
+  D.DIVISION_SHORT = (D.WORLD && D.WORLD.DIVISION_SHORT) || { DI: 'DA', DII: 'DB', DIII: 'DC' };
 
   D.ATHLETE_PERSONALITIES = [
     'Grinder', 'Confident', 'Laid Back', 'Fiery Competitor', 'Team-First', 'Individualist',
@@ -447,8 +447,8 @@
    *   Wk 4-12  Regular Season (9 weeks): meets at 4/6/8/10/12 with one
    *            bye week between every meet
    *   Wk 13    Conference Championships   ┐
-   *   Wk 14    NCAA Regionals             ├ no bye weeks between rounds
-   *   Wk 15    NCAA Nationals             ┘
+   *   Wk 14    NXCA Regionals             ├ no bye weeks between rounds
+   *   Wk 15    NXCA Nationals             ┘
    *   Wk 16-21 Offseason (6 weeks): awards, portal, signing day
    * ------------------------------------------------------------------ */
   D.CALENDAR = {
@@ -470,25 +470,26 @@
    * `weight` = extra poll credit for racing (and beating) the best.
    */
   D.ELITE_MEETS = [
-    { week: 6,  name: 'Joe Piane Invitational',  size: 28, weight: 1.2 },
-    { week: 6,  name: 'Roy Griak Invitational',  size: 28, weight: 1.15 },
-    { week: 8,  name: 'Nuttycombe Invitational', size: 34, weight: 1.3 },
-    { week: 8,  name: 'Wisconsin Invitational',  size: 34, weight: 1.2 },
-    // Pre-Nationals (Update 3): a Division I-only elite invitational late in
-    // the regular season, contested on the NCAA DI Championship course. Built
+    { week: 6,  name: 'Prairie Gold Invitational', size: 28, weight: 1.2 },
+    { week: 6,  name: 'Northland Classic',         size: 28, weight: 1.15 },
+    { week: 8,  name: 'Honey Badger Invite',       size: 34, weight: 1.3 },
+    { week: 8,  name: 'Northwoods Invitational',   size: 34, weight: 1.2 },
+    // National Preview (Update 3): a Division A-only elite invitational late in
+    // the regular season, contested on the NXCA Championship course. Built
     // specially by the race engine (invite/decline, course familiarity) — not
     // through the generic prestige-field path, so it carries no `size` here.
-    { week: 10, name: 'Pre-Nationals', preNationals: true, weight: 1.45 }
+    { week: 10, name: 'National Preview Invitational', preNationals: true, weight: 1.45 }
   ];
 
   /*
-   * Pre-Nationals Invitational (Update 3). Division I only. Racing it earns a
-   * small, non-decisive familiarity edge on the same course at NCAA Nationals.
+   * National Preview Invitational (Update 3). Division A only. Racing it earns
+   * a small, non-decisive familiarity edge on the same course at the NXCA
+   * National Championship.
    */
   D.PRE_NATIONALS = {
-    name: 'Pre-Nationals Invitational',
+    name: 'National Preview Invitational',
     week: 10,                 // 3 weeks before conference (wk 13)
-    fieldSize: 40,            // invited DI programs (before declines)
+    fieldSize: 40,            // invited Division A programs (before declines)
     atLargeSlots: 6,          // rising mid-majors having exceptional seasons
     familiarityBonus: 0.004,  // ~0.4% faster at Nationals on the same course
     pollWeight: 1.45          // one of the most influential regular-season meets

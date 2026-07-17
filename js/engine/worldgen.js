@@ -8,11 +8,13 @@
   const M = window.XCD.models;
   const Utils = window.XCD.core.Utils;
 
+  // Programs known for elite academics (fictional). A recruiting bonus lands
+  // on these campuses. Kept in sync with the World Database school roster.
   const ELITE_ACADEMICS = new Set([
-    'Stanford','Duke','Notre Dame','Georgetown','Vanderbilt','Rice','Northwestern','Boston College',
-    'Brown','Columbia','Cornell','Dartmouth','Harvard','Penn','Princeton','Yale','UCLA','USC',
-    'Virginia','Michigan','California','William & Mary','Richmond','Villanova','Bucknell','Lehigh',
-    'Lafayette','Colgate','Fordham','Wake Forest','Davidson'
+    'Palo Alto','Brookfield','South Bend','Anacostia','Oxbow','Waterloo','Quintel','Pinehollow College',
+    'Quailridge','Yandell','Moorcroft','Penrith','Ivywood','Oakhaven','Redfern','Frostpine','Salinas',
+    'Heron','Yarrow','Ann Arbor','Granite','Junction','Clearwater','Main Line','Timberline','Orchardton',
+    'Larkspur','Merriweather','Thornbury','Riverton','Fernwood'
   ]);
 
   const MOUNTAIN_STATES = new Set(['CO','UT','WY','MT','ID','NM','AZ']);
@@ -40,7 +42,7 @@
         default: return [20, 40];
       }
     }
-    switch (tier) { // Division I
+    switch (tier) { // Division A
       case 1: return [62, 92];
       case 2: return [48, 76];
       case 3: return [34, 64];
@@ -49,7 +51,7 @@
   }
 
   function buildSchool(rng, raw, division = 'DI') {
-    const [name, state, conference] = raw;
+    const [name, state, conference, mascot, primary, secondary] = raw;
     const region = D.STATE_REGION[state] || 'Midwest';
     const tier = (D.CONFERENCES[conference] || { tier: 3 }).tier;
     const [pMin, pMax] = tierPrestigeRange(tier, division);
@@ -119,6 +121,8 @@
     return new M.School({
       name, state, region, conference, conferenceTier: tier,
       division,
+      mascot: mascot || (D.WORLD && D.WORLD.mascotFor(name)),
+      colors: (primary && secondary) ? [primary, secondary] : (D.WORLD && D.WORLD.paletteFor(name)),
       prestige, heritage, academics, campusAppeal, facilities, budget,
       weather: { tempBase: weatherProfile.tempBase + rng.int(-4, 4), altitude, humidity: weatherProfile.humidity },
       historicalSuccess
@@ -400,7 +404,7 @@
   }
 
   /*
-   * Build only the Division II and III worlds (Update 3 save migration):
+   * Build only the Division B and C worlds (Update 3 save migration):
    * existing DI-only dynasties gain the lower divisions so all three
    * coexist. Returns plain maps to merge into an existing world.
    */

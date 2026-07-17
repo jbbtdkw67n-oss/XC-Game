@@ -4,7 +4,7 @@
  * Redshirts: true redshirts (chosen preseason) and medical redshirts
  * (granted after season-ending injuries). Redshirted runners don't race,
  * keep the year of eligibility, and stay in their athletic class — all
- * bounded by the NCAA five-year clock (yearsOnCampus).
+ * bounded by the NXCA five-year clock (yearsOnCampus).
  *
  * Portal: after nationals, unhappy athletes enter the portal with real
  * reasons (playing time, coach change, homesickness, prestige, facilities,
@@ -19,7 +19,7 @@
   const ENTRY_WEEK = CAL.NATIONAL_WEEK + 1;   // the week after nationals
   const DECISION_WEEK = CAL.WEEKS_PER_YEAR - 1; // portal closes before rollover
   // Summer window (Update 11): the portal reopens across Summer Training
-  // (weeks 1-3) EXCLUSIVELY for DII/DIII programs, stocked with Division I
+  // (weeks 1-3) EXCLUSIVELY for DII/DIII programs, stocked with Division A
   // roster cuts — a realistic second recruiting window.
   const SUMMER_FINAL_WEEK = CAL.SUMMER_WEEKS;
   const SEASON_END_WEEK = CAL.NATIONAL_WEEK;
@@ -487,8 +487,8 @@
     const profiles = [];
     Object.values(gameState.world.schools).forEach((school) => {
       if (school.id === gameState.playerSchoolId) return; // the player pursues manually
-      // The summer window is EXCLUSIVE to Division II and III (Update 11):
-      // the programs a Division I cut can actually continue a career at.
+      // The summer window is EXCLUSIVE to Division B and C (Update 11):
+      // the programs a Division A cut can actually continue a career at.
       if (summer && (school.division || 'DI') === 'DI') return;
       const coach = gameState.getCoach(school.coachId);
       const per = {};
@@ -555,7 +555,7 @@
 
     // Summer window (Update 11): lower divisions aggressively evaluate every
     // available cut, and a roster full of walk-ons is the loudest shortage —
-    // a proven Division I body upgrades it immediately.
+    // a proven Division A body upgrades it immediately.
     let summerBoost = 0;
     if (summer) {
       summerBoost = 8 + Math.min(12, (need.walkOns || 0) * 3);
@@ -671,7 +671,7 @@
     if (!portal || !portal.open) return { ok: false, message: 'The portal is closed.' };
     // The summer window is a DII/DIII-only market (Update 11).
     if (portal.summer && (gameState.getPlayerSchool().division || 'DI') === 'DI') {
-      return { ok: false, message: 'The summer window is exclusive to Division II and III programs.' };
+      return { ok: false, message: 'The summer window is exclusive to Division B and C programs.' };
     }
     const entry = portal.entries.find((e) => e.athleteId === athleteId);
     if (!entry) return { ok: false, message: 'Not in the portal.' };
@@ -740,7 +740,7 @@
    * The summer transfer window (Update 11)
    * ================================================================ */
   /*
-   * Opened at the year rollover, stocked with every Division I roster cut
+   * Opened at the year rollover, stocked with every Division A roster cut
    * (scholarship athletes and walk-ons alike). Runs through Summer Training
    * weeks 1-3, exclusively for DII/DIII programs — the AI market reuses the
    * standard offer/pursuit machinery with the summer rules, a DII/DIII
@@ -760,7 +760,7 @@
     }));
     gameState.portal = { year: gameState.year, entries, open: true, summer: true };
     const impact = cuts.filter(({ athlete }) => athlete.currentOverall >= 55).length;
-    gameState.logNews(`☀️ SUMMER WINDOW: the transfer portal reopens for Division II and III — ${entries.length} Division I roster cuts hit the market${impact ? ` (${impact} rated 55+ overall)` : ''}.`);
+    gameState.logNews(`☀️ SUMMER WINDOW: the transfer portal reopens for Division B and C — ${entries.length} Division A roster cuts hit the market${impact ? ` (${impact} rated 55+ overall)` : ''}.`);
   }
 
   // Move a summer transfer onto their new roster immediately — it's the
@@ -781,7 +781,7 @@
     a.fatigue = Utils.clamp(Math.min(a.fatigue, rng.int(6, 22)), 0, 100);
     a.sharpness = Utils.clamp(Math.round(rng.int(45, 68)), 0, 100);
 
-    // Landing a proven Division I body is a real résumé line for a DII/DIII
+    // Landing a proven Division A body is a real résumé line for a DII/DIII
     // staff — this is exactly how a small-school recruiter builds a name.
     if (a.currentOverall >= 62) {
       const head = gameState.getCoach(to.coachId);
@@ -926,7 +926,7 @@
   }
 
   /* ================================================================ *
-   * Division I roster limits (spec Part 2, Section 15)
+   * Division A roster limits (spec Part 2, Section 15)
    * ================================================================ */
   const DI_ROSTER_LIMIT = 14;
 
@@ -983,7 +983,7 @@
     if (!school || school.id !== gameState.playerSchoolId) return { ok: false, message: 'Not on your roster.' };
     if (gameState.isAssistant && gameState.isAssistant()) return { ok: false, message: 'Roster cuts are a head-coach call.' };
     if (gameState.week !== 1) return { ok: false, message: 'Roster moves happen during the Week 1 administrative phase.' };
-    if ((school.division || 'DI') !== 'DI') return { ok: false, message: 'Only Division I enforces the 14-athlete limit — your roster is unlimited.' };
+    if ((school.division || 'DI') !== 'DI') return { ok: false, message: 'Only Division A enforces the 14-athlete limit — your roster is unlimited.' };
     const key = a.gender === 'M' ? 'rosterM' : 'rosterW';
     if (school[key].length <= DI_ROSTER_LIMIT) {
       return { ok: false, message: `That squad is at or under the ${DI_ROSTER_LIMIT}-athlete limit — no cuts required.` };
@@ -1013,7 +1013,7 @@
   }
 
   /*
-   * CPU cut day (runs at the rollover, before walk-ons): every Division I
+   * CPU cut day (runs at the rollover, before walk-ons): every Division A
    * program over the limit keeps its most valuable 14 per squad and moves
    * the rest on. The player's own cuts are a Week 1 task, never automated
    * — unless an AI head coach runs the program (player is the assistant).
@@ -1052,7 +1052,7 @@
     if (week === CAL.SUMMER_WEEKS) aiRedshirts(gameState, rng); // decided before racing starts
     medicalRedshirtScan(gameState);
 
-    // The summer window (Update 11): DII/DIII pursue Division I roster cuts
+    // The summer window (Update 11): DII/DIII pursue Division A roster cuts
     // across Summer Training, everything resolved before the racing starts.
     if (gameState.portal && gameState.portal.summer) {
       if (week <= SUMMER_FINAL_WEEK) {

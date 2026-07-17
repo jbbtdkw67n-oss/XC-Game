@@ -127,7 +127,7 @@
         // program's name that season, realignment-safe); Coach-of-the-Year
         // awards come from the permanent coach accolade ledger.
         const H = game ? (game.history || {}) : {};
-        const short = { DI: 'D1', DII: 'D2', DIII: 'D3' };
+        const short = D.DIVISION_SHORT || { DI: 'DA', DII: 'DB', DIII: 'DC' };
         const groups = [
           { label: 'National', rows: [] },
           { label: 'Regional', rows: [] },
@@ -142,7 +142,7 @@
               ['M', 'W'].forEach((g) => {
                 const key = (st.division || 'DI') === 'DI' ? g : `${st.division}-${g}`;
                 if (nat[key] && nat[key].teamId === st.schoolId) {
-                  groups[0].rows.push({ year: y, html: `🏆 ${y} NCAA ${short[st.division || 'DI'] || ''} Team National Champions (${g === 'M' ? "Men's" : "Women's"})` });
+                  groups[0].rows.push({ year: y, html: `🏆 ${y} NXCA ${short[st.division || 'DI'] || ''} Team National Champions (${g === 'M' ? "Men's" : "Women's"})` });
                 }
               });
               Object.entries((H.regionalChampions || {})[y] || {}).forEach(([rkey, name]) => {

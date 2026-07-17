@@ -56,7 +56,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   [4, 6, 8, 10, 12, 13, 14, 15].forEach((w) => { if (!s[w]) errors.push(`No meets scheduled week ${w}`); });
   [1, 2, 3, 5, 7, 9, 11, 16, 17, 18, 19, 20, 21].forEach((w) => { if (s[w]) errors.push(`Unexpected meets week ${w}`); });
   if (structure.elite.length < 5) errors.push('Elite invitationals missing: ' + JSON.stringify(structure.elite));
-  if (!structure.elite.includes('Nuttycombe Invitational')) errors.push('No Nuttycombe on the calendar');
+  if (!structure.elite.includes('Honey Badger Invite')) errors.push('No Honey Badger Invite on the calendar');
 
   // Nationals results exist?
   const nats = await page.evaluate(() => {

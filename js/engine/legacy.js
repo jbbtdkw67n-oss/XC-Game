@@ -65,10 +65,10 @@
    * overwritten. Honors from different divisions/conferences (via transfers
    * or realignment) all coexist, forming a complete career record.
    */
-  const DIV_SHORT = () => window.XCD.data.DIVISION_SHORT || { DI: 'D1', DII: 'D2', DIII: 'D3' };
+  const DIV_SHORT = () => window.XCD.data.DIVISION_SHORT || { DI: 'DA', DII: 'DB', DIII: 'DC' };
 
-  // Human-readable one-line label, e.g. "2029 SEC First Team All-Conference"
-  // or "2030 D3 Team National Champion".
+  // Human-readable one-line label, e.g. "2029 Southern Premier Conference First Team All-Conference"
+  // or "2030 DC Team National Champion".
   Legacy.accoladeLabel = function (acc) {
     const div = (DIV_SHORT())[acc.division] || acc.division || '';
     const parts = [acc.year];
@@ -135,10 +135,10 @@
       ['regChamp', '🗺', 'Regional Champion'],
       ['confChamp', '🥇', 'Conference Champion'],
       ['allConference', '🏅', 'All-Conference'],
-      // Nike Cross Nationals prep honors (Update 5, Part 9) — permanent, and
+      // High School Cross Nationals prep honors (Update 5, Part 9) — permanent, and
       // carried into college when the recruit enrolls.
-      ['nxnChampion', '👟', 'NXN Champion'],
-      ['nxnAllAmerican', '🎽', 'NXN All-American'],
+      ['nxnChampion', '👟', 'HSXN Champion'],
+      ['nxnAllAmerican', '🎽', 'HSXN All-American'],
       // High-school state titles (Section 16) — permanent prep history.
       ['hsStateChamp', '🏵', 'HS State Champion']
     ];
@@ -339,7 +339,7 @@
   /* ---------------- Season ledgers (Update 12) ------------------------ *
    * Runs once per year at awards week, when the final polls are in. Stamps
    * every program (and its coach) with the season's permanent footprint:
-   * seasons played, final top-25 finishes, and NCAA-appearance streaks —
+   * seasons played, final top-25 finishes, and NXCA-appearance streaks —
    * the raw material of the GOAT lists and legacy leaderboards.
    */
   Legacy.recordSeasonLedgers = function (gameState) {

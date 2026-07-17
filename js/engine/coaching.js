@@ -43,7 +43,7 @@
    */
   function updateReputation(gameState, coach, school, rng) {
     const year = gameState.year - 1; // the season that just ended
-    // Judge a coach against their own division's field, not the whole NCAA.
+    // Judge a coach against their own division's field, not the whole NXCA.
     const total = divisionSize(gameState, school.division);
     const rank = bestRank(gameState, school.id);
     let delta = 0;

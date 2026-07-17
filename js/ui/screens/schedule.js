@@ -218,11 +218,11 @@
     }
 
     // Week 1 Administrative Phase (spec Part 2, Section 15): the schedule —
-    // including the Pre-Nationals answer — is set during Week 1 and then
+    // including the National Preview answer — is set during Week 1 and then
     // finalized for the season. After that, only the finalized table shows.
     const locked = game.scheduleLocked ? game.scheduleLocked() : game.week > 1;
 
-    // Pre-Nationals invitation (Update 3): accept for the course preview and
+    // National Preview invitation (Update 3): accept for the course preview and
     // ranking boost, or decline to rest / stay in a training block.
     let preNatsHtml = '';
     const pn = season.preNationals;
@@ -232,9 +232,9 @@
         : `<span style="color:var(--warning); font-weight:700;">Declined — resting that week</span>`;
       preNatsHtml = `
         <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent);">
-          <h2>✉️ Pre-Nationals Invitation — Week ${pn.week}</h2>
+          <h2>✉️ National Preview Invitation — Week ${pn.week}</h2>
           <div style="color:var(--text-dim); font-size:13px; margin-bottom:10px;">
-            A Division I-only elite invitational on the NCAA Championship course. Accepting previews the terrain
+            A Division A-only elite invitational on the NXCA Championship course. Accepting previews the terrain
             (a small familiarity edge at Nationals) and — with a strong run — boosts your national ranking, prestige,
             and recruiting visibility. Declining rests your athletes and protects a high-mileage block.
           </div>
@@ -283,7 +283,7 @@
                 </div>
               </div>`).join('')}
             <div style="border-top:1px solid var(--border); padding-top:10px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
-              <span style="color:var(--text-dim); font-size:12.5px;">Happy with the slate${pn && pn.playerInvited ? ' (and your Pre-Nationals answer)' : ''}? Finalizing locks it for the whole season.</span>
+              <span style="color:var(--text-dim); font-size:12.5px;">Happy with the slate${pn && pn.playerInvited ? ' (and your National Preview answer)' : ''}? Finalizing locks it for the whole season.</span>
               <button class="btn primary" id="btn-finalize-schedule">🔒 Finalize Schedule</button>
             </div>
           </div>`;

@@ -97,7 +97,7 @@
         // fresh start at the program they chose.
         transferGraceYear: null,
         eligibilityRemaining: 4,
-        yearsOnCampus: 1,  // NCAA five-year clock
+        yearsOnCampus: 1,  // NXCA five-year clock
         seasonRaces: 0,    // races run this season (blocks redshirting)
         honors: { allAmerican: 0, natChamp: 0, confChamp: 0, awards: [] },
         // Permanent award badges by year (Part 10): survive graduation via
@@ -398,7 +398,14 @@
         region: '',
         conference: '',
         conferenceTier: 3,
-        division: 'DI', // NCAA division key into XCD.data.DIVISIONS
+        division: 'DI', // internal division key into XCD.data.DIVISIONS (label via WORLD.divisionLabel)
+
+        // Identity (fictional universe): team nickname/mascot and the two-color
+        // palette used on the program's cards. Both are original and legally
+        // distinct. Defaults are filled from the World Database for any program
+        // that doesn't carry its own (old saves, custom-world walk-ons).
+        mascot: '',
+        colors: null, // [primaryHex, secondaryHex]
 
         prestige: 50, // 0-100 program prestige — dynamic, rises and falls yearly
         prestigeHistory: [], // [{year, prestige}] recent trajectory (last 30)
@@ -475,6 +482,15 @@
         this.scholarshipsAvailableM = div.scholarships.M;
         this.scholarshipsAvailableW = div.scholarships.W;
       }
+
+      // Backfill team identity from the World Database for any program that
+      // arrived without one (pre-mascot saves, custom-world programs). Seeded
+      // by name so it's stable across reloads.
+      const WORLD = window.XCD.data.WORLD;
+      if (WORLD && (!this.mascot || !this.colors)) {
+        if (!this.mascot) this.mascot = WORLD.mascotFor(this.name || this.id);
+        if (!this.colors) this.colors = WORLD.paletteFor(this.name || this.id);
+      }
     }
 
     get facilitiesOverall() {
@@ -511,7 +527,7 @@
 
         // Division preference (Update 11): some recruits genuinely want the
         // DII/DIII experience and will pick a strong lower-division program
-        // over riding a Division I bench. 'DII' | 'DIII' | null.
+        // over riding a Division A bench. 'DII' | 'DIII' | null.
         divisionPreference: null,
 
         // Hidden decision drivers (revealed to the player via scouting)

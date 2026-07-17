@@ -53,7 +53,7 @@
     coachFirings(gameState, rng);
 
     // Season ledgers (Update 12): seasons played, final top-25 finishes, and
-    // NCAA-appearance streaks stamp every program and coach — then the GOAT
+    // NXCA-appearance streaks stamp every program and coach — then the GOAT
     // lists recalculate over the complete historical record, and the coach
     // registry sheds careers without historical weight (Phase 7).
     window.XCD.engine.Legacy.recordSeasonLedgers(gameState);
@@ -85,7 +85,7 @@
         }
       }
 
-      // Freshman of the Year: top frosh at nationals, else the division's frosh poll leader.
+      // Newcomer of the Year: top frosh at nationals, else the division's frosh poll leader.
       const frosh = res.finishers.find((f) => f.classYear === 'Freshman') ||
         ((gameState.rankings.freshmen[gender] || []).find((r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DI') === division) || null);
       if (frosh) {
@@ -93,8 +93,8 @@
         const schoolName = frosh.schoolId ? (gameState.getSchool(frosh.schoolId)?.name || '?') : frosh.school;
         yearAwards[gender].freshmanOfYear = { name, school: schoolName, athleteId: frosh.athleteId };
         if (frosh.athleteId) {
-          addHonor(gameState, frosh.athleteId, 'Freshman of the Year');
-          Legacy.recordAccolade(gameState.world.athletes[frosh.athleteId], { year: gameState.year, division, type: 'freshmanOfYear', label: 'Freshman of the Year' });
+          addHonor(gameState, frosh.athleteId, 'Newcomer of the Year');
+          Legacy.recordAccolade(gameState.world.athletes[frosh.athleteId], { year: gameState.year, division, type: 'freshmanOfYear', label: 'Newcomer of the Year' });
         }
       }
 
@@ -148,7 +148,7 @@
       }
 
       // --- Conference awards (Update 4, Part 6): every conference in this
-      // division hands out a Runner of the Year, Freshman of the Year, and
+      // division hands out a Runner of the Year, Newcomer of the Year, and
       // Coach of the Year, all stamped into permanent history. ---
       yearAwards.conferences = yearAwards.conferences || {};
       const confIndiv = {};   // conf -> best individual row
@@ -190,7 +190,7 @@
         const foy = confFrosh[conf];
         if (foy) {
           g.freshmanOfYear = { name: foy.name, school: foy.school, athleteId: foy.athleteId };
-          Legacy.recordAccolade(gameState.world.athletes[foy.athleteId], { year: gameState.year, division, conference: conf, type: 'confFreshmanOfYear', label: 'Freshman of the Year' });
+          Legacy.recordAccolade(gameState.world.athletes[foy.athleteId], { year: gameState.year, division, conference: conf, type: 'confFreshmanOfYear', label: 'Newcomer of the Year' });
         }
         const cc = confCoach[conf];
         if (cc) {
@@ -204,13 +204,13 @@
         }
       });
 
-      // Academic All-Americans: best students among the division's top runners.
+      // Academic Elite Team members: best students among the division's top runners.
       const scholars = divRankings(gender)
         .map((r) => ({ r, a: gameState.world.athletes[r.athleteId] }))
         .filter((x) => x.a && x.a.academics >= 80)
         .slice(0, 10);
       yearAwards[gender].academicAllAmericans = scholars.map((x) => ({ name: x.r.name, school: x.r.school, athleteId: x.r.athleteId }));
-      scholars.forEach((x) => Legacy.recordAccolade(x.a, { year: gameState.year, division, type: 'academicAllAmerican', label: 'Academic All-American' }));
+      scholars.forEach((x) => Legacy.recordAccolade(x.a, { year: gameState.year, division, type: 'academicAllAmerican', label: 'Academic Elite Team' }));
     });
     return yearAwards;
   }
@@ -521,13 +521,13 @@
   }
 
   /*
-   * Nike Cross Nationals (NXN) — Update 5, Part 9. The high-school national
-   * championship, contested the same week as NCAA Nationals over the current
-   * recruiting class. Top prep athletes earn NXN Champion and NXN
+   * High School Cross Nationals (HSXN) — Update 5, Part 9. The high-school national
+   * championship, contested the same week as NXCA Nationals over the current
+   * recruiting class. Top prep athletes earn HSXN Champion and HSXN
    * All-American honors that live on their profile forever — carried into
    * college when they enroll, so recruiting has richer stories.
    */
-  function runNXN(gameState, rng) {
+  function runHSXN(gameState, rng) {
     const recruits = Object.values(gameState.world.recruits || {});
     if (!recruits.length || !gameState.season) return;
     const Legacy = window.XCD.engine.Legacy;
@@ -536,7 +536,7 @@
     const result = { M: [], W: [], year };
 
     ['M', 'W'].forEach((gender) => {
-      // Domestic high-schoolers contest NXN.
+      // Domestic high-schoolers contest HSXN.
       const field = recruits.filter((r) => r.gender === gender && r.source === 'HS');
       if (field.length < 10) return;
       // A race score: ability plus genuine race-day variance so upsets happen
@@ -564,7 +564,7 @@
         Legacy.athleteHonor(gameState, rec, key);
         Legacy.recordAccolade(rec, {
           year, division: null, conference: null,
-          type: key, label: isChamp ? 'NXN Champion' : 'NXN All-American'
+          type: key, label: isChamp ? 'HSXN Champion' : 'HSXN All-American'
         });
         rec.nxn = rec.nxn || {};
         if (isChamp) rec.nxn.champion = year;
@@ -572,12 +572,12 @@
       });
 
       const champ = top[0].r;
-      gameState.logNews(`👟 NIKE CROSS NATIONALS: ${champ.fullName} (${champ.hometownState === 'INT' ? champ.country : champ.hometownState}) wins the ${gender === 'M' ? "boys'" : "girls'"} NXN title — an instant recruiting prize.`);
-      // Call out any NXN standouts the player is already recruiting.
+      gameState.logNews(`👟 HIGH SCHOOL CROSS NATIONALS: ${champ.fullName} (${champ.hometownState === 'INT' ? champ.country : champ.hometownState}) wins the ${gender === 'M' ? "boys'" : "girls'"} HSXN title — an instant recruiting prize.`);
+      // Call out any HSXN standouts the player is already recruiting.
       top.slice(0, AA_PER_GENDER).forEach((entry) => {
         const st = entry.r.interests && entry.r.interests[gameState.playerSchoolId];
         if (st && (st.offered || st.interest > 40) && entry.r.id !== champ.id) {
-          gameState.logNews(`👟 NXN All-American ${entry.r.fullName} — on your recruiting board — turns heads at Nike Cross Nationals.`);
+          gameState.logNews(`👟 HSXN All-American ${entry.r.fullName} — on your recruiting board — turns heads at High School Cross Nationals.`);
         }
       });
     });
@@ -585,5 +585,5 @@
     gameState.season.nxn = result;
   }
 
-  window.XCD.engine.Awards = { processPostNationals, considerHallOfFame, addHonor, runNXN, coachFirings, cpuSpendUpgradePoints };
+  window.XCD.engine.Awards = { processPostNationals, considerHallOfFame, addHonor, runHSXN, coachFirings, cpuSpendUpgradePoints };
 })();

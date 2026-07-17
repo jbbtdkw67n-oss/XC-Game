@@ -84,7 +84,10 @@
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
       <div class="player-card-header">
         <div class="who">
-          <h2>${Utils.escapeHtml(school.name)}${school.id === game.playerSchoolId ? ' <span style="color:var(--accent);">★ (You)</span>' : ''}</h2>
+          <h2>${(() => {
+            const c = school.colors || ['#888', '#ccc'];
+            return `<span style="display:inline-block; width:10px; height:18px; border-radius:2px; background:linear-gradient(${c[0]} 50%, ${c[1]} 50%); vertical-align:-2px; margin-right:6px;"></span>`;
+          })()}${Utils.escapeHtml(school.name)}${school.mascot ? ` <span style="color:var(--text-dim); font-weight:600;">${Utils.escapeHtml(school.mascot)}</span>` : ''}${school.id === game.playerSchoolId ? ' <span style="color:var(--accent);">★ (You)</span>' : ''}</h2>
           <div class="sub">${divLabel} • ${Utils.escapeHtml(school.conference)} • ${school.region} • ${(D.STATE_NAMES || {})[school.state] || school.state}</div>
           <div class="sub">
             Head Coach:
@@ -134,8 +137,8 @@
           <h3>Historical Achievements</h3>
           ${row('National Championships', prog.natTitles || 0)}
           ${row('Conference Championships', prog.confTitles || 0)}
-          ${row('NCAA Appearances', prog.ncaaAppearances || 0)}
-          ${row('Best NCAA Finish', prog.bestFinish ? Utils.ordinal(prog.bestFinish) : '—')}
+          ${row('NXCA Appearances', prog.ncaaAppearances || 0)}
+          ${row('Best NXCA Finish', prog.bestFinish ? Utils.ordinal(prog.bestFinish) : '—')}
           ${row('All-Americans', prog.allAmericans || 0)}
           ${row('All-Time Record', `${prog.wins || 0}-${prog.losses || 0}`)}
           ${row('Program Titles (M/W)', `${(hs.nationalTitlesM || 0) + (hs.conferenceTitlesM || 0)} / ${(hs.nationalTitlesW || 0) + (hs.conferenceTitlesW || 0)}`)}

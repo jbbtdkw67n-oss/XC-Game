@@ -25,7 +25,7 @@
     } else if (p >= 66) {
       goals.push('qualify for Nationals', 'finish top-3 in a strong conference' , 'earn All-America honors');
     } else if (p >= 48) {
-      goals.push('reach the NCAA Regional podium picture', 'a top-half conference finish', 'develop All-Conference runners');
+      goals.push('reach the NXCA Regional podium picture', 'a top-half conference finish', 'develop All-Conference runners');
     } else {
       goals.push('show clear, steady improvement', 'be competitive in-conference', 'build the roster through recruiting');
     }
@@ -315,7 +315,7 @@
           ${row(t.rosterConfirmed, 'Finalize roster',
             rl.limit === Infinity
               ? `M ${rl.M} · W ${rl.W} — no roster limit in your division`
-              : `M ${rl.M}/${rl.limit} · W ${rl.W}/${rl.limit}${rl.over ? ' — <span style="color:var(--danger);">over the Division I limit, make cuts on the Roster screen</span>' : ''}`,
+              : `M ${rl.M}/${rl.limit} · W ${rl.W}/${rl.limit}${rl.over ? ' — <span style="color:var(--danger);">over the Division A limit, make cuts on the Roster screen</span>' : ''}`,
             rl.over
               ? '<button class="btn small" id="w1-roster-go">Go to Roster</button>'
               : '<button class="btn small primary" id="w1-roster">Confirm Roster</button>')}
@@ -517,7 +517,7 @@
     });
     w1('#w1-roster', () => {
       const rl = game.rosterLimitStatus();
-      if (rl.over) { UI.toast('Your roster is over the Division I limit — make cuts first.', 'error'); return; }
+      if (rl.over) { UI.toast('Your roster is over the Division A limit — make cuts first.', 'error'); return; }
       game.week1.rosterConfirmed = true;
       UI.toast('Roster finalized.', 'success');
       render(container);

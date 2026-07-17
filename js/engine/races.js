@@ -2,7 +2,7 @@
  * RaceEngine — Phase 4.
  *
  * Season scheduling, segment-based race simulation with pack dynamics,
- * NCAA team scoring (top 5 score, 6-7 displace, incomplete teams removed,
+ * NXCA team scoring (top 5 score, 6-7 displace, incomplete teams removed,
  * 6th-runner tiebreak), championships (conference → regional → national
  * with auto + at-large bids), and statistics/records bookkeeping.
  */
@@ -18,8 +18,8 @@
    *   Wk 16-21 Offseason.
    *
    * Prestigious invitationals (Part 7): on weeks 6/8/10 the elite fields
-   * split into named meets (Nuttycombe, Pre-Nationals, Joe Piane, Roy
-   * Griak, Wisconsin) that carry extra poll weight; everyone else runs
+   * split into named meets (Honey Badger, National Preview, Prairie Gold,
+   * Northland Classic, Northwoods) that carry extra poll weight; everyone else runs
    * regional invitationals. Weeks 4 and 12 are open invitationals.
    *
    * Postseason is division-aware (Part 13): conferences, regionals, and
@@ -56,7 +56,7 @@
     const schoolIds = gameState.world.schoolOrder.slice();
     const playerDivision = (gameState.getPlayerSchool() && gameState.getPlayerSchool().division) || 'DI';
 
-    // Pre-pick each division's Nationals host up front so Pre-Nationals can
+    // Pre-pick each division's Nationals host up front so National Preview can
     // be contested on the DI Championship course (Update 3).
     const byDivisionAll = {};
     schoolIds.forEach((id) => {
@@ -69,7 +69,7 @@
       nationalsHosts[division] = rng.choice(divIds);
     });
     // The course profile for the DI Championship (hills, altitude) — mirrored
-    // by Pre-Nationals so competing teams preview the terrain.
+    // by National Preview so competing teams preview the terrain.
     const diHost = gameState.getSchool(nationalsHosts.DI || byDivisionAll.DI?.[0]);
     const diCourse = diHost ? {
       hostId: diHost.id,
@@ -145,7 +145,7 @@
       let cursor = 0;
       const invited = new Set();
 
-      // Pre-Nationals is built specially (DI-only, nationals course,
+      // National Preview is built specially (DI-only, nationals course,
       // invite/decline) before the generic elite fields on the same week.
       eliteMeets.filter((em) => em.preNationals).forEach((em) => {
         buildPreNationals(gameState, rng, week, season, diCourse, invited);
@@ -242,11 +242,11 @@
       });
 
       // Nationals shell (field determined after regionals). Host was
-      // pre-picked so Pre-Nationals could preview the DI course.
+      // pre-picked so National Preview could preview the DI course.
       const natHost = gameState.getSchool(nationalsHosts[division] || rng.choice(divIds));
       const natMeet = buildMeet(gameState, rng, {
         week: NATIONAL_WEEK,
-        name: `NCAA ${divRules.label !== 'Division I' ? divRules.label + ' ' : ''}Championships`,
+        name: `NXCA ${divRules.label !== 'Division A' ? divRules.label + ' ' : ''}Championships`,
         hostId: natHost.id,
         schoolIds: [], // filled post-regionals per gender
         type: 'national',
@@ -272,8 +272,8 @@
   }
 
   /*
-   * Pre-Nationals Invitational (Update 3): a Division I-only elite meet on
-   * the NCAA DI Championship course. Invitations go to last year's top
+   * National Preview Invitational (Update 3): a Division A-only elite meet on
+   * the NXCA DI Championship course. Invitations go to last year's top
    * programs, national powers by prestige, the host, and a few rising
    * mid-majors — never every DI school. Coaches accept or decline by
    * philosophy; racing it earns a small familiarity edge at Nationals.
@@ -357,7 +357,7 @@
       division: 'DI',
       elite: cfg.pollWeight,
       preNationals: true,
-      distances: { M: 8000, W: 6000 }, // Pre-Nationals runs the 8K (men) / 6K (women)
+      distances: { M: 8000, W: 6000 }, // National Preview runs the 8K (men) / 6K (women)
       conditions,
       results: { M: null, W: null }
     };
@@ -379,27 +379,27 @@
     };
 
     if (invited.includes(gameState.playerSchoolId)) {
-      gameState.logNews(`✉️ PRE-NATIONALS INVITE: your program is invited to the Pre-Nationals Invitational (Week ${week}) on the NCAA Championship course — an honor. Accept to preview the course, or rest and decline (Schedule screen).`);
+      gameState.logNews(`✉️ NATIONAL PREVIEW INVITE: your program is invited to the National Preview Invitational (Week ${week}) on the NXCA Championship course — an honor. Accept to preview the course, or rest and decline (Schedule screen).`);
     }
   }
 
-  // Did a school race Pre-Nationals this season (course familiarity)?
+  // Did a school race National Preview this season (course familiarity)?
   function racedPreNationals(gameState, schoolId) {
     const pn = gameState.season && gameState.season.preNationals;
     return !!(pn && pn.accepted && pn.accepted.includes(schoolId));
   }
 
-  // Player accepts or declines their Pre-Nationals invitation.
+  // Player accepts or declines their National Preview invitation.
   function setPreNationalsDecision(gameState, accept) {
     const season = gameState.season;
     const pn = season && season.preNationals;
-    if (!pn || !pn.playerInvited) return { ok: false, message: 'No Pre-Nationals invitation is open.' };
+    if (!pn || !pn.playerInvited) return { ok: false, message: 'No National Preview invitation is open.' };
     // The invitation is answered during Week 1 (spec Part 2, Section 15):
     // once the schedule is finalized, the decision locks with it.
     if (gameState.scheduleLocked && gameState.scheduleLocked()) {
-      return { ok: false, message: 'The schedule is finalized — the Pre-Nationals decision locked with it after Week 1.' };
+      return { ok: false, message: 'The schedule is finalized — the National Preview decision locked with it after Week 1.' };
     }
-    if (gameState.week >= pn.week) return { ok: false, message: 'Too late to change — Pre-Nationals has arrived.' };
+    if (gameState.week >= pn.week) return { ok: false, message: 'Too late to change — National Preview has arrived.' };
     const meet = season.meets[pn.meetId];
     if (!meet) return { ok: false, message: 'Meet not found.' };
     const pid = gameState.playerSchoolId;
@@ -409,7 +409,7 @@
       pn.declined = pn.declined.filter((id) => id !== pid);
       pn.playerAccepted = true;
       season.playerMeetByWeek[pn.week] = pn.meetId;
-      return { ok: true, message: 'Accepted — your team will race Pre-Nationals and preview the Championship course.' };
+      return { ok: true, message: 'Accepted — your team will race National Preview and preview the Championship course.' };
     }
     if (!accept && pn.playerAccepted) {
       meet.schoolIds = meet.schoolIds.filter((id) => id !== pid);
@@ -428,8 +428,8 @@
       ? { M: 8000, W: 6000 }
       : { M: 8000, W: 5000 };
     if (base.type === 'regional') {
-      // Bug fix: NCAA regionals race the full championship 10K for men in
-      // Division I and II (Division III regionals stay at 8K, matching their
+      // Bug fix: NXCA regionals race the full championship 10K for men in
+      // Division A and II (Division C regionals stay at 8K, matching their
       // nationals). Women race 6K everywhere.
       const div = base.division || 'DI';
       distances.M = (div === 'DI' || div === 'DII') ? 10000 : 8000;
@@ -544,8 +544,8 @@
       mult -= (peaking - 50) * 0.00016; // ±0.8% swing at the extremes
     }
 
-    // Pre-Nationals course familiarity (Update 3): teams that raced
-    // Pre-Nationals know this DI Championship course — a small, non-decisive
+    // National Preview course familiarity (Update 3): teams that raced
+    // National Preview know this DI Championship course — a small, non-decisive
     // edge (~0.6% faster). Rewards participation without deciding the race.
     if (meet.type === 'national' && (meet.division || 'DI') === 'DI') {
       const pn = gameState.season && gameState.season.preNationals;
@@ -865,7 +865,7 @@
     return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
   }
 
-  /* NCAA team scoring */
+  /* NXCA team scoring */
   function scoreRace(finishers) {
     const byTeam = {};
     finishers.forEach((f) => { (byTeam[f.schoolId] = byTeam[f.schoolId] || []).push(f); });
@@ -1159,18 +1159,18 @@
 
           if (field.includes(gameState.playerSchoolId)) {
             const wasAuto = auto.includes(gameState.playerSchoolId);
-            gameState.logNews(`Your ${gender === 'M' ? 'men' : 'women'} are headed to the NCAA Championships${wasAuto ? ' as automatic qualifiers' : ' with an at-large bid'}!`);
+            gameState.logNews(`Your ${gender === 'M' ? 'men' : 'women'} are headed to the NXCA Championships${wasAuto ? ' as automatic qualifiers' : ' with an at-large bid'}!`);
           } else {
             const mine = individuals
               .map((id) => gameState.world.athletes[id])
               .filter((a) => a && a.schoolId === gameState.playerSchoolId);
             if (mine.length) {
-              gameState.logNews(`${mine.map((a) => a.fullName).join(' and ')} punch${mine.length === 1 ? 'es' : ''} an individual ticket to the NCAA Championships (top-${rules.individualQualifiersPerRegional} at regionals)!`);
+              gameState.logNews(`${mine.map((a) => a.fullName).join(' and ')} punch${mine.length === 1 ? 'es' : ''} an individual ticket to the NXCA Championships (top-${rules.individualQualifiersPerRegional} at regionals)!`);
             }
           }
         }
 
-        // NCAA appearances into the permanent program ledger (Part 8).
+        // NXCA appearances into the permanent program ledger (Part 8).
         field.forEach((sid) => {
           window.XCD.engine.Legacy.program(gameState, sid).ncaaAppearances += 1;
           const c = gameState.getCoach(gameState.getSchool(sid)?.coachId);
@@ -1301,9 +1301,9 @@
 
     const label = gender === 'M' ? "men's" : "women's";
     if (champId === gameState.playerSchoolId) {
-      gameState.logNews(`🏆🏆 NATIONAL CHAMPIONS! Your ${label} team wins the NCAA title!`);
+      gameState.logNews(`🏆🏆 NATIONAL CHAMPIONS! Your ${label} team wins the NXCA title!`);
     } else {
-      gameState.logNews(`${school.name} wins the ${label} NCAA team title. ${indiv ? `${indiv.name} takes the individual crown in ${formatTime(indiv.time)}.` : ''}`);
+      gameState.logNews(`${school.name} wins the ${label} NXCA team title. ${indiv ? `${indiv.name} takes the individual crown in ${formatTime(indiv.time)}.` : ''}`);
     }
   }
 
@@ -1356,7 +1356,7 @@
         if (window.XCD.engine.Morale) window.XCD.engine.Morale.afterMeet(gameState, meet, gender);
       });
 
-      // Pre-Nationals media coverage (Update 3): previews already ran; this
+      // National Preview media coverage (Update 3): previews already ran; this
       // is the post-race national storyline that shapes the championship
       // narrative — winners, statement performances, and title predictions.
       if (meet.preNationals) {
@@ -1367,16 +1367,16 @@
           const winner = gameState.getSchool(res.teamScores[0].schoolId);
           const runnerUp = res.teamScores[1] && gameState.getSchool(res.teamScores[1].schoolId);
           const champ = res.finishers[0];
-          gameState.logNews(`📰 PRE-NATIONALS (${label}): ${winner.name} makes a statement on the Championship course${runnerUp ? `, edging ${runnerUp.name}` : ''}. ${champ ? `${champ.name} wins the individual title.` : ''} A genuine NCAA title contender emerges.`);
+          gameState.logNews(`📰 NATIONAL PREVIEW (${label}): ${winner.name} makes a statement on the Championship course${runnerUp ? `, edging ${runnerUp.name}` : ''}. ${champ ? `${champ.name} wins the individual title.` : ''} A genuine NXCA title contender emerges.`);
           if (res.teamScores.find((t) => t.schoolId === gameState.playerSchoolId && t.place <= 5)) {
-            gameState.logNews(`🌟 Your ${label} squad's strong Pre-Nationals run vaults you up the national rankings and onto every title-contender list.`);
+            gameState.logNews(`🌟 Your ${label} squad's strong National Preview run vaults you up the national rankings and onto every title-contender list.`);
           }
         });
         const declinedElite = ((gameState.season.preNationals || {}).declined || [])
           .map((id) => gameState.getSchool(id))
           .filter((s) => s && s.prestige >= 80);
         if (declinedElite.length) {
-          gameState.logNews(`Notable absence: ${declinedElite.slice(0, 2).map((s) => s.name).join(', ')} chose to rest and skip Pre-Nationals, banking on their championship training block.`);
+          gameState.logNews(`Notable absence: ${declinedElite.slice(0, 2).map((s) => s.name).join(', ')} chose to rest and skip National Preview, banking on their championship training block.`);
         }
       }
 

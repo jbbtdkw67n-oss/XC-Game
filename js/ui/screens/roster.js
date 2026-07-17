@@ -12,7 +12,7 @@
     const game = UI.state.game;
     const school = game.getPlayerSchool();
 
-    // Week 1 roster crunch (spec Part 2, Section 15): Division I carries at
+    // Week 1 roster crunch (spec Part 2, Section 15): Division A carries at
     // most 14 per squad. Over the limit, the head coach must cut before the
     // season can begin — cut athletes move on through the portal.
     const rl = game.rosterLimitStatus();
@@ -33,7 +33,7 @@
       </div>
       ${cutMode ? `
       <div class="card" style="margin-bottom:14px; border-left:3px solid var(--danger);">
-        <h3 style="margin:0 0 4px;">✂️ Roster over the Division I limit — ${squadSize}/${rl.limit}</h3>
+        <h3 style="margin:0 0 4px;">✂️ Roster over the Division A limit — ${squadSize}/${rl.limit}</h3>
         <div style="color:var(--text-dim); font-size:12.5px;">
           Cut ${squadSize - rl.limit} athlete${squadSize - rl.limit > 1 ? 's' : ''} to finalize the roster (Week 1 checklist).
           Weigh overall, potential, class, development, work ethic, injury history, and transfer risk —

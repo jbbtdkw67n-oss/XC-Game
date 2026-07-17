@@ -1,205 +1,155 @@
 /*
- * NCAA Division II and Division III member institutions (Update 3).
+ * Division B and Division C member institutions of the NXCA (Update 3).
  *
- * Each entry is [Name, State abbreviation, Conference] — the same shape as
- * the Division I roster in schools-data.js. Conference assignments and
- * memberships are a reasonable real-world approximation for flavor and
- * grouping (scheduling, regional recruiting, rivalries), not a legal record
- * of current athletic affiliation. Worldgen scales prestige, budgets,
- * facilities, and athlete ability down by division so the three levels feel
- * distinct while sharing one living NCAA ecosystem.
+ * Each entry is [Name, State, Conference, Mascot, Primary, Secondary] — the
+ * same shape as the Division A roster in schools-data.js. Everything here is
+ * fictional and original. Worldgen scales prestige, budgets, facilities, and
+ * athlete ability down by division so the three levels feel distinct while
+ * sharing one living NXCA ecosystem.
  *
  * Conference tier here is prestige WITHIN the division (1 = flagship, 4 =
- * developing); the division's budgetScale (divisions.js) handles the money
- * gap between DI, DII, and DIII.
+ * developing); the division's budgetScale (divisions.js) handles the money gap.
  */
 (function () {
   const D = window.XCD.data;
 
-  /* ---------------- Division II ---------------- */
+  /* ---------------- Division B ---------------- */
   D.RAW_SCHOOLS_DII = [
-    // RMAC — Rocky Mountain Athletic Conference
-    ['Adams State','CO','RMAC'],['Colorado Mines','CO','RMAC'],['Western Colorado','CO','RMAC'],
-    ['CSU Pueblo','CO','RMAC'],['Colorado Christian','CO','RMAC'],['MSU Denver','CO','RMAC'],
-    ['UC Colorado Springs','CO','RMAC'],['Fort Lewis','CO','RMAC'],['Chadron State','NE','RMAC'],
-    ['Black Hills State','SD','RMAC'],['South Dakota Mines','SD','RMAC'],['New Mexico Highlands','NM','RMAC'],
-    // GLIAC — Great Lakes Intercollegiate
-    ['Grand Valley State','MI','GLIAC'],['Ferris State','MI','GLIAC'],['Saginaw Valley State','MI','GLIAC'],
-    ['Wayne State (MI)','MI','GLIAC'],['Davenport','MI','GLIAC'],['Northwood','MI','GLIAC'],
-    ['Michigan Tech','MI','GLIAC'],['Northern Michigan','MI','GLIAC'],['Lake Superior State','MI','GLIAC'],
-    ['Purdue Northwest','IN','GLIAC'],['Roosevelt','IL','GLIAC'],
-    // PSAC — Pennsylvania State Athletic Conference
-    ['Shippensburg','PA','PSAC'],['Kutztown','PA','PSAC'],['Millersville','PA','PSAC'],
-    ['West Chester','PA','PSAC'],['Slippery Rock','PA','PSAC'],['IUP','PA','PSAC'],
-    ['PennWest California','PA','PSAC'],['Bloomsburg','PA','PSAC'],['East Stroudsburg','PA','PSAC'],
-    ['Lock Haven','PA','PSAC'],['Gannon','PA','PSAC'],['Mercyhurst','PA','PSAC'],
-    ['Seton Hill','PA','PSAC'],['Shepherd','WV','PSAC'],
-    // SAC — South Atlantic Conference
-    ['Lenoir-Rhyne','NC','SAC'],['Catawba','NC','SAC'],['Wingate','NC','SAC'],['Mars Hill','NC','SAC'],
-    ['Carson-Newman','TN','SAC'],['Tusculum','TN','SAC'],['Anderson (SC)','SC','SAC'],
-    ['Newberry','SC','SAC'],['Lincoln Memorial','TN','SAC'],['Coker','SC','SAC'],
-    ['Emory & Henry','VA','SAC'],['UVA Wise','VA','SAC'],['Limestone','SC','SAC'],
-    // Lone Star Conference
-    ['West Texas A&M','TX','Lone Star'],['Angelo State','TX','Lone Star'],['UT Tyler','TX','Lone Star'],
-    ['Texas A&M-Kingsville','TX','Lone Star'],['Lubbock Christian','TX','Lone Star'],['St. Edward\'s','TX','Lone Star'],
-    ['St. Mary\'s (TX)','TX','Lone Star'],['Dallas Baptist','TX','Lone Star'],['UT Permian Basin','TX','Lone Star'],
-    ['Western New Mexico','NM','Lone Star'],['Eastern New Mexico','NM','Lone Star'],['Cameron','OK','Lone Star'],
-    // G-MAC — Great Midwest Athletic Conference
-    ['Hillsdale','MI','Great Midwest'],['Findlay','OH','Great Midwest'],['Malone','OH','Great Midwest'],
-    ['Cedarville','OH','Great Midwest'],['Tiffin','OH','Great Midwest'],['Ashland','OH','Great Midwest'],
-    ['Ohio Dominican','OH','Great Midwest'],['Walsh','OH','Great Midwest'],['Kentucky Wesleyan','KY','Great Midwest'],
-    ['Thomas More','KY','Great Midwest'],['Trevecca Nazarene','TN','Great Midwest'],['Lake Erie','OH','Great Midwest'],
-    // CIAA — Central Intercollegiate Athletic Association
-    ['Fayetteville State','NC','CIAA'],['Bowie State','MD','CIAA'],['Virginia State','VA','CIAA'],
-    ['Virginia Union','VA','CIAA'],['Winston-Salem State','NC','CIAA'],['Livingstone','NC','CIAA'],
-    ['Johnson C. Smith','NC','CIAA'],['Shaw','NC','CIAA'],['Elizabeth City State','NC','CIAA'],
-    ['Lincoln (PA)','PA','CIAA'],['Claflin','SC','CIAA'],
-    // SIAC — Southern Intercollegiate Athletic Conference
-    ['Albany State','GA','SIAC'],['Fort Valley State','GA','SIAC'],['Clark Atlanta','GA','SIAC'],
-    ['Morehouse','GA','SIAC'],['Kentucky State','KY','SIAC'],['Lane','TN','SIAC'],
-    ['Miles','AL','SIAC'],['Tuskegee','AL','SIAC'],['Benedict','SC','SIAC'],['Savannah State','GA','SIAC'],
-    // NSIC — Northern Sun Intercollegiate Conference
-    ['Augustana (SD)','SD','NSIC'],['Minnesota State','MN','NSIC'],['MSU Moorhead','MN','NSIC'],
-    ['Winona State','MN','NSIC'],['Bemidji State','MN','NSIC'],['St. Cloud State','MN','NSIC'],
-    ['Concordia St. Paul','MN','NSIC'],['Minnesota Duluth','MN','NSIC'],['Northern State','SD','NSIC'],
-    ['Wayne State (NE)','NE','NSIC'],['Sioux Falls','SD','NSIC'],['Southwest Minnesota State','MN','NSIC'],
-    ['Minot State','ND','NSIC'],['U-Mary','ND','NSIC'],
-    // MIAA — Mid-America Intercollegiate Athletics Association
-    ['Pittsburg State','KS','MIAA (DII)'],['Fort Hays State','KS','MIAA (DII)'],['Emporia State','KS','MIAA (DII)'],
-    ['Washburn','KS','MIAA (DII)'],['Central Missouri','MO','MIAA (DII)'],['Missouri Southern','MO','MIAA (DII)'],
-    ['Missouri Western','MO','MIAA (DII)'],['Northwest Missouri State','MO','MIAA (DII)'],['Northeastern State','OK','MIAA (DII)'],
-    ['Rogers State','OK','MIAA (DII)'],['Nebraska Kearney','NE','MIAA (DII)'],['Central Oklahoma','OK','MIAA (DII)'],
-    ['Newman','KS','MIAA (DII)'],
-    // CCAA — California Collegiate Athletic Association
-    ['Cal Poly Pomona','CA','CCAA'],['Chico State','CA','CCAA'],['Cal State San Bernardino','CA','CCAA'],
-    ['Stanislaus State','CA','CCAA'],['Cal State LA','CA','CCAA'],['Cal State East Bay','CA','CCAA'],
-    ['San Francisco State','CA','CCAA'],['Sonoma State','CA','CCAA'],['Cal State Monterey Bay','CA','CCAA'],
-    ['Cal State Dominguez Hills','CA','CCAA'],['Cal State San Marcos','CA','CCAA'],
-    // GAC — Great American Conference
-    ['Arkansas Tech','AR','GAC'],['Harding','AR','GAC'],['Henderson State','AR','GAC'],
-    ['Southern Arkansas','AR','GAC'],['Ouachita Baptist','AR','GAC'],['Southern Nazarene','OK','GAC'],
-    ['Southeastern Oklahoma State','OK','GAC'],['Southwestern Oklahoma State','OK','GAC'],['East Central','OK','GAC'],
-    ['Oklahoma Baptist','OK','GAC'],['Arkansas-Monticello','AR','GAC'],
-    // PBC — Peach Belt Conference
-    ['Columbus State','GA','PBC'],['Georgia College','GA','PBC'],['Georgia Southwestern','GA','PBC'],
-    ['Flagler','FL','PBC'],['Lander','SC','PBC'],['USC Aiken','SC','PBC'],['USC Beaufort','SC','PBC'],
-    ['Young Harris','GA','PBC'],['Clayton State','GA','PBC'],['UNC Pembroke','NC','PBC'],
-    // NE10 — Northeast-10 Conference
-    ['Adelphi','NY','NE10'],['American International','MA','NE10'],['Assumption','MA','NE10'],
-    ['Bentley','MA','NE10'],['Franklin Pierce','NH','NE10'],['Le Moyne','NY','NE10'],
-    ['New Haven','CT','NE10'],['Pace','NY','NE10'],['Saint Anselm','NH','NE10'],
-    ['Saint Michael\'s','VT','NE10'],['Southern Connecticut','CT','NE10'],['Southern New Hampshire','NH','NE10'],
-    // SSC — Sunshine State Conference
-    ['Tampa','FL','Sunshine State'],['Saint Leo','FL','Sunshine State'],['Florida Southern','FL','Sunshine State'],
-    ['Rollins','FL','Sunshine State'],['Eckerd','FL','Sunshine State'],['Nova Southeastern','FL','Sunshine State'],
-    ['Lynn','FL','Sunshine State'],['Palm Beach Atlantic','FL','Sunshine State'],['Embry-Riddle','FL','Sunshine State'],
-    ['Florida Tech','FL','Sunshine State'],
-    // Conference Carolinas
-    ['Belmont Abbey','NC','Conference Carolinas'],['Barton','NC','Conference Carolinas'],['Mount Olive','NC','Conference Carolinas'],
-    ['Lees-McRae','NC','Conference Carolinas'],['King','TN','Conference Carolinas'],['Emmanuel (GA)','GA','Conference Carolinas'],
-    ['Southern Wesleyan','SC','Conference Carolinas'],['Erskine','SC','Conference Carolinas'],['Converse','SC','Conference Carolinas'],
-    ['Chowan','NC','Conference Carolinas'],['North Greenville','SC','Conference Carolinas'],['Francis Marion','SC','Conference Carolinas'],
-    // GNAC — Great Northwest Athletic Conference
-    ['Western Washington','WA','Great Northwest'],['Seattle Pacific','WA','Great Northwest'],['Central Washington','WA','Great Northwest'],
-    ['Western Oregon','OR','Great Northwest'],['Alaska Anchorage','AK','Great Northwest'],['Alaska Fairbanks','AK','Great Northwest'],
-    ['MSU Billings','MT','Great Northwest'],['Northwest Nazarene','ID','Great Northwest'],['Saint Martin\'s','WA','Great Northwest'],
-    // PacWest Conference
-    ['Azusa Pacific','CA','PacWest'],['Point Loma Nazarene','CA','PacWest'],['Biola','CA','PacWest'],
-    ['Concordia Irvine','CA','PacWest'],['Fresno Pacific','CA','PacWest'],['Hawaii Pacific','HI','PacWest'],
-    ['Chaminade','HI','PacWest'],['Hawaii Hilo','HI','PacWest'],['Academy of Art','CA','PacWest'],['Dominican (CA)','CA','PacWest']
+    ['Underhill State','CO','Rocky Summit Conference','Moss Stags','#6a3a0f','#3a4a5a'],['Kirkwall Tech','CO','Rocky Summit Conference','Ironclad Elk','#0e2a4a','#b0c8d8'],['Western Everglen','CO','Rocky Summit Conference','Opal Owls','#3a0f2a','#c0c0c0'],
+    ['Dewpoint Bend','CO','Rocky Summit Conference','Cobalt Sharks','#1f4a4a','#e0a860'],['Glenrock Bethany','CO','Rocky Summit Conference','Timber Cats','#2a3a1a','#d8b060'],['Uncompahgre','CO','Rocky Summit Conference','Mesa Condors','#6a1f24','#dcae52'],
+    ['Everglen Hollow','CO','Rocky Summit Conference','Reed Warblers','#4a3a2a','#b0d0e0'],['Alderton Hollow','CO','Rocky Summit Conference','Chinook Salmon','#6a1f24','#dcae52'],['Quintvale State','NE','Rocky Summit Conference','Flatland Bison','#7a1f2b','#d0d0d0'],
+    ['Moorcroft State','SD','Rocky Summit Conference','Pine Martens','#3a2a5a','#c8b28a'],['South Holloway Tech','SD','Rocky Summit Conference','Lantern Moths','#5a4a1f','#2a3a2a'],['Yewdale','NM','Rocky Summit Conference','Night Owls','#1d3f6e','#c9a227'],
+    ['Falconry State','MI','Great Lakes Interstate Conference','Inlet Terns','#3a2a5a','#c8b28a'],['Ravenshill State','MI','Great Lakes Interstate Conference','Meadow Larks','#3a2a2a','#d8a860'],['Highmoor State','MI','Great Lakes Interstate Conference','Willow Herons','#2a3a1a','#d8b060'],
+    ['Cedar State','MI','Great Lakes Interstate Conference','Pine Martens','#3a2a5a','#c8b28a'],['Keweenaw','MI','Great Lakes Interstate Conference','Coal Ravens','#3a0f2a','#c0c0c0'],['Ridgemont','MI','Great Lakes Interstate Conference','Peregrines','#0a2a2a','#c8a24a'],
+    ['Peregrine Tech','MI','Great Lakes Interstate Conference','Prairie Falcons','#3a2a2a','#d8a860'],['Northern Windmere','MI','Great Lakes Interstate Conference','Grove Stags','#5a1f2b','#d8c7a0'],['Galewood State','MI','Great Lakes Interstate Conference','River Serpents','#1a3a1a','#d0c060'],
+    ['Oreburg','IN','Great Lakes Interstate Conference','Elmwood Owls','#4a1f5a','#c8a24a'],['Fairmont','IL','Great Lakes Interstate Conference','Glacier Rams','#4a3a2a','#b0d0e0'],['Quillan Vale','PA','Keystone Athletic Conference','Peregrines','#0a2a2a','#c8a24a'],
+    ['Kittatinny','PA','Keystone Athletic Conference','Bramble Boars','#1f4a5a','#e0e0e0'],['Elkhorn Falls','PA','Keystone Athletic Conference','Canyon Hawks','#7a1f2b','#d0d0d0'],['West Elmridge','PA','Keystone Athletic Conference','Chinook Salmon','#6a1f24','#dcae52'],
+    ['Everglen Harbor','PA','Keystone Athletic Conference','Sable Wolves','#6a3a0f','#3a4a5a'],['Laurel Hlnd','PA','Keystone Athletic Conference','Rapids Otters','#2a1f4a','#e0b0c0'],['Kettlebrook Bend','PA','Keystone Athletic Conference','Meadow Larks','#3a2a2a','#d8a860'],
+    ['Fairmont Grove','PA','Keystone Athletic Conference','Nightjars','#0f3a4a','#e0d060'],['East Quillan','PA','Keystone Athletic Conference','Yewbows','#0f5a3c','#f0e6c8'],['Quillan Ridge','PA','Keystone Athletic Conference','Boulder Bears','#4a1f5a','#c8a24a'],
+    ['Amberton Hollow','PA','Keystone Athletic Conference','Quarry Rams','#1a3a1a','#d0c060'],['Westmark Crossing','PA','Keystone Athletic Conference','Timber Cats','#2a3a1a','#d8b060'],['Redstone Heights','PA','Keystone Athletic Conference','Dune Jackals','#2a3a5a','#d8b84a'],
+    ['Lowfield','WV','Keystone Athletic Conference','Cinder Stags','#8a4a1f','#2a2a2a'],['Ellsworth Grove','NC','Southern Highlands Conference','Briar Wolves','#12233f','#7ac0e0'],['Inglewood Hollow','NC','Southern Highlands Conference','Antler Kings','#8a4a1f','#2a2a2a'],
+    ['Cape Fear','NC','Southern Highlands Conference','Silver Lynx','#6a3a0f','#3a4a5a'],['Oreburg Vale','NC','Southern Highlands Conference','Thunder Elk','#1f2a4a','#c8b0e0'],['Sequatchie','TN','Southern Highlands Conference','Lantern Moths','#5a4a1f','#2a3a2a'],
+    ['Dunhollow','TN','Southern Highlands Conference','Reed Warblers','#12233f','#7ac0e0'],['Prairiewood','SC','Southern Highlands Conference','Gale Ospreys','#3a1f2a','#c0a878'],['Saluda','SC','Southern Highlands Conference','Mountain Goats','#5a1f2b','#d8c7a0'],
+    ['Elderwood Ridge','TN','Southern Highlands Conference','Cinder Stags','#8a4a1f','#2a2a2a'],['Congaree','SC','Southern Highlands Conference','Kestrels','#1f2a4a','#c8b0e0'],['Icemount','VA','Southern Highlands Conference','Harrier Kites','#2a3a5a','#d8b84a'],
+    ['Tidewater','VA','Southern Highlands Conference','Weathervanes','#5a1f2b','#d8c7a0'],['Santee','SC','Southern Highlands Conference','Heron Kings','#3a2a2a','#d8a860'],['West Cedar Polytechnic','TX','Republic Athletic Conference','Loon Divers','#2a1f4a','#e0b0c0'],
+    ['Inglewood State','TX','Republic Athletic Conference','Emberhawks','#4a2a1f','#a8c0d0'],['Meadowvale Springs','TX','Republic Athletic Conference','Ember Phoenix','#5a3a1f','#e0d0b0'],['Farrow Polytechnic','TX','Republic Athletic Conference','Canyon Hawks','#7a1f2b','#d0d0d0'],
+    ['Emberhill Cornerstone','TX','Republic Athletic Conference','Marlin Divers','#5a3a1f','#e0d0b0'],['Palewood Bethany','TX','Republic Athletic Conference','Everglade Ibis','#0a2a2a','#c8a24a'],['Granite Covenant','TX','Republic Athletic Conference','Talon Eagles','#3a1f2a','#c0a878'],
+    ['Falconry Bethany','TX','Republic Athletic Conference','Dogwood Deer','#2a4a3a','#e8c85a'],['Brindle Bend','TX','Republic Athletic Conference','Cypress Hawks','#7a1f2b','#d0d0d0'],['Western Wexford','NM','Republic Athletic Conference','Night Owls','#1d3f6e','#c9a227'],
+    ['Eastern Marshview','NM','Republic Athletic Conference','Honey Badgers','#0f5a3c','#f0e6c8'],['Amberton Point','OK','Republic Athletic Conference','Copper Owls','#0e2a4a','#b0c8d8'],['Holloway Vale','MI','Midland Athletic Conference','Mountain Goats','#5a1f2b','#d8c7a0'],
+    ['Scioto','OH','Midland Athletic Conference','Gale Ospreys','#3a1f2a','#c0a878'],['Thistlemoor Grove','OH','Midland Athletic Conference','Windrunners','#5a1f2b','#d8c7a0'],['Northgate Hollow','OH','Midland Athletic Conference','Driftwood Herons','#5a2a3a','#d0d0b0'],
+    ['Cuyahoga','OH','Midland Athletic Conference','Zephyr Swifts','#3a2a5a','#c8b28a'],['Reedmarsh Point','OH','Midland Athletic Conference','Emberhawks','#4a2a1f','#a8c0d0'],['Granite Ridge','OH','Midland Athletic Conference','Moss Stags','#6a3a0f','#3a4a5a'],
+    ['Goldvale Ridge','OH','Midland Athletic Conference','Kettle Cranes','#1a3a1a','#d0c060'],['Ridgemont Abbey','KY','Midland Athletic Conference','Canyon Hawks','#7a1f2b','#d0d0d0'],['Pennyrile','KY','Midland Athletic Conference','Granite Foxes','#4a2a1f','#a8c0d0'],
+    ['Hawkridge Friends','TN','Midland Athletic Conference','Mesa Condors','#6a1f24','#dcae52'],['Muskingum','OH','Midland Athletic Conference','Silver Lynx','#5a1f2b','#d8c7a0'],['Umberton State','NC','Coastal Intercollegiate Conference','Basalt Rhinos','#4a3a2a','#b0d0e0'],
+    ['Patapsco State','MD','Coastal Intercollegiate Conference','Coal Ravens','#3a0f2a','#c0c0c0'],['Stonewick State','VA','Coastal Intercollegiate Conference','Cobalt Sharks','#1f4a4a','#e0a860'],['Piedmont Va','VA','Coastal Intercollegiate Conference','Harbor Seals','#2a4a3a','#e8c85a'],
+    ['Kingsbarrow State','NC','Coastal Intercollegiate Conference','Everglade Ibis','#0a2a2a','#c8a24a'],['Ullswater Falls','NC','Coastal Intercollegiate Conference','Willow Herons','#2a3a1a','#d8b060'],['Nantahala','NC','Coastal Intercollegiate Conference','Night Owls','#1d3f6e','#c9a227'],
+    ['Lakeshore Springs','NC','Coastal Intercollegiate Conference','Vane Kestrels','#1d3f6e','#c9a227'],['Driftmoor State','NC','Coastal Intercollegiate Conference','Red Hawks','#0f3a4a','#e0d060'],['Vesper Landing','PA','Coastal Intercollegiate Conference','Marlin Divers','#5a3a1f','#e0d0b0'],
+    ['Jasper Vale','SC','Coastal Intercollegiate Conference','Greywolves','#1c3a2a','#c0a060'],['Maplecrest State','GA','Deep South Athletic Conference','Timber Cats','#2a3a1a','#d8b060'],['Marshview State','GA','Deep South Athletic Conference','Copper Owls','#0e2a4a','#b0c8d8'],
+    ['Lyndhurst','GA','Deep South Athletic Conference','Harbor Seals','#2a4a3a','#e8c85a'],['Okefenokee','GA','Deep South Athletic Conference','Gorge Ravens','#5a4a1f','#2a3a2a'],['Timberline State','KY','Deep South Athletic Conference','Ember Phoenix','#5a3a1f','#e0d0b0'],
+    ['Thornwood Grove','TN','Deep South Athletic Conference','Slate Hawks','#1f4a4a','#e0a860'],['Jettyshore Bend','AL','Deep South Athletic Conference','Iron Wolves','#2a3a1a','#d8b060'],['Slatecliff Landing','AL','Deep South Athletic Conference','Pine Martens','#5a3a1f','#e0d0b0'],
+    ['Tallgrass Heights','SC','Deep South Athletic Conference','Peregrines','#0a2a2a','#c8a24a'],['Glimmer State','GA','Deep South Athletic Conference','Whitecaps','#1c3a2a','#c0a060'],['Harrowgate Harbor','SD','Northern Sun Alliance','Delta Gators','#1c3a2a','#c0a060'],
+    ['Emberton State','MN','Northern Sun Alliance','Copper Owls','#0e2a4a','#b0c8d8'],['Root River','MN','Northern Sun Alliance','Thunder Elk','#1f2a4a','#c8b0e0'],['Kettlebrook State','MN','Northern Sun Alliance','Jetstream Falcons','#8a4a1f','#2a2a2a'],
+    ['Prairiewood State','MN','Northern Sun Alliance','Antler Kings','#8a4a1f','#2a2a2a'],['Jubilee State','MN','Northern Sun Alliance','Coal Ravens','#3a0f2a','#c0c0c0'],['Frostpine Cornerstone','MN','Northern Sun Alliance','Lantern Moths','#5a4a1f','#2a3a2a'],
+    ['Whitewater Mn','MN','Northern Sun Alliance','Rapids Otters','#2a1f4a','#e0b0c0'],['Northern Kirkwall State','SD','Northern Sun Alliance','Elmwood Owls','#4a1f5a','#c8a24a'],['Elderwood State','NE','Northern Sun Alliance','Opal Owls','#3a0f2a','#c0c0c0'],
+    ['Saddleback Bend','SD','Northern Sun Alliance','Gale Ospreys','#2a1f4a','#e0b0c0'],['Willowmere State','MN','Northern Sun Alliance','Whitecaps','#1c3a2a','#c0a060'],['Waterloo State','ND','Northern Sun Alliance','Zephyr Swifts','#3a2a5a','#c8b28a'],
+    ['Marshview Harbor','ND','Northern Sun Alliance','Verglas Lynx','#3a0f2a','#c0c0c0'],['Stagfield State','KS','Prairie Heartland Conference','Lantern Moths','#5a4a1f','#2a3a2a'],['Windmere State','KS','Prairie Heartland Conference','Nettle Vipers','#0e2a4a','#b0c8d8'],
+    ['Dovewood State','KS','Prairie Heartland Conference','Kelp Otters','#12233f','#7ac0e0'],['Topeka','KS','Prairie Heartland Conference','Prairie Falcons','#123c6b','#c8a24a'],['Central Dovewood','MO','Prairie Heartland Conference','Canyon Hawks','#7a1f2b','#d0d0d0'],
+    ['Meramec','MO','Prairie Heartland Conference','Driftwood Herons','#5a2a3a','#d0d0b0'],['Osage','MO','Prairie Heartland Conference','Aurora Lynx','#5a3a1f','#e0d0b0'],['Brindle State','MO','Prairie Heartland Conference','Duskhawks','#0a3a3a','#e0a04a'],
+    ['Northeastern Falconry State','OK','Prairie Heartland Conference','Peregrines','#0a2a2a','#c8a24a'],['Lyndhurst State','OK','Prairie Heartland Conference','Timberjacks','#5a2a3a','#d0d0b0'],['Cliffside Heights','NE','Prairie Heartland Conference','Ridgeback Wolves','#2a3a5a','#d8b84a'],
+    ['Central Prairiewood','OK','Prairie Heartland Conference','Greywolves','#1c3a2a','#c0a060'],['Cimarron','KS','Prairie Heartland Conference','Night Owls','#7a1f2b','#d0d0d0'],['Modoc','CA','Golden State Athletic Conference','Prairie Falcons','#3a2a2a','#d8a860'],
+    ['Crestmoor State','CA','Golden State Athletic Conference','Copper Owls','#0e2a4a','#b0c8d8'],['Underwood State','CA','Golden State Athletic Conference','Boulder Bears','#4a1f5a','#c8a24a'],['Nunnery State','CA','Golden State Athletic Conference','Storm Bison','#4a0f1f','#e8d0a0'],
+    ['Chestnut State','CA','Golden State Athletic Conference','Pine Martens','#3a2a5a','#c8b28a'],['Thornfield State','CA','Golden State Athletic Conference','Kelp Otters','#12233f','#7ac0e0'],['Modoc State','CA','Golden State Athletic Conference','Moss Stags','#6a3a0f','#3a4a5a'],
+    ['Netherby State','CA','Golden State Athletic Conference','Dust Devils','#1f4a4a','#e0a860'],['Eastvale State','CA','Golden State Athletic Conference','Dogwood Deer','#2a4a3a','#e8c85a'],['Ventura State','CA','Golden State Athletic Conference','Glacier Rams','#4a3a2a','#b0d0e0'],
+    ['Quillan State','CA','Golden State Athletic Conference','Harrier Kites','#1f4a4a','#e0a860'],['Cobalt Tech','AR','Ozark Athletic Conference','Thunder Elk','#1f2a4a','#c8b0e0'],['Kingsford Springs','AR','Ozark Athletic Conference','Cascade Falcons','#3a1f2a','#c0a878'],
+    ['Quintel State','AR','Ozark Athletic Conference','Iron Wolves','#5a4a1f','#2a3a2a'],['Southern Jarrow','AR','Ozark Athletic Conference','Frost Wolves','#12233f','#7ac0e0'],['Grovemont Covenant','AR','Ozark Athletic Conference','Aurora Lynx','#5a3a1f','#e0d0b0'],
+    ['Southern Netherby Abbey','OK','Ozark Athletic Conference','Red Hawks','#0f3a4a','#e0d060'],['Southeastern Jubilee State','OK','Ozark Athletic Conference','Undertow Sharks','#0a2a2a','#c8a24a'],['Southwestern Fallowmere State','OK','Ozark Athletic Conference','Flatland Bison','#7a1f2b','#d0d0d0'],
+    ['East Jubilee','OK','Ozark Athletic Conference','Ash Bears','#2a1f4a','#e0b0c0'],['Birchwood Cornerstone','OK','Ozark Athletic Conference','Gale Ospreys','#3a1f2a','#c0a878'],['Ambergate Hollow','AR','Ozark Athletic Conference','Moss Stags','#6a3a0f','#3a4a5a'],
+    ['Tallgrass State','GA','Peach Country Conference','Moss Stags','#6a3a0f','#3a4a5a'],['Stagfield College','GA','Peach Country Conference','Ironclad Elk','#0e2a4a','#b0c8d8'],['Chattahoochee','GA','Peach Country Conference','Gale Ospreys','#3a1f2a','#c0a878'],
+    ['Wexford Harbor','FL','Peach Country Conference','Nettle Vipers','#0e2a4a','#b0c8d8'],['Tallgrass Grove','SC','Peach Country Conference','Dust Devils','#1f4a4a','#e0a860'],['Marlowe Harbor','SC','Peach Country Conference','Copper Owls','#0e2a4a','#b0c8d8'],
+    ['Edisto','SC','Peach Country Conference','Amber Coyotes','#6a1f24','#dcae52'],['Havenport Springs','GA','Peach Country Conference','Juniper Jays','#4a2a1f','#a8c0d0'],['Ostmoor State','GA','Peach Country Conference','River Serpents','#1a3a1a','#d0c060'],
+    ['Haw River','NC','Peach Country Conference','Vane Kestrels','#1d3f6e','#c9a227'],['Chenango','NY','New England Ten Conference','Kettle Cranes','#1a3a1a','#d0c060'],['Foghollow Falls','MA','New England Ten Conference','Sandpipers','#1f4a5a','#e0e0e0'],
+    ['Nashua','MA','New England Ten Conference','Aurora Lynx','#5a3a1f','#e0d0b0'],['Blackland Landing','MA','New England Ten Conference','Iron Wolves','#5a4a1f','#2a3a2a'],['Oreburg Point','NH','New England Ten Conference','Silver Lynx','#6a3a0f','#3a4a5a'],
+    ['Genesee','NY','New England Ten Conference','Yewbows','#0f5a3c','#f0e6c8'],['Yatesboro Falls','CT','New England Ten Conference','Everglade Ibis','#0a2a2a','#c8a24a'],['Wexford Landing','NY','New England Ten Conference','Elmwood Owls','#4a1f5a','#c8a24a'],
+    ['Deercreek Friends','NH','New England Ten Conference','Vane Kestrels','#1d3f6e','#c9a227'],['Kelsomoor Wesleyan','VT','New England Ten Conference','Pike Anglers','#2a3a1a','#d8b060'],['Southern Grimsby','CT','New England Ten Conference','Antler Kings','#8a4a1f','#2a2a2a'],
+    ['Southern Sagebrook','NH','New England Ten Conference','Jetstream Falcons','#8a4a1f','#2a2a2a'],['Indian River','FL','Sunshine Coast Conference','Nettle Vipers','#0e2a4a','#b0c8d8'],['Holloway Chapel','FL','Sunshine Coast Conference','Ember Phoenix','#5a3a1f','#e0d0b0'],
+    ['Pinecrest Ridge','FL','Sunshine Coast Conference','Aurora Lynx','#5a3a1f','#e0d0b0'],['Thistlemoor Harbor','FL','Sunshine Coast Conference','Glacier Rams','#4a3a2a','#b0d0e0'],['Everglen Falls','FL','Sunshine Coast Conference','Bramble Boars','#1f4a5a','#e0e0e0'],
+    ['Marrowvale Hollow','FL','Sunshine Coast Conference','Sable Wolves','#6a3a0f','#3a4a5a'],['Quillan Springs','FL','Sunshine Coast Conference','Copper Owls','#0e2a4a','#b0c8d8'],['Apalachee','FL','Sunshine Coast Conference','Pine Martens','#5a3a1f','#e0d0b0'],
+    ['Dewpoint Falls','FL','Sunshine Coast Conference','Storm Bison','#4a0f1f','#e8d0a0'],['Yandell Tech','FL','Sunshine Coast Conference','Fenland Cranes','#1d3f6e','#c9a227'],['Peregrine Bethany','NC','Carolina Piedmont Conference','Red Hawks','#0f3a4a','#e0d060'],
+    ['Gorsehill Falls','NC','Carolina Piedmont Conference','Cobalt Sharks','#1f4a4a','#e0a860'],['Ironvale Bend','NC','Carolina Piedmont Conference','Duskhawks','#0a3a3a','#e0a04a'],['Tinderbox Grove','NC','Carolina Piedmont Conference','Storm Bison','#4a0f1f','#e8d0a0'],
+    ['Yellowpine Springs','TN','Carolina Piedmont Conference','Jetstream Falcons','#8a4a1f','#2a2a2a'],['Orchardton Springs','GA','Carolina Piedmont Conference','Lantern Moths','#5a4a1f','#2a3a2a'],['Southern Tallgrass Wesleyan','SC','Carolina Piedmont Conference','Pine Martens','#3a2a5a','#c8b28a'],
+    ['Vireo Hollow','SC','Carolina Piedmont Conference','Marsh Cranes','#4a1f5a','#c8a24a'],['Blue Ridge Sc','SC','Carolina Piedmont Conference','Iron Wolves','#5a4a1f','#2a3a2a'],['Cragmoor Bend','NC','Carolina Piedmont Conference','Nettle Vipers','#1f4a4a','#e0a860'],
+    ['North Glenrock','SC','Carolina Piedmont Conference','Steel Herons','#0a3a3a','#e0a04a'],['Oakmont Falls','SC','Carolina Piedmont Conference','Granite Foxes','#0f3a4a','#e0d060'],['Western Galewood','WA','Cascadia Athletic Conference','Duskhawks','#0a3a3a','#e0a04a'],
+    ['Cobalt Landing','WA','Cascadia Athletic Conference','Kettle Cranes','#1a3a1a','#d0c060'],['Central Meadowvale','WA','Cascadia Athletic Conference','Quarry Rams','#1a3a1a','#d0c060'],['Western Nettle','OR','Cascadia Athletic Conference','Canyon Hawks','#7a1f2b','#d0d0d0'],
+    ['Chugach','AK','Cascadia Athletic Conference','Timberjacks','#5a2a3a','#d0d0b0'],['Riverton Crossing','AK','Cascadia Athletic Conference','Dune Jackals','#2a3a5a','#d8b84a'],['Grovemont Hollow','MT','Cascadia Athletic Conference','Coal Ravens','#3a0f2a','#c0c0c0'],
+    ['Yarrow Abbey','ID','Cascadia Athletic Conference','Ash Bears','#2a1f4a','#e0b0c0'],['Thornbury Grace','WA','Cascadia Athletic Conference','Briar Wolves','#12233f','#7ac0e0'],['Vesper Hollow','CA','Pacific Rim Conference','Silver Lynx','#6a3a0f','#3a4a5a'],
+    ['Uplands Friends','CA','Pacific Rim Conference','Gorge Ravens','#5a4a1f','#2a3a2a'],['Cragmoor Point','CA','Pacific Rim Conference','Granite Foxes','#4a2a1f','#a8c0d0'],['Millvale Harbor','CA','Pacific Rim Conference','Amber Coyotes','#6a1f24','#dcae52'],
+    ['Oldstone Heights','CA','Pacific Rim Conference','Heron Kings','#3a2a2a','#d8a860'],['Hollowpine Falls','HI','Pacific Rim Conference','Cobalt Sharks','#1f4a4a','#e0a860'],['Waianae','HI','Pacific Rim Conference','Ridgeback Wolves','#2a3a5a','#d8b84a'],
+    ['Brindle Hollow','HI','Pacific Rim Conference','Nettle Vipers','#0e2a4a','#b0c8d8'],['Junction Falls','CA','Pacific Rim Conference','Storm Bison','#4a0f1f','#e8d0a0'],['Mojave','CA','Pacific Rim Conference','Moss Stags','#6a3a0f','#3a4a5a']
   ];
 
-  /* ---------------- Division III ---------------- */
+  /* ---------------- Division C ---------------- */
   D.RAW_SCHOOLS_DIII = [
-    // WIAC — Wisconsin Intercollegiate Athletic Conference
-    ['UW-La Crosse','WI','WIAC'],['UW-Oshkosh','WI','WIAC'],['UW-Whitewater','WI','WIAC'],
-    ['UW-Eau Claire','WI','WIAC'],['UW-Stevens Point','WI','WIAC'],['UW-Platteville','WI','WIAC'],
-    ['UW-River Falls','WI','WIAC'],['UW-Stout','WI','WIAC'],['UW-Superior','WI','WIAC'],
-    // NESCAC — New England Small College Athletic Conference
-    ['Williams','MA','NESCAC'],['Amherst','MA','NESCAC'],['Middlebury','VT','NESCAC'],['Tufts','MA','NESCAC'],
-    ['Bowdoin','ME','NESCAC'],['Bates','ME','NESCAC'],['Colby','ME','NESCAC'],['Wesleyan','CT','NESCAC'],
-    ['Trinity (CT)','CT','NESCAC'],['Hamilton','NY','NESCAC'],['Connecticut College','CT','NESCAC'],
-    // NCAC — North Coast Athletic Conference
-    ['Kenyon','OH','NCAC'],['Denison','OH','NCAC'],['Oberlin','OH','NCAC'],['Wooster','OH','NCAC'],
-    ['Ohio Wesleyan','OH','NCAC'],['Wabash','IN','NCAC'],['DePauw','IN','NCAC'],['Wittenberg','OH','NCAC'],
-    ['Hiram','OH','NCAC'],['Allegheny','PA','NCAC'],
-    // UAA — University Athletic Association
-    ['Washington U. (MO)','MO','UAA'],['Chicago','IL','UAA'],['Emory','GA','UAA'],['Carnegie Mellon','PA','UAA'],
-    ['Case Western Reserve','OH','UAA'],['NYU','NY','UAA'],['Rochester (NY)','NY','UAA'],['Brandeis','MA','UAA'],
-    // SUNYAC — State University of New York Athletic Conference
-    ['Geneseo','NY','SUNYAC'],['Cortland','NY','SUNYAC'],['Brockport','NY','SUNYAC'],['Oneonta','NY','SUNYAC'],
-    ['Fredonia','NY','SUNYAC'],['Plattsburgh','NY','SUNYAC'],['Potsdam','NY','SUNYAC'],['Oswego','NY','SUNYAC'],
-    ['New Paltz','NY','SUNYAC'],['Buffalo State','NY','SUNYAC'],
-    // MIAA — Michigan Intercollegiate Athletic Association
-    ['Calvin','MI','MIAA (DIII)'],['Hope','MI','MIAA (DIII)'],['Albion','MI','MIAA (DIII)'],['Alma','MI','MIAA (DIII)'],
-    ['Kalamazoo','MI','MIAA (DIII)'],['Olivet','MI','MIAA (DIII)'],['Adrian','MI','MIAA (DIII)'],['Trine','IN','MIAA (DIII)'],
-    ['Saint Mary\'s (IN)','IN','MIAA (DIII)'],
-    // SCAC — Southern Collegiate Athletic Conference
-    ['Trinity (TX)','TX','SCAC'],['Colorado College','CO','SCAC'],['Southwestern','TX','SCAC'],
-    ['Texas Lutheran','TX','SCAC'],['Schreiner','TX','SCAC'],['Austin College','TX','SCAC'],
-    ['St. Thomas (TX)','TX','SCAC'],['Dallas','TX','SCAC'],
-    // CCIW — College Conference of Illinois and Wisconsin
-    ['North Central (IL)','IL','CCIW'],['Wheaton (IL)','IL','CCIW'],['Elmhurst','IL','CCIW'],
-    ['Augustana (IL)','IL','CCIW'],['Illinois Wesleyan','IL','CCIW'],['Carthage','WI','CCIW'],
-    ['Millikin','IL','CCIW'],['North Park','IL','CCIW'],
-    // ODAC — Old Dominion Athletic Conference
-    ['Lynchburg','VA','ODAC'],['Washington and Lee','VA','ODAC'],['Roanoke','VA','ODAC'],['Bridgewater (VA)','VA','ODAC'],
-    ['Randolph-Macon','VA','ODAC'],['Hampden-Sydney','VA','ODAC'],['Guilford','NC','ODAC'],
-    ['Virginia Wesleyan','VA','ODAC'],['Shenandoah','VA','ODAC'],['Eastern Mennonite','VA','ODAC'],
-    // Centennial Conference
-    ['Johns Hopkins','MD','Centennial'],['Haverford','PA','Centennial'],['Swarthmore','PA','Centennial'],
-    ['Dickinson','PA','Centennial'],['Gettysburg','PA','Centennial'],['Franklin & Marshall','PA','Centennial'],
-    ['Muhlenberg','PA','Centennial'],['Ursinus','PA','Centennial'],['McDaniel','MD','Centennial'],['Washington (MD)','MD','Centennial'],
-    // Liberty League
-    ['RPI','NY','Liberty League'],['RIT','NY','Liberty League'],['Union','NY','Liberty League'],['Ithaca','NY','Liberty League'],
-    ['St. Lawrence','NY','Liberty League'],['Skidmore','NY','Liberty League'],['Hobart & William Smith','NY','Liberty League'],
-    ['Vassar','NY','Liberty League'],['Bard','NY','Liberty League'],['Clarkson','NY','Liberty League'],
-    // MIAC — Minnesota Intercollegiate Athletic Conference
-    ['St. Olaf','MN','MIAC'],['Carleton','MN','MIAC'],['Macalester','MN','MIAC'],['Gustavus Adolphus','MN','MIAC'],
-    ['Hamline','MN','MIAC'],['Bethel (MN)','MN','MIAC'],['St. John\'s (MN)','MN','MIAC'],['Augsburg','MN','MIAC'],
-    ['Concordia Moorhead','MN','MIAC'],['Saint Mary\'s (MN)','MN','MIAC'],
-    // Empire 8
-    ['Nazareth','NY','Empire 8'],['St. John Fisher','NY','Empire 8'],['Utica','NY','Empire 8'],['Alfred','NY','Empire 8'],
-    ['Elmira','NY','Empire 8'],['Hartwick','NY','Empire 8'],['Houghton','NY','Empire 8'],['Sage','NY','Empire 8'],
-    // SAA — Southern Athletic Association
-    ['Berry','GA','SAA'],['Centre','KY','SAA'],['Sewanee','TN','SAA'],['Rhodes','TN','SAA'],
-    ['Hendrix','AR','SAA'],['Millsaps','MS','SAA'],['Oglethorpe','GA','SAA'],
-    // Skyline Conference
-    ['Mount Saint Mary (NY)','NY','Skyline'],['Farmingdale State','NY','Skyline'],['Old Westbury','NY','Skyline'],
-    ['Sarah Lawrence','NY','Skyline'],['Purchase','NY','Skyline'],['St. Joseph\'s (LI)','NY','Skyline'],['Yeshiva','NY','Skyline'],
-    // Little East Conference
-    ['Keene State','NH','Little East'],['Plymouth State','NH','Little East'],['UMass Dartmouth','MA','Little East'],
-    ['UMass Boston','MA','Little East'],['Rhode Island College','RI','Little East'],['Eastern Connecticut','CT','Little East'],
-    ['Western Connecticut','CT','Little East'],['Southern Maine','ME','Little East'],['Castleton','VT','Little East'],
-    // C2C — Coast To Coast Athletic Conference
-    ['Christopher Newport','VA','C2C'],['Mary Washington','VA','C2C'],['Salisbury','MD','C2C'],
-    ['Southern Virginia','VA','C2C'],['York (PA)','PA','C2C'],['Pfeiffer','NC','C2C'],
-    // NEWMAC — New England Women's and Men's Athletic Conference
-    ['MIT','MA','NEWMAC'],['WPI','MA','NEWMAC'],['Coast Guard','CT','NEWMAC'],['Springfield','MA','NEWMAC'],
-    ['Babson','MA','NEWMAC'],['Wheaton (MA)','MA','NEWMAC'],['Clark (MA)','MA','NEWMAC'],['Emerson','MA','NEWMAC'],
-    // Landmark Conference
-    ['Catholic','DC','Landmark'],['Susquehanna','PA','Landmark'],['Juniata','PA','Landmark'],['Elizabethtown','PA','Landmark'],
-    ['Moravian','PA','Landmark'],['Scranton','PA','Landmark'],['Goucher','MD','Landmark'],['Drew','NJ','Landmark']
+    ['Baraboo','WI','Northwoods Athletic Conference','Nettle Vipers','#0e2a4a','#b0c8d8'],['Chequamegon','WI','Northwoods Athletic Conference','Storm Bison','#4a0f1f','#e8d0a0'],['Cranberry Dells','WI','Northwoods Athletic Conference','Chinook Salmon','#6a1f24','#dcae52'],
+    ['Door County','WI','Northwoods Athletic Conference','Obsidian Panthers','#4a0f1f','#e8d0a0'],['Ironwood Ridge','WI','Northwoods Athletic Conference','Ember Phoenix','#5a3a1f','#e0d0b0'],['Kettle Moraine','WI','Northwoods Athletic Conference','Aurora Lynx','#5a3a1f','#e0d0b0'],
+    ['Fairmont Point','WI','Northwoods Athletic Conference','Delta Gators','#1c3a2a','#c0a060'],['Hollowpine Heights','WI','Northwoods Athletic Conference','Ash Bears','#2a1f4a','#e0b0c0'],['Yorkshire Vale','WI','Northwoods Athletic Conference','Sandpipers','#1f4a5a','#e0e0e0'],
+    ['Eastvale Grove','MA','New England Scholars Conference','Thunder Elk','#1f2a4a','#c8b0e0'],['Merrimac','MA','New England Scholars Conference','Prairie Falcons','#3a2a2a','#d8a860'],['Mad River','VT','New England Scholars Conference','Hollow Owls','#0f5a3c','#f0e6c8'],
+    ['Verglas Falls','MA','New England Scholars Conference','Peregrines','#0a2a2a','#c8a24a'],['Allagash','ME','New England Scholars Conference','Willow Herons','#2a3a1a','#d8b060'],['Umberton Springs','ME','New England Scholars Conference','Coal Ravens','#3a0f2a','#c0c0c0'],
+    ['Lakeshore Landing','ME','New England Scholars Conference','Opal Owls','#3a0f2a','#c0c0c0'],['Yorkshire Wesleyan','CT','New England Scholars Conference','Dust Devils','#1f4a4a','#e0a860'],['Ashvale Landing','CT','New England Scholars Conference','Marlin Divers','#5a3a1f','#e0d0b0'],
+    ['Catskill','NY','New England Scholars Conference','Loon Divers','#2a1f4a','#e0b0c0'],['Harrowgate College','CT','New England Scholars Conference','Timber Cats','#2a3a1a','#d8b060'],['Marshview Vale','OH','North Coast Scholars Conference','Inlet Terns','#3a2a5a','#c8b28a'],
+    ['Maumee Oh','OH','North Coast Scholars Conference','Harrier Kites','#2a3a5a','#d8b84a'],['Kelpwood Harbor','OH','North Coast Scholars Conference','Jetstream Falcons','#8a4a1f','#2a2a2a'],['Pinecrest Landing','OH','North Coast Scholars Conference','Whitecaps','#1c3a2a','#c0a060'],
+    ['Oreburg Friends','OH','North Coast Scholars Conference','Lantern Moths','#5a4a1f','#2a3a2a'],['Penrith Falls','IN','North Coast Scholars Conference','Kelp Otters','#12233f','#7ac0e0'],['Reedmarsh Vale','IN','North Coast Scholars Conference','Meadow Larks','#3a2a2a','#d8a860'],
+    ['Summit Point','OH','North Coast Scholars Conference','Timberjacks','#5a2a3a','#d0d0b0'],['Hocking','OH','North Coast Scholars Conference','Willow Herons','#8a4a1f','#2a2a2a'],['Xander Harbor','PA','North Coast Scholars Conference','Fenland Cranes','#1d3f6e','#c9a227'],
+    ['Gasconade','MO','University Scholars Association','Ridgeback Wolves','#2a3a5a','#d8b84a'],['Thornfield Crossing','IL','University Scholars Association','Briar Wolves','#12233f','#7ac0e0'],['Elkhorn Bend','GA','University Scholars Association','Zephyr Swifts','#3a2a5a','#c8b28a'],
+    ['Crestmoor Harbor','PA','University Scholars Association','Ironclad Elk','#0e2a4a','#b0c8d8'],['Maplecrest Bend','OH','University Scholars Association','Reed Warblers','#12233f','#7ac0e0'],['Finger Lakes','NY','University Scholars Association','Flatland Bison','#7a1f2b','#d0d0d0'],
+    ['Hudson Hlnds','NY','University Scholars Association','Kettle Cranes','#1a3a1a','#d0c060'],['Berkshire','MA','University Scholars Association','Heron Kings','#3a2a2a','#d8a860'],['Yorkshire Grove','NY','Empire State Athletic Conference','Duskhawks','#0a3a3a','#e0a04a'],
+    ['Moorcroft Hollow','NY','Empire State Athletic Conference','Honey Badgers','#0f5a3c','#f0e6c8'],['Verglas Crossing','NY','Empire State Athletic Conference','Red Hawks','#0f3a4a','#e0d060'],['Mohawk','NY','Empire State Athletic Conference','Thistle Rams','#0a3a3a','#e0a04a'],
+    ['Jubilee Bend','NY','Empire State Athletic Conference','Juniper Wolves','#4a0f1f','#e8d0a0'],['Nettle Grove','NY','Empire State Athletic Conference','Heron Kings','#3a2a2a','#d8a860'],['Dellwood Falls','NY','Empire State Athletic Conference','Weathervanes','#2a4a3a','#e8c85a'],
+    ['Thornfield Heights','NY','Empire State Athletic Conference','Dune Jackals','#2a3a5a','#d8b84a'],['Quarry Falls','NY','Empire State Athletic Conference','Elmwood Owls','#4a1f5a','#c8a24a'],['Finger Lakes State','NY','Empire State Athletic Conference','Dust Devils','#1f4a4a','#e0a860'],
+    ['Ambergate Harbor','MI','Great Lakes Scholars Conference','Timberjacks','#5a2a3a','#d0d0b0'],['Vale Grove','MI','Great Lakes Scholars Conference','Frost Wolves','#12233f','#7ac0e0'],['Waterloo Point','MI','Great Lakes Scholars Conference','Blue Herons','#5a2a3a','#d0d0b0'],
+    ['Frostpine Springs','MI','Great Lakes Scholars Conference','Marlin Divers','#5a3a1f','#e0d0b0'],['Pinecrest Springs','MI','Great Lakes Scholars Conference','Quarry Rams','#1a3a1a','#d0c060'],['Saginaw Vly','MI','Great Lakes Scholars Conference','Coal Ravens','#3a0f2a','#c0c0c0'],
+    ['Eelgrass Springs','MI','Great Lakes Scholars Conference','Emberhawks','#4a2a1f','#a8c0d0'],['Whitewater In','IN','Great Lakes Scholars Conference','Obsidian Panthers','#4a0f1f','#e8d0a0'],['Norcliff Abbey','IN','Great Lakes Scholars Conference','Sandpipers','#1f4a5a','#e0e0e0'],
+    ['Brazos','TX','Southern Scholars Conference','Dust Devils','#1f4a4a','#e0a860'],['Kestrel College','CO','Southern Scholars Conference','Copper Owls','#1f4a4a','#e0a860'],['Big Bend','TX','Southern Scholars Conference','Talon Eagles','#3a1f2a','#c0a878'],
+    ['Harborview Bethany','TX','Southern Scholars Conference','Everglade Ibis','#0a2a2a','#c8a24a'],['Inglewood Ridge','TX','Southern Scholars Conference','Honey Badgers','#0f5a3c','#f0e6c8'],['Windward College','TX','Southern Scholars Conference','Jetstream Falcons','#8a4a1f','#2a2a2a'],
+    ['Knollwood Abbey','TX','Southern Scholars Conference','Bramble Boars','#1f4a5a','#e0e0e0'],['Orchardton Ridge','TX','Southern Scholars Conference','Juniper Jays','#4a2a1f','#a8c0d0'],['North Thornwood','IL','Prairie Colleges Conference','Frost Wolves','#12233f','#7ac0e0'],
+    ['Sangamon','IL','Prairie Colleges Conference','Kelp Otters','#12233f','#7ac0e0'],['Tinderbox Crossing','IL','Prairie Colleges Conference','Ash Bears','#2a1f4a','#e0b0c0'],['Kaskaskia','IL','Prairie Colleges Conference','Copper Owls','#0e2a4a','#b0c8d8'],
+    ['Quailridge Cornerstone','IL','Prairie Colleges Conference','Marsh Cranes','#4a1f5a','#c8a24a'],['Frostpine Point','WI','Prairie Colleges Conference','Verglas Lynx','#3a0f2a','#c0c0c0'],['Blackland Hollow','IL','Prairie Colleges Conference','Kettle Cranes','#1a3a1a','#d0c060'],
+    ['North Ostmoor','IL','Prairie Colleges Conference','Greywolves','#1c3a2a','#c0a060'],['Rappahannock','VA','Commonwealth Scholars Conference','Dogwood Deer','#2a4a3a','#e8c85a'],['Massanutten','VA','Commonwealth Scholars Conference','Whitecaps','#1c3a2a','#c0a060'],
+    ['Stagfield Harbor','VA','Commonwealth Scholars Conference','Nettle Vipers','#0e2a4a','#b0c8d8'],['Glenrock Heights','VA','Commonwealth Scholars Conference','Everglade Ibis','#0a2a2a','#c8a24a'],['Cedar Ridge','VA','Commonwealth Scholars Conference','Juniper Jays','#4a2a1f','#a8c0d0'],
+    ['Elmridge Vale','VA','Commonwealth Scholars Conference','Heron Kings','#3a2a2a','#d8a860'],['Neuse','NC','Commonwealth Scholars Conference','Duskhawks','#0a3a3a','#e0a04a'],['Thornfield Friends','VA','Commonwealth Scholars Conference','Cascade Falcons','#3a1f2a','#c0a878'],
+    ['Bluffton Landing','VA','Commonwealth Scholars Conference','Marlin Divers','#5a3a1f','#e0d0b0'],['Eastern Elderwood Cornerstone','VA','Commonwealth Scholars Conference','Elmwood Owls','#4a1f5a','#c8a24a'],['Antietam','MD','Founders Scholars Conference','Undertow Sharks','#0a2a2a','#c8a24a'],
+    ['Slate Ridge','PA','Founders Scholars Conference','Vane Kestrels','#1d3f6e','#c9a227'],['Yandell Crossing','PA','Founders Scholars Conference','Heron Kings','#3a2a2a','#d8a860'],['Prairiewood Falls','PA','Founders Scholars Conference','Rapids Otters','#2a1f4a','#e0b0c0'],
+    ['Tuscarora','PA','Founders Scholars Conference','Kelp Otters','#12233f','#7ac0e0'],['Conemaugh','PA','Founders Scholars Conference','Emberhawks','#4a2a1f','#a8c0d0'],['Norcliff Heights','PA','Founders Scholars Conference','Silver Lynx','#6a3a0f','#3a4a5a'],
+    ['Reedmarsh Ridge','PA','Founders Scholars Conference','Timberjacks','#5a2a3a','#d0d0b0'],['Choptank','MD','Founders Scholars Conference','Granite Foxes','#4a2a1f','#a8c0d0'],['Norcliff Grove','MD','Founders Scholars Conference','Steel Herons','#0a3a3a','#e0a04a'],
+    ['Tallgrass Bend','NY','Liberty Scholars League','Glacier Rams','#4a3a2a','#b0d0e0'],['Timberline Springs','NY','Liberty Scholars League','Yewbows','#0f5a3c','#f0e6c8'],['Brookfield Ridge','NY','Liberty Scholars League','Blue Herons','#5a2a3a','#d0d0b0'],
+    ['Jarrow Grove','NY','Liberty Scholars League','Canyon Hawks','#7a1f2b','#d0d0d0'],['Harrowgate Bethany','NY','Liberty Scholars League','Harrier Kites','#2a3a5a','#d8b84a'],['Cobalt Grove','NY','Liberty Scholars League','Kestrels','#1f2a4a','#c8b0e0'],
+    ['Nightingale Falls','NY','Liberty Scholars League','Bramble Boars','#1f4a5a','#e0e0e0'],['Genesee Vale','NY','Liberty Scholars League','Rapids Otters','#2a1f4a','#e0b0c0'],['Kingsbarrow Springs','NY','Liberty Scholars League','Cinder Stags','#8a4a1f','#2a2a2a'],
+    ['Cobalt Heights','NY','Liberty Scholars League','Basalt Rhinos','#4a3a2a','#b0d0e0'],['Ivywood Chapel','MN','Northland Colleges Conference','Talon Eagles','#3a1f2a','#c0a878'],['Vesper Grove','MN','Northland Colleges Conference','Cypress Hawks','#7a1f2b','#d0d0d0'],
+    ['Stonemill Hollow','MN','Northland Colleges Conference','Greywolves','#1c3a2a','#c0a060'],['Ridgeline Grove','MN','Northland Colleges Conference','Willow Herons','#2a3a1a','#d8b060'],['Heron Vale','MN','Northland Colleges Conference','Windrunners','#5a1f2b','#d8c7a0'],
+    ['Holloway Grace','MN','Northland Colleges Conference','Ash Bears','#2a1f4a','#e0b0c0'],['Maplecrest Bethany','MN','Northland Colleges Conference','Juniper Wolves','#4a0f1f','#e8d0a0'],['Yewdale Grove','MN','Northland Colleges Conference','Thunder Elk','#1f2a4a','#c8b0e0'],
+    ['Minnehaha','MN','Northland Colleges Conference','Opal Owls','#3a0f2a','#c0c0c0'],['Driftmoor Bethany','MN','Northland Colleges Conference','Canyon Hawks','#7a1f2b','#d0d0d0'],['Quintel Point','NY','Empire Eight Colleges','Hollow Owls','#0f5a3c','#f0e6c8'],
+    ['Underwood Cornerstone','NY','Empire Eight Colleges','Marsh Cranes','#4a1f5a','#c8a24a'],['Stonehaven Crossing','NY','Empire Eight Colleges','Thunder Elk','#1f2a4a','#c8b0e0'],['Adirondack','NY','Empire Eight Colleges','Heron Kings','#3a2a2a','#d8a860'],
+    ['Vesper Bend','NY','Empire Eight Colleges','Frost Wolves','#12233f','#7ac0e0'],['Dovervale Landing','NY','Empire Eight Colleges','Sable Wolves','#6a3a0f','#3a4a5a'],['Yewdale Heights','NY','Empire Eight Colleges','Weathervanes','#2a4a3a','#e8c85a'],
+    ['Tinderbox Vale','NY','Empire Eight Colleges','Dogwood Deer','#2a4a3a','#e8c85a'],['Rookwood Crossing','GA','Southern Athletic Alliance','Windrunners','#5a1f2b','#d8c7a0'],['Marrowvale Landing','KY','Southern Athletic Alliance','Jetstream Falcons','#8a4a1f','#2a2a2a'],
+    ['Hiwassee','TN','Southern Athletic Alliance','Frost Wolves','#12233f','#7ac0e0'],['Farrow Grove','TN','Southern Athletic Alliance','Kettle Cranes','#1a3a1a','#d0c060'],['Lyndhurst Crossing','AR','Southern Athletic Alliance','Cypress Hawks','#7a1f2b','#d0d0d0'],
+    ['Xander Crossing','MS','Southern Athletic Alliance','Marsh Cranes','#4a1f5a','#c8a24a'],['Etowah','GA','Southern Athletic Alliance','Copper Owls','#0e2a4a','#b0c8d8'],['Windward Chapel','NY','Ridgeline Colleges Conference','Fenland Cranes','#1d3f6e','#c9a227'],
+    ['Oxbow State','NY','Ridgeline Colleges Conference','Antler Kings','#8a4a1f','#2a2a2a'],['Northwind Vale','NY','Ridgeline Colleges Conference','Harbor Seals','#2a4a3a','#e8c85a'],['Falconry Heights','NY','Ridgeline Colleges Conference','Everglade Ibis','#0a2a2a','#c8a24a'],
+    ['Yellowpine Ridge','NY','Ridgeline Colleges Conference','Elmwood Owls','#4a1f5a','#c8a24a'],['Riverton Grace','NY','Ridgeline Colleges Conference','Loon Divers','#2a1f4a','#e0b0c0'],['Millbrook Point','NY','Ridgeline Colleges Conference','Granite Foxes','#4a2a1f','#a8c0d0'],
+    ['Windward State','NH','Coastal East Conference','Coal Ravens','#3a0f2a','#c0c0c0'],['Wexford State','NH','Coastal East Conference','Aurora Lynx','#5a3a1f','#e0d0b0'],['Norwood Ridge','MA','Coastal East Conference','Driftwood Herons','#5a2a3a','#d0d0b0'],
+    ['Elkhorn Vale','MA','Coastal East Conference','Timber Cats','#2a3a1a','#d8b060'],['Alcott College','RI','Coastal East Conference','Ash Bears','#2a1f4a','#e0b0c0'],['Eastern Westbrook','CT','Coastal East Conference','Verglas Lynx','#3a0f2a','#c0c0c0'],
+    ['Western Coppermere','CT','Coastal East Conference','Marlin Divers','#5a3a1f','#e0d0b0'],['Southern Overlook','ME','Coastal East Conference','Ridgeback Wolves','#2a3a5a','#d8b84a'],['Winooski','VT','Coastal East Conference','Marsh Cranes','#4a1f5a','#c8a24a'],
+    ['Nunnery Vale','VA','Capital Coast Conference','Cypress Hawks','#7a1f2b','#d0d0d0'],['Elderwood Landing','VA','Capital Coast Conference','Chinook Salmon','#6a1f24','#dcae52'],['Monocacy','MD','Capital Coast Conference','Foxfire Kits','#1f2a4a','#c8b0e0'],
+    ['Southern Dellwood','VA','Capital Coast Conference','Greywolves','#1c3a2a','#c0a060'],['Ridgeline Landing','PA','Capital Coast Conference','Hollow Owls','#0f5a3c','#f0e6c8'],['Granite Springs','NC','Capital Coast Conference','Jetstream Falcons','#8a4a1f','#2a2a2a'],
+    ['Cedar Grove','MA','New England Colleges Conference','Zephyr Swifts','#3a2a5a','#c8b28a'],['Bluffton Grove','MA','New England Colleges Conference','Pike Anglers','#2a3a1a','#d8b060'],['Naugatuck','CT','New England Colleges Conference','Chinook Salmon','#6a1f24','#dcae52'],
+    ['Icemount Landing','MA','New England Colleges Conference','Opal Owls','#3a0f2a','#c0c0c0'],['Rockbridge Ridge','MA','New England Colleges Conference','Basalt Rhinos','#4a3a2a','#b0d0e0'],['Gorsehill Ridge','MA','New England Colleges Conference','Juniper Jays','#4a2a1f','#a8c0d0'],
+    ['Housatonic Ma','MA','New England Colleges Conference','Thunder Elk','#1f2a4a','#c8b0e0'],['Emberhill Landing','MA','New England Colleges Conference','Amber Coyotes','#6a1f24','#dcae52'],['Thornwood Friends','DC','Waypoint Colleges Conference','Granite Foxes','#4a2a1f','#a8c0d0'],
+    ['Oakmont Heights','PA','Waypoint Colleges Conference','Juniper Wolves','#4a0f1f','#e8d0a0'],['Laurel Hlnd Heights','PA','Waypoint Colleges Conference','Frost Wolves','#12233f','#7ac0e0'],['Basalt Vale','PA','Waypoint Colleges Conference','Mountain Goats','#5a1f2b','#d8c7a0'],
+    ['Emberton Landing','PA','Waypoint Colleges Conference','Juniper Jays','#4a2a1f','#a8c0d0'],['Antler Crossing','PA','Waypoint Colleges Conference','Thistle Rams','#0a3a3a','#e0a04a'],['Glimmer Harbor','MD','Waypoint Colleges Conference','Moss Stags','#6a3a0f','#3a4a5a'],
+    ['Oakmont Bend','NJ','Waypoint Colleges Conference','Grove Stags','#5a1f2b','#d8c7a0']
   ];
 
-  /*
-   * Conference metadata for the lower divisions. Tier is prestige WITHIN the
-   * division. Merged into D.CONFERENCES (defined in constants.js) so every
-   * lookup keeps working. The `division` hint lets the UI group correctly
-   * when two divisions reuse a name (MIAA exists in both DII and DIII).
-   */
-  D.CONFERENCES_DII = {
-    'RMAC': 1, 'GLIAC': 1, 'PSAC': 1, 'NSIC': 1, 'Lone Star': 1,
-    'SAC': 2, 'Great Midwest': 2, 'MIAA (DII)': 2, 'CCAA': 2, 'Sunshine State': 2,
-    'NE10': 2, 'Great Northwest': 2, 'PacWest': 2, 'GAC': 3, 'PBC': 3,
-    'Conference Carolinas': 3, 'CIAA': 3, 'SIAC': 3
-  };
-  D.CONFERENCES_DIII = {
-    'WIAC': 1, 'NESCAC': 1, 'NCAC': 1, 'UAA': 1, 'MIAC': 1,
-    'SUNYAC': 2, 'MIAA (DIII)': 2, 'CCIW': 2, 'ODAC': 2, 'Centennial': 2,
-    'Liberty League': 2, 'Little East': 2, 'NEWMAC': 2,
-    'SCAC': 3, 'Empire 8': 3, 'SAA': 3, 'Skyline': 3, 'C2C': 3, 'Landmark': 3
-  };
+  /* Conference metadata for the lower divisions (prestige tier within the
+   * division). Merged into D.CONFERENCES so every lookup keeps working. */
+  D.CONFERENCES_DII = { 'Rocky Summit Conference': 1, 'Great Lakes Interstate Conference': 1, 'Keystone Athletic Conference': 1, 'Northern Sun Alliance': 1, 'Republic Athletic Conference': 1, 'Southern Highlands Conference': 2, 'Midland Athletic Conference': 2, 'Prairie Heartland Conference': 2, 'Golden State Athletic Conference': 2, 'Sunshine Coast Conference': 2, 'New England Ten Conference': 2, 'Cascadia Athletic Conference': 2, 'Pacific Rim Conference': 2, 'Ozark Athletic Conference': 3, 'Peach Country Conference': 3, 'Carolina Piedmont Conference': 3, 'Coastal Intercollegiate Conference': 3, 'Deep South Athletic Conference': 3 };
+  D.CONFERENCES_DIII = { 'Northwoods Athletic Conference': 1, 'New England Scholars Conference': 1, 'North Coast Scholars Conference': 1, 'University Scholars Association': 1, 'Northland Colleges Conference': 1, 'Empire State Athletic Conference': 2, 'Great Lakes Scholars Conference': 2, 'Prairie Colleges Conference': 2, 'Commonwealth Scholars Conference': 2, 'Founders Scholars Conference': 2, 'Liberty Scholars League': 2, 'Coastal East Conference': 2, 'New England Colleges Conference': 2, 'Southern Scholars Conference': 3, 'Empire Eight Colleges': 3, 'Southern Athletic Alliance': 3, 'Ridgeline Colleges Conference': 3, 'Capital Coast Conference': 3, 'Waypoint Colleges Conference': 3 };
 
   Object.entries(D.CONFERENCES_DII).forEach(([name, tier]) => {
     D.CONFERENCES[name] = D.CONFERENCES[name] || { tier, division: 'DII' };

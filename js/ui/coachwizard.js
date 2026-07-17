@@ -413,7 +413,7 @@
     let selectedId = game.playerSchoolId; // staying home is the natural default
     let divFilter = (game.getPlayerSchool().division || 'DI');
 
-    const DIV_TABS = [['DI', 'Division I'], ['DII', 'Division II'], ['DIII', 'Division III']]
+    const DIV_TABS = [['DI', 'Division A'], ['DII', 'Division B'], ['DIII', 'Division C']]
       .filter(([k]) => D.divisionFor(k).active);
 
     root.innerHTML = `

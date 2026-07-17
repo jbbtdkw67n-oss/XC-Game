@@ -1,6 +1,6 @@
 # Cross Country Dynasty
 
-A browser-based college cross country coaching dynasty game. Coach a program in **NCAA Division I, II, or III** over decades: recruit, train, race, and build the greatest dynasty in NCAA history.
+A browser-based college cross country coaching dynasty game. Coach a program in **NXCA Division A, II, or III** over decades: recruit, train, race, and build the greatest dynasty in NXCA history.
 
 Built entirely in vanilla HTML/CSS/JavaScript — no build step, no backend.
 
@@ -18,7 +18,7 @@ Home Screen** — it installs as a full-screen, offline-capable app. See
 
 - **Championship results, decluttered.** The gold row/text highlighting is
   gone from championship meet results — honor earners are now denoted purely
-  by their award emoji (🇺🇸 All-American, 🏅 All-Conference), everywhere
+  by their award emoji (🇺🇸 All-National Metro Conference, 🏅 All-Conference), everywhere
   results are shown.
 - **CPU coaches use upgrade points.** Computer coaches now bank coach
   upgrade points from the exact résumé lines the player earns — conference,
@@ -91,7 +91,7 @@ coaching decision matters over decades of play.
 - **Smarter CPU.** Elite staffs periodize intelligently, work double
   thresholds when appropriate, bank the postseason recovery week, scale
   mileage by gender, and selectively use Sway; weaker staffs make mistakes.
-- **GOAT weighting.** Division I accomplishments carry slightly more weight
+- **GOAT weighting.** Division A accomplishments carry slightly more weight
   than DII, which edge DIII — noticeable but not overwhelming, so dominant
   lower-division careers still rank among the all-time greats.
 - **Profile & UI cleanup.** Coach profiles gain a chronological
@@ -141,7 +141,7 @@ average competitors quietly fade after graduation.
 - **Quality-of-life & fixes.** Quick-set **+10 / −10 mileage** buttons on
   the training planner; some transfer-portal athletes now go **unpursued**
   by rival programs (uncontested depth for an alert coach); and a bug fix
-  so **D1 & D2 regionals race the 10K** (men) while **Pre-Nationals races
+  so **DA & DB regionals race the 10K** (men) while **National Preview races
   the 8K**.
 
 ## Version 9.0 — Update 11: Recruiting Balance & The Healthy Ecosystem
@@ -170,11 +170,11 @@ that respects a handshake.
   school down the road and the chance to actually race far more than a
   brand name; a real slice of every class (mostly 2–3★, some 4★)
   actively **prefers the DII/DIII experience** and will pick a strong
-  small program over a Division I bench — discoverable through scouting
+  small program over a Division A bench — discoverable through scouting
   as the "small-school" motivation. Programs recruit to their identity:
   volume staffs hunt aerobic engines, speed staffs hunt the kick, and
   graduation holes drive the board.
-- **The summer transfer window.** Division I cut day now feeds a real
+- **The summer transfer window.** Division A cut day now feeds a real
   second market: every roster cut (walk-ons included) enters a portal
   window across Summer Training **weeks 1–3, exclusive to DII and DIII
   programs**, who aggressively evaluate every available body — roster
@@ -212,7 +212,7 @@ that respects a handshake.
 ## Version 8.0 — Update X: Recruiting Realism & The Living Transfer Market
 
 The recruiting world wakes up: real bidding wars in the portal, a fully
-populated Division III, one recruiting economy for humans and CPUs alike,
+populated Division C, one recruiting economy for humans and CPUs alike,
 and no recruit ever left holding an offer nobody honored.
 
 - **Transfer portal bidding wars.** CPU programs no longer stumble into
@@ -231,9 +231,9 @@ and no recruit ever left holding an offer nobody honored.
   and budget like a competent human assistant — it scouts, calls,
   hosts visits, and extends offers against roster needs until the class
   is filled.
-- **Division III lives.** Nearly every D3 program (~95%+) now signs a
+- **Division C lives.** Nearly every DC program (~95%+) now signs a
   class every year: needs-driven boards, budget-scaled activity, and a
-  late-cycle scramble for overlooked recruits. And per NCAA rules, DIII
+  late-cycle scramble for overlooked recruits. And per NXCA rules, DIII
   programs now **Offer Roster Spots** — never scholarships — everywhere
   in recruiting, while DI/DII keep scholarship language.
 - **Every offer gets an answer.** A recruit holding at least one valid
@@ -263,7 +263,7 @@ and no recruit ever left holding an offer nobody honored.
   assistant post at a clearly better program, and a low-level assistant
   earns offers for bigger assistant jobs as their recruiting reputation
   grows — alongside their head-coach offers. The ladder runs through
-  Division I: a DII seat is a rare flagship call, a DIII seat never
+  Division A: a DII seat is a rare flagship call, a DIII seat never
   comes, and no offer is ever lateral or a step down.
 
 ## Version 7.9 — Facilities That Matter & Success-Driven Fundraising
@@ -359,20 +359,20 @@ Week 1 becomes the season's front office (spec Part 2, Section 15).
   season setup. **Week 2 stays locked until the checklist is complete**;
   Sim to Race waits too. Assistants are never gated, and the checklist
   resets every rollover.
-- **Finalized schedules.** Meet selection and the Pre-Nationals answer now
+- **Finalized schedules.** Meet selection and the National Preview answer now
   live in Week 1 only: pick the slate, then hit **Finalize Schedule** to
   lock it permanently — the selection UI disappears for the season,
   leaving the clean finalized table. Advancing past Week 1 locks the
-  slate regardless. Accepting the Pre-Nationals invitation drops it
+  slate regardless. Accepting the National Preview invitation drops it
   straight into the finalized schedule, with a clear ✓ Accepted state
   (no more dead buttons).
-- **Division I roster limits.** DI programs carry at most **14 athletes
+- **Division A roster limits.** DI programs carry at most **14 athletes
   per squad**. Enter Week 1 over the limit and the roster task blocks
   until you cut — the Roster screen gains a cut banner and per-athlete
   ✂️ Cut buttons, with overall, potential, class, work ethic, injury
   history, transfer risk, and stats all on hand for the decision. Cut
   athletes enter the portal and land at programs with room (a few walk
-  away). **CPU Division I programs make the same intelligent cuts every
+  away). **CPU Division A programs make the same intelligent cuts every
   rollover**; DII and DIII rosters stay unlimited.
 
 ## Version 7.5 — Live Team Score Projection Overhaul
@@ -421,8 +421,8 @@ carries an official **5K Personal Best**.
   and a permanent **HS 5K PB** line on the college player card, forever.
 - **Prep history that follows the athlete.** The best high-school senior in
   each of the 50 states earns a **State Championship** (🏵 permanent badge
-  + accolade), NXN now stamps each top-30 **finish** on the athlete for
-  life alongside the existing NXN Champion/All-American honors, and all of
+  + accolade), HSXN now stamps each top-30 **finish** on the athlete for
+  life alongside the existing HSXN Champion/All-National Metro Conference honors, and all of
   it survives enrollment, transfers, graduation, and the alumni ledger.
 - Old saves get deterministic backfilled PBs for the in-progress class.
 
@@ -562,7 +562,7 @@ periodized craft, and the CPU recruits and trains like it means it.
   wasting effort.
 - **Generational talent rules.** Once-in-a-generation prospects only originate
   from **high school or international** pipelines — a JUCO transfer can become
-  an All-American or a national champion, but never a generational recruit.
+  an All-National Metro Conference or a national champion, but never a generational recruit.
 - **Staff management.** Head coaches run their staff: a **Manage Staff** panel
   compares the incumbent assistant against three weekly candidates (quality
   scaled by prestige and your Staff Management craft, deterministic per week so
@@ -607,7 +607,7 @@ talent is guaranteed to keep flowing so Year 30 feels as strong as Year 1.
   auto-fired — your dynasty continues).
 - **Elite talent that never runs dry.** Every recruiting class is now guaranteed
   a floor of legitimate **blue-chip prospects**, on top of the existing
-  ⭐ generational once-in-a-decade talents, so the average Division I runner
+  ⭐ generational once-in-a-decade talents, so the average Division A runner
   stays as strong deep into a dynasty as on day one.
 - **High-altitude programs.** Elevation is a real program characteristic:
   altitude schools get a steady lift to **Stamina** and **Lactate Threshold**,
@@ -616,16 +616,16 @@ talent is guaranteed to keep flowing so Year 30 feels as strong as Year 1.
 - **Recruiting rating pays off.** A coach's **Recruiting** rating now directly
   buys weekly recruiting points, so elite recruiters meaningfully out-work weak
   ones over many cycles.
-- **Nike Cross Nationals (NXN).** A full high-school national championship runs
-  the same week as NCAA Nationals. Top prep recruits earn **👟 NXN Champion**
-  and **🎽 NXN All-American** honors that stay on their profile forever and are
+- **High School Cross Nationals (HSXN).** A full high-school national championship runs
+  the same week as NXCA Nationals. Top prep recruits earn **👟 HSXN Champion**
+  and **🎽 HSXN All-National Metro Conference** honors that stay on their profile forever and are
   carried into college when they enroll — richer recruiting stories, and a
   reason to chase the decorated names.
 - **Season Overview dashboard widget.** A season-at-a-glance card: current
   **W–L record**, **national ranking** (M/W), **conference standing**, **next
   opponent**, upcoming meets, and recent results — the player's primary season
   overview.
-- **Division-separated recruiting rankings.** D1, D2, and D3 each run their own
+- **Division-separated recruiting rankings.** DA, DB, and DC each run their own
   recruiting race, with a within-division rank alongside the national rank, so a
   DII program's #1 DII class is the achievement it should be (and coach
   "best class" ledgers are judged in-division).
@@ -636,7 +636,7 @@ talent is guaranteed to keep flowing so Year 30 feels as strong as Year 1.
 
 Saves upgrade automatically: coaches gain a role, athletes gain their coach/team
 relationship attributes (seeded from morale), and every pre-Update-5 dynasty
-starts as a Head Coach. Older recruiting-class history renders under Division I.
+starts as a Head Coach. Older recruiting-class history renders under Division A.
 
 ## Version 5.0 — Update 4: Identity, History & Prestige
 
@@ -646,8 +646,8 @@ real heritage, and profiles are reachable from nearly everywhere.
 
 - **Expanded athlete accolades.** Every honor is now a permanent, richly
   labeled record — division, conference (when applicable), and year — e.g.
-  *2028 D1 Individual National Champion*, *2029 SEC First Team All-Conference*,
-  *2031 RMAC Runner of the Year*. Honors earned across multiple divisions or
+  *2028 DA Individual National Champion*, *2029 Southern Premier Conference First Team All-Conference*,
+  *2031 Rocky Summit Conference Runner of the Year*. Honors earned across multiple divisions or
   conferences (via transfers/realignment) all coexist; nothing is ever
   overwritten. Athlete profiles show the full accolade ledger and a career
   overall-progression chart, and it all survives graduation in the alumni ledger.
@@ -667,14 +667,14 @@ real heritage, and profiles are reachable from nearly everywhere.
   elite invitationals only invite high-prestige programs, so a rebuild races
   regionals until it earns its way up. Rest a week to bank a training block.
 - **Dynamic prestige with real-world heritage.** Historically great programs
-  (NAU, Oklahoma State, BYU, Stanford, Oregon… Adams State, Colorado Mines,
-  Grand Valley State… North Central, UW–La Crosse, MIT…) start elevated and
+  (NAU, Stillwater State, BYU, Palo Alto, Eugene… Underhill State, Kirkwall Tech,
+  Falconry State… North Central, UW–La Crosse, MIT…) start elevated and
   carry *heritage* — resilience that resists collapse until several poor
   seasons pile up, while weak programs can still build into national powers
   over time. Heritage itself is dynamic.
 - **Preseason individual rankings** projected from returning ability, fitness,
   and expected development, so favorites return near the top.
-- **Champions & Awards, all divisions.** Champions page spans D1/D2/D3 team and
+- **Champions & Awards, all divisions.** Champions page spans DA/DB/DC team and
   individual champions plus conference champions grouped by division →
   conference. Awards page carries national awards per division and conference
   awards (Runner of the Year, Freshman of the Year, Coach of the Year) for
@@ -689,22 +689,22 @@ Saves upgrade automatically (**save v4 → v5**): coaches gain philosophies,
 athletes gain their accolade ledger, and programs pick up heritage — all
 without disturbing existing rosters, careers, or history.
 
-## Version 4.0 — Update 3: The Three-Division NCAA
+## Version 4.0 — Update 3: The Three-Division NXCA
 
 Update 3 completes the multi-division architecture: Divisions I, II, and III
-now coexist in one living NCAA ecosystem, each with its own real schools,
+now coexist in one living NXCA ecosystem, each with its own real schools,
 conferences, recruiting reality, and separate postseason. You can coach in
 any division and build a career that climbs (or falls) between them.
 
 - **All three divisions, real programs.** ~200 DII and ~165 DIII schools
-  across every major conference (RMAC, GLIAC, PSAC, NSIC, WIAC, NESCAC, UAA,
-  MIAC, and more), with division-scaled prestige, budgets, scholarships/NIL,
+  across every major conference (Rocky Summit Conference, Great Lakes Interstate Conference, Keystone Athletic Conference, Northern Sun Alliance, Northwoods Athletic Conference, New England Scholars Conference, University Scholars Association,
+  Northland Colleges Conference, and more), with division-scaled prestige, budgets, scholarships/NIL,
   and coach stature. Rankings run **within each division** — a DIII #1 is #1
   in DIII, never buried under DI.
 - **Cross-division competition, separate championships.** Open invitationals
   and regional meets mix all three divisions; conference, regionals, and
   nationals stay strictly per-division (DI/DII at 10K, DIII at 8K).
-- **Pre-Nationals Invitational.** A DI-only elite meet on the NCAA
+- **National Preview Invitational.** A DI-only elite meet on the NXCA
   Championship course. An invite is an accomplishment; coaches accept or
   decline by philosophy; racing it earns a small course-familiarity edge at
   Nationals and heavy poll weight.
@@ -730,10 +730,10 @@ Recruiting-filter crash (Star Rating / High School / JUCO) fixed — the Safari
 WebContent crash from rebuilding a `<select>` inside its own change handler is
 gone; filters now update in place with graceful empty states.
 
-## Version 3.0 — Update 2: The Living NCAA
+## Version 3.0 — Update 2: The Living NXCA
 
-Update 2 turns the game from a solid Division I simulator into the framework
-for a living, multi-division NCAA coaching universe. Dynasty building is
+Update 2 turns the game from a solid Division A simulator into the framework
+for a living, multi-division NXCA coaching universe. Dynasty building is
 harder, every decision echoes for decades, and the world writes its own
 stories — Cinderella programs, coaching legends, shocking transfers, and
 once-in-a-generation recruits — so no two dynasties ever feel the same.
@@ -742,7 +742,7 @@ once-in-a-generation recruits — so no two dynasties ever feel the same.
 
 A full 21-week year: **Summer Training (wk 1-3) → Regular Season (wk 4-12,
 meets at 4/6/8/10/12 with one bye week between every meet) → Conference
-(wk 13) → NCAA Regionals (wk 14) → NCAA Nationals (wk 15) → Offseason
+(wk 13) → NXCA Regionals (wk 14) → NXCA Nationals (wk 15) → Offseason
 (wk 16-21)**. No byes between championship rounds. All numbers live in
 `XCD.data.CALENDAR` — nothing downstream hardcodes the calendar.
 
@@ -800,23 +800,23 @@ whether the program's volume philosophy fits the athlete's body.
 
 ### Prestigious invitationals (Part 7)
 
-Elite programs get invitations to named fall classics — the **Nuttycombe
-Invitational**, **Pre-Nationals**, **Joe Piane**, **Roy Griak**, and
-**Wisconsin Invitational** — which carry extra poll weight. Everyone else
+Elite programs get invitations to named fall classics — the **Honey Badger
+Invitational**, **National Preview**, **Prairie Gold**, **Northland Classic**, and
+**Madison Invitational** — which carry extra poll weight. Everyone else
 races regional invitationals close to home, with a few lottery invites for
 hot mid-majors.
 
 ### Permanent history (Parts 8-10)
 
 - **Program ledgers**: every school permanently tracks meet wins, W/L
-  record and winning percentage, conference/regional/national titles, NCAA
+  record and winning percentage, conference/regional/national titles, NXCA
   appearances and podiums, best finish, highest ranking, individual
   champions, All-Americans, All-Conference honors, top recruiting classes,
   and its full coaching history — on a new History tab of the program page.
 - **Coach history**: career records, stints, titles, All-Americans coached,
   reputation arcs — and retired coaches remain **searchable forever** in the
   new Coach Registry (History → Coaches).
-- **Athlete badges**: 🏆 National Champion, 🇺🇸 All-American, 🥇 Conference
+- **Athlete badges**: 🏆 National Champion, 🇺🇸 All-National Metro Conference, 🥇 Conference
   Champion, 🏅 All-Conference — year-stamped, displayed on player cards for
   life, and preserved after graduation in the Decorated Alumni ledger
   (History → Legends).
@@ -839,7 +839,7 @@ confidence, consistency, and hidden late-bloomer/plateau profiles.
 And roughly once every 7-8 recruiting classes — on weighted odds with no
 pattern, streaks and droughts both possible — a **⭐ generational recruit**
 appears: immediately among the best runners in the country, capable of
-winning NCAAs as a freshman, but never perfect (The Diesel, The Closer, The
+winning NXCAs as a freshman, but never perfect (The Diesel, The Closer, The
 Aerobic Freak, The Tactician, The Metronome, The Prodigy — each with a
 signature weakness). Their recruitment becomes the story of the year with
 rolling news coverage; landing one lifts a program's prestige, buzz, and
@@ -847,7 +847,7 @@ roster morale; and they're remembered forever in History → Legends.
 
 ### Division architecture (Part 13 — the foundation)
 
-Division I is no longer hardcoded anywhere. A new division layer
+Division A is no longer hardcoded anywhere. A new division layer
 (`js/data/divisions.js`) defines scholarships, championship structure
 (field sizes, auto-qualifiers, All-America counts, distances), budgets,
 NIL, recruiting scope, academic emphasis, and expectations per division —
@@ -874,7 +874,7 @@ rosters, records, and history intact.
 - Save migrations run in `GameState.migrateSave`; entity-level defaults
   live in the model constructors, so every layer heals old data.
 
-### Roadmap — Update 3: Full Division II & III integration
+### Roadmap — Update 3: Full Division B & III integration
 
 The foundation above makes DII/DIII a data-and-content update, not a rewrite:
 
@@ -906,14 +906,14 @@ A ground-up gameplay overhaul: dynamic racing, a real weekly training planner, s
 ### Update 1 highlights
 
 - **Live races that breathe**: a segment-by-segment race engine with pack formation, mid-race surges, lactate-threshold pace holding, energy reserves, late-race fades, and a final-800m kick. The Race Center broadcasts it all with a live event feed and position-movement arrows — runners genuinely pass each other all race long.
-- **The season** *(superseded by Update 2's 21-week calendar)*: Wk 1 Meet · Wk 2 Training · Wk 3 Meet · Wk 4 Training · Wk 5 **Pre-Nationals** (elite field + invited mid-majors) · Wk 6 Training · Wk 7 Meet · Wk 8 Conference · Wk 9 Regionals · Wk 10 Nationals · Wk 11-14 Offseason (awards, portal, signing day). New seasons always open on the Dashboard.
+- **The season** *(superseded by Update 2's 21-week calendar)*: Wk 1 Meet · Wk 2 Training · Wk 3 Meet · Wk 4 Training · Wk 5 **National Preview** (elite field + invited mid-majors) · Wk 6 Training · Wk 7 Meet · Wk 8 Conference · Wk 9 Regionals · Wk 10 Nationals · Wk 11-14 Offseason (awards, portal, signing day). New seasons always open on the Dashboard.
 - **Weekly training planner**: assign one of seven workouts (Easy Run, Recovery Run, Long Run, Tempo, Hills, Intervals, Speed Development) to every day, Monday-Sunday. Balanced weeks develop athletes fastest; stacked hard days cause overtraining, fatigue, and injuries.
 - **Six core ratings**: VO₂ Max, Running Economy, Stamina, Injury Resistance, Lactate Threshold, Speed. Each workout trains specific ratings; races are computed straight from them (no more per-distance abilities).
 - **Coach creation & progression**: every dynasty starts by creating a coach — name, portrait, and one of four archetypes (Recruiter, Developer, Tactician, Players Coach). Coaches have exactly four ratings — Recruiting, Training, Peaking, Culture — and earn upgrade points from titles, champions, All-Americans, top classes, and beating expectations.
 - **The weekly coaching rhythm**: every week you plan training → recruit → advance, in that order, tracked in the top bar.
 - **Facilities with teeth**: recruiting pull, development speed, training effectiveness, recovery, injury prevention, and long-run prestige all flow from your buildings.
 - **14 + 14 rosters**: every program always fields 14 men and 14 women; shortfalls fill with weak walk-ons — and about 1 in 1,000 walk-ons is a secret future legend.
-- **True NCAA qualifying**: top-2 teams per regional plus at-larges make the 31-team Nationals field, and the top-10 regional finishers not on qualifying teams race Nationals as individuals.
+- **True NXCA qualifying**: top-2 teams per regional plus at-larges make the 31-team Nationals field, and the top-10 regional finishers not on qualifying teams race Nationals as individuals.
 - **Fixed**: the World → Conferences crash in Safari (the filter no longer rebuilds the screen mid-dropdown-dismiss).
 
 Automated end-to-end tests live in `tests/` (Playwright; see `tests/README.md`), including a 20-season stress simulation.
@@ -926,7 +926,7 @@ The full dynasty loop is playable indefinitely: recruit → train → race → m
 
 - **The coaching ladder**: overachieve at a small program and athletic directors call — accept a job offer to move up (career record travels; the roster stays behind). Elite AI programs also poach breakout small-school coaches, so the whole carousel is alive.
 - **Team culture**: name up to two captains per squad; chemistry (morale + discipline + captain leadership + coach culture) feeds weekly development and race-day performance, and high-leadership captains mentor freshmen.
-- **Coach rankings**: a national coach leaderboard (titles + polls + résumé) — the scoreboard for becoming the greatest coach in NCAA history.
+- **Coach rankings**: a national coach leaderboard (titles + polls + résumé) — the scoreboard for becoming the greatest coach in NXCA history.
 - **Race logs**: every athlete's last 8 races on their player card.
 
 ### Phase 6 (Polish, Finances, Balancing)
@@ -940,7 +940,7 @@ The full dynasty loop is playable indefinitely: recruit → train → race → m
 ### Phase 5 (Portal, Redshirts, News, Awards, History)
 
 - **Transfer portal**: after nationals, unhappy athletes enter with real reasons (playing time, coach departures, homesickness, prestige, facilities, academics, NIL, morale). AI programs make offers; athletes pick by fit; the player can pursue up to 3 transfers per cycle. Moves execute at the year rollover.
-- **Redshirts**: true redshirts (preseason choice, blocked once a runner has raced) and automatic medical redshirts for season-ending injuries — both preserve the year of eligibility inside the NCAA five-year clock. AI programs redshirt raw freshmen too.
+- **Redshirts**: true redshirts (preseason choice, blocked once a runner has raced) and automatic medical redshirts for season-ending injuries — both preserve the year of eligibility inside the NXCA five-year clock. AI programs redshirt raw freshmen too.
 - **News engine**: upsets, poll surges, new #1s, championship previews, milestone wins, portal entries/commitments, firings, hirings, records, injuries, and award announcements.
 - **Awards**: Runner/Freshman/Coach of the Year, 40 All-Americans per gender, conference runners of the year, Academic All-Americans — all archived forever.
 - **Coach carousel**: hot seats build for underperforming AI coaches (fired after sustained failure), retirements continue, and roster exodus can follow a coaching change.
@@ -948,9 +948,9 @@ The full dynasty loop is playable indefinitely: recruit → train → race → m
 
 ### Phase 4 (Races, Rankings, Championships, Stats)
 
-- **Full season schedule**: 5 invitationals (weeks 5/7/9/11/13, ~20-team fields covering all 354 schools), conference championships (wk 16), 8 regionals (wk 19), and the NCAA Championships (wk 21).
+- **Full season schedule**: 5 invitationals (weeks 5/7/9/11/13, ~20-team fields covering all 354 schools), conference championships (wk 16), 8 regionals (wk 19), and the NXCA Championships (wk 21).
 - **Segment-based race simulation**: 8-leg races with adrenaline starts, hill segments, late-race fade vs. stamina/toughness, finishing kicks, pack-running drafting, day-form variance by consistency, and course conditions (heat/cold/rain/altitude/hills) filtered through each runner's ratings and preferences. Readiness from the training engine feeds directly into race performance.
-- **NCAA team scoring**: top 5 score, runners 6-7 displace, 8+ excluded, incomplete teams removed, 6th-runner tiebreaks.
+- **NXCA team scoring**: top 5 score, runners 6-7 displace, 8+ excluded, incomplete teams removed, 6th-runner tiebreaks.
 - **Championships**: conference titles, regional auto-qualifiers (top 2) plus at-large bids to a 31-team nationals; team & individual national champions recorded forever; prestige moves with results.
 - **Race Center**: your meets are broadcast as animated replays — progress bars, live leaderboard, projected team scores, speed controls, final results with per-leg splits for your squad.
 - **Rankings**: weekly national/regional/conference team polls (strength + quality-weighted results), individual and freshman rankings.
@@ -974,7 +974,7 @@ The full dynasty loop is playable indefinitely: recruit → train → race → m
 
 ### Phase 1 (Foundation)
 
-- **World generation**: 354 D1 schools across 31 real conferences, each with prestige, academics, campus appeal, facilities (8 types), budgets, weather/altitude profiles, program history, and in-state rivalries. Seeded RNG makes worlds reproducible.
+- **World generation**: 354 DA schools across 31 fictional conferences, each with prestige, academics, campus appeal, facilities (8 types), budgets, weather/altitude profiles, program history, and in-state rivalries. Seeded RNG makes worlds reproducible.
 - **Coaches**: every school has an AI head coach with 8 ratings and a personality; coaches age and retire, and schools hire replacements.
 - **Athletes**: ~9,000 generated runners with 21 physical ratings, 9 mental/makeup ratings, hometowns, majors, preferences, potential, fatigue/morale/fitness state, and eligibility tracking.
 - **Game loop**: weekly advancement with season phases (summer training → regular season → conference/regional/national championships → offseason), yearly rollover with graduation and incoming classes.

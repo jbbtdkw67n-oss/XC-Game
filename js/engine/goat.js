@@ -15,7 +15,7 @@
   const Utils = window.XCD.core.Utils;
   const LIST_SIZE = 40;
 
-  // Division weighting (Update 13, Phase 6): a Division I accomplishment
+  // Division weighting (Update 13, Phase 6): a Division A accomplishment
   // carries slightly greater weight than an equivalent DII one, which in turn
   // edges a DIII one — the field is deeper the higher you go. The gap is
   // noticeable but not overwhelming, so a dominant lower-division career still
@@ -41,7 +41,7 @@
     natChampIndiv: 100,       // individual national championship
     natChampTeam: 45,         // scoring on a title team
     natRunnerUp: 42,          // individual national runner-up
-    runnerOfYear: 55,         // NCAA athlete of the year
+    runnerOfYear: 55,         // NXCA athlete of the year
     allAmerican: 22,
     regChamp: 12,
     confChamp: 10,            // conference individual title

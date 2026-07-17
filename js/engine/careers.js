@@ -86,7 +86,7 @@
       + (wonNat ? 15 : wonConf ? 7 : 0);               // hardware on the mantle
 
     // The open job market (spec Part 2): EVERY vacant chair is listed —
-    // Division I, II, and III — and the player may apply to any of them.
+    // Division A, B, and C — and the player may apply to any of them.
     // Each listing carries the school's Interest in the player: the literal
     // percent chance they hire you when you apply. Long-shot chairs stay
     // visible; they simply tend to go another direction.
@@ -194,7 +194,7 @@
    * Assistant-seat offers are STEP-UP moves only (Update X.1): a program
    * courts you for its staff only when the move is clearly upward — never
    * a lateral shuffle, never a step down. And because the assistant ladder
-   * runs through Division I, DII seats are almost never dangled (a DII
+   * runs through Division A, DII seats are almost never dangled (a DII
    * flagship makes the rare call) and DIII seats never are.
    */
   function assistantSeatPool(gameState, rng, minPrestige, maxPrestige, taken) {
@@ -266,7 +266,7 @@
    *  - head-coach offers, first at smaller programs, then bigger ones as
    *    the reputation grows — the payoff of the assistant path; and
    *  - BIGGER assistant seats: strictly step-up moves to clearly better
-   *    programs (almost always Division I — a DII seat is a rare flagship
+   *    programs (almost always Division A — a DII seat is a rare flagship
    *    call, a DIII seat never comes), so a low-level assistant can climb
    *    the staff ladder without waiting for a head chair.
    */
@@ -315,7 +315,7 @@
     });
 
     // B) Bigger assistant seats (Update X.1): strictly upward, within reach
-    //    of the résumé, and essentially a Division I ladder. The stronger
+    //    of the résumé, and essentially a Division A ladder. The stronger
     //    the reputation, the more often — and the higher — the calls come.
     if (rng.bool(Utils.clamp(0.25 + rep / 130, 0.25, 0.65))) {
       const taken = new Set(offers.map((o) => o.schoolId));
