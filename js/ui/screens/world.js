@@ -10,9 +10,23 @@
 (function () {
   const UI = window.XCD.ui;
   const Utils = window.XCD.core.Utils;
+  const D = window.XCD.data;
+  const divLabel = (k) => (D.WORLD ? D.WORLD.divisionLabel(k) : k);
+  const divShort = (k) => (D.WORLD ? D.WORLD.divisionShort(k) : k);
+  const confAbbr = (c) => (D.WORLD ? D.WORLD.confAbbr(c) : c);
 
   let conferenceFilter = 'All';
   let divisionFilter = 'All';
+
+  // Conferences present in a division (or all), sorted — drives the linked
+  // conference filter so it only offers conferences that actually exist in
+  // the chosen division.
+  function confListFor(schools, div) {
+    const set = new Set(schools
+      .filter((s) => div === 'All' || (s.division || 'DA') === div)
+      .map((s) => s.conference));
+    return ['All', ...[...set].sort()];
+  }
 
   function teamStrength(game, school, gender) {
     const roster = game.getRoster(school.id, gender)
@@ -91,18 +105,21 @@
   function render(container) {
     const game = UI.state.game;
     const schools = Object.values(game.world.schools);
-    const conferences = ['All', ...[...new Set(schools.map((s) => s.conference))].sort()];
+    let conferences = confListFor(schools, divisionFilter);
     if (!conferences.includes(conferenceFilter)) conferenceFilter = 'All';
+
+    const confOptions = (list) => list.map((c) =>
+      `<option value="${Utils.escapeHtml(c)}" ${c === conferenceFilter ? 'selected' : ''}>${c === 'All' ? 'All Conferences' : Utils.escapeHtml(confAbbr(c))}</option>`).join('');
 
     container.innerHTML = `
       <div class="screen-header">
         <h1>World — ${schools.length} Schools</h1>
         <div class="actions">
-          <select class="search-input" id="div-filter" style="min-width:110px;">
-            ${['All', 'DA', 'DB', 'DC'].map((d) => `<option value="${d}" ${d === divisionFilter ? 'selected' : ''}>${d === 'All' ? 'All Divisions' : d}</option>`).join('')}
+          <select class="search-input" id="div-filter" style="min-width:130px;">
+            ${['All', 'DA', 'DB', 'DC'].map((d) => `<option value="${d}" ${d === divisionFilter ? 'selected' : ''}>${d === 'All' ? 'All Divisions' : divLabel(d)}</option>`).join('')}
           </select>
-          <select class="search-input" id="conf-filter" style="min-width:160px;">
-            ${conferences.map((c) => `<option value="${Utils.escapeHtml(c)}" ${c === conferenceFilter ? 'selected' : ''}>${Utils.escapeHtml(c)}</option>`).join('')}
+          <select class="search-input" id="conf-filter" style="min-width:120px;">
+            ${confOptions(conferences)}
           </select>
           <input class="search-input" id="world-search" placeholder="Search schools...">
         </div>
@@ -126,8 +143,8 @@
             key: 'name', label: 'School',
             render: (r) => `<strong>${Utils.escapeHtml(r.name)}</strong>${r.school.id === game.playerSchoolId ? ' <span style="color:var(--accent);">★</span>' : ''}`
           },
-          { key: 'division', label: 'Div' },
-          { key: 'conference', label: 'Conference' },
+          { key: 'division', label: 'Div', render: (r) => divShort(r.division) },
+          { key: 'conference', label: 'Conf', render: (r) => `<span title="${Utils.escapeHtml(r.conference)}">${Utils.escapeHtml(confAbbr(r.conference))}</span>` },
           { key: 'state', label: 'State' },
           { key: 'prestige', label: 'Prestige', numeric: true, render: (r) => UI.ratingBadge(r.prestige) },
           { key: 'strengthM', label: "Men", numeric: true, render: (r) => UI.ratingBadge(r.strengthM) },
@@ -157,7 +174,16 @@
 
     container.querySelector('#div-filter').addEventListener('change', (e) => {
       divisionFilter = e.target.value;
-      setTimeout(() => { table = drawTable(); }, 0);
+      // Setting a division restricts the conference filter to that division's
+      // conferences (and resets it). Rebuild only the conference <select>'s
+      // OPTIONS after the event unwinds — never destroy the select element
+      // itself (WebKit crash guard).
+      conferenceFilter = 'All';
+      setTimeout(() => {
+        const confSel = container.querySelector('#conf-filter');
+        if (confSel) confSel.innerHTML = confOptions(confListFor(schools, divisionFilter));
+        table = drawTable();
+      }, 0);
     });
   }
 

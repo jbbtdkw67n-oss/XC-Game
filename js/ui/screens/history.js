@@ -17,7 +17,11 @@
   const goatFilters = { query: '', division: '', gender: '', status: '' }; // Update 12: GOAT list filters
   let boardSub = 'programs';  // Leaderboards sub-page
   const boardFilters = { query: '', division: '', conference: '' };
-  const DIV_LABELS = window.XCD.data.DIVISION_SHORT || { DA: 'DA', DB: 'DB', DC: 'DC' };
+  const W = window.XCD.data.WORLD;
+  // Full division labels for dropdowns/tabs; short tags for compact columns.
+  const DIV_LABELS = (W && W.DIVISION_LABELS) || { DA: 'Division A', DB: 'Division B', DC: 'Division C' };
+  const divShort = (k) => (W ? W.divisionShort(k) : k);
+  const confAbbr = (c) => (W ? W.confAbbr(c) : c);
 
   // Map every conference to the division it belongs to (from the world).
   function confDivisions(game) {
@@ -377,7 +381,7 @@
                 <td>${i + 1}</td>
                 <td><strong>${Utils.escapeHtml(r.name)}</strong></td>
                 <td>${Utils.escapeHtml(r.conference)}</td>
-                <td>${DIV_LABELS[r.division] || r.division}</td>
+                <td>${divShort(r.division)}</td>
                 <td class="num">${r.natTitles}</td>
                 <td class="num">${r.natRunnerUp}</td>
                 <td class="num">${r.confTitles}</td>
@@ -414,7 +418,7 @@
                 <td>${i + 1}</td>
                 <td><strong>${r.year} ${Utils.escapeHtml(r.school)}</strong></td>
                 <td>${r.gender}</td>
-                <td>${DIV_LABELS[r.division] || r.division}</td>
+                <td>${divShort(r.division)}</td>
                 <td><span class="clickable" data-team-coach="${i}" style="color:var(--accent-hover);">${Utils.escapeHtml(r.coachName || '—')}</span></td>
                 <td class="num">${r.teamOverall}</td>
                 <td class="num">${r.teamPerformance}</td>
@@ -465,7 +469,7 @@
           </select>
           <select id="board-conf" class="search-input" style="padding:6px 10px; max-width:190px;">
             <option value="">All Conferences</option>
-            ${conferences.map((c) => `<option value="${Utils.escapeHtml(c)}" ${boardFilters.conference === c ? 'selected' : ''}>${Utils.escapeHtml(c)}</option>`).join('')}
+            ${conferences.filter((c) => !boardFilters.division || confDiv[c] === boardFilters.division).map((c) => `<option value="${Utils.escapeHtml(c)}" ${boardFilters.conference === c ? 'selected' : ''}>${Utils.escapeHtml(confAbbr(c))}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -573,7 +577,10 @@
     });
     el.querySelector('#board-div').addEventListener('change', (e) => {
       boardFilters.division = e.target.value;
-      table.setRows(applyFilters());
+      // Linked filter: a division restricts the conference list to that
+      // division's conferences, so reset conference and rebuild the bar.
+      boardFilters.conference = '';
+      setTimeout(() => boards(game, el), 0);
     });
     el.querySelector('#board-conf').addEventListener('change', (e) => {
       boardFilters.conference = e.target.value;
