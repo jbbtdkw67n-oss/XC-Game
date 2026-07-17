@@ -471,8 +471,8 @@
             <span style="color:var(--text-dim);"> • Career ${coach.careerRecord.wins}-${coach.careerRecord.losses} (${coach.winPct}%)</span>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <span style="font-size:13px;">Upgrade Points: <strong style="color:${coach.upgradePoints ? 'var(--gold)' : 'var(--text-dim)'};">${coach.upgradePoints || 0}</strong></span>
-            <span style="font-size:11.5px; color:var(--text-faint);">1 point = +1 to a rating</span>
+            <span style="font-size:13px;">🏆 Dynasty Points: <strong style="color:${coach.upgradePoints ? 'var(--gold)' : 'var(--text-dim)'};">${coach.upgradePoints || 0}</strong></span>
+            <span style="font-size:11.5px; color:var(--text-faint);">1 point = +1 to a rating, or a facility upgrade</span>
           </div>
           ${COACH_ATTRS.map(([key, label, hint]) => `
             <div class="attr-row" style="margin-bottom:6px;" title="${hint}">
@@ -483,8 +483,9 @@
                 ${(coach.upgradePoints || 0) > 0 && coach[key] < 99 ? '' : `disabled title="${coach[key] >= 99 ? 'Maxed out' : 'Earn points via titles, All-Americans, top classes, and beating expectations'}"`}>+1</button>
             </div>`).join('')}
           <div style="font-size:12px; color:var(--text-faint); margin-top:6px;">
-            Earn upgrade points with conference/regional/national titles, individual champions,
+            Earn Dynasty Points with conference/regional/national titles, individual champions,
             All-Americans, top-10 recruiting classes, and beating preseason expectations.
+            Spend them on coach ratings above — or on facility upgrades below.
           </div>
           ${(() => {
             const D = window.XCD.data;
@@ -507,14 +508,16 @@
 
         <div class="card">
           <h2>Facilities — Overall ${school.facilitiesOverall}</h2>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <span style="font-size:13px; color:var(--text-dim);">Facilities Fund: <strong style="color:var(--text);">$${school.budget.facilitiesFund.toLocaleString()}</strong></span>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px; flex-wrap:wrap;">
+            <span style="font-size:13px; color:var(--text-dim);">Facilities Fund: <strong style="color:var(--text);">$${school.budget.facilitiesFund.toLocaleString()}</strong>
+              <span style="color:var(--text-faint);"> • </span>🏆 <strong style="color:${coach.upgradePoints ? 'var(--gold)' : 'var(--text-dim)'};">${coach.upgradePoints || 0}</strong> Dynasty Pts</span>
             <button class="btn small primary" id="btn-fundraise" ${game.fundraisedYear === game.year ? 'disabled title="Boosters already gave this year"' : ''}>💰 Fundraise</button>
           </div>
           ${Object.entries(FACILITY_LABELS).map(([key, [label, effect]]) => {
             const level = school.facilities[key];
             const cost = window.XCD.engine.Finances.upgradeCost(level);
             const afford = school.budget.facilitiesFund >= cost && level < 99;
+            const canPoint = (coach.upgradePoints || 0) > 0 && level < 99;
             return `
             <div class="attr-row" style="margin-bottom:6px;" title="${effect}">
               <span class="attr-name" style="min-width:128px; cursor:help;">${label}</span>
@@ -522,12 +525,15 @@
               <span style="font-weight:700; font-size:12.5px; min-width:24px;">${level}</span>
               <button class="btn small" data-upg="${key}" ${afford ? '' : `disabled title="${level >= 99 ? 'World-class' : 'Costs $' + cost.toLocaleString()}"`}
                 style="margin-left:8px;" title="Upgrade +${window.XCD.engine.Finances.UPGRADE_STEP} for $${cost.toLocaleString()} — ${effect}">▲ $${Math.round(cost / 1000)}k</button>
+              <button class="btn small" data-facpt="${key}" ${canPoint ? '' : `disabled title="${level >= 99 ? 'World-class' : 'Needs a Dynasty Point'}"`}
+                style="margin-left:4px;" title="Upgrade +${window.XCD.engine.Finances.UPGRADE_STEP} with 1 Dynasty Point — ${effect}">▲ 1pt</button>
             </div>`;
           }).join('')}
           <div style="font-size:12px; color:var(--text-faint); margin-top:6px;">
-            Every facility has a real training implication — hover a name to see it. Fundraising scales with
-            program success and school size (${window.XCD.engine.Finances.schoolSizeLabel(school).toLowerCase()}),
-            amplified by the Alumni Center. The fund also refills yearly — faster when you win.
+            Upgrade with the facilities fund (▲ $) or spend a 🏆 Dynasty Point (▲ 1pt). Every facility has a
+            real training implication — hover a name to see it. Fundraising scales with program success and
+            school size (${window.XCD.engine.Finances.schoolSizeLabel(school).toLowerCase()}), amplified by the
+            Alumni Center. The fund also refills yearly — faster when you win.
           </div>
         </div>
       </div>
@@ -707,6 +713,14 @@
     container.querySelectorAll('[data-upg]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const result = window.XCD.engine.Finances.upgradeFacility(game, school.id, btn.dataset.upg);
+        UI.toast(result.message, result.ok ? 'success' : 'error');
+        if (result.ok) render(outerContainer);
+      });
+    });
+    // Spend a Dynasty Point on a facility (the alternative to the money path).
+    container.querySelectorAll('[data-facpt]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const result = window.XCD.engine.Finances.upgradeFacilityWithPoint(game, school.id, btn.dataset.facpt, coach);
         UI.toast(result.message, result.ok ? 'success' : 'error');
         if (result.ok) render(outerContainer);
       });

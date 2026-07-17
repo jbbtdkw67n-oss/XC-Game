@@ -271,7 +271,7 @@
 
     if (pts > 0 && coach) {
       coach.upgradePoints = (coach.upgradePoints || 0) + pts;
-      gameState.logNews(`📋 COACHING RÉSUMÉ: you earn ${pts} upgrade point${pts > 1 ? 's' : ''} — ${why.join(', ')}. Spend them on My Program.`);
+      gameState.logNews(`📋 COACHING RÉSUMÉ: you earn ${pts} Dynasty Point${pts > 1 ? "s" : ""} — ${why.join(', ')}. Spend them on My Program.`);
     }
 
     // CPU coaches run the same progression (Update 13): they bank upgrade

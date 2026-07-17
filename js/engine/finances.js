@@ -26,6 +26,19 @@
     return { ok: true, message: `Upgrade complete (+${UPGRADE_STEP}) — $${cost.toLocaleString()} spent.`, cost };
   }
 
+  // Spend one Dynasty Point (coach.upgradePoints) on a facility upgrade — an
+  // alternative to paying from the facilities fund. Same +UPGRADE_STEP bump.
+  function upgradeFacilityWithPoint(gameState, schoolId, facilityKey, coach) {
+    const school = gameState.getSchool(schoolId);
+    if (!school || !(facilityKey in school.facilities)) return { ok: false, message: 'Unknown facility.' };
+    if (!coach || (coach.upgradePoints || 0) <= 0) return { ok: false, message: 'No Dynasty Points available.' };
+    const level = school.facilities[facilityKey];
+    if (level >= 99) return { ok: false, message: 'Already world-class.' };
+    coach.upgradePoints -= 1;
+    school.facilities[facilityKey] = Utils.clamp(level + UPGRADE_STEP, 0, 99);
+    return { ok: true, message: `Facility upgraded (+${UPGRADE_STEP}) with 1 Dynasty Point.` };
+  }
+
   /*
    * School size (facilities overhaul): in this world a program's size IS its
    * division and conference tier — a power-conference DA school is a huge
@@ -159,7 +172,7 @@
   }
 
   window.XCD.engine.Finances = {
-    upgradeFacility, fundraise, yearlyRefresh, upgradeCost,
+    upgradeFacility, upgradeFacilityWithPoint, fundraise, yearlyRefresh, upgradeCost,
     schoolSizeFactor, schoolSizeLabel, programSuccessScore, UPGRADE_STEP
   };
 })();

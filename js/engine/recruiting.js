@@ -1514,7 +1514,7 @@
       // Elite recruiting hauls feed coach progression.
       if (playerRank >= 0 && playerRank < 10 && coach) {
         coach.upgradePoints = (coach.upgradePoints || 0) + 1;
-        gameState.logNews(`📋 Top-10 ${playerDiv} recruiting class: +1 coach upgrade point.`);
+        gameState.logNews(`📋 Top-10 ${playerDiv} recruiting class: +1 Dynasty Point.`);
       }
       // Building a recruiting reputation is an assistant's whole career arc
       // (Update 5, Part 4): strong classes make them a head-coach candidate.
