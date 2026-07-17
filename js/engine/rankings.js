@@ -25,7 +25,7 @@
     const rankings = {
       computedWeek: gameState.week, M: [], W: [],
       individuals: { M: [], W: [] }, freshmen: { M: [], W: [] },
-      divisionSizes: { DI: 0, DII: 0, DIII: 0 }
+      divisionSizes: { DA: 0, DB: 0, DC: 0 }
     };
 
     // --- Season results score per team --------------------------------
@@ -55,7 +55,7 @@
       });
     }
 
-    const DIV_ORDER = { DI: 0, DII: 1, DIII: 2 };
+    const DIV_ORDER = { DA: 0, DB: 1, DC: 2 };
     ['M', 'W'].forEach((gender) => {
       const rows = Object.values(gameState.world.schools).map((school) => {
         const strength = teamStrength(gameState, school, gender);
@@ -64,12 +64,12 @@
           ? Utils.average(results) * 60
           : strength * 0.55; // preseason: strength carries the poll
         const score = strength * 0.55 + resultScore * 0.45;
-        return { schoolId: school.id, name: school.name, conference: school.conference, region: school.region, division: school.division || 'DI', score: Math.round(score * 10) / 10 };
+        return { schoolId: school.id, name: school.name, conference: school.conference, region: school.region, division: school.division || 'DA', score: Math.round(score * 10) / 10 };
       });
 
       // Rank is WITHIN a division (Update 3): each division runs its own
-      // poll, so a DIII #1 is #1 in DIII — never buried under DI. Rows are
-      // ordered DI→DII→DIII then by rank so lookups (.find by id) return the
+      // poll, so a DC #1 is #1 in DC — never buried under DA. Rows are
+      // ordered DA→DB→DC then by rank so lookups (.find by id) return the
       // school's standing among its true peers.
       const byDivision = {};
       rows.forEach((r) => { (byDivision[r.division] = byDivision[r.division] || []).push(r); });
@@ -98,8 +98,8 @@
     });
 
     // --- Individual & freshman rankings (season-best pace) ------------
-    // Ranked within division: a DIII runner competes for DIII honors, not
-    // against DI paces. Each row carries its division so the UI and awards
+    // Ranked within division: a DC runner competes for DC honors, not
+    // against DA paces. Each row carries its division so the UI and awards
     // can filter to the relevant division.
     ['M', 'W'].forEach((gender) => {
       const rows = [];
@@ -119,7 +119,7 @@
           rows.push({
             athleteId: a.id, name: a.fullName, classYear: a.classYear,
             schoolId: school.id, school: school.name,
-            division: school.division || 'DI',
+            division: school.division || 'DA',
             pace: Math.round(bestPace * 10) / 10,
             wins: a.careerStats.wins
           });
@@ -176,7 +176,7 @@
           rows.push({
             athleteId: a.id, name: a.fullName, classYear: a.classYear,
             schoolId: school.id, school: school.name,
-            division: school.division || 'DI',
+            division: school.division || 'DA',
             proj: Math.round(proj * 10) / 10,
             generational: !!a.generational
           });

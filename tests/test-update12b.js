@@ -137,32 +137,32 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   ok(goatW.nonW === 0, 'GOAT gender filter leaks men into the women list');
   // Division filter narrows to that division (or empties gracefully).
   await page.selectOption('#goat-gender', '');
-  await page.selectOption('#goat-div', 'DIII');
+  await page.selectOption('#goat-div', 'DC');
   const goatD3 = await page.evaluate(() => {
     const GOAT = window.XCD.engine.GOAT;
     const g = window.XCD.ui.state.game;
     const all = GOAT.athletes(g);
-    const d3 = all.filter((r) => r.division === 'DIII');
+    const d3 = all.filter((r) => r.division === 'DC');
     const rows = document.querySelectorAll('#goat-body tbody tr').length;
     return { d3: d3.length, rows };
   });
-  ok(goatD3.rows === Math.min(goatD3.d3, 40), `DIII filter row mismatch: ${JSON.stringify(goatD3)}`);
+  ok(goatD3.rows === Math.min(goatD3.d3, 40), `DC filter row mismatch: ${JSON.stringify(goatD3)}`);
   console.log('goat filters:', JSON.stringify({ goatUI, goatW, goatD3 }));
 
   // ---- 5) Championship honor metadata + full results ----
   const honors = await page.evaluate(() => {
     const UI = window.XCD.ui;
     return {
-      nat: UI.meetHonorInfo({ type: 'national', division: 'DI' }),
-      conf: UI.meetHonorInfo({ type: 'conference', division: 'DI' }),
-      confD3: UI.meetHonorInfo({ type: 'conference', division: 'DIII' }),
-      invite: UI.meetHonorInfo({ type: 'invite', division: 'DI' })
+      nat: UI.meetHonorInfo({ type: 'national', division: 'DA' }),
+      conf: UI.meetHonorInfo({ type: 'conference', division: 'DA' }),
+      confD3: UI.meetHonorInfo({ type: 'conference', division: 'DC' }),
+      invite: UI.meetHonorInfo({ type: 'invite', division: 'DA' })
     };
   });
   console.log('honors:', JSON.stringify(honors));
-  ok(honors.nat && honors.nat.count === 40 && honors.nat.label === 'All-American', 'DI nationals honor window wrong');
-  ok(honors.conf && honors.conf.count === 14 && honors.conf.label === 'All-Conference', 'DI conference honor window wrong');
-  ok(honors.confD3 && honors.confD3.count === 7, 'DIII conference honor window wrong');
+  ok(honors.nat && honors.nat.count === 40 && honors.nat.label === 'All-American', 'DA nationals honor window wrong');
+  ok(honors.conf && honors.conf.count === 14 && honors.conf.label === 'All-Conference', 'DA conference honor window wrong');
+  ok(honors.confD3 && honors.confD3.count === 7, 'DC conference honor window wrong');
   ok(honors.invite === null, 'regular-season meets must have no honor window');
 
   // Sim to the first race, then verify the Race Center publishes EVERY finisher.

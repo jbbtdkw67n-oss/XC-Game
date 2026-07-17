@@ -82,7 +82,7 @@
     const season = gameState.season;
     const week = gameState.week;
 
-    // National Preview preview (Update 3): the marquee DI regular-season meet.
+    // National Preview preview (Update 3): the marquee DA regular-season meet.
     const pn = season.preNationals;
     if (pn && week === pn.week - 1 && pn.accepted && pn.accepted.length) {
       const favs = (gameState.rankings.M || [])

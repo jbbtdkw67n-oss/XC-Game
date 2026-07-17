@@ -15,7 +15,7 @@
  * these values instead of hard-coding strings, so the world stays internally
  * consistent and is trivial to expand.
  *
- * NOTE: the division KEYS (DI / DII / DIII) are internal identifiers only —
+ * NOTE: the division KEYS (DA / DB / DC) are internal identifiers only —
  * they are never shown to the player. Every player-facing label comes from
  * WORLD.divisionLabel() / divisionShort() below (Division A / B / C).
  */
@@ -34,8 +34,8 @@
     /* -------------------------------------------------------------- *
      * Divisions. Internal keys map to fictional public labels.
      * -------------------------------------------------------------- */
-    DIVISION_LABELS: { DI: 'Division A', DII: 'Division B', DIII: 'Division C' },
-    DIVISION_SHORT:  { DI: 'DA', DII: 'DB', DIII: 'DC' },
+    DIVISION_LABELS: { DA: 'Division A', DB: 'Division B', DC: 'Division C' },
+    DIVISION_SHORT:  { DA: 'DA', DB: 'DB', DC: 'DC' },
 
     /* -------------------------------------------------------------- *
      * Named meets & championships. These are the game's own events.
@@ -80,14 +80,14 @@
   WORLD.divisionLabel = function (schoolOrKey) {
     const key = typeof schoolOrKey === 'string'
       ? schoolOrKey
-      : (schoolOrKey && schoolOrKey.division) || 'DI';
-    return WORLD.DIVISION_LABELS[key] || WORLD.DIVISION_LABELS.DI;
+      : (schoolOrKey && schoolOrKey.division) || 'DA';
+    return WORLD.DIVISION_LABELS[key] || WORLD.DIVISION_LABELS.DA;
   };
   WORLD.divisionShort = function (schoolOrKey) {
     const key = typeof schoolOrKey === 'string'
       ? schoolOrKey
-      : (schoolOrKey && schoolOrKey.division) || 'DI';
-    return WORLD.DIVISION_SHORT[key] || WORLD.DIVISION_SHORT.DI;
+      : (schoolOrKey && schoolOrKey.division) || 'DA';
+    return WORLD.DIVISION_SHORT[key] || WORLD.DIVISION_SHORT.DA;
   };
 
   // The full championship name for a division, e.g.
@@ -95,7 +95,7 @@
   // "NXCA Division B National Championship".
   WORLD.championshipName = function (divKey) {
     const label = WORLD.divisionLabel(divKey);
-    const tag = label === WORLD.DIVISION_LABELS.DI ? '' : label + ' ';
+    const tag = label === WORLD.DIVISION_LABELS.DA ? '' : label + ' ';
     return `${WORLD.ORG.abbr} ${tag}National Championship`;
   };
   WORLD.regionalName = function () { return `${WORLD.ORG.abbr} Regional Championship`; };
@@ -131,4 +131,118 @@
   };
 
   D.WORLD = WORLD;
+
+  /* ================================================================== *
+   * CUSTOM WORLDS — everything above is a DEFAULT that players can fully
+   * override with their own data, so nothing about the universe is locked
+   * in code. A custom world is a plain JSON object (loaded from a file or a
+   * URL) shaped like:
+   *
+   * {
+   *   "org":      { "abbr": "XYZ", "name": "..." },
+   *   "divisions":{ "labels": { "DA": "...", "DB": "...", "DC": "..." },
+   *                 "short":  { "DA": "...", "DB": "...", "DC": "..." } },
+   *   "meets":    { "elite": [ { "name": "..." }, ... ], "preview": "...",
+   *                 "conference": "...", "regional": "...", "national": "...",
+   *                 "highSchoolNationals": { "abbr": "...", "name": "..." } },
+   *   "awards":   { "runnerOfYear": "...", "newcomerOfYear": "...", ... },
+   *   "mascots":  [ "..." ],
+   *   "palettes": [ ["#112233","#445566"], ... ],
+   *   "conferences": { "My Conference": { "tier": 1, "division": "DA" }, ... },
+   *   "prestigeSeeds": { "My School": 90, ... },
+   *   "schools":  [ ["Name","ST","Conference","Mascot","#primary","#secondary","DA"], ... ]
+   * }
+   *
+   * Every field is OPTIONAL — anything omitted keeps the built-in default.
+   * Supply only `schools` to reskin the roster, or a full object to build an
+   * entirely different universe. The applied config is stamped into the save
+   * so a custom-world dynasty reloads exactly as it was.
+   * ================================================================== */
+  D.CUSTOM_WORLD = null;
+
+  const DIV_TO_RAW = { DA: 'RAW_SCHOOLS', DB: 'RAW_SCHOOLS_DII', DC: 'RAW_SCHOOLS_DIII' };
+
+  D.applyCustomWorld = function (cfg) {
+    if (!cfg || typeof cfg !== 'object') return { ok: false, error: 'Custom world must be a JSON object.' };
+    try {
+      if (cfg.org) {
+        if (cfg.org.abbr) WORLD.ORG.abbr = String(cfg.org.abbr);
+        if (cfg.org.name) WORLD.ORG.name = String(cfg.org.name);
+      }
+      if (cfg.divisions) {
+        if (cfg.divisions.labels) Object.assign(WORLD.DIVISION_LABELS, cfg.divisions.labels);
+        if (cfg.divisions.short) Object.assign(WORLD.DIVISION_SHORT, cfg.divisions.short);
+        if (D.DIVISIONS) Object.keys(WORLD.DIVISION_LABELS).forEach((k) => {
+          if (D.DIVISIONS[k]) D.DIVISIONS[k].label = WORLD.DIVISION_LABELS[k];
+        });
+        if (D.DIVISION_SHORT) Object.assign(D.DIVISION_SHORT, WORLD.DIVISION_SHORT);
+      }
+      if (cfg.meets) {
+        const m = cfg.meets;
+        if (Array.isArray(m.elite)) {
+          WORLD.MEETS.elite = m.elite.map((e, i) => ({ key: (e && e.key) || ('m' + i), name: String((e && e.name) || ('Invitational ' + (i + 1))) }));
+          if (Array.isArray(D.ELITE_MEETS)) {
+            let ei = 0;
+            D.ELITE_MEETS.forEach((meet) => { if (!meet.preNationals && WORLD.MEETS.elite[ei]) { meet.name = WORLD.MEETS.elite[ei].name; ei++; } });
+          }
+        }
+        ['preview', 'conference', 'regional', 'national'].forEach((k) => { if (m[k]) WORLD.MEETS[k] = String(m[k]); });
+        if (m.preview) {
+          if (D.PRE_NATIONALS) D.PRE_NATIONALS.name = String(m.preview);
+          if (Array.isArray(D.ELITE_MEETS)) { const p = D.ELITE_MEETS.find((x) => x.preNationals); if (p) p.name = String(m.preview); }
+        }
+        if (m.highSchoolNationals) WORLD.MEETS.highSchoolNationals = {
+          abbr: String(m.highSchoolNationals.abbr || WORLD.MEETS.highSchoolNationals.abbr),
+          name: String(m.highSchoolNationals.name || WORLD.MEETS.highSchoolNationals.name)
+        };
+      }
+      if (cfg.awards) Object.assign(WORLD.AWARDS, cfg.awards);
+      if (Array.isArray(cfg.mascots) && cfg.mascots.length) WORLD.MASCOTS = cfg.mascots.map(String);
+      if (Array.isArray(cfg.palettes) && cfg.palettes.length) WORLD.PALETTES = cfg.palettes;
+      if (cfg.conferences && typeof cfg.conferences === 'object' && D.CONFERENCES) {
+        Object.entries(cfg.conferences).forEach(([name, meta]) => {
+          D.CONFERENCES[name] = (typeof meta === 'number') ? { tier: meta } : Object.assign({}, meta);
+        });
+      }
+      if (cfg.prestigeSeeds && typeof cfg.prestigeSeeds === 'object' && D.PRESTIGE_SEEDS) {
+        Object.assign(D.PRESTIGE_SEEDS, cfg.prestigeSeeds);
+      }
+      if (Array.isArray(cfg.schools) && cfg.schools.length) {
+        const buckets = { DA: [], DB: [], DC: [] };
+        cfg.schools.forEach((row) => {
+          const div = DIV_TO_RAW[row[6]] ? row[6] : 'DA';
+          buckets[div].push([row[0], row[1], row[2], row[3], row[4], row[5]]);
+          if (row[2] && D.CONFERENCES && !D.CONFERENCES[row[2]]) D.CONFERENCES[row[2]] = { tier: 3, division: div };
+        });
+        if (buckets.DA.length) D.RAW_SCHOOLS = buckets.DA;
+        if (buckets.DB.length) D.RAW_SCHOOLS_DII = buckets.DB;
+        if (buckets.DC.length) D.RAW_SCHOOLS_DIII = buckets.DC;
+      }
+      D.CUSTOM_WORLD = cfg;
+      return { ok: true, schools: Array.isArray(cfg.schools) ? cfg.schools.length : 0 };
+    } catch (e) {
+      return { ok: false, error: e && e.message ? e.message : String(e) };
+    }
+  };
+
+  // Fetch a custom world JSON from a URL and apply it. Returns the apply result.
+  D.loadCustomWorldFromUrl = async function (url) {
+    const res = await fetch(url, { credentials: 'omit', cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' fetching custom world');
+    const cfg = await res.json();
+    const r = D.applyCustomWorld(cfg);
+    if (!r.ok) throw new Error(r.error || 'Failed to apply custom world');
+    return r;
+  };
+
+  // Auto-load a custom world from a ?world=<url> (or ?worldData=<url>) query
+  // param at boot, so a shared link can carry an entire universe. Best-effort.
+  D.autoloadCustomWorld = async function () {
+    try {
+      const params = new URLSearchParams((window.location && window.location.search) || '');
+      const url = params.get('world') || params.get('worldData');
+      if (url) return await D.loadCustomWorldFromUrl(url);
+    } catch (e) { /* a bad link never blocks the game */ }
+    return null;
+  };
 })();

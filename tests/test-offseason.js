@@ -109,7 +109,7 @@ async function run() {
     window.XCD.ui.state.game = g; // acceptOffer navigates via UI state
     const coach = g.getPlayerCoach();
     coach.hotSeat = 77;
-    const target = Object.values(g.world.schools).find((s) => s.id !== g.playerSchoolId && s.division === 'DI');
+    const target = Object.values(g.world.schools).find((s) => s.id !== g.playerSchoolId && s.division === 'DA');
     g.jobOffers = { year: g.year, expiresWeek: 99, offers: [{ schoolId: target.id, schoolName: target.name }] };
     const res = window.XCD.engine.Careers.acceptOffer(g, target.id);
     const out = { ok: res.ok, hotSeat: coach.hotSeat, atNew: coach.schoolId === target.id, years: coach.yearsAtSchool };
@@ -127,7 +127,7 @@ async function run() {
     const g = window.XCD.engine.GameState.fromJSON(JSON.parse(JSON.stringify(g0.toJSON())));
     const rng = new window.XCD.core.SeededRNG(4242);
     const school = Object.values(g.world.schools).find((s) =>
-      s.id !== g.playerSchoolId && s.division === 'DI' && s.coachId && g.world.coaches[s.coachId]);
+      s.id !== g.playerSchoolId && s.division === 'DA' && s.coachId && g.world.coaches[s.coachId]);
     const coach = g.world.coaches[school.coachId];
     school.prestige = 85;            // high expectations
     coach.yearsAtSchool = 2;         // safe from the firing branch

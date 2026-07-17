@@ -50,7 +50,7 @@
 
     const timelineHtml = stints.length ? stints.map((s) => {
       const end = s.endYear ? s.endYear : (retired ? s.endYear : 'present');
-      const div = s.division && s.division !== 'DI' ? ` <span style="color:var(--text-faint);">${s.division}</span>` : '';
+      const div = s.division && s.division !== 'DA' ? ` <span style="color:var(--text-faint);">${s.division}</span>` : '';
       const roleTag = s.role === 'Assistant' ? ' <span style="color:var(--text-faint); font-size:11px;">(Assistant)</span>' : '';
       return `<div class="attr-row">
         <span>${Utils.escapeHtml(s.school)}${div}${roleTag}</span>
@@ -127,7 +127,7 @@
         // program's name that season, realignment-safe); Coach-of-the-Year
         // awards come from the permanent coach accolade ledger.
         const H = game ? (game.history || {}) : {};
-        const short = D.DIVISION_SHORT || { DI: 'DA', DII: 'DB', DIII: 'DC' };
+        const short = D.DIVISION_SHORT || { DA: 'DA', DB: 'DB', DC: 'DC' };
         const groups = [
           { label: 'National', rows: [] },
           { label: 'Regional', rows: [] },
@@ -140,9 +140,9 @@
             for (let y = st.startYear; y <= end; y++) {
               const nat = (H.nationalChampions || {})[y] || {};
               ['M', 'W'].forEach((g) => {
-                const key = (st.division || 'DI') === 'DI' ? g : `${st.division}-${g}`;
+                const key = (st.division || 'DA') === 'DA' ? g : `${st.division}-${g}`;
                 if (nat[key] && nat[key].teamId === st.schoolId) {
-                  groups[0].rows.push({ year: y, html: `🏆 ${y} NXCA ${short[st.division || 'DI'] || ''} Team National Champions (${g === 'M' ? "Men's" : "Women's"})` });
+                  groups[0].rows.push({ year: y, html: `🏆 ${y} NXCA ${short[st.division || 'DA'] || ''} Team National Champions (${g === 'M' ? "Men's" : "Women's"})` });
                 }
               });
               Object.entries((H.regionalChampions || {})[y] || {}).forEach(([rkey, name]) => {

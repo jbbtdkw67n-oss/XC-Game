@@ -5,21 +5,21 @@
  * as data: scholarship limits, championship structure, recruiting scope,
  * budgets, NIL, and award counts. Schools carry a `division` key and every
  * engine resolves rules through XCD.data.divisionFor(school) instead of
- * assuming DI. Division B and C are fully specified but not yet
+ * assuming DA. Division B and C are fully specified but not yet
  * populated with schools — activating them is a data change (add schools
- * with division:'DII'/'DIII' + conferences), not an engine rewrite.
+ * with division:'DB'/'DC' + conferences), not an engine rewrite.
  */
 (function () {
   const D = window.XCD.data;
 
   // Public division labels come from the World Database (worldData.js) — the
   // single source of truth — so the fictional universe stays consistent.
-  const L = (D.WORLD && D.WORLD.DIVISION_LABELS) || { DI: 'Division A', DII: 'Division B', DIII: 'Division C' };
+  const L = (D.WORLD && D.WORLD.DIVISION_LABELS) || { DA: 'Division A', DB: 'Division B', DC: 'Division C' };
 
   D.DIVISIONS = {
-    DI: {
-      key: 'DI',
-      label: L.DI,
+    DA: {
+      key: 'DA',
+      label: L.DA,
       active: true,
       // Equivalency scholarship limits per gender (full-ride equivalents).
       scholarships: { M: 12.6, W: 18 },
@@ -28,7 +28,7 @@
       budgetScale: 1.0,                 // multiplier on the base budget model
       recruitingScope: 'national',      // national | regional
       internationalRecruiting: true,
-      academicEmphasis: 0.9,            // how much academics drive recruiting (DIII: high)
+      academicEmphasis: 0.9,            // how much academics drive recruiting (DC: high)
       developmentEmphasis: 1.0,         // training/development weight in identity
       coachSalaryTier: 3,               // relative pay band (drives coach mobility)
       expectations: 1.0,                // pressure multiplier for hot seats
@@ -41,9 +41,9 @@
         nationalsDistanceM: { M: 10000, W: 6000 }
       }
     },
-    DII: {
-      key: 'DII',
-      label: L.DII,
+    DB: {
+      key: 'DB',
+      label: L.DB,
       active: true, // Update 3: fully populated
       scholarships: { M: 12.6, W: 12.6 },
       scholarshipModel: 'partial',
@@ -64,9 +64,9 @@
         nationalsDistanceM: { M: 10000, W: 6000 }
       }
     },
-    DIII: {
-      key: 'DIII',
-      label: L.DIII,
+    DC: {
+      key: 'DC',
+      label: L.DC,
       active: true, // Update 3: fully populated
       scholarships: { M: 0, W: 0 },
       scholarshipModel: 'none',
@@ -74,7 +74,7 @@
       budgetScale: 0.2,
       recruitingScope: 'regional',
       internationalRecruiting: false,
-      academicEmphasis: 1.5,     // academics & campus fit drive DIII recruiting
+      academicEmphasis: 1.5,     // academics & campus fit drive DC recruiting
       developmentEmphasis: 1.4,  // coaching and culture over recruiting rankings
       coachSalaryTier: 1,
       expectations: 0.6,
@@ -89,22 +89,22 @@
     }
   };
 
-  D.DIVISION_ORDER = ['DI', 'DII', 'DIII'];
+  D.DIVISION_ORDER = ['DA', 'DB', 'DC'];
 
   // Resolve the division rules for a school (or a raw division key).
-  // Everything defaults to DI so pre-Update-2 saves keep working untouched.
+  // Everything defaults to DA so pre-Update-2 saves keep working untouched.
   D.divisionFor = function (schoolOrKey) {
     const key = typeof schoolOrKey === 'string'
       ? schoolOrKey
-      : (schoolOrKey && schoolOrKey.division) || 'DI';
-    return D.DIVISIONS[key] || D.DIVISIONS.DI;
+      : (schoolOrKey && schoolOrKey.division) || 'DA';
+    return D.DIVISIONS[key] || D.DIVISIONS.DA;
   };
 
   /*
    * Offer terminology (Update X, Part 3). Division C programs may NOT
    * offer athletic scholarships — they offer roster spots. The recruiting
    * mechanics are identical; only the language changes, and it changes
-   * EVERYWHERE an offer is referenced. DI/DII keep "scholarship" wording.
+   * EVERYWHERE an offer is referenced. DA/DB keep "scholarship" wording.
    */
   D.offerTerms = function (schoolOrKey) {
     const div = D.divisionFor(schoolOrKey);

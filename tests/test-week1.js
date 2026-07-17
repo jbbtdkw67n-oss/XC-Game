@@ -120,7 +120,7 @@ async function run() {
   ok(advanced === 2, 'completing the checklist must unlock Week 2: week=' + advanced);
   console.log('checklist flow: complete, advanced to week', advanced);
 
-  // ---- 5) DI roster limit: player cuts + CPU self-trim ----
+  // ---- 5) DA roster limit: player cuts + CPU self-trim ----
   const cuts = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     const P = window.XCD.engine.Portal;
@@ -146,7 +146,7 @@ async function run() {
     const atLimit = school.rosterM.length;
     const r3 = P.cutAthlete(g, school.rosterM[0]); // now at the limit — refused
     const cutA = g.world.athletes[victim1];
-    // Update 11: a Week 1 cut enters the summer transfer window (DII/DIII
+    // Update 11: a Week 1 cut enters the summer transfer window (DB/DC
     // only) instead of teleporting straight onto a new roster.
     const inSummerWindow = !!(g.portal && g.portal.summer &&
       g.portal.entries.some((e) => e.athleteId === victim1));
@@ -173,7 +173,7 @@ async function run() {
     g.week1 = { progressionReviewed: true, rosterConfirmed: true, scheduleFinalized: true, staffConfirmed: true, setupConfirmed: true };
     for (let w = 0; w < weeks + 2; w++) g.advanceWeek(); // through the rollover
     const over = Object.values(g.world.schools).filter((s) =>
-      (s.division || 'DI') === 'DI' && s.id !== g.playerSchoolId &&
+      (s.division || 'DA') === 'DA' && s.id !== g.playerSchoolId &&
       (s.rosterM.length > 14 || s.rosterW.length > 14));
     const fresh = g.week1;
     return {

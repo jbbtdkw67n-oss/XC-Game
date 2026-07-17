@@ -31,11 +31,11 @@ function assert(cond, msg) { if (!cond) { console.log('FAIL: ' + msg); process.e
   const dist = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     const meets = Object.values(g.season.meets);
-    const reg = meets.find((m) => m.type === 'regional' && (m.division || 'DI') === 'DI');
+    const reg = meets.find((m) => m.type === 'regional' && (m.division || 'DA') === 'DA');
     const pre = meets.find((m) => m.preNationals);
     return { regM: reg && reg.distances.M, preM: pre && pre.distances.M, preW: pre && pre.distances.W };
   });
-  assert(dist.regM === 10000, 'DI regional men race 10K (got ' + dist.regM + ')');
+  assert(dist.regM === 10000, 'DA regional men race 10K (got ' + dist.regM + ')');
   if (dist.preM != null) assert(dist.preM === 8000, 'Pre-Nats men race 8K (got ' + dist.preM + ')');
 
   // --- GOAT engine sanity + top-40 cap ---

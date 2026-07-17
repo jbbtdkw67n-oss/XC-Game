@@ -24,7 +24,7 @@
   // calculation is scaled to the division the school actually competes in.
   function divisionSize(gameState, division) {
     const ds = gameState.rankings && gameState.rankings.divisionSizes;
-    const n = ds && ds[division || 'DI'];
+    const n = ds && ds[division || 'DA'];
     return n || (gameState.rankings ? gameState.rankings.M.length : 354);
   }
 
@@ -68,7 +68,7 @@
     if (conf[`${school.conference}-W`] === school.name) delta += 1.1;
     const nat = (gameState.history.nationalChampions || {})[year] || {};
     ['M', 'W'].forEach((g) => {
-      const key = (school.division || 'DI') === 'DI' ? g : `${school.division}-${g}`;
+      const key = (school.division || 'DA') === 'DA' ? g : `${school.division}-${g}`;
       if (nat[key] && nat[key].teamId === school.id) delta += 4.0;
       // National runner-up / podium team also builds a name (Update 13).
       else {
@@ -130,18 +130,18 @@
    * a recruiting coordinator builds a name through the recruiting classes
    * they land — the calling card, heavily weighted — plus transfer portal
    * wins, player development, team success, and titles. Everything is
-   * division-weighted: a top-5 DI class builds a reputation substantially
-   * faster than a top DII or DIII class, because the competition for those
+   * division-weighted: a top-5 DA class builds a reputation substantially
+   * faster than a top DB or DC class, because the competition for those
    * recruits is fiercer. Progression should feel rewarding season over
    * season; assistants who never step up eventually plateau and fade.
    */
-  const ASSISTANT_DIV_WEIGHT = { DI: 1, DII: 0.72, DIII: 0.5 };
+  const ASSISTANT_DIV_WEIGHT = { DA: 1, DB: 0.72, DC: 0.5 };
 
   function updateAssistantReputation(gameState, coach, school, rng) {
     const year = gameState.year - 1; // the season that just ended
     const total = divisionSize(gameState, school.division);
     const rank = bestRank(gameState, school.id);
-    const divW = ASSISTANT_DIV_WEIGHT[school.division || 'DI'] ?? 1;
+    const divW = ASSISTANT_DIV_WEIGHT[school.division || 'DA'] ?? 1;
     // Reputation Rebalance (Update 13): climbing the assistant ladder to
     // Legend should take 15-25 SUCCESSFUL seasons. Signing classes and
     // sharing in title runs still build a name — but simply holding a seat
@@ -165,7 +165,7 @@
     if (conf[`${school.conference}-W`] === school.name) titleBump += 1.0 * divW;
     const nat = (gameState.history.nationalChampions || {})[year] || {};
     ['M', 'W'].forEach((g) => {
-      const key = (school.division || 'DI') === 'DI' ? g : `${school.division}-${g}`;
+      const key = (school.division || 'DA') === 'DA' ? g : `${school.division}-${g}`;
       if (nat[key] && nat[key].teamId === school.id) titleBump += 3.5 * divW;
       // A national runner-up / podium finish is a résumé line too.
       else {

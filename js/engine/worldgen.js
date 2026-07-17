@@ -23,19 +23,19 @@
   const CLASS_AGE_BASE = { Freshman: 18, Sophomore: 19, Junior: 20, Senior: 21, Graduate: 22 };
 
   // Prestige ranges are absolute and national (one scale across all three
-  // divisions), so combined regular-season polls sort naturally: DI powers
-  // on top, DII/DIII below — while a strong DII flagship still overlaps the
-  // weakest DI programs (and can beat them in cross-division meets). Within
+  // divisions), so combined regular-season polls sort naturally: DA powers
+  // on top, DB/DC below — while a strong DB flagship still overlaps the
+  // weakest DA programs (and can beat them in cross-division meets). Within
   // its own division a school is still judged against its peers.
   function tierPrestigeRange(tier, division) {
-    if (division === 'DII') {
+    if (division === 'DB') {
       switch (tier) {
         case 1: return [42, 64];
         case 2: return [32, 54];
         default: return [24, 46];
       }
     }
-    if (division === 'DIII') {
+    if (division === 'DC') {
       switch (tier) {
         case 1: return [34, 54];
         case 2: return [26, 46];
@@ -50,7 +50,7 @@
     }
   }
 
-  function buildSchool(rng, raw, division = 'DI') {
+  function buildSchool(rng, raw, division = 'DA') {
     const [name, state, conference, mascot, primary, secondary] = raw;
     const region = D.STATE_REGION[state] || 'Midwest';
     const tier = (D.CONFERENCES[conference] || { tier: 3 }).tier;
@@ -84,8 +84,8 @@
       alumniCenter: Utils.clamp(Math.round(prestige * 0.6 + (heritage ? 12 : 0)) + rng.int(-8, 12), 10, 99)
     };
 
-    // Budgets scale by conference tier AND by division: DII operates on a
-    // fraction of DI money, DIII on far less (data-driven via divisionFor).
+    // Budgets scale by conference tier AND by division: DB operates on a
+    // fraction of DA money, DC on far less (data-driven via divisionFor).
     const budgetScale = ({ 1: 1.0, 2: 0.65, 3: 0.4, 4: 0.22 }[tier]) * divRules.budgetScale;
     const budgetTotal = Math.round((300000 + prestige * 4000) * budgetScale);
     const budget = {
@@ -110,7 +110,7 @@
     };
 
     // Blue bloods start with a title or two on the books to match their lore.
-    if (heritage >= 82 && division === 'DI') {
+    if (heritage >= 82 && division === 'DA') {
       historicalSuccess.nationalTitlesM += rng.int(0, 3);
       historicalSuccess.nationalTitlesW += rng.int(0, 2);
     } else if (heritage >= 55) {
@@ -218,7 +218,7 @@
     const tierBonus = { 1: 14, 2: 6, 3: 0, 4: -6 }[school.conferenceTier];
     // Lower divisions employ less-established coaches on average — but the
     // division-agnostic ladder still lets the great ones climb.
-    const divPenalty = { DI: 0, DII: 6, DIII: 10 }[school.division || 'DI'] || 0;
+    const divPenalty = { DA: 0, DB: 6, DC: 10 }[school.division || 'DA'] || 0;
     const rolePenalty = role === 'Assistant' ? 8 : 0;
     const statFor = () => rng.gaussianRange(56 + tierBonus - rolePenalty - divPenalty, 13, 20, 99);
 
@@ -274,7 +274,7 @@
       coach.overallRating * 0.5 + tierBonus - divPenalty + coach.yearsAtSchool * 0.8 + rng.int(-8, 8) - (role === 'Assistant' ? 15 : 0)
     ), 3, 78);
 
-    coach.stints = [{ schoolId: school.id, school: school.name, division: school.division || 'DI', startYear: 2026 - coach.yearsAtSchool, endYear: null }];
+    coach.stints = [{ schoolId: school.id, school: school.name, division: school.division || 'DA', startYear: 2026 - coach.yearsAtSchool, endYear: null }];
     return coach;
   }
 
@@ -360,9 +360,9 @@
     // three divisions coexist in one world; postseason stays separate, while
     // regular-season invitationals may mix them (handled by the race engine).
     const divisionRosters = [
-      ['DI', D.RAW_SCHOOLS],
-      ['DII', D.RAW_SCHOOLS_DII || []],
-      ['DIII', D.RAW_SCHOOLS_DIII || []]
+      ['DA', D.RAW_SCHOOLS],
+      ['DB', D.RAW_SCHOOLS_DII || []],
+      ['DC', D.RAW_SCHOOLS_DIII || []]
     ];
 
     divisionRosters.forEach(([division, raws]) => {
@@ -405,7 +405,7 @@
 
   /*
    * Build only the Division B and C worlds (Update 3 save migration):
-   * existing DI-only dynasties gain the lower divisions so all three
+   * existing DA-only dynasties gain the lower divisions so all three
    * coexist. Returns plain maps to merge into an existing world.
    */
   function generateLowerDivisions(seed, options = {}) {
@@ -417,7 +417,7 @@
     const athletes = {};
     const order = [];
 
-    [['DII', D.RAW_SCHOOLS_DII || []], ['DIII', D.RAW_SCHOOLS_DIII || []]].forEach(([division, raws]) => {
+    [['DB', D.RAW_SCHOOLS_DII || []], ['DC', D.RAW_SCHOOLS_DIII || []]].forEach(([division, raws]) => {
       if (!D.divisionFor(division).active) return;
       raws.forEach((raw) => {
         const school = buildSchool(rng, raw, division);

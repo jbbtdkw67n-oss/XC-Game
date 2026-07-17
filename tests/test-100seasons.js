@@ -64,7 +64,7 @@ async function run() {
     const noCoach = schools.filter((s) => !s.coachId || !g.world.coaches[s.coachId]).length;
     const noAsst = schools.filter((s) => !s.assistantId || !g.world.coaches[s.assistantId]).length;
     const thinRosters = schools.filter((s) => s.rosterM.length < 14 || s.rosterW.length < 14).length;
-    const overDI = schools.filter((s) => (s.division || 'DI') === 'DI' &&
+    const overDI = schools.filter((s) => (s.division || 'DA') === 'DA' &&
       s.id !== g.playerSchoolId && (s.rosterM.length > 14 || s.rosterW.length > 14)).length;
     let dangling = 0;
     schools.forEach((s) => ['rosterM', 'rosterW'].forEach((k) =>

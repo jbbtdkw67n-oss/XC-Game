@@ -116,19 +116,19 @@ async function run() {
       return { amount: r.amount, onceOnly: !again.ok };
     };
     const giant = raise((s, g) => {
-      s.division = 'DI'; s.conferenceTier = 1; s.prestige = 90;
+      s.division = 'DA'; s.conferenceTier = 1; s.prestige = 90;
       s.facilities.alumniCenter = 95;
       s.historicalSuccess = { nationalTitlesM: 3, nationalTitlesW: 2, conferenceTitlesM: 10, conferenceTitlesW: 8 };
       g.rankings.M[0] = { ...g.rankings.M[0], schoolId: s.id, rank: 2 };
     });
     const tiny = raise((s) => {
-      s.division = 'DIII'; s.prestige = 32; s.facilities.alumniCenter = 15;
+      s.division = 'DC'; s.prestige = 32; s.facilities.alumniCenter = 15;
       s.historicalSuccess = {};
     });
     const sizes = {
-      big: F.schoolSizeFactor({ division: 'DI', conferenceTier: 1 }),
-      small: F.schoolSizeFactor({ division: 'DIII', conferenceTier: 4 }),
-      label: F.schoolSizeLabel({ division: 'DI', conferenceTier: 1 })
+      big: F.schoolSizeFactor({ division: 'DA', conferenceTier: 1 }),
+      small: F.schoolSizeFactor({ division: 'DC', conferenceTier: 4 }),
+      label: F.schoolSizeLabel({ division: 'DA', conferenceTier: 1 })
     };
     return { giant: giant.amount, tiny: tiny.amount, onceOnly: giant.onceOnly && tiny.onceOnly, sizes };
   });

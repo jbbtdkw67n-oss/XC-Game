@@ -116,7 +116,7 @@
    *
    *   target = open roster spots + a modest "improvement" allowance
    *
-   * Open spots come from the roster ceiling (DI's hard 14; a healthy squad
+   * Open spots come from the roster ceiling (DA's hard 14; a healthy squad
    * at the uncapped lower divisions). The improvement allowance lets a
    * program with weak, replaceable underclassmen bring in a bigger class to
    * upgrade past them — and because the roster trim keeps the highest-ceiling
@@ -130,16 +130,16 @@
    * `roster` is the full squad array for one gender.
    */
   function signingTarget(school, roster) {
-    const div = school.division || 'DI';
-    const cap = (D.RECRUITING.TARGETS[div] || D.RECRUITING.TARGETS.DI)[1];
+    const div = school.division || 'DA';
+    const cap = (D.RECRUITING.TARGETS[div] || D.RECRUITING.TARGETS.DA)[1];
     const leaving = roster.filter((a) =>
       a.redshirt !== 'True' && a.redshirt !== 'Medical' &&
       (a.eligibilityRemaining <= 1 || a.classYear === 'Graduate')).length;
     const returning = roster.length - leaving;
-    // Genuine open spots under the roster ceiling. DI is the hard 14; the
+    // Genuine open spots under the roster ceiling. DA is the hard 14; the
     // uncapped lower divisions aim for a healthy squad a hair deeper (they
     // don't trim, so this is where their rosters naturally settle).
-    const ceiling = div === 'DI' ? 14 : 15;
+    const ceiling = div === 'DA' ? 14 : 15;
     const openSpots = Math.max(0, ceiling - returning);
 
     // Improvement recruiting: weak, developing-capped underclassmen who
@@ -416,7 +416,7 @@
       assignHsCredentials(pool, rng); // 5K PBs + state titles (Section 16)
 
       // Division preference (Update 11): a real slice of the class — mostly
-      // 2-3 stars, some 4s and 1s — actively prefers the DII/DIII experience
+      // 2-3 stars, some 4s and 1s — actively prefers the DB/DC experience
       // (small campuses, guaranteed racing, coaches who know their name) and
       // will pick a strong lower-division program over a Division A bench.
       // Discoverable through scouting via the 'small-school' motivation.
@@ -424,7 +424,7 @@
         if (r.generational) return;
         const p = { 1: 0.18, 2: 0.22, 3: 0.20, 4: 0.06, 5: 0 }[r.starRating] || 0;
         if (!rng.bool(p)) return;
-        r.divisionPreference = rng.bool(0.5) ? 'DII' : 'DIII';
+        r.divisionPreference = rng.bool(0.5) ? 'DB' : 'DC';
         if (!r.motivations.includes('small-school')) r.motivations.push('small-school');
       });
     });
@@ -593,7 +593,7 @@
     const dist = recruit.hometownState === 'INT' ? 1200 : distanceMiles(recruit.hometownState, school.state);
     const imp = recruit.importance;
 
-    // Regional-scope divisions (DII/DIII) live and die on nearby kids.
+    // Regional-scope divisions (DB/DC) live and die on nearby kids.
     const distScale = division.recruitingScope === 'regional' ? 12 : 18;
 
     const scores = {
@@ -657,18 +657,18 @@
       if (recruit.starRating >= 4) fit += ((coach.media || 50) - 50) * 0.05;
     }
 
-    // Academic-emphasis divisions (DIII especially): campus fit and the
+    // Academic-emphasis divisions (DC especially): campus fit and the
     // classroom drive the choice more than athletics.
     fit += (school.academics - 55) * Math.max(0, division.academicEmphasis - 0.9) * 0.12;
 
     // Division preference (Update 11): some recruits genuinely want the
-    // DII/DIII experience and read a Division A offer as a bench sentence.
+    // DB/DC experience and read a Division A offer as a bench sentence.
     // A strong lower-division program beats a blue blood for these kids.
     if (recruit.divisionPreference) {
-      const divKey = school.division || 'DI';
+      const divKey = school.division || 'DA';
       if (divKey === recruit.divisionPreference) fit += 16;
-      else if (divKey === 'DI') fit -= 14;
-      else fit += 6; // the other lower division still beats DI for them
+      else if (divKey === 'DA') fit -= 14;
+      else fit += 6; // the other lower division still beats DA for them
     }
 
     // Lower-rated recruits (Update 11): prestige can't carry the pitch to a
@@ -734,7 +734,7 @@
   function schoolWeeklyPoints(gameState, school, coach) {
     // Update 11: the weekly point pool grew with the bigger classes — every
     // staff (player and CPU alike, same economy) works enough names to sign
-    // DI 6-8 / DII-DIII 4-8 while contested recruits still walk elsewhere.
+    // DA 6-8 / DB-DC 4-8 while contested recruits still walk elsewhere.
     let pts = 11 + Math.round(coach.recruiting / 5) +
       Math.round((coach.reputation || 10) / 25);
     // The recruiting-coordinator assistant adds a little pull; don't
@@ -761,7 +761,7 @@
 
   /*
    * How many offers (+ commits) a program may have live for one gender.
-   * DI/DII: derived from scholarship equivalencies as before. DIII offers
+   * DA/DB: derived from scholarship equivalencies as before. DC offers
    * roster spots, not scholarships (Update X, Part 3) — the cap follows
    * genuine roster need instead of a scholarship count.
    */
@@ -1422,7 +1422,7 @@
     const ranking = Object.entries(classes)
       .map(([sid, recs]) => ({
         schoolId: sid,
-        division: (gameState.getSchool(sid) || {}).division || 'DI',
+        division: (gameState.getSchool(sid) || {}).division || 'DA',
         score: classScore(recs),
         count: recs.length,
         stars: Math.round(recs.reduce((s, r) => s + r.starRating, 0) / recs.length * 10) / 10
@@ -1430,8 +1430,8 @@
       .sort((a, b) => b.score - a.score);
 
     // Division-separated recruiting rankings (Update 5, Part 11): each
-    // division runs its own recruiting race, so a DII program's #1 DII class
-    // is a genuine achievement rather than being buried under DI. Every entry
+    // division runs its own recruiting race, so a DB program's #1 DB class
+    // is a genuine achievement rather than being buried under DA. Every entry
     // carries both its national rank and its within-division rank.
     const divCounters = {};
     ranking.forEach((entry, i) => {
@@ -1444,7 +1444,7 @@
     // level puts a program on its division's board — there is no talent
     // threshold. The stored ledger keeps each division's top 60 (plus the
     // player's class wherever it lands) so saves stay a sane size while the
-    // rankings screen always has a full board for DI, DII, and DIII alike.
+    // rankings screen always has a full board for DA, DB, and DC alike.
     const storedPerDiv = {};
     const stored = ranking.filter((entry) => {
       storedPerDiv[entry.division] = (storedPerDiv[entry.division] || 0) + 1;
@@ -1463,7 +1463,7 @@
 
     // Permanent ledgers (Parts 8-9): top classes per program, best class per
     // coach. Recorded by within-division rank (Update 5, Part 11) so a strong
-    // DII/DIII class counts as the achievement it is.
+    // DB/DC class counts as the achievement it is.
     const Legacy = window.XCD.engine.Legacy;
     ranking.forEach((entry) => {
       const rank = entry.divisionRank;
@@ -1505,7 +1505,7 @@
     const playerEntry = ranking.find((e) => e.schoolId === gameState.playerSchoolId);
     // Judge the player against their own division's recruiting race (Part 11).
     const playerRank = playerEntry ? playerEntry.divisionRank - 1 : -1; // 0-indexed within division
-    const playerDiv = (gameState.getPlayerSchool().division) || 'DI';
+    const playerDiv = (gameState.getPlayerSchool().division) || 'DA';
     const divLabel = window.XCD.data.divisionFor(gameState.getPlayerSchool()).label;
     const playerClass = classes[gameState.playerSchoolId] || [];
     if (playerClass.length) {
@@ -1518,14 +1518,14 @@
       }
       // Building a recruiting reputation is an assistant's whole career arc
       // (Update 5, Part 4): strong classes make them a head-coach candidate.
-      // Update X: gains are larger and division-weighted — a top-5 DI class
-      // is a bigger résumé line than a top DII or DIII class, because the
+      // Update X: gains are larger and division-weighted — a top-5 DA class
+      // is a bigger résumé line than a top DB or DC class, because the
       // recruiting competition is fiercer at the higher level.
-      // Update 11: the lower-division discount softened (DIII 0.5 → 0.7,
-      // DII 0.7 → 0.85) so a DIII assistant who recruits well builds a real
-      // résumé at a livable pace — the climb is slower than DI, not hopeless.
+      // Update 11: the lower-division discount softened (DC 0.5 → 0.7,
+      // DB 0.7 → 0.85) so a DC assistant who recruits well builds a real
+      // résumé at a livable pace — the climb is slower than DA, not hopeless.
       if (gameState.isAssistant() && coach && playerRank >= 0) {
-        const divW = { DI: 1, DII: 0.85, DIII: 0.7 }[playerDiv] ?? 1;
+        const divW = { DA: 1, DB: 0.85, DC: 0.7 }[playerDiv] ?? 1;
         let repGain = 0;
         if (playerRank < 3) repGain = 9;
         else if (playerRank < 5) repGain = 7.5;
@@ -1591,7 +1591,7 @@
             gender: athlete.gender,
             schoolId,
             school: school.name,
-            division: school.division || 'DI',
+            division: school.division || 'DA',
             classYear: gameState.year,
             classRank: rec.nationalRank,
             profile: rec.genProfile

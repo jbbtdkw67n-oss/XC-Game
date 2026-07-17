@@ -189,14 +189,14 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   if (!hotSeat.fired) fail('three straight Hot Seat seasons must fire an AI coach: ' + JSON.stringify(hotSeat.years));
   console.log('hot seat firing:', JSON.stringify(hotSeat));
 
-  // ---- 9) GOAT division weighting: DI edges DII edges DIII for equal feats --
+  // ---- 9) GOAT division weighting: DA edges DB edges DC for equal feats --
   const goat = await page.evaluate(() => {
     const G = window.XCD.engine.GOAT;
     const acc = (division) => ({ accolades: [{ type: 'natChampIndiv', division }], stats: { races: 10, wins: 5, top5: 8 }, seasons: 4 });
-    return { di: G.athleteScore(acc('DI')), dii: G.athleteScore(acc('DII')), diii: G.athleteScore(acc('DIII')) };
+    return { di: G.athleteScore(acc('DA')), dii: G.athleteScore(acc('DB')), diii: G.athleteScore(acc('DC')) };
   });
   if (!(goat.di > goat.dii && goat.dii > goat.diii)) fail('GOAT division weighting wrong: ' + JSON.stringify(goat));
-  // "Noticeable but not overwhelming": DIII within ~30% of DI.
+  // "Noticeable but not overwhelming": DC within ~30% of DA.
   if (goat.diii < goat.di * 0.6) fail('division gap too large — lower divisions must still rank highly: ' + JSON.stringify(goat));
   console.log('GOAT weighting:', JSON.stringify(goat));
 

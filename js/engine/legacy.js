@@ -4,7 +4,7 @@
  * The permanent memory of the game world:
  *  - Program ledgers: every meet win, title, appearance, podium, honor,
  *    coach stint, W/L record, and best finish, forever, per school —
- *    division-aware so DII/DIII histories stay separate when they arrive.
+ *    division-aware so DB/DC histories stay separate when they arrive.
  *  - Athlete honor years: badges (🏅 All-Conference, 🇺🇸 All-American,
  *    🏆 National Champion, 🥇 Conference Champion) with the years earned,
  *    preserved past graduation in the alumni ledger.
@@ -18,7 +18,7 @@
   function blankProgram(school) {
     return {
       schoolId: school ? school.id : null,
-      division: (school && school.division) || 'DI',
+      division: (school && school.division) || 'DA',
       wins: 0, losses: 0, meetWins: 0,
       confTitles: 0, regionalTitles: 0, natTitles: 0, natRunnerUp: 0,
       ncaaAppearances: 0, podiums: 0, bestFinish: null, highestRank: null,
@@ -65,7 +65,7 @@
    * overwritten. Honors from different divisions/conferences (via transfers
    * or realignment) all coexist, forming a complete career record.
    */
-  const DIV_SHORT = () => window.XCD.data.DIVISION_SHORT || { DI: 'DA', DII: 'DB', DIII: 'DC' };
+  const DIV_SHORT = () => window.XCD.data.DIVISION_SHORT || { DA: 'DA', DB: 'DB', DC: 'DC' };
 
   // Human-readable one-line label, e.g. "2029 Southern Premier Conference First Team All-Conference"
   // or "2030 DC Team National Champion".
@@ -137,8 +137,8 @@
       ['allConference', '🏅', 'All-Conference'],
       // High School Cross Nationals prep honors (Update 5, Part 9) — permanent, and
       // carried into college when the recruit enrolls.
-      ['nxnChampion', '👟', 'HSXN Champion'],
-      ['nxnAllAmerican', '🎽', 'HSXN All-American'],
+      ['hsxnChampion', '👟', 'HSXN Champion'],
+      ['hsxnAllAmerican', '🎽', 'HSXN All-American'],
       // High-school state titles (Section 16) — permanent prep history.
       ['hsStateChamp', '🏵', 'HS State Champion']
     ];
@@ -175,7 +175,7 @@
       gender: athlete.gender,
       school: school ? school.name : '?',
       schoolId: athlete.schoolId,
-      division: (school && school.division) || 'DI',
+      division: (school && school.division) || 'DA',
       gradYear: gameState.year,
       generational: !!athlete.generational,
       genProfile: athlete.genProfile || null,
@@ -294,7 +294,7 @@
     const role = coach.role || 'Head';
     coach.stints.push({
       schoolId: school.id, school: school.name,
-      division: school.division || 'DI', startYear, endYear: null, role
+      division: school.division || 'DA', startYear, endYear: null, role
     });
     // Only head coaches appear on the program's head-coaching ledger; an
     // assistant's stint lives on their own timeline (Update 5).

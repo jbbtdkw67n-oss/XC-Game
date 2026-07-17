@@ -57,15 +57,15 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     const g = window.XCD.ui.state.game;
     const school = g.getPlayerSchool();
     return {
-      hasAll: ['DI', 'DII', 'DIII'].every((k) => D.DIVISIONS[k]),
+      hasAll: ['DA', 'DB', 'DC'].every((k) => D.DIVISIONS[k]),
       schoolDivision: school.division,
       diField: D.divisionFor(school).championship.nationalsFieldSize,
-      diiiScholarships: D.DIVISIONS.DIII.scholarships.M === 0,
-      championshipsKeyed: !!g.season.championships.DI
+      diiiScholarships: D.DIVISIONS.DC.scholarships.M === 0,
+      championshipsKeyed: !!g.season.championships.DA
     };
   });
   console.log('division layer:', JSON.stringify(div));
-  if (!div.hasAll || div.schoolDivision !== 'DI' || div.diField !== 31 || !div.diiiScholarships || !div.championshipsKeyed) {
+  if (!div.hasAll || div.schoolDivision !== 'DA' || div.diField !== 31 || !div.diiiScholarships || !div.championshipsKeyed) {
     errors.push('Division layer broken: ' + JSON.stringify(div));
   }
 
@@ -105,7 +105,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     return {
       week: loaded.week,
       year: loaded.year === g.year,
-      division: school.division === 'DI',
+      division: school.division === 'DA',
       mileage: loaded.training.mileage && loaded.training.mileage.M > 0,
       reputationSeeded: typeof coach.reputation === 'number' && coach.reputation > 0,
       secondaryRatings: typeof aiCoach.talentEval === 'number',

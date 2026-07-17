@@ -30,7 +30,7 @@
     classes.forEach((c) => { classRank[c.schoolId] = c.rank; });
 
     Object.values(gameState.world.schools).forEach((school) => {
-      const division = school.division || 'DI';
+      const division = school.division || 'DA';
       const coach = gameState.getCoach(school.coachId);
       let score = 0; // season evidence, roughly -3 .. +3
 
@@ -45,7 +45,7 @@
       if (conf[`${school.conference}-M`] === school.name) score += 0.5;
       if (conf[`${school.conference}-W`] === school.name) score += 0.5;
       ['M', 'W'].forEach((g) => {
-        const key = division === 'DI' ? g : `${division}-${g}`;
+        const key = division === 'DA' ? g : `${division}-${g}`;
         const n = nat[key];
         if (n && n.teamId === school.id) score += 2.2;
       });

@@ -16,20 +16,20 @@
   const LIST_SIZE = 40;
 
   // Division weighting (Update 13, Phase 6): a Division A accomplishment
-  // carries slightly greater weight than an equivalent DII one, which in turn
-  // edges a DIII one — the field is deeper the higher you go. The gap is
+  // carries slightly greater weight than an equivalent DB one, which in turn
+  // edges a DC one — the field is deeper the higher you go. The gap is
   // noticeable but not overwhelming, so a dominant lower-division career still
   // ranks among the all-time greats.
-  const DIV_WEIGHT = { DI: 1.0, DII: 0.9, DIII: 0.82 };
-  const divWeight = (d) => DIV_WEIGHT[d || 'DI'] ?? 1.0;
+  const DIV_WEIGHT = { DA: 1.0, DB: 0.9, DC: 0.82 };
+  const divWeight = (d) => DIV_WEIGHT[d || 'DA'] ?? 1.0;
 
   // A coach/program record's predominant division, for career-level weighting.
   function predominantDivision(stints, fallback) {
-    if (!stints || !stints.length) return fallback || 'DI';
+    if (!stints || !stints.length) return fallback || 'DA';
     const tally = {};
     stints.forEach((s) => {
       const yrs = Math.max(1, (s.endYear || s.startYear) - s.startYear + 1);
-      tally[s.division || 'DI'] = (tally[s.division || 'DI'] || 0) + yrs;
+      tally[s.division || 'DA'] = (tally[s.division || 'DA'] || 0) + yrs;
     });
     return Object.entries(tally).sort((a, b) => b[1] - a[1])[0][0];
   }
@@ -57,7 +57,7 @@
   function athleteScore(rec) {
     let score = 0;
     // Each accolade is weighted by the division it was earned in (Update 13):
-    // a DI All-American edges a DII one, which edges a DIII one.
+    // a DA All-American edges a DB one, which edges a DC one.
     (rec.accolades || []).forEach((acc) => {
       score += (ATH_WEIGHTS[acc.type] || 0) * divWeight(acc.division);
     });
@@ -77,7 +77,7 @@
       gender: al.gender,
       school: al.school,
       schoolId: al.schoolId,
-      division: al.division || 'DI',
+      division: al.division || 'DA',
       years: al.gradYear ? `’${String(al.gradYear).slice(2)}` : '',
       gradYear: al.gradYear || null,
       generational: !!al.generational,
@@ -97,7 +97,7 @@
       gender: a.gender,
       school: school ? school.name : '?',
       schoolId: a.schoolId,
-      division: (school && school.division) || 'DI',
+      division: (school && school.division) || 'DA',
       years: 'active',
       gradYear: null,
       generational: !!a.generational,
@@ -166,7 +166,7 @@
       rows.push({
         kind: 'active', coachId: c.id, name: c.fullName, isPlayer: !!c.isPlayer,
         school: school ? school.name : 'Free agent', schoolId: school ? school.id : null,
-        division: predominantDivision(c.stints, school ? school.division : 'DI'),
+        division: predominantDivision(c.stints, school ? school.division : 'DA'),
         years: 'active', cr, winPct: c.winPct || 0, record: null
       });
     });
@@ -175,7 +175,7 @@
         kind: 'retired', coachId: null, name: rec.name, isPlayer: !!rec.isPlayer,
         school: (rec.stints && rec.stints.length) ? rec.stints[rec.stints.length - 1].school : '—',
         schoolId: null,
-        division: predominantDivision(rec.stints, 'DI'),
+        division: predominantDivision(rec.stints, 'DA'),
         years: `ret. ${rec.year}`, cr: rec.careerRecord || {}, winPct: rec.winPct || 0,
         record: rec
       });
@@ -231,7 +231,7 @@
         schoolId: sid,
         name: school.name,
         conference: school.conference,
-        division: school.division || 'DI',
+        division: school.division || 'DA',
         prestige: school.prestige,
         natTitles: prog.natTitles || 0,
         natRunnerUp: prog.natRunnerUp || 0,
@@ -256,7 +256,7 @@
   // team score, and the strength of the field they beat.
   function teamScore(t) {
     // A national-title run is weighted by its division (Update 13): the same
-    // dominance at DI edges DII edges DIII, without erasing a great DIII team.
+    // dominance at DA edges DB edges DC, without erasing a great DC team.
     return Math.round((
       (t.teamOverall || 0) * 1.6 +
       (t.teamPerformance || 0) * 1.2 +

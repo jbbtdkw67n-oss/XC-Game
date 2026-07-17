@@ -105,7 +105,7 @@
         ? `<span style="color:var(--warning);">Verbal — ${Utils.escapeHtml(game.getSchool(rec.committedTo)?.name || '?')}</span>`
         : '<span style="color:var(--text-dim);">Uncommitted</span>';
 
-    // DIII offers roster spots, not scholarships (Update X, Part 3) — the
+    // DC offers roster spots, not scholarships (Update X, Part 3) — the
     // recruiting mechanics are identical, the button just reflects NXCA rules.
     const terms = D.offerTerms(school);
     const actionButtons = Object.entries(D.RECRUIT_ACTIONS).map(([key, a]) => {
@@ -135,9 +135,9 @@
       <div class="player-card-header">
         <div style="flex:0 0 auto; margin-right:14px;">${UI.avatar(rec, { size: 64, outfit: 'jersey' })}</div>
         <div class="who">
-          <h2>${rec.generational ? '⭐ ' : ''}${stars(rec.starRating)} ${Utils.escapeHtml(rec.fullName)}${rec.nxn && rec.nxn.champion ? ' <span title="HSXN Champion">👟</span>' : rec.nxn && rec.nxn.allAmerican ? ' <span title="HSXN All-American">🎽</span>' : ''}${rec.hsStateChampion ? ' <span title="HS State Champion">🏵</span>' : ''}</h2>
+          <h2>${rec.generational ? '⭐ ' : ''}${stars(rec.starRating)} ${Utils.escapeHtml(rec.fullName)}${rec.hsxn && rec.hsxn.champion ? ' <span title="HSXN Champion">👟</span>' : rec.hsxn && rec.hsxn.allAmerican ? ' <span title="HSXN All-American">🎽</span>' : ''}${rec.hsStateChampion ? ' <span title="HS State Champion">🏵</span>' : ''}</h2>
           ${rec.generational ? '<div class="sub" style="color:var(--gold, #d4af37); font-weight:700;">GENERATIONAL RECRUIT — the story of this class</div>' : ''}
-          ${rec.nxn && (rec.nxn.champion || rec.nxn.allAmerican) ? `<div class="sub" style="color:var(--accent); font-weight:600;">${rec.nxn.champion ? '👟 HSXN Champion' : '🎽 HSXN All-American'} (${rec.nxn.champion || rec.nxn.allAmerican})${rec.nxn.finish ? ` — HSXN finish: ${rec.nxn.finish === 1 ? '🥇 1st' : '#' + rec.nxn.finish}` : ''} — a decorated prep runner</div>` : rec.nxn && rec.nxn.finish ? `<div class="sub" style="color:var(--text-dim);">HSXN finish: #${rec.nxn.finish} (${rec.nxn.year})</div>` : ''}
+          ${rec.hsxn && (rec.hsxn.champion || rec.hsxn.allAmerican) ? `<div class="sub" style="color:var(--accent); font-weight:600;">${rec.hsxn.champion ? '👟 HSXN Champion' : '🎽 HSXN All-American'} (${rec.hsxn.champion || rec.hsxn.allAmerican})${rec.hsxn.finish ? ` — HSXN finish: ${rec.hsxn.finish === 1 ? '🥇 1st' : '#' + rec.hsxn.finish}` : ''} — a decorated prep runner</div>` : rec.hsxn && rec.hsxn.finish ? `<div class="sub" style="color:var(--text-dim);">HSXN finish: #${rec.hsxn.finish} (${rec.hsxn.year})</div>` : ''}
           ${rec.hsStateChampion ? `<div class="sub" style="color:var(--accent);">🏵 ${rec.hometownState} HS State Champion (${rec.gradYear})</div>` : ''}
           <div class="sub">
             ${rec.hsPB !== undefined ? `<strong style="color:var(--text); font-size:14px;" title="Official high-school 5K personal best">5K PB ${window.XCD.engine.Races.formatTime(rec.hsPB)}</strong> • ` : ''}Class of ${rec.gradYear} •
@@ -279,7 +279,7 @@
       columns: [
         { key: 'starRating', label: 'Stars', numeric: true, render: (r) => stars(r.starRating) },
         { key: 'nationalRank', label: 'Natl', numeric: true, render: (r) => `#${r.nationalRank}` },
-        { key: 'lastName', label: 'Name', render: (r) => `${UI.avatar(r, { size: 24 })} ${r.generational ? '<span title="Generational Recruit">⭐</span> ' : ''}${r.nxn && r.nxn.champion ? '<span title="HSXN Champion">👟</span> ' : r.nxn && r.nxn.allAmerican ? '<span title="HSXN All-American">🎽</span> ' : ''}<strong>${Utils.escapeHtml(r.fullName)}</strong>${r.source !== 'HS' ? ` <span style="font-size:10px; color:var(--warning);">${r.source}</span>` : ''}` },
+        { key: 'lastName', label: 'Name', render: (r) => `${UI.avatar(r, { size: 24 })} ${r.generational ? '<span title="Generational Recruit">⭐</span> ' : ''}${r.hsxn && r.hsxn.champion ? '<span title="HSXN Champion">👟</span> ' : r.hsxn && r.hsxn.allAmerican ? '<span title="HSXN All-American">🎽</span> ' : ''}<strong>${Utils.escapeHtml(r.fullName)}</strong>${r.source !== 'HS' ? ` <span style="font-size:10px; color:var(--warning);">${r.source}</span>` : ''}` },
         { key: 'hometownState', label: 'From', render: (r) => r.hometownState === 'INT' ? Utils.escapeHtml(r.country) : `${Utils.escapeHtml(r.hometownCity)}, ${r.hometownState}` },
         {
           key: 'dist', label: 'Dist', numeric: true,
@@ -365,8 +365,8 @@
     }
     // Division-separated recruiting rankings (Update 5, Part 11): each
     // division has its own recruiting race. Default to the player's division.
-    if (!classRankDiv) classRankDiv = (game.getPlayerSchool().division) || 'DI';
-    const DIV_TABS = [['DI', 'Division A'], ['DII', 'Division B'], ['DIII', 'Division C']]
+    if (!classRankDiv) classRankDiv = (game.getPlayerSchool().division) || 'DA';
+    const DIV_TABS = [['DA', 'Division A'], ['DB', 'Division B'], ['DC', 'Division C']]
       .filter(([k]) => D.divisionFor(k).active);
 
     const tabs = `<div class="pill-tabs" id="crank-div" style="margin-bottom:12px;">
@@ -375,9 +375,9 @@
 
     el.innerHTML = tabs + years.map((year) => {
       // Old saves stored a flat national list without division tags; treat a
-      // missing division as DI so historical classes still render.
+      // missing division as DA so historical classes still render.
       const rows = game.history.recruitingClasses[year]
-        .filter((e) => (e.division || 'DI') === classRankDiv)
+        .filter((e) => (e.division || 'DA') === classRankDiv)
         .slice(0, 25);
       if (!rows.length) return '';
       return `

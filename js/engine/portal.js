@@ -19,7 +19,7 @@
   const ENTRY_WEEK = CAL.NATIONAL_WEEK + 1;   // the week after nationals
   const DECISION_WEEK = CAL.WEEKS_PER_YEAR - 1; // portal closes before rollover
   // Summer window (Update 11): the portal reopens across Summer Training
-  // (weeks 1-3) EXCLUSIVELY for DII/DIII programs, stocked with Division A
+  // (weeks 1-3) EXCLUSIVELY for DB/DC programs, stocked with Division A
   // roster cuts — a realistic second recruiting window.
   const SUMMER_FINAL_WEEK = CAL.SUMMER_WEEKS;
   const SEASON_END_WEEK = CAL.NATIONAL_WEEK;
@@ -41,7 +41,7 @@
 
   // Transfer Portal Nerf (Update 13, Phase 4): desire-driven portal entries
   // are throttled to ~75% of their former rate — the portal was providing too
-  // much talent. (The Zero Morale Rule and DI summer roster cuts are separate
+  // much talent. (The Zero Morale Rule and DA summer roster cuts are separate
   // and unaffected.)
   const PORTAL_ENTRY_SCALE = 0.75;
 
@@ -232,12 +232,12 @@
     if ((a.seasonInjuryWeeks || 0) >= 6) add(9, R.injuries);
 
     // Lower-division stars drawing higher-division interest (Update 5,
-    // Section 1). Exceptionally decorated DII/DIII athletes — national
+    // Section 1). Exceptionally decorated DB/DC athletes — national
     // champions, multi-time All-Americans, dominant conference champions —
     // occasionally get the itch to test themselves a level up. Kept UNCOMMON
     // (a modest nudge, not a guarantee) so many elite lower-division athletes
     // stay loyal, and their coach/team bonds (below) can anchor them home.
-    if ((school.division === 'DII' || school.division === 'DIII') && a.eligibilityRemaining >= 2) {
+    if ((school.division === 'DB' || school.division === 'DC') && a.eligibilityRemaining >= 2) {
       const hy = a.honorYears || {};
       const champ = (hy.natChamp || []).length;
       const aa = (hy.allAmerican || []).length;
@@ -389,8 +389,8 @@
    * reputation, prestige, the genuine likelihood of racing, recent
    * success, facilities, academics, distance from home, conference
    * level, NIL, and whether the training philosophy fits their body.
-   * Division is no barrier — a buried DI runner will drop down for
-   * racing opportunities, and a DIII star will chase DI competition.
+   * Division is no barrier — a buried DA runner will drop down for
+   * racing opportunities, and a DC star will chase DA competition.
    */
   function portalAppeal(gameState, school, a, fromSchool) {
     const RE = window.XCD.engine.Recruiting;
@@ -432,18 +432,18 @@
 
     // Championship opportunity (Update 3): a genuine shot at contending —
     // making nationals and finishing high — pulls transfers across divisions
-    // in both directions (a buried DI runner drops to DII/DIII to race and
-    // win; a DIII star climbs to chase DI titles).
+    // in both directions (a buried DA runner drops to DB/DC to race and
+    // win; a DC star climbs to chase DA titles).
     let champOpp = recentSuccess * 0.5;
     if (gameState.season && gameState.season.championships) {
-      const champ = gameState.season.championships[school.division || 'DI'];
+      const champ = gameState.season.championships[school.division || 'DA'];
       const inField = champ && champ.fieldIds &&
         ((champ.fieldIds[a.gender] || []).includes(school.id));
       if (inField) champOpp += 30; // this program goes to nationals
     }
     if (playingTime >= 90 && school.prestige >= 55) champOpp += 15; // star who'd score right away
 
-    // DIII athletes weigh academics/campus fit far more (division identity).
+    // DC athletes weigh academics/campus fit far more (division identity).
     const academicWeight = division.academicEmphasis >= 1.4 ? 0.10 : 0.05;
 
     return Utils.clamp(
@@ -489,7 +489,7 @@
       if (school.id === gameState.playerSchoolId) return; // the player pursues manually
       // The summer window is EXCLUSIVE to Division B and C (Update 11):
       // the programs a Division A cut can actually continue a career at.
-      if (summer && (school.division || 'DI') === 'DI') return;
+      if (summer && (school.division || 'DA') === 'DA') return;
       const coach = gameState.getCoach(school.coachId);
       const per = {};
       ['M', 'W'].forEach((gender) => {
@@ -547,9 +547,9 @@
   function pursuitScore(prof, a, quality, rng, summer) {
     const school = prof.school;
     const need = prof.per[a.gender];
-    // Roster space is a hard gate: DI programs at the limit (returners +
+    // Roster space is a hard gate: DA programs at the limit (returners +
     // already-committed transfers) sit the market out for that gender.
-    const spots = ((school.division || 'DI') === 'DI' ? DI_ROSTER_LIMIT : 18)
+    const spots = ((school.division || 'DA') === 'DA' ? DI_ROSTER_LIMIT : 18)
       - need.returning - need.pending;
     if (spots <= 0) return -1;
 
@@ -600,7 +600,7 @@
     const market = buildPortalMarket(gameState, summer);
     const week = gameState.week;
     const weeksLeft = Math.max(1, (summer ? SUMMER_FINAL_WEEK : DECISION_WEEK) - week + 1);
-    const divRank = (d) => (d === 'DI' ? 3 : d === 'DII' ? 2 : 1);
+    const divRank = (d) => (d === 'DA' ? 3 : d === 'DB' ? 2 : 1);
 
     portal.entries.forEach((entry) => {
       if (entry.destination) return;
@@ -635,7 +635,7 @@
         if (s <= 0) continue;
         // Lower-division stars climbing (Update 5): an athlete chasing
         // higher-division competition draws the higher division's interest.
-        if (movingUp && divRank(prof.school.division || 'DI') > divRank(fromSchool.division || 'DI')) s += 10;
+        if (movingUp && divRank(prof.school.division || 'DA') > divRank(fromSchool.division || 'DA')) s += 10;
         scored.push({ prof, s });
       }
       if (!scored.length) return;
@@ -669,8 +669,8 @@
   function playerOffer(gameState, athleteId) {
     const portal = gameState.portal;
     if (!portal || !portal.open) return { ok: false, message: 'The portal is closed.' };
-    // The summer window is a DII/DIII-only market (Update 11).
-    if (portal.summer && (gameState.getPlayerSchool().division || 'DI') === 'DI') {
+    // The summer window is a DB/DC-only market (Update 11).
+    if (portal.summer && (gameState.getPlayerSchool().division || 'DA') === 'DA') {
       return { ok: false, message: 'The summer window is exclusive to Division B and C programs.' };
     }
     const entry = portal.entries.find((e) => e.athleteId === athleteId);
@@ -685,7 +685,7 @@
     if (active >= PLAYER_OFFER_LIMIT) return { ok: false, message: `You can only pursue ${PLAYER_OFFER_LIMIT} portal athletes at once.` };
     entry.offers.push(gameState.playerSchoolId);
     const a = gameState.getAthlete(athleteId);
-    // DIII programs offer roster spots, not scholarships (Update X, Part 3).
+    // DC programs offer roster spots, not scholarships (Update X, Part 3).
     const terms = window.XCD.data.offerTerms(gameState.getPlayerSchool());
     return { ok: true, message: `${terms.made} ${a ? a.fullName : 'transfer'}.` };
   }
@@ -715,8 +715,8 @@
       entry.destination = choice.sid;
       entry.decidedWeek = gameState.week;
       const to = gameState.getSchool(choice.sid);
-      const crossDiv = fromSchool && (fromSchool.division || 'DI') !== (to.division || 'DI');
-      const moveNote = crossDiv ? ` (${fromSchool.division || 'DI'} → ${to.division || 'DI'})` : '';
+      const crossDiv = fromSchool && (fromSchool.division || 'DA') !== (to.division || 'DA');
+      const moveNote = crossDiv ? ` (${fromSchool.division || 'DA'} → ${to.division || 'DA'})` : '';
       if (choice.sid === gameState.playerSchoolId) {
         gameState.logNews(`✅ TRANSFER COMMIT: ${a.fullName} (${a.currentOverall} OVR) is coming to ${to.name} from ${fromSchool?.name}${moveNote}!`);
       } else if (a.currentOverall >= 72 || entry.fromSchoolId === gameState.playerSchoolId || crossDiv) {
@@ -742,8 +742,8 @@
   /*
    * Opened at the year rollover, stocked with every Division A roster cut
    * (scholarship athletes and walk-ons alike). Runs through Summer Training
-   * weeks 1-3, exclusively for DII/DIII programs — the AI market reuses the
-   * standard offer/pursuit machinery with the summer rules, a DII/DIII
+   * weeks 1-3, exclusively for DB/DC programs — the AI market reuses the
+   * standard offer/pursuit machinery with the summer rules, a DB/DC
    * player pursues through the normal portal screen, and every athlete
    * resolves by the end of week 3: signed somewhere with genuine room and
    * fit, or (rarely) walking away from the sport.
@@ -781,7 +781,7 @@
     a.fatigue = Utils.clamp(Math.min(a.fatigue, rng.int(6, 22)), 0, 100);
     a.sharpness = Utils.clamp(Math.round(rng.int(45, 68)), 0, 100);
 
-    // Landing a proven Division A body is a real résumé line for a DII/DIII
+    // Landing a proven Division A body is a real résumé line for a DB/DC
     // staff — this is exactly how a small-school recruiter builds a name.
     if (a.currentOverall >= 62) {
       const head = gameState.getCoach(to.coachId);
@@ -835,7 +835,7 @@
     let placed = 0;
     let walkedAway = 0;
     // Whoever the market never called still lands wherever there's genuine
-    // room and fit (DI is full post-trim, so this is DII/DIII by
+    // room and fit (DA is full post-trim, so this is DB/DC by
     // construction) — cut athletes continue their careers, they don't
     // vanish. A few walk away from the sport, as some always did.
     portal.entries.forEach((entry) => {
@@ -852,7 +852,7 @@
     };
     gameState.portal = null;
     if (portal.entries.length) {
-      gameState.logNews(`The summer transfer window closes: ${placed} cut athletes continue their careers at DII/DIII programs${walkedAway ? `, ${walkedAway} step away from the sport` : ''}.`);
+      gameState.logNews(`The summer transfer window closes: ${placed} cut athletes continue their careers at DB/DC programs${walkedAway ? `, ${walkedAway} step away from the sport` : ''}.`);
     }
   }
 
@@ -940,7 +940,7 @@
 
   /*
    * A cut athlete enters the portal and lands wherever there's genuine
-   * room and fit — a DI program under the limit, or a DII/DIII roster.
+   * room and fit — a DA program under the limit, or a DB/DC roster.
    * A few walk away from the sport entirely (recorded as alumni).
    */
   function placeCutAthlete(gameState, a, fromSchool, rng) {
@@ -948,8 +948,8 @@
     const candidates = Object.values(gameState.world.schools).filter((s) => {
       if (fromSchool && s.id === fromSchool.id) return false;
       if (s.id === gameState.playerSchoolId) return false; // never auto-added to the player
-      const div = s.division || 'DI';
-      if (div === 'DI' && s[key].length >= DI_ROSTER_LIMIT) return false;
+      const div = s.division || 'DA';
+      if (div === 'DA' && s[key].length >= DI_ROSTER_LIMIT) return false;
       if (s[key].length >= 20) return false; // lower-division rosters stay believable
       return Math.abs((30 + s.prestige * 0.55) - a.currentOverall) <= 30;
     });
@@ -974,7 +974,7 @@
     return to;
   }
 
-  // Player-facing Week 1 cut: only a DI head coach over the limit, with
+  // Player-facing Week 1 cut: only a DA head coach over the limit, with
   // the athlete moving on through the portal immediately.
   function cutAthlete(gameState, athleteId) {
     const a = gameState.getAthlete(athleteId);
@@ -983,7 +983,7 @@
     if (!school || school.id !== gameState.playerSchoolId) return { ok: false, message: 'Not on your roster.' };
     if (gameState.isAssistant && gameState.isAssistant()) return { ok: false, message: 'Roster cuts are a head-coach call.' };
     if (gameState.week !== 1) return { ok: false, message: 'Roster moves happen during the Week 1 administrative phase.' };
-    if ((school.division || 'DI') !== 'DI') return { ok: false, message: 'Only Division A enforces the 14-athlete limit — your roster is unlimited.' };
+    if ((school.division || 'DA') !== 'DA') return { ok: false, message: 'Only Division A enforces the 14-athlete limit — your roster is unlimited.' };
     const key = a.gender === 'M' ? 'rosterM' : 'rosterW';
     if (school[key].length <= DI_ROSTER_LIMIT) {
       return { ok: false, message: `That squad is at or under the ${DI_ROSTER_LIMIT}-athlete limit — no cuts required.` };
@@ -992,7 +992,7 @@
     a.schoolId = null;
     const name = a.fullName;
     // Update 11: a Week 1 cut joins the summer transfer window with the CPU
-    // cuts — DII/DIII programs evaluate them across weeks 1-3 rather than
+    // cuts — DB/DC programs evaluate them across weeks 1-3 rather than
     // the athlete teleporting to a new roster the same day.
     const R = window.XCD.data.PORTAL_REASONS;
     if (!gameState.portal || !gameState.portal.summer) {
@@ -1008,7 +1008,7 @@
     });
     // Cuts sting the locker room a little — the roster crunch is real.
     school.teamMorale = Utils.clamp((school.teamMorale ?? 65) - 1, 0, 100);
-    gameState.logNews(`Roster cut: ${name} is released into the summer transfer window — DII/DIII programs will come calling.`);
+    gameState.logNews(`Roster cut: ${name} is released into the summer transfer window — DB/DC programs will come calling.`);
     return { ok: true, message: `${name} released — they enter the summer transfer window.` };
   }
 
@@ -1019,13 +1019,13 @@
    * — unless an AI head coach runs the program (player is the assistant).
    *
    * Update 11: cuts no longer scatter instantly — they stock the summer
-   * transfer window (weeks 1-3, DII/DIII only), where lower divisions
+   * transfer window (weeks 1-3, DB/DC only), where lower divisions
    * aggressively evaluate every available body before hunting walk-ons.
    */
   function trimRosters(gameState, rng) {
     const cuts = [];
     Object.values(gameState.world.schools).forEach((school) => {
-      if ((school.division || 'DI') !== 'DI') return;
+      if ((school.division || 'DA') !== 'DA') return;
       const playerRuns = school.id === gameState.playerSchoolId &&
         !(gameState.isAssistant && gameState.isAssistant());
       if (playerRuns) return;
@@ -1052,7 +1052,7 @@
     if (week === CAL.SUMMER_WEEKS) aiRedshirts(gameState, rng); // decided before racing starts
     medicalRedshirtScan(gameState);
 
-    // The summer window (Update 11): DII/DIII pursue Division A roster cuts
+    // The summer window (Update 11): DB/DC pursue Division A roster cuts
     // across Summer Training, everything resolved before the racing starts.
     if (gameState.portal && gameState.portal.summer) {
       if (week <= SUMMER_FINAL_WEEK) {

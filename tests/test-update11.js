@@ -1,15 +1,15 @@
 // Update 11 test suite. Verifies the recruiting balance overhaul:
 //  - class volume: 4,800 per gender so all 727 programs sign real classes
-//  - signing coverage & class sizes: DI ~6-8 signees, DII/DIII ~4-8, and
-//    (nearly) every DIII program signs every cycle
-//  - class rankings take ANY signees: no star threshold, DIII boards filled
+//  - signing coverage & class sizes: DA ~6-8 signees, DB/DC ~4-8, and
+//    (nearly) every DC program signs every cycle
+//  - class rankings take ANY signees: no star threshold, DC boards filled
 //  - diamonds in the rough: 3-7% of each class hides an elite ceiling
 //    behind a modest perceivedPotential; rankings, stars, and the scouted
 //    POT display all read the perceived number; scout notes are noisy
-//  - division preference: a slice of 1-4★ recruits prefers DII/DIII
+//  - division preference: a slice of 1-4★ recruits prefers DB/DC
 //  - fall portal: an intimate 2-4 suitor market per athlete
-//  - summer window: DI roster cuts stock a weeks 1-3 window exclusive to
-//    DII/DIII; every cut resolves (placed or walks away), none vanish
+//  - summer window: DA roster cuts stock a weeks 1-3 window exclusive to
+//    DB/DC; every cut resolves (placed or walks away), none vanish
 //  - coaching carousel: accepting a job wipes remaining offers and closes
 //    the market for the rest of that offseason
 const { chromium } = require('playwright');
@@ -115,14 +115,14 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
           recs.forEach((r) => {
             if (r.signed) bySchool[r.committedTo] = (bySchool[r.committedTo] || 0) + 1;
           });
-          // Track the DI signees so we can measure how many get cut at the
+          // Track the DA signees so we can measure how many get cut at the
           // rollover — over-recruiting waste (Kentucky signed 22, kept ~10).
           out.diSignedIds = recs.filter((r) => r.signed &&
-            (g.getSchool(r.committedTo) || {}).division === 'DI')
+            (g.getSchool(r.committedTo) || {}).division === 'DA')
             .map((r) => ({ id: r.id, to: r.committedTo }));
-          const div = { DI: { signed: 0, schools: 0, signees: 0 }, DII: { signed: 0, schools: 0, signees: 0 }, DIII: { signed: 0, schools: 0, signees: 0 } };
+          const div = { DA: { signed: 0, schools: 0, signees: 0 }, DB: { signed: 0, schools: 0, signees: 0 }, DC: { signed: 0, schools: 0, signees: 0 } };
           Object.values(g.world.schools).forEach((s) => {
-            const d = div[s.division || 'DI'];
+            const d = div[s.division || 'DA'];
             d.schools++;
             if (bySchool[s.id]) { d.signed++; d.signees += bySchool[s.id]; }
           });
@@ -135,12 +135,12 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
             };
           });
           const classes = g.history.recruitingClasses[yr] || [];
-          const diClasses = classes.filter((e) => e.division === 'DI');
+          const diClasses = classes.filter((e) => e.division === 'DA');
           out.rankings = {
-            diii: classes.filter((e) => e.division === 'DIII').length,
+            diii: classes.filter((e) => e.division === 'DC').length,
             lowStar: classes.filter((e) => e.avgStars <= 2).length,
             total: classes.length,
-            // Quality-first check: the top DI classes must be genuinely
+            // Quality-first check: the top DA classes must be genuinely
             // star-heavy — no 2.6-avg class ranking near the top anymore.
             top5AvgStars: +(diClasses.slice(0, 5).reduce((s, e) => s + e.avgStars, 0) / Math.min(5, diClasses.length)).toFixed(2),
             top5MaxCount: Math.max(...diClasses.slice(0, 5).map((e) => e.count))
@@ -150,8 +150,8 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
         g.advanceWeek();
       }
 
-      // The season rolled over: signees enrolled, DI trimmed to 14. Measure
-      // how many just-signed DI freshmen were cut — the over-recruiting waste.
+      // The season rolled over: signees enrolled, DA trimmed to 14. Measure
+      // how many just-signed DA freshmen were cut — the over-recruiting waste.
       let diCut = 0;
       (out.diSignedIds || []).forEach((s) => {
         const a = g.world.athletes[s.id];
@@ -164,7 +164,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       };
       delete out.diSignedIds;
 
-      // Year 2: the summer window (weeks 1-3, DII/DIII exclusive).
+      // Year 2: the summer window (weeks 1-3, DB/DC exclusive).
       out.summer = {
         openAtW1: !!(g.portal && g.portal.summer && g.portal.open),
         entries: g.portal && g.portal.summer ? g.portal.entries.length : 0
@@ -186,7 +186,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
         if (!a) return; // walked away — recorded as alumni, a legal outcome
         if (!a.schoolId) { vanished++; return; }
         const s = g.getSchool(a.schoolId);
-        landedDivs[s.division || 'DI'] = (landedDivs[s.division || 'DI'] || 0) + 1;
+        landedDivs[s.division || 'DA'] = (landedDivs[s.division || 'DA'] || 0) + 1;
         // A just-arrived transfer should read zero/very-low transfer risk.
         if (a.transferGraceYear !== g.year) graceMissing++;
         const risk = window.XCD.engine.Portal.transferRisk(g, a);
@@ -210,37 +210,37 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     const s = sim.signing;
     if (!s) fail('signing snapshot missing');
     else {
-      if (s.DIII.coverage < 0.95) fail('every DIII school should sign a class: coverage ' + s.DIII.coverage);
-      if (s.DII.coverage < 0.95) fail('every DII school should sign a class: coverage ' + s.DII.coverage);
-      if (s.DI.coverage < 0.95) fail('every DI school should sign a class: coverage ' + s.DI.coverage);
+      if (s.DC.coverage < 0.95) fail('every DC school should sign a class: coverage ' + s.DC.coverage);
+      if (s.DB.coverage < 0.95) fail('every DB school should sign a class: coverage ' + s.DB.coverage);
+      if (s.DA.coverage < 0.95) fail('every DA school should sign a class: coverage ' + s.DA.coverage);
       // Recruit-to-need (Update 11.1): classes track real roster holes, not a
-      // flat quota. A 14-cap DI roster fills ~3-4 spots/gender plus a modest
+      // flat quota. A 14-cap DA roster fills ~3-4 spots/gender plus a modest
       // upgrade allowance — not 6-8 signees it will only cut.
-      if (s.DI.avgPerGender < 2.5 || s.DI.avgPerGender > 6) fail('DI classes should average ~3-5 per gender (recruit-to-need): ' + s.DI.avgPerGender);
-      if (s.DII.avgPerGender < 2.5 || s.DII.avgPerGender > 7) fail('DII classes should average ~3-6 per gender: ' + s.DII.avgPerGender);
-      if (s.DIII.avgPerGender < 2.5 || s.DIII.avgPerGender > 7) fail('DIII classes should average ~3-6 per gender: ' + s.DIII.avgPerGender);
+      if (s.DA.avgPerGender < 2.5 || s.DA.avgPerGender > 6) fail('DA classes should average ~3-5 per gender (recruit-to-need): ' + s.DA.avgPerGender);
+      if (s.DB.avgPerGender < 2.5 || s.DB.avgPerGender > 7) fail('DB classes should average ~3-6 per gender: ' + s.DB.avgPerGender);
+      if (s.DC.avgPerGender < 2.5 || s.DC.avgPerGender > 7) fail('DC classes should average ~3-6 per gender: ' + s.DC.avgPerGender);
     }
-    // Over-recruiting waste: the vast majority of DI signees must stick.
+    // Over-recruiting waste: the vast majority of DA signees must stick.
     // (The bug this fixes: Kentucky signed 22 and kept ~10 — a 55% cut rate.)
     if (!sim.waste || sim.waste.diSigned < 500) fail('waste sample missing: ' + JSON.stringify(sim.waste));
-    else if (sim.waste.diCutPct > 0.15) fail('too many DI freshmen cut — programs are over-recruiting: ' + JSON.stringify(sim.waste));
-    if (!sim.rankings || sim.rankings.diii < 25) fail('DIII class rankings board too thin: ' + JSON.stringify(sim.rankings));
+    else if (sim.waste.diCutPct > 0.15) fail('too many DA freshmen cut — programs are over-recruiting: ' + JSON.stringify(sim.waste));
+    if (!sim.rankings || sim.rankings.diii < 25) fail('DC class rankings board too thin: ' + JSON.stringify(sim.rankings));
     if (sim.rankings && sim.rankings.lowStar === 0) fail('classes with no 3-star recruits must still be ranked');
-    // Quality over quantity: the top DI classes must be star-heavy, not big
+    // Quality over quantity: the top DA classes must be star-heavy, not big
     // and mediocre (the reported bug: a 2.6-avg class ranking 6th).
-    if (sim.rankings && sim.rankings.top5AvgStars < 3.4) fail('top-5 DI classes should be genuinely elite (avg stars): ' + sim.rankings.top5AvgStars);
+    if (sim.rankings && sim.rankings.top5AvgStars < 3.4) fail('top-5 DA classes should be genuinely elite (avg stars): ' + sim.rankings.top5AvgStars);
     if (sim.portalOffers.length) {
       const avg = sim.portalOffers.reduce((a, b) => a + b, 0) / sim.portalOffers.length;
       const max = Math.max(...sim.portalOffers);
       if (avg < 1 || avg > 4.6) fail('fall portal should average 2-4 suitors: ' + avg.toFixed(1));
       if (max > 6) fail('fall portal suitor cap blown: max ' + max);
     }
-    if (!sim.summer.openAtW1 || !sim.summer.entries) fail('summer window must open at week 1 with DI cuts: ' + JSON.stringify(sim.summer));
+    if (!sim.summer.openAtW1 || !sim.summer.entries) fail('summer window must open at week 1 with DA cuts: ' + JSON.stringify(sim.summer));
     if (!sim.summer.closedByW4) fail('summer window must be closed before the regular season');
     if (sim.summer.vanished) fail(sim.summer.vanished + ' summer-window athletes left in limbo (no roster, not retired)');
-    if (sim.summer.landedDivs.DI) fail('summer window placed athletes at Division I schools: ' + JSON.stringify(sim.summer.landedDivs));
-    if (!(sim.summer.landedDivs.DII || 0) && !(sim.summer.landedDivs.DIII || 0)) {
-      fail('summer window placed nobody at DII/DIII: ' + JSON.stringify(sim.summer));
+    if (sim.summer.landedDivs.DA) fail('summer window placed athletes at Division I schools: ' + JSON.stringify(sim.summer.landedDivs));
+    if (!(sim.summer.landedDivs.DB || 0) && !(sim.summer.landedDivs.DC || 0)) {
+      fail('summer window placed nobody at DB/DC: ' + JSON.stringify(sim.summer));
     }
     if (!sim.summer.summary || sim.summer.summary.placed + sim.summer.summary.walkedAway !== sim.summer.summary.entries) {
       fail('summer summary must account for every entry: ' + JSON.stringify(sim.summer.summary));

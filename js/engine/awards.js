@@ -34,17 +34,17 @@
       .filter((id) => { const m = season.meets[id]; return m && m.type === 'national' && m.results.M; });
     if (!natMeetIds.length) return;
 
-    const playerDivision = (gameState.getPlayerSchool() && gameState.getPlayerSchool().division) || 'DI';
+    const playerDivision = (gameState.getPlayerSchool() && gameState.getPlayerSchool().division) || 'DA';
     const byDivision = {};
     natMeetIds.forEach((id) => {
       const natMeet = season.meets[id];
-      const division = natMeet.division || 'DI';
+      const division = natMeet.division || 'DA';
       byDivision[division] = computeDivisionAwards(gameState, season, natMeet, division);
     });
 
     // Top-level M/W = the player's division (backward-compatible UI);
     // `divisions` holds every division's full award slate.
-    const playerAwards = byDivision[playerDivision] || byDivision.DI || { M: {}, W: {} };
+    const playerAwards = byDivision[playerDivision] || byDivision.DA || { M: {}, W: {} };
     gameState.history.awards = gameState.history.awards || {};
     gameState.history.awards[gameState.year] = Object.assign({}, playerAwards, { divisions: byDivision });
 
@@ -64,7 +64,7 @@
   function computeDivisionAwards(gameState, season, natMeet, division) {
     const yearAwards = { M: {}, W: {}, division };
     const divRankings = (gender) => (gameState.rankings[gender] || []).filter(
-      (r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DI') === division);
+      (r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DA') === division);
 
     ['M', 'W'].forEach((gender) => {
       const res = natMeet.results[gender];
@@ -80,14 +80,14 @@
         yearAwards[gender].runnerOfYear = { name: champ.name, school: gameState.getSchool(champ.schoolId)?.name || '?', athleteId: champ.athleteId };
         addHonor(gameState, champ.athleteId, 'natChamp');
         addHonor(gameState, champ.athleteId, 'Runner of the Year');
-        if (division === (gameState.getPlayerSchool().division || 'DI')) {
+        if (division === (gameState.getPlayerSchool().division || 'DA')) {
           gameState.logNews(`🏅 ${champ.name} (${yearAwards[gender].runnerOfYear.school}) is the ${label} ${divLabel} Runner of the Year.`);
         }
       }
 
       // Newcomer of the Year: top frosh at nationals, else the division's frosh poll leader.
       const frosh = res.finishers.find((f) => f.classYear === 'Freshman') ||
-        ((gameState.rankings.freshmen[gender] || []).find((r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DI') === division) || null);
+        ((gameState.rankings.freshmen[gender] || []).find((r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DA') === division) || null);
       if (frosh) {
         const name = frosh.name;
         const schoolName = frosh.schoolId ? (gameState.getSchool(frosh.schoolId)?.name || '?') : frosh.school;
@@ -98,7 +98,7 @@
         }
       }
 
-      // All-Americans: the division's count (DI: top 40 at nationals).
+      // All-Americans: the division's count (DA: top 40 at nationals).
       const aaCount = window.XCD.data.divisionFor(division).championship.allAmericans;
       const allAmericans = res.finishers.slice(0, aaCount);
       yearAwards[gender].allAmericans = allAmericans.map((f) => ({
@@ -154,7 +154,7 @@
       const confIndiv = {};   // conf -> best individual row
       const confFrosh = {};   // conf -> best freshman row
       (gameState.rankings.individuals[gender] || [])
-        .filter((r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DI') === division)
+        .filter((r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DA') === division)
         .forEach((r) => {
           const s = gameState.getSchool(r.schoolId);
           if (!s) return;
@@ -315,7 +315,7 @@
         if (!res) return;
         if (res.teamScores[0]) credit(res.teamScores[0].schoolId, 3);
         if (res.finishers[0]) credit(res.finishers[0].schoolId, 2);
-        const window_ = ((D.divisionFor(meet.division || 'DI') || {}).championship || {}).allAmericans || 40;
+        const window_ = ((D.divisionFor(meet.division || 'DA') || {}).championship || {}).allAmericans || 40;
         const aaBySchool = {};
         res.finishers.slice(0, window_).forEach((f) => {
           aaBySchool[f.schoolId] = (aaBySchool[f.schoolId] || 0) + 1;
@@ -552,23 +552,23 @@
         result[gender].push({ recruitId: entry.r.id, name: entry.r.fullName, place: i + 1, state: entry.r.hometownState });
         // The finish lives on the athlete forever (Section 16): part of the
         // permanent high-school history that follows them through college.
-        entry.r.nxn = entry.r.nxn || {};
-        entry.r.nxn.finish = i + 1;
-        entry.r.nxn.year = year;
+        entry.r.hsxn = entry.r.hsxn || {};
+        entry.r.hsxn.finish = i + 1;
+        entry.r.hsxn.year = year;
       });
 
       top.slice(0, AA_PER_GENDER).forEach((entry, i) => {
         const rec = entry.r;
         const isChamp = i === 0;
-        const key = isChamp ? 'nxnChampion' : 'nxnAllAmerican';
+        const key = isChamp ? 'hsxnChampion' : 'hsxnAllAmerican';
         Legacy.athleteHonor(gameState, rec, key);
         Legacy.recordAccolade(rec, {
           year, division: null, conference: null,
           type: key, label: isChamp ? 'HSXN Champion' : 'HSXN All-American'
         });
-        rec.nxn = rec.nxn || {};
-        if (isChamp) rec.nxn.champion = year;
-        else rec.nxn.allAmerican = year;
+        rec.hsxn = rec.hsxn || {};
+        if (isChamp) rec.hsxn.champion = year;
+        else rec.hsxn.allAmerican = year;
       });
 
       const champ = top[0].r;
@@ -582,7 +582,7 @@
       });
     });
 
-    gameState.season.nxn = result;
+    gameState.season.hsxn = result;
   }
 
   window.XCD.engine.Awards = { processPostNationals, considerHallOfFame, addHonor, runHSXN, coachFirings, cpuSpendUpgradePoints };

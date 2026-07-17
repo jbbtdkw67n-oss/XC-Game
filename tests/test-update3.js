@@ -2,7 +2,7 @@
 //  - recruiting filter stability (no crash on any star/HS/JUCO combo)
 //  - three divisions coexist with independent postseasons + per-division polls
 //  - cross-division invitationals schedule and simulate
-//  - Pre-Nationals: DI-only, nationals course, invite/decline, familiarity
+//  - Pre-Nationals: DA-only, nationals course, invite/decline, familiarity
 //  - Auto Recruiting parity with CPU logic
 //  - Rest days, team morale, mileage consequences interact without exploits
 //  - coach profiles/ages/awards persist; retirement logic works
@@ -49,19 +49,19 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   // ---- 2) Three divisions coexist, independent postseason + polls ----
   const div = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
-    const counts = { DI: 0, DII: 0, DIII: 0 };
+    const counts = { DA: 0, DB: 0, DC: 0 };
     Object.values(g.world.schools).forEach((s) => { counts[s.division] = (counts[s.division] || 0) + 1; });
     return {
       counts,
-      allActive: ['DI', 'DII', 'DIII'].every((k) => counts[k] > 40),
+      allActive: ['DA', 'DB', 'DC'].every((k) => counts[k] > 40),
       championships: Object.keys(g.season.championships).sort().join(','),
       divisionSizes: g.rankings.divisionSizes,
-      diiiDistance: window.XCD.data.divisionFor('DIII').championship.nationalsDistanceM.M // 8000
+      diiiDistance: window.XCD.data.divisionFor('DC').championship.nationalsDistanceM.M // 8000
     };
   });
   if (!div.allActive) fail('divisions not all populated: ' + JSON.stringify(div.counts));
-  if (div.championships !== 'DI,DII,DIII') fail('missing per-division championships: ' + div.championships);
-  if (div.diiiDistance !== 8000) fail('DIII nationals distance should be 8000, got ' + div.diiiDistance);
+  if (div.championships !== 'DA,DB,DC') fail('missing per-division championships: ' + div.championships);
+  if (div.diiiDistance !== 8000) fail('DC nationals distance should be 8000, got ' + div.diiiDistance);
   console.log('divisions:', JSON.stringify(div));
 
   // ---- 3) Cross-division invitationals exist; postseason stays separate ----
@@ -80,11 +80,11 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   if (cross.mixedPostseason) fail('a conference/regional/national meet mixed divisions');
   console.log('cross-division:', JSON.stringify(cross));
 
-  // ---- 4) Pre-Nationals: DI-only, nationals course, decline works ----
+  // ---- 4) Pre-Nationals: DA-only, nationals course, decline works ----
   const pn = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
-    // Move to top DI school and rebuild season for a guaranteed invite.
-    const top = Object.values(g.world.schools).filter((s) => s.division === 'DI')
+    // Move to top DA school and rebuild season for a guaranteed invite.
+    const top = Object.values(g.world.schools).filter((s) => s.division === 'DA')
       .sort((a, b) => b.prestige - a.prestige)[0];
     g.playerSchoolId = top.id;
     g.week = 1; // Pre-Nationals decisions live in the Week 1 admin phase (Section 15)
@@ -93,8 +93,8 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     window.XCD.engine.Races.newSeason(g, rng);
     window.XCD.engine.Rankings.compute(g);
     const p = g.season.preNationals;
-    const diOnly = p.accepted.every((id) => g.getSchool(id).division === 'DI');
-    const onCourse = p.diNationalsHostId === g.season.nationalsHosts.DI;
+    const diOnly = p.accepted.every((id) => g.getSchool(id).division === 'DA');
+    const onCourse = p.diNationalsHostId === g.season.nationalsHosts.DA;
     // The invite roll can miss even a top program; force one so the
     // decline mechanics are tested deterministically.
     if (!p.playerInvited) {
@@ -151,7 +151,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     } catch (e) { err = e.message + '\n' + (e.stack || ''); }
     const t1 = performance.now();
     const schools = Object.values(g.world.schools);
-    const counts = { DI: 0, DII: 0, DIII: 0 };
+    const counts = { DA: 0, DB: 0, DC: 0 };
     schools.forEach((s) => { counts[s.division] = (counts[s.division] || 0) + 1; });
     // Integrity checks after 40 years.
     const rostersOk = schools.every((s) => s.rosterM.length >= 5 && s.rosterW.length >= 5);
@@ -165,15 +165,15 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       year: g.year, counts, rostersOk, coachesOk, athletesReferential,
       registry, champYears,
       titlesHaveDivisions: Object.values(g.history.nationalChampions).some((y) =>
-        Object.keys(y).some((k) => k.startsWith('DII') || k.startsWith('DIII')))
+        Object.keys(y).some((k) => k.startsWith('DB') || k.startsWith('DC')))
     };
   });
   if (long.err) fail('long-run crash: ' + long.err);
   if (!long.rostersOk) fail('rosters corrupted after 40 seasons');
   if (!long.coachesOk) fail('schools missing coaches after 40 seasons');
   if (!long.athletesReferential) fail('dangling athlete references after 40 seasons');
-  if (long.counts.DII < 40 || long.counts.DIII < 40) fail('divisions collapsed: ' + JSON.stringify(long.counts));
-  if (!long.titlesHaveDivisions) fail('no DII/DIII champions recorded across 40 seasons');
+  if (long.counts.DB < 40 || long.counts.DC < 40) fail('divisions collapsed: ' + JSON.stringify(long.counts));
+  if (!long.titlesHaveDivisions) fail('no DB/DC champions recorded across 40 seasons');
   if (long.registry < 20) fail('coach registry suspiciously empty: ' + long.registry);
   console.log('40-season stability:', JSON.stringify(long));
 

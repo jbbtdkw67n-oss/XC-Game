@@ -54,23 +54,23 @@
     };
 
     const schoolIds = gameState.world.schoolOrder.slice();
-    const playerDivision = (gameState.getPlayerSchool() && gameState.getPlayerSchool().division) || 'DI';
+    const playerDivision = (gameState.getPlayerSchool() && gameState.getPlayerSchool().division) || 'DA';
 
     // Pre-pick each division's Nationals host up front so National Preview can
-    // be contested on the DI Championship course (Update 3).
+    // be contested on the DA Championship course (Update 3).
     const byDivisionAll = {};
     schoolIds.forEach((id) => {
       const s = gameState.getSchool(id);
-      const div = s.division || 'DI';
+      const div = s.division || 'DA';
       (byDivisionAll[div] = byDivisionAll[div] || []).push(id);
     });
     const nationalsHosts = {};
     Object.entries(byDivisionAll).forEach(([division, divIds]) => {
       nationalsHosts[division] = rng.choice(divIds);
     });
-    // The course profile for the DI Championship (hills, altitude) — mirrored
+    // The course profile for the DA Championship (hills, altitude) — mirrored
     // by National Preview so competing teams preview the terrain.
-    const diHost = gameState.getSchool(nationalsHosts.DI || byDivisionAll.DI?.[0]);
+    const diHost = gameState.getSchool(nationalsHosts.DA || byDivisionAll.DA?.[0]);
     const diCourse = diHost ? {
       hostId: diHost.id,
       hilliness: rng.int(30, 80),
@@ -145,7 +145,7 @@
       let cursor = 0;
       const invited = new Set();
 
-      // National Preview is built specially (DI-only, nationals course,
+      // National Preview is built specially (DA-only, nationals course,
       // invite/decline) before the generic elite fields on the same week.
       eliteMeets.filter((em) => em.preNationals).forEach((em) => {
         buildPreNationals(gameState, rng, week, season, diCourse, invited);
@@ -186,7 +186,7 @@
     const byDivision = {};
     schoolIds.forEach((id) => {
       const s = gameState.getSchool(id);
-      const div = s.division || 'DI';
+      const div = s.division || 'DA';
       (byDivision[div] = byDivision[div] || []).push(id);
     });
 
@@ -229,7 +229,7 @@
         const host = gameState.getSchool(rng.choice(ids));
         const meet = buildMeet(gameState, rng, {
           week: REGIONAL_WEEK,
-          name: `${division !== 'DI' ? division + ' ' : ''}${region} Regional`,
+          name: `${division !== 'DA' ? division + ' ' : ''}${region} Regional`,
           hostId: host.id,
           schoolIds: ids,
           type: 'regional',
@@ -242,7 +242,7 @@
       });
 
       // Nationals shell (field determined after regionals). Host was
-      // pre-picked so National Preview could preview the DI course.
+      // pre-picked so National Preview could preview the DA course.
       const natHost = gameState.getSchool(nationalsHosts[division] || rng.choice(divIds));
       const natMeet = buildMeet(gameState, rng, {
         week: NATIONAL_WEEK,
@@ -273,14 +273,14 @@
 
   /*
    * National Preview Invitational (Update 3): a Division A-only elite meet on
-   * the NXCA DI Championship course. Invitations go to last year's top
+   * the NXCA DA Championship course. Invitations go to last year's top
    * programs, national powers by prestige, the host, and a few rising
-   * mid-majors — never every DI school. Coaches accept or decline by
+   * mid-majors — never every DA school. Coaches accept or decline by
    * philosophy; racing it earns a small familiarity edge at Nationals.
    */
   function buildPreNationals(gameState, rng, week, season, diCourse, invitedSet) {
     const cfg = D.PRE_NATIONALS;
-    const diIds = gameState.world.schoolOrder.filter((id) => (gameState.getSchool(id).division || 'DI') === 'DI');
+    const diIds = gameState.world.schoolOrder.filter((id) => (gameState.getSchool(id).division || 'DA') === 'DA');
     if (!diIds.length) return;
 
     // Standing that earns an invite: last year's poll (defending qualifiers /
@@ -289,7 +289,7 @@
     const prevRank = {};
     if (gameState.rankings) {
       ['M', 'W'].forEach((g) => (gameState.rankings[g] || []).forEach((r) => {
-        if ((gameState.getSchool(r.schoolId) || {}).division === 'DI') {
+        if ((gameState.getSchool(r.schoolId) || {}).division === 'DA') {
           prevRank[r.schoolId] = Math.min(prevRank[r.schoolId] || 999, r.rank);
         }
       }));
@@ -354,7 +354,7 @@
       hostId: host.id,
       schoolIds: accepted,
       type: 'invite',
-      division: 'DI',
+      division: 'DA',
       elite: cfg.pollWeight,
       preNationals: true,
       distances: { M: 8000, W: 6000 }, // National Preview runs the 8K (men) / 6K (women)
@@ -431,12 +431,12 @@
       // Bug fix: NXCA regionals race the full championship 10K for men in
       // Division A and II (Division C regionals stay at 8K, matching their
       // nationals). Women race 6K everywhere.
-      const div = base.division || 'DI';
-      distances.M = (div === 'DI' || div === 'DII') ? 10000 : 8000;
+      const div = base.division || 'DA';
+      distances.M = (div === 'DA' || div === 'DB') ? 10000 : 8000;
       distances.W = 6000;
     }
     if (base.type === 'national') {
-      const champ = D.divisionFor(base.division || 'DI').championship;
+      const champ = D.divisionFor(base.division || 'DA').championship;
       distances.M = champ.nationalsDistanceM.M;
       distances.W = champ.nationalsDistanceM.W;
     }
@@ -545,9 +545,9 @@
     }
 
     // National Preview course familiarity (Update 3): teams that raced
-    // National Preview know this DI Championship course — a small, non-decisive
+    // National Preview know this DA Championship course — a small, non-decisive
     // edge (~0.6% faster). Rewards participation without deciding the race.
-    if (meet.type === 'national' && (meet.division || 'DI') === 'DI') {
+    if (meet.type === 'national' && (meet.division || 'DA') === 'DA') {
       const pn = gameState.season && gameState.season.preNationals;
       if (pn && meet.hostId === pn.diNationalsHostId && pn.accepted &&
           pn.accepted.includes(a.schoolId)) {
@@ -1039,7 +1039,7 @@
     }
 
     // Individual conference champion + All-Conference honors (division rules)
-    const division = meet.division || 'DI';
+    const division = meet.division || 'DA';
     const allConfCount = D.divisionFor(division).championship.allConference;
     res.finishers.slice(0, allConfCount).forEach((f, idx) => {
       const a = gameState.world.athletes[f.athleteId];
@@ -1087,7 +1087,7 @@
     const regWinner = res.finishers[0];
     if (regWinner) {
       const a = gameState.world.athletes[regWinner.athleteId];
-      const division = meet.division || 'DI';
+      const division = meet.division || 'DA';
       if (a) {
         Legacy.athleteHonor(gameState, a, 'regChamp');
         Legacy.recordAccolade(a, { year: gameState.year, division, conference: null, type: 'regChamp', label: `${meet.region} Regional Champion` });
@@ -1115,13 +1115,13 @@
     // finishers not on qualifying teams advance as individuals.
     const season = gameState.season;
     const rankings = gameState.rankings || {};
-    const playerDivision = (gameState.getPlayerSchool() && gameState.getPlayerSchool().division) || 'DI';
+    const playerDivision = (gameState.getPlayerSchool() && gameState.getPlayerSchool().division) || 'DA';
 
     Object.entries(season.championships || {}).forEach(([division, champ]) => {
       const rules = D.divisionFor(division).championship;
       const regionalMeets = (season.byWeek[REGIONAL_WEEK] || [])
         .map((id) => season.meets[id])
-        .filter((m) => m && (m.division || 'DI') === division);
+        .filter((m) => m && (m.division || 'DA') === division);
 
       ['M', 'W'].forEach((gender) => {
         const auto = [];
@@ -1131,7 +1131,7 @@
         });
         // At-larges come from the division's own poll order.
         const ranked = (rankings[gender] || [])
-          .filter((r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DI') === division)
+          .filter((r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DA') === division)
           .map((r) => r.schoolId);
         const field = [...auto];
         for (const sid of ranked) {
@@ -1184,7 +1184,7 @@
     const res = meet.results[gender];
     if (!res || !res.teamScores.length) return;
     const Legacy = window.XCD.engine.Legacy;
-    const division = meet.division || 'DI';
+    const division = meet.division || 'DA';
     const champId = res.teamScores[0].schoolId;
     const school = gameState.getSchool(champId);
     school.historicalSuccess[gender === 'M' ? 'nationalTitlesM' : 'nationalTitlesW'] += 1;
@@ -1239,12 +1239,12 @@
       }
     }
 
-    // History keys are division-aware: DI keeps the legacy 'M'/'W' keys so
+    // History keys are division-aware: DA keeps the legacy 'M'/'W' keys so
     // old saves and UI keep working; other divisions get prefixed keys.
     const H = gameState.history;
     H.nationalChampions = H.nationalChampions || {};
     H.nationalChampions[gameState.year] = H.nationalChampions[gameState.year] || {};
-    const key = division === 'DI' ? gender : `${division}-${gender}`;
+    const key = division === 'DA' ? gender : `${division}-${gender}`;
     H.nationalChampions[gameState.year][key] = {
       team: school.name,
       teamId: champId,
@@ -1334,7 +1334,7 @@
       ['M', 'W'].forEach((gender) => {
         if (meet.type === 'national') {
           // Each division races its own nationals field (Part 13).
-          const champ = (season.championships || {})[meet.division || 'DI'] ||
+          const champ = (season.championships || {})[meet.division || 'DA'] ||
             { fieldIds: season.nationalsFieldIds, individualQualifiers: season.individualQualifiers };
           meet.fieldByGender = meet.fieldByGender || {};
           meet.fieldByGender[gender] = champ.fieldIds[gender] || [];

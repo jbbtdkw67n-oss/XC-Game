@@ -63,7 +63,7 @@
     const nat = (gameState.history.nationalChampions || {})[year] || {};
     const wonConf = conf[`${school.conference}-M`] === school.name || conf[`${school.conference}-W`] === school.name;
     const wonNat = ['M', 'W'].some((g) => {
-      const key = (school.division || 'DI') === 'DI' ? g : `${school.division}-${g}`;
+      const key = (school.division || 'DA') === 'DA' ? g : `${school.division}-${g}`;
       return nat[key] && nat[key].teamId === school.id;
     });
 
@@ -110,13 +110,13 @@
 
   function buildOfferRow(gameState, school, resume, s) {
     const hs = s.historicalSuccess || {};
-    const crossDiv = (s.division || 'DI') !== (school.division || 'DI');
+    const crossDiv = (s.division || 'DA') !== (school.division || 'DA');
     return {
       schoolId: s.id,
       schoolName: s.name,
       prestige: s.prestige,
       conference: s.conference,
-      division: s.division || 'DI',
+      division: s.division || 'DA',
       // Rich offer detail (Update 3 Job Offer phase).
       budget: s.budget.total,
       facilities: s.facilitiesOverall,
@@ -130,9 +130,9 @@
       // application lands the job. Never 0 (chairs take fliers) and never
       // 100 (a school can always go another direction).
       interest: Utils.clamp(Math.round(resume - (s.prestige * 0.68 - 10) + 55), 4, 95),
-      kind: crossDiv && (s.division === 'DII' || s.division === 'DIII') && (school.division === 'DI')
-          ? `Move to ${s.division}`
-        : crossDiv && school.division !== 'DI' && s.division === 'DI' ? 'Jump to DI'
+      kind: crossDiv && (s.division === 'DB' || s.division === 'DC') && (school.division === 'DA')
+          ? `Move to ${window.XCD.data.divisionFor(s).label}`
+        : crossDiv && school.division !== 'DA' && s.division === 'DA' ? `Jump to ${window.XCD.data.divisionFor(s).label}`
         : s.prestige >= 85 && s.conferenceTier === 1 ? 'Dream job'
         : s.prestige >= school.prestige + 10 ? 'Step up'
         : s.prestige >= school.prestige - 8 ? 'Lateral move'
@@ -185,7 +185,7 @@
         market = gameState.jobOffers = { year: gameState.year, expiresWeek: OFFER_EXPIRY_WEEK, offers: [] };
       }
       market.offers.push(buildOfferRow(gameState, school, resumeLite, s));
-      gameState.logNews(`📞 New opening: ${s.name} (${s.division || 'DI'}, ${s.conference}) begins a head-coaching search.`);
+      gameState.logNews(`📞 New opening: ${s.name} (${window.XCD.data.divisionFor(s).label}, ${s.conference}) begins a head-coaching search.`);
     });
     if (market && fresh.length) market.offers.sort((a, b) => b.prestige - a.prestige);
   }
@@ -194,17 +194,17 @@
    * Assistant-seat offers are STEP-UP moves only (Update X.1): a program
    * courts you for its staff only when the move is clearly upward — never
    * a lateral shuffle, never a step down. And because the assistant ladder
-   * runs through Division A, DII seats are almost never dangled (a DII
-   * flagship makes the rare call) and DIII seats never are.
+   * runs through Division A, DB seats are almost never dangled (a DB
+   * flagship makes the rare call) and DC seats never are.
    */
   function assistantSeatPool(gameState, rng, minPrestige, maxPrestige, taken) {
     return Object.values(gameState.world.schools).filter((s) => {
       if (s.id === gameState.playerSchoolId || (taken && taken.has(s.id))) return false;
       if (s.prestige < minPrestige) return false;                 // steps up only
       if (maxPrestige !== null && s.prestige > maxPrestige) return false; // within résumé reach
-      const div = s.division || 'DI';
-      if (div === 'DIII') return false;                            // never a DIII seat
-      if (div === 'DII' && !rng.bool(0.08)) return false;          // almost never DII
+      const div = s.division || 'DA';
+      if (div === 'DC') return false;                            // never a DC seat
+      if (div === 'DB' && !rng.bool(0.08)) return false;          // almost never DB
       const head = s.coachId && gameState.world.coaches[s.coachId];
       if (!head || head.isPlayer) return false;                    // a real staff to join
       const sitting = s.assistantId && gameState.world.coaches[s.assistantId];
@@ -216,7 +216,7 @@
     const hs = s.historicalSuccess || {};
     return {
       schoolId: s.id, schoolName: s.name, prestige: s.prestige, conference: s.conference,
-      division: s.division || 'DI', budget: s.budget.total, facilities: s.facilitiesOverall,
+      division: s.division || 'DA', budget: s.budget.total, facilities: s.facilitiesOverall,
       academics: s.academics, bestRank: null,
       expectations: Math.round((window.XCD.data.divisionFor(s).expectations || 1) * 100),
       natTitles: (hs.nationalTitlesM || 0) + (hs.nationalTitlesW || 0),
@@ -266,8 +266,8 @@
    *  - head-coach offers, first at smaller programs, then bigger ones as
    *    the reputation grows — the payoff of the assistant path; and
    *  - BIGGER assistant seats: strictly step-up moves to clearly better
-   *    programs (almost always Division A — a DII seat is a rare flagship
-   *    call, a DIII seat never comes), so a low-level assistant can climb
+   *    programs (almost always Division A — a DB seat is a rare flagship
+   *    call, a DC seat never comes), so a low-level assistant can climb
    *    the staff ladder without waiting for a head chair.
    */
   function generateAssistantOffers(gameState, rng) {
@@ -303,14 +303,14 @@
       const hs = s.historicalSuccess || {};
       offers.push({
         schoolId: s.id, schoolName: s.name, prestige: s.prestige, conference: s.conference,
-        division: s.division || 'DI', budget: s.budget.total, facilities: s.facilitiesOverall,
+        division: s.division || 'DA', budget: s.budget.total, facilities: s.facilitiesOverall,
         academics: s.academics, bestRank: null,
         expectations: Math.round((window.XCD.data.divisionFor(s).expectations || 1) * 100),
         natTitles: (hs.nationalTitlesM || 0) + (hs.nationalTitlesW || 0),
         confTitles: (hs.conferenceTitlesM || 0) + (hs.conferenceTitlesW || 0),
         repFit: Utils.clamp(Math.round(resume - s.prestige * 0.55 + 55), 0, 100),
         promotion: true,
-        kind: s.division === (home.division || 'DI') ? 'Head coach job' : `Head coach — ${s.division}`
+        kind: s.division === (home.division || 'DA') ? 'Head coach job' : `Head coach — ${s.division}`
       });
     });
 
@@ -630,7 +630,7 @@
     }
 
     // 1) Poach a sitting coach whose reputation outgrew their program —
-    //    the natural ladder: DIII champion → DII → low-major → power
+    //    the natural ladder: DC champion → DB → low-major → power
     //    conference → blue blood (division-agnostic by design).
     if (depth < 2 && school.prestige >= 45 && rng.bool(0.6)) {
       const targets = Object.values(gameState.world.schools)
@@ -841,7 +841,7 @@
       asst.reputation = Utils.clamp(asst.reputation || 12, 3, 28);
       asst.yearsAtSchool = 0;
       asst.careerRecord.seasons = 0;
-      asst.stints = [{ schoolId: school.id, school: school.name, division: school.division || 'DI', startYear: gameState.year, endYear: null }];
+      asst.stints = [{ schoolId: school.id, school: school.name, division: school.division || 'DA', startYear: gameState.year, endYear: null }];
       gameState.world.coaches[asst.id] = asst;
       school.assistantId = asst.id;
     });
@@ -969,7 +969,7 @@
       asst.reputation = Utils.clamp(asst.reputation || 12, 3, 28);
       asst.yearsAtSchool = 0;
       asst.careerRecord.seasons = 0;
-      asst.stints = [{ schoolId: oldSchool.id, school: oldSchool.name, division: oldSchool.division || 'DI', startYear: year, endYear: null }];
+      asst.stints = [{ schoolId: oldSchool.id, school: oldSchool.name, division: oldSchool.division || 'DA', startYear: year, endYear: null }];
       gameState.world.coaches[asst.id] = asst;
       oldSchool.assistantId = asst.id;
     }

@@ -411,9 +411,9 @@
     const schools = Object.values(game.world.schools).sort((a, b) => a.name.localeCompare(b.name));
     const oldCoach = game.getPlayerCoach();
     let selectedId = game.playerSchoolId; // staying home is the natural default
-    let divFilter = (game.getPlayerSchool().division || 'DI');
+    let divFilter = (game.getPlayerSchool().division || 'DA');
 
-    const DIV_TABS = [['DI', 'Division A'], ['DII', 'Division B'], ['DIII', 'Division C']]
+    const DIV_TABS = [['DA', 'Division A'], ['DB', 'Division B'], ['DC', 'Division C']]
       .filter(([k]) => D.divisionFor(k).active);
 
     root.innerHTML = `
@@ -442,7 +442,7 @@
     function drawList(query = '') {
       const q = query.toLowerCase();
       const filtered = schools.filter((s) =>
-        (s.division || 'DI') === divFilter &&
+        (s.division || 'DA') === divFilter &&
         (!q || s.name.toLowerCase().includes(q) || s.conference.toLowerCase().includes(q) || s.state.toLowerCase().includes(q)));
       listEl.innerHTML = filtered.slice(0, 400).map((s) => `
         <div class="school-pick ${s.id === selectedId ? 'selected' : ''}" data-id="${s.id}">

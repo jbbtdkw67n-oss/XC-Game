@@ -95,7 +95,7 @@
 
       // Week 1 Administrative Phase (spec Part 2, Section 15): the season-
       // setup checklist a head coach completes before Week 2 unlocks —
-      // review progression, finalize the roster (DI: 14 per squad),
+      // review progression, finalize the roster (DA: 14 per squad),
       // finalize the schedule (permanently locked afterward), settle the
       // staff, and confirm the season setup. Reset every rollover.
       this.week1 = GameState.freshWeek1();
@@ -247,14 +247,14 @@
       };
     }
 
-    // Division A programs carry at most 14 athletes per squad; DII/DIII
+    // Division A programs carry at most 14 athletes per squad; DB/DC
     // rosters are unlimited.
     static get DI_ROSTER_LIMIT() { return 14; }
 
     // Squad sizes vs the limit for the player's program.
     rosterLimitStatus() {
       const school = this.getPlayerSchool();
-      const limit = (school && (school.division || 'DI') === 'DI') ? GameState.DI_ROSTER_LIMIT : Infinity;
+      const limit = (school && (school.division || 'DA') === 'DA') ? GameState.DI_ROSTER_LIMIT : Infinity;
       const M = school ? school.rosterM.length : 0;
       const W = school ? school.rosterW.length : 0;
       return { limit, M, W, over: M > limit || W > limit };
@@ -316,7 +316,7 @@
 
       // High School Cross Nationals runs the same week as NXCA Nationals (Update 5,
       // Part 9): the high-school class crowns its champions, once per year.
-      if (this.season && this.week === this.season.nationalWeek && !(this.season.nxn && this.season.nxn.year === this.year)) {
+      if (this.season && this.week === this.season.nationalWeek && !(this.season.hsxn && this.season.hsxn.year === this.year)) {
         window.XCD.engine.Awards.runHSXN(this, rng);
       }
 
@@ -665,6 +665,13 @@
       const from = obj.saveVersion || 2;
       if (from >= GameState.SAVE_VERSION) return obj;
 
+      // Legacy identifier normalization (v6): the internal division keys were
+      // renamed DI/DII/DIII -> DA/DB/DC and the prep-meet property nxn -> hsxn
+      // so nothing internal echoes real-world collegiate identifiers. This
+      // runs FIRST — before the version-gated migrations below, which assume
+      // the new keys — and is idempotent (a current-format save is untouched).
+      GameState.remapLegacyKeys(obj);
+
       // v2 -> v3: the calendar changed shape (14 -> 21 weeks), so week
       // numbers from old saves point at different phases. Rather than
       // guess, resume the dynasty at the top of the same academic year —
@@ -679,12 +686,12 @@
       }
 
       // v3 -> v4 (Update 3): the world becomes multi-division. Existing
-      // DI-only dynasties gain the full DII and DIII ecosystems so all three
+      // DA-only dynasties gain the full DB and DC ecosystems so all three
       // coexist. The player's program, roster, history, and career are
       // untouched — the lower divisions are simply added alongside.
       if (from < 4) {
         const hasLower = obj.world && Object.values(obj.world.schools || {})
-          .some((s) => (s.division || 'DI') !== 'DI');
+          .some((s) => (s.division || 'DA') !== 'DA');
         if (obj.world && !hasLower && window.XCD.engine.WorldGenerator.generateLowerDivisions) {
           const lower = window.XCD.engine.WorldGenerator.generateLowerDivisions((obj.seed || 1) >>> 0);
           Object.assign(obj.world.schools, lower.schools);
@@ -716,9 +723,58 @@
       obj.saveVersion = GameState.SAVE_VERSION;
       return obj;
     }
+
+    /*
+     * Deep, idempotent normalization of legacy internal identifiers (v6):
+     *   - division keys  DI/DII/DIII            -> DA/DB/DC
+     *   - composite keys 'DII-M', 'DIII-W', ... -> 'DB-M', 'DC-W', ...
+     *   - prep-meet property/type  nxn*         -> hsxn*
+     * Walks the entire save graph rewriting matching object keys AND the exact
+     * string values the engine reads back as division identifiers. Only the
+     * game's own identifiers ever hold these exact tokens, so unrelated saved
+     * prose is left untouched.
+     */
+    static remapLegacyKeys(root) {
+      const DIV = { DI: 'DA', DII: 'DB', DIII: 'DC' };
+      const remapKey = (k) => {
+        if (DIV[k]) return DIV[k];
+        if (k.startsWith('DIII-')) return 'DC-' + k.slice(5);
+        if (k.startsWith('DII-')) return 'DB-' + k.slice(4);
+        if (k.startsWith('DI-')) return 'DA-' + k.slice(3);
+        return k;
+      };
+      const remapStr = (s) => {
+        if (DIV[s]) return DIV[s];
+        if (s.indexOf('nxn') >= 0) return s.replace(/nxn/g, 'hsxn');
+        return s;
+      };
+      const seen = new WeakSet();
+      const walk = (o) => {
+        if (!o || typeof o !== 'object' || seen.has(o)) return;
+        seen.add(o);
+        if (Array.isArray(o)) {
+          for (let i = 0; i < o.length; i++) {
+            if (typeof o[i] === 'string') o[i] = remapStr(o[i]);
+            else walk(o[i]);
+          }
+          return;
+        }
+        for (const k of Object.keys(o)) {
+          const v = o[k];
+          // Rename the prep-meet property key nxn -> hsxn.
+          if (k === 'nxn') { o.hsxn = v; delete o.nxn; if (v && typeof v === 'object') walk(v); continue; }
+          const nk = remapKey(k);
+          if (nk !== k) { o[nk] = v; delete o[k]; }
+          if (typeof o[nk] === 'string') o[nk] = remapStr(o[nk]);
+          else walk(o[nk]);
+        }
+      };
+      walk(root);
+      return root;
+    }
   }
 
-  GameState.SAVE_VERSION = 5;
+  GameState.SAVE_VERSION = 6;
 
   // A collision-resistant id for a brand-new dynasty (Phase 5).
   GameState.newDynastyId = function () {

@@ -9,26 +9,26 @@
   const Utils = window.XCD.core.Utils;
 
   let activeTab = 'career';
-  let champDiv = 'DI';  // Champions page division filter (Update 4, Part 5)
+  let champDiv = 'DA';  // Champions page division filter (Update 4, Part 5)
   let champYear = '';   // Champions page year filter (Update 12, Phase 8)
-  let awardDiv = 'DI';  // Awards page division filter (Update 4, Part 6)
+  let awardDiv = 'DA';  // Awards page division filter (Update 4, Part 6)
   let awardYear = '';   // Awards page year filter
   let goatSub = 'athletes';   // GOAT Lists sub-page
   const goatFilters = { query: '', division: '', gender: '', status: '' }; // Update 12: GOAT list filters
   let boardSub = 'programs';  // Leaderboards sub-page
   const boardFilters = { query: '', division: '', conference: '' };
-  const DIV_LABELS = window.XCD.data.DIVISION_SHORT || { DI: 'DA', DII: 'DB', DIII: 'DC' };
+  const DIV_LABELS = window.XCD.data.DIVISION_SHORT || { DA: 'DA', DB: 'DB', DC: 'DC' };
 
   // Map every conference to the division it belongs to (from the world).
   function confDivisions(game) {
     const map = {};
-    Object.values(game.world.schools).forEach((s) => { map[s.conference] = s.division || 'DI'; });
+    Object.values(game.world.schools).forEach((s) => { map[s.conference] = s.division || 'DA'; });
     return map;
   }
 
-  // National-champions key for a division/gender (DI keeps legacy M/W keys).
+  // National-champions key for a division/gender (DA keeps legacy M/W keys).
   function natKey(division, gender) {
-    return division === 'DI' ? gender : `${division}-${gender}`;
+    return division === 'DA' ? gender : `${division}-${gender}`;
   }
 
   function render(container) {
@@ -160,7 +160,7 @@
         <input type="text" id="goat-search" class="search-input" placeholder="Search names, schools…" value="${Utils.escapeHtml(f.query)}" style="max-width:210px;">
         <select id="goat-div" class="search-input" style="padding:6px 10px;">
           <option value="">All Divisions</option>
-          ${['DI', 'DII', 'DIII'].map((d) => `<option value="${d}" ${f.division === d ? 'selected' : ''}>${DIV_LABELS[d]}</option>`).join('')}
+          ${['DA', 'DB', 'DC'].map((d) => `<option value="${d}" ${f.division === d ? 'selected' : ''}>${DIV_LABELS[d]}</option>`).join('')}
         </select>
         ${hasGender ? `
         <select id="goat-gender" class="search-input" style="padding:6px 10px;">
@@ -181,11 +181,11 @@
     const body = el.querySelector('#goat-body');
 
     // Filters recompute the ranking live over the FULL historical universe
-    // (not just the stored top 40), so "Greatest DIII Women" is a real list.
+    // (not just the stored top 40), so "Greatest DC Women" is a real list.
     const drawBody = () => {
       const q = f.query.trim().toLowerCase();
       const matches = (r, keys) => !q || keys.some((k) => String(r[k] || '').toLowerCase().includes(q));
-      const divOk = (r) => !f.division || (r.division || 'DI') === f.division;
+      const divOk = (r) => !f.division || (r.division || 'DA') === f.division;
       let rows;
       if (goatSub === 'athletes') {
         rows = GOAT.athletes(game).filter((r) => divOk(r) &&
@@ -461,7 +461,7 @@
           <input type="text" id="board-search" class="search-input" placeholder="Search…" value="${Utils.escapeHtml(boardFilters.query)}" style="max-width:190px;">
           <select id="board-div" class="search-input" style="padding:6px 10px;">
             <option value="">All Divisions</option>
-            ${['DI', 'DII', 'DIII'].map((d) => `<option value="${d}" ${boardFilters.division === d ? 'selected' : ''}>${DIV_LABELS[d]}</option>`).join('')}
+            ${['DA', 'DB', 'DC'].map((d) => `<option value="${d}" ${boardFilters.division === d ? 'selected' : ''}>${DIV_LABELS[d]}</option>`).join('')}
           </select>
           <select id="board-conf" class="search-input" style="padding:6px 10px; max-width:190px;">
             <option value="">All Conferences</option>
@@ -506,8 +506,8 @@
       allRows = GOAT.coaches(game).map((r) => ({
         ...r,
         division: r.record
-          ? ((r.record.stints || []).length ? (r.record.stints[r.record.stints.length - 1].division || 'DI') : 'DI')
-          : ((game.getSchool(r.schoolId) || {}).division || 'DI'),
+          ? ((r.record.stints || []).length ? (r.record.stints[r.record.stints.length - 1].division || 'DA') : 'DA')
+          : ((game.getSchool(r.schoolId) || {}).division || 'DA'),
         conference: (game.getSchool(r.schoolId) || {}).conference || ''
       }));
       config = {
@@ -559,7 +559,7 @@
     }
 
     const applyFilters = () => allRows.filter((r) => {
-      if (boardFilters.division && (r.division || 'DI') !== boardFilters.division) return false;
+      if (boardFilters.division && (r.division || 'DA') !== boardFilters.division) return false;
       if (boardFilters.conference && (r.conference || '') !== boardFilters.conference) return false;
       return true;
     });
@@ -602,7 +602,7 @@
     const filterBar = `
       <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
         <div class="pill-tabs">
-          ${['DI', 'DII', 'DIII'].map((d) => `<button data-champ-div="${d}" class="${champDiv === d ? 'active' : ''}">${DIV_LABELS[d]}</button>`).join('')}
+          ${['DA', 'DB', 'DC'].map((d) => `<button data-champ-div="${d}" class="${champDiv === d ? 'active' : ''}">${DIV_LABELS[d]}</button>`).join('')}
         </div>
         <input type="text" id="champ-year" class="search-input" placeholder="Filter year… e.g. 2031" value="${Utils.escapeHtml(champYear)}" style="max-width:170px;">
       </div>`;
@@ -626,7 +626,7 @@
         const c = conf[year] || {};
         const ci = confIndiv[year] || {};
         const confNames = [...new Set(Object.keys(c).map((k) => k.slice(0, k.lastIndexOf('-'))))]
-          .filter((name) => (confDiv[name] || 'DI') === champDiv)
+          .filter((name) => (confDiv[name] || 'DA') === champDiv)
           .sort();
         const confBlock = confNames.length ? `
           <details style="margin-top:10px;">
@@ -695,7 +695,7 @@
     const filterBar = `
       <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
         <div class="pill-tabs">
-          ${['DI', 'DII', 'DIII'].map((d) => `<button data-award-div="${d}" class="${awardDiv === d ? 'active' : ''}">${DIV_LABELS[d]}</button>`).join('')}
+          ${['DA', 'DB', 'DC'].map((d) => `<button data-award-div="${d}" class="${awardDiv === d ? 'active' : ''}">${DIV_LABELS[d]}</button>`).join('')}
         </div>
         <input type="text" id="award-year" class="search-input" placeholder="Filter year…" value="${Utils.escapeHtml(awardYear)}" style="max-width:170px;">
       </div>`;
@@ -706,7 +706,7 @@
     const body = !years.length ? '<div class="card" style="color:var(--text-dim);">Awards are handed out after each NXCA Championships.</div>'
       : years.slice(0, 60).map((year) => {
         // Prefer the per-division slate; fall back to legacy top-level M/W.
-        const slate = ((A[year].divisions || {})[awardDiv]) || (awardDiv === 'DI' ? A[year] : null);
+        const slate = ((A[year].divisions || {})[awardDiv]) || (awardDiv === 'DA' ? A[year] : null);
         if (!slate) return '';
         const natBlock = (gender) => {
           const g = slate[gender];

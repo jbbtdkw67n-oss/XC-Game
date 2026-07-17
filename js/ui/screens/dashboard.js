@@ -395,8 +395,8 @@
           return `
             <tr ${o.rejected ? 'style="opacity:0.55;"' : ''}>
               <td>${o.kind === 'Dream job' ? '🌟 ' : ''}<strong>${Utils.escapeHtml(o.schoolName)}</strong>
-                <div><span class="rating ${o.kind === 'Dream job' || o.kind === 'Jump to DI' || o.kind === 'Elite assistant post' ? 'r-elite' : o.kind === 'Step up' || o.kind === 'Bigger assistant job' ? 'r-great' : o.kind === 'Lateral move' ? 'r-avg' : 'r-poor'}" style="font-size:10px;">${o.kind}</span></div></td>
-              <td>${o.division}</td>
+                <div><span class="rating ${o.kind === 'Dream job' || (o.kind || '').startsWith('Jump to') || o.kind === 'Elite assistant post' ? 'r-elite' : o.kind === 'Step up' || o.kind === 'Bigger assistant job' ? 'r-great' : o.kind === 'Lateral move' ? 'r-avg' : 'r-poor'}" style="font-size:10px;">${o.kind}</span></div></td>
+              <td>${window.XCD.data.WORLD ? window.XCD.data.WORLD.divisionLabel(o.division) : o.division}</td>
               <td style="font-size:12px;">${Utils.escapeHtml(o.conference)}</td>
               <td class="num">${o.prestige}</td>
               <td class="num">$${o.budget ? (o.budget / 1000).toFixed(0) + 'k' : '—'}</td>

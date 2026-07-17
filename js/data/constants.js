@@ -37,8 +37,8 @@
    * value that gives resilience: a blue blood must have several poor seasons
    * before its standing truly collapses, while unlisted programs can still
    * climb into the elite tier through sustained success. Prestige is always
-   * relative to division — an elite DII program's number sits below an elite
-   * DI program's on the shared national scale.
+   * relative to division — an elite DB program's number sits below an elite
+   * DA program's on the shared national scale.
    *
    * Value = starting prestige floor for that program (worldgen seeds prestige
    * from it, and the prestige engine uses `heritage` as slow-decaying gravity).
@@ -208,9 +208,9 @@
       D.RACE_PHILOSOPHIES.find((p) => p.key === 'even');
   };
 
-  // Short division tags for accolade labels (DI → DA, etc.). Sourced from the
+  // Short division tags for accolade labels (DA → DA, etc.). Sourced from the
   // World Database (worldData.js) so labels live in exactly one place.
-  D.DIVISION_SHORT = (D.WORLD && D.WORLD.DIVISION_SHORT) || { DI: 'DA', DII: 'DB', DIII: 'DC' };
+  D.DIVISION_SHORT = (D.WORLD && D.WORLD.DIVISION_SHORT) || { DA: 'DA', DB: 'DB', DC: 'DC' };
 
   D.ATHLETE_PERSONALITIES = [
     'Grinder', 'Confident', 'Laid Back', 'Fiery Competitor', 'Team-First', 'Individualist',
@@ -271,7 +271,7 @@
   D.MOTIVATIONS = [
     // 'small-school' is special (Update 11): never rolled randomly — it is
     // attached only to recruits who carry a genuine division preference for
-    // DII/DIII, and is discoverable through the normal scouting reveals.
+    // DB/DC, and is discoverable through the normal scouting reveals.
     { key: 'small-school', label: 'Drawn to the small-school experience', assigned: true },
     { key: 'homebody', label: 'Wants to stay close to home' },
     { key: 'title-chaser', label: 'Dreams of contending for national titles' },
@@ -513,7 +513,7 @@
     // improvement allowance) in signingTarget(); these are just the ceilings
     // that keep even a full rebuild believable. A steady program replaces
     // its ~3-4 graduating runners; a rebuild pushes toward the cap. [_, cap].
-    TARGETS: { DI: [2, 7], DII: [2, 8], DIII: [2, 8] }
+    TARGETS: { DA: [2, 7], DB: [2, 8], DC: [2, 8] }
   };
 
   /*

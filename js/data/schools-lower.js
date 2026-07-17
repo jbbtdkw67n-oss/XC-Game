@@ -152,9 +152,9 @@
   D.CONFERENCES_DIII = { 'Northwoods Athletic Conference': 1, 'New England Scholars Conference': 1, 'North Coast Scholars Conference': 1, 'University Scholars Association': 1, 'Northland Colleges Conference': 1, 'Empire State Athletic Conference': 2, 'Great Lakes Scholars Conference': 2, 'Prairie Colleges Conference': 2, 'Commonwealth Scholars Conference': 2, 'Founders Scholars Conference': 2, 'Liberty Scholars League': 2, 'Coastal East Conference': 2, 'New England Colleges Conference': 2, 'Southern Scholars Conference': 3, 'Empire Eight Colleges': 3, 'Southern Athletic Alliance': 3, 'Ridgeline Colleges Conference': 3, 'Capital Coast Conference': 3, 'Waypoint Colleges Conference': 3 };
 
   Object.entries(D.CONFERENCES_DII).forEach(([name, tier]) => {
-    D.CONFERENCES[name] = D.CONFERENCES[name] || { tier, division: 'DII' };
+    D.CONFERENCES[name] = D.CONFERENCES[name] || { tier, division: 'DB' };
   });
   Object.entries(D.CONFERENCES_DIII).forEach(([name, tier]) => {
-    D.CONFERENCES[name] = D.CONFERENCES[name] || { tier, division: 'DIII' };
+    D.CONFERENCES[name] = D.CONFERENCES[name] || { tier, division: 'DC' };
   });
 })();

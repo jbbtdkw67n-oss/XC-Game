@@ -21,7 +21,7 @@
     natChampTeam: '🏆', natChampIndiv: '🥇', natRunnerUp: '🥈', runnerOfYear: '🏅',
     allAmerican: '🇺🇸', freshmanOfYear: '🌱', regChamp: '🗺', confChamp: '🥇',
     confRunnerOfYear: '🏅', confFreshmanOfYear: '🌱',
-    allConference: '🏅', academicAllAmerican: '📚', nxnChampion: '👟', nxnAllAmerican: '🎽'
+    allConference: '🏅', academicAllAmerican: '📚', hsxnChampion: '👟', hsxnAllAmerican: '🎽'
   };
 
   // Accolades grouped logically (Update 13, Phase 5): National, Regional,
@@ -33,7 +33,7 @@
     { label: 'Regional', types: ['regChamp'] },
     { label: 'Conference', types: ['confChamp', 'confRunnerOfYear', 'confFreshmanOfYear', 'allConference'] },
     { label: 'Academic', types: ['academicAllAmerican'] },
-    { label: 'High School', types: ['nxnChampion', 'nxnAllAmerican'] }
+    { label: 'High School', types: ['hsxnChampion', 'hsxnAllAmerican'] }
   ];
 
   function accoladesCard(accolades, Legacy) {
@@ -209,7 +209,7 @@
           <div class="attr-row"><span class="attr-name">Redshirt</span><span>${athlete.redshirt}</span></div>
           <div class="attr-row"><span class="attr-name">Races / Wins / Top-5s</span><span>${athlete.careerStats.races} / ${athlete.careerStats.wins} / ${athlete.careerStats.top5}</span></div>
           ${athlete.hsPB !== undefined ? `<div class="attr-row"><span class="attr-name">HS 5K PB</span><span title="Official high-school personal best — permanent history">${window.XCD.engine.Races.formatTime(athlete.hsPB)}</span></div>` : ''}
-          ${athlete.nxn && athlete.nxn.finish ? `<div class="attr-row"><span class="attr-name">HSXN Finish</span><span>${athlete.nxn.finish === 1 ? '🥇 Champion' : '#' + athlete.nxn.finish}${athlete.nxn.year ? ` (${athlete.nxn.year})` : ''}</span></div>` : ''}
+          ${athlete.hsxn && athlete.hsxn.finish ? `<div class="attr-row"><span class="attr-name">HSXN Finish</span><span>${athlete.hsxn.finish === 1 ? '🥇 Champion' : '#' + athlete.hsxn.finish}${athlete.hsxn.year ? ` (${athlete.hsxn.year})` : ''}</span></div>` : ''}
           ${Object.entries(athlete.careerStats.personalBests || {}).map(([k, t]) =>
             `<div class="attr-row"><span class="attr-name">PR ${k}</span><span>${window.XCD.engine.Races ? window.XCD.engine.Races.formatTime(t) : t}</span></div>`).join('')}
         </div>

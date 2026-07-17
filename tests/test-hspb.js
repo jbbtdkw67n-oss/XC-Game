@@ -110,8 +110,8 @@ async function run() {
     const g = window.XCD.ui.state.game;
     while (g.week <= g.season.nationalWeek) g.advanceWeek(); // NXN runs with NCAAs
     const recs = Object.values(g.world.recruits);
-    const withFinish = recs.filter((r) => r.nxn && r.nxn.finish);
-    const champ = withFinish.find((r) => r.nxn.finish === 1);
+    const withFinish = recs.filter((r) => r.hsxn && r.hsxn.finish);
+    const champ = withFinish.find((r) => r.hsxn.finish === 1);
 
     // Enroll a decorated recruit and confirm the history survives.
     const pick = recs.find((r) => r.hsStateChampion && !r.committedTo) || recs[0];

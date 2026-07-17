@@ -2,10 +2,10 @@
 //  - class volume: 6,000 recruits nationally (3,000 per gender — Update 11.1
 //    right-sized the class to the 727-program world: every school still
 //    signs, with a realistic unsigned tail and no talent dilution)
-//  - Division III uses "Offer Roster Spot" wording (engine + UI), DI keeps
-//    "Offer Scholarship"; DIII offer caps don't collapse to the DI formula
+//  - Division III uses "Offer Roster Spot" wording (engine + UI), DA keeps
+//    "Offer Scholarship"; DC offer caps don't collapse to the DA formula
 //  - commitment logic: every recruit with >= 1 offer signs somewhere
-//  - CPU recruiting participation: nearly every program (esp. DIII) signs
+//  - CPU recruiting participation: nearly every program (esp. DC) signs
 //  - Auto Recruiting spends the player's real points/budget and scouts
 //  - transfer portal: an intimate 2-4 suitor market per athlete (Update 11
 //    reverted the big bidding wars), offers ledger (inBySchool) feeds
@@ -43,32 +43,32 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   }
   console.log('class volume:', JSON.stringify(classInfo));
 
-  // ---- 2) Offer wording: scholarship for DI/DII, roster spot for DIII ----
+  // ---- 2) Offer wording: scholarship for DA/DB, roster spot for DC ----
   const wording = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     const D = window.XCD.data;
-    const di = D.offerTerms('DI');
-    const d3 = D.offerTerms('DIII');
+    const di = D.offerTerms('DA');
+    const d3 = D.offerTerms('DC');
     // Engine message parity: doAction's offer message uses the same terms.
     const rec = Object.values(g.world.recruits).find((r) => !r.committedTo);
     g.recruiting.pointsLeft = 50;
     g.recruiting.budgetLeft = 50000;
     const res = window.XCD.engine.Recruiting.doAction(g, rec.id, 'offer');
-    return { di: di.action, dii: D.offerTerms('DII').action, d3: d3.action, offerMsg: res.message };
+    return { di: di.action, dii: D.offerTerms('DB').action, d3: d3.action, offerMsg: res.message };
   });
   if (wording.di !== 'Offer Scholarship' || wording.dii !== 'Offer Scholarship') {
-    fail('DI/DII must keep scholarship wording: ' + JSON.stringify(wording));
+    fail('DA/DB must keep scholarship wording: ' + JSON.stringify(wording));
   }
-  if (wording.d3 !== 'Offer Roster Spot') fail('DIII must use "Offer Roster Spot": ' + wording.d3);
-  if (!/Scholarship offered to/.test(wording.offerMsg)) fail('DI offer message wrong: ' + wording.offerMsg);
+  if (wording.d3 !== 'Offer Roster Spot') fail('DC must use "Offer Roster Spot": ' + wording.d3);
+  if (!/Scholarship offered to/.test(wording.offerMsg)) fail('DA offer message wrong: ' + wording.offerMsg);
   console.log('offer wording:', JSON.stringify(wording));
 
   // UI: the recruit-card button reflects the player's division. Move the
-  // player to a DIII program and open a recruit card.
+  // player to a DC program and open a recruit card.
   const uiLabels = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     const original = g.playerSchoolId;
-    const d3School = Object.values(g.world.schools).find((s) => s.division === 'DIII');
+    const d3School = Object.values(g.world.schools).find((s) => s.division === 'DC');
     const rec = Object.values(g.world.recruits).find((r) => !r.committedTo && !r.signed);
     const grab = () => {
       window.XCD.ui.showRecruitCard(g, rec);
@@ -86,8 +86,8 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     g.playerSchoolId = original;
     return { diLabel, d3Label };
   });
-  if (!/Offer Scholarship/.test(uiLabels.diLabel)) fail('DI recruit card should show Offer Scholarship: ' + uiLabels.diLabel);
-  if (!/Offer Roster Spot/.test(uiLabels.d3Label)) fail('DIII recruit card should show Offer Roster Spot: ' + uiLabels.d3Label);
+  if (!/Offer Scholarship/.test(uiLabels.diLabel)) fail('DA recruit card should show Offer Scholarship: ' + uiLabels.diLabel);
+  if (!/Offer Roster Spot/.test(uiLabels.d3Label)) fail('DC recruit card should show Offer Roster Spot: ' + uiLabels.d3Label);
   console.log('ui labels:', JSON.stringify(uiLabels));
 
   // ---- 3) Two-season simulation: signing coverage, mandatory commits,
@@ -136,16 +136,16 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
               Object.values(r.interests).some((st) => st.offered)).length;
             const bySchool = {};
             recs.forEach((r) => { if (r.signed) bySchool[r.committedTo] = 1; });
-            const div = { DI: [0, 0], DII: [0, 0], DIII: [0, 0] };
+            const div = { DA: [0, 0], DB: [0, 0], DC: [0, 0] };
             Object.values(g.world.schools).forEach((s) => {
-              const d = div[s.division || 'DI'];
+              const d = div[s.division || 'DA'];
               d[1]++; if (bySchool[s.id]) d[0]++;
             });
             out.signing.push({
               offeredUnsigned,
               signers: Object.keys(bySchool).length,
-              d3: div.DIII[0] + '/' + div.DIII[1],
-              d3Pct: div.DIII[0] / div.DIII[1]
+              d3: div.DC[0] + '/' + div.DC[1],
+              d3Pct: div.DC[0] / div.DC[1]
             });
             continue;
           }
@@ -163,7 +163,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     sim.signing.forEach((s, i) => {
       if (s.offeredUnsigned !== 0) fail(`year ${i + 1}: ${s.offeredUnsigned} offered recruits went unsigned`);
       if (s.signers < 600) fail(`year ${i + 1}: only ${s.signers} programs signed a class`);
-      if (s.d3Pct < 0.85) fail(`year ${i + 1}: DIII signing coverage too low (${s.d3})`);
+      if (s.d3Pct < 0.85) fail(`year ${i + 1}: DC signing coverage too low (${s.d3})`);
     });
     const eliteAvg = sim.portalElite.length
       ? sim.portalElite.reduce((a, b) => a + b, 0) / sim.portalElite.length : 0;

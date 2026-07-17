@@ -120,7 +120,7 @@
     if (lastPortal && lastPortal.outBySchool) Object.assign(portalOut, lastPortal.outBySchool);
 
     Object.values(gameState.world.schools).forEach((school) => {
-      const division = school.division || 'DI';
+      const division = school.division || 'DA';
       let delta = 0;
 
       // 1) Season vs projection (the heart of the system).
@@ -142,7 +142,7 @@
 
       // 2) Championship success (progress toward goals).
       ['M', 'W'].forEach((g) => {
-        const key = division === 'DI' ? g : `${division}-${g}`;
+        const key = division === 'DA' ? g : `${division}-${g}`;
         if (nat[key] && nat[key].teamId === school.id) delta += 4;
         if (conf[`${school.conference}-${g}`] === school.name) delta += 1.2;
       });

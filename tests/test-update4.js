@@ -61,13 +61,13 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   // ---- 3) Prestige seeds + heritage ----
   const prestige = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
-    const di = Object.values(g.world.schools).filter((s) => (s.division || 'DI') === 'DI')
+    const di = Object.values(g.world.schools).filter((s) => (s.division || 'DA') === 'DA')
       .sort((a, b) => b.prestige - a.prestige).slice(0, 8).map((s) => s.name);
     const nau = Object.values(g.world.schools).find((s) => s.name === 'Northern Arizona');
     return { top: di, nauPrestige: nau && nau.prestige, nauHeritage: nau && nau.heritage };
   });
   if (!(prestige.nauHeritage >= 80)) fail('NAU heritage not seeded: ' + JSON.stringify(prestige));
-  if (!prestige.top.slice(0, 5).includes('Northern Arizona')) fail('NAU not near the top of DI prestige');
+  if (!prestige.top.slice(0, 5).includes('Northern Arizona')) fail('NAU not near the top of DA prestige');
   console.log('prestige seeds: ' + JSON.stringify(prestige));
 
   // ---- 4) Simulate several seasons (auto), collect accolades ----
@@ -138,10 +138,10 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   await page.evaluate(() => window.XCD.ui.navigate('history'));
   await page.click('[data-tab="champions"]');
   await page.waitForSelector('[data-champ-div]');
-  for (const d of ['DII', 'DIII', 'DI']) await page.click(`[data-champ-div="${d}"]`);
+  for (const d of ['DB', 'DC', 'DA']) await page.click(`[data-champ-div="${d}"]`);
   await page.click('[data-tab="awards"]');
   await page.waitForSelector('[data-award-div]');
-  for (const d of ['DII', 'DIII', 'DI']) await page.click(`[data-award-div="${d}"]`);
+  for (const d of ['DB', 'DC', 'DA']) await page.click(`[data-award-div="${d}"]`);
   const pages = await page.evaluate(() => ({
     champDetails: !!document.querySelector('[data-tab] , details'),
     hasDetails: document.querySelectorAll('details').length
@@ -191,7 +191,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   // world filter churn (dropdowns)
   await page.evaluate(() => window.XCD.ui.navigate('world'));
   await page.waitForSelector('#div-filter');
-  for (const d of ['DII', 'DIII', 'All', 'DI']) await page.selectOption('#div-filter', d);
+  for (const d of ['DB', 'DC', 'All', 'DA']) await page.selectOption('#div-filter', d);
   await page.waitForTimeout(50);
   if (bail('STABILITY')) { await browser.close(); process.exit(1); }
   console.log('stability sweep: ok');

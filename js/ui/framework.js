@@ -82,7 +82,7 @@
   UI.meetHonorInfo = function (meet) {
     if (!meet) return null;
     const D = window.XCD.data;
-    const champ = (D.divisionFor(meet.division || 'DI') || {}).championship;
+    const champ = (D.divisionFor(meet.division || 'DA') || {}).championship;
     if (!champ) return null;
     if (meet.type === 'national') return { count: champ.allAmericans, label: 'All-American', icon: '🇺🇸' };
     if (meet.type === 'conference') return { count: champ.allConference, label: 'All-Conference', icon: '🏅' };

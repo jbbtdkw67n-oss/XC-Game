@@ -68,17 +68,17 @@
           </tbody>
         </table></div>`;
     } else if (activeTab === 'individual' || activeTab === 'freshman') {
-      const playerDiv = school.division || 'DI';
+      const playerDiv = school.division || 'DA';
       const raw = activeTab === 'individual' ? R.individuals[activeGender] : R.freshmen[activeGender];
       // Scope to the player's division (per-division rankings, Update 3).
-      let list = raw.filter((r) => (r.division || 'DI') === playerDiv);
+      let list = raw.filter((r) => (r.division || 'DA') === playerDiv);
       // Preseason fallback (Update 4, Part 9): before any results exist, show
       // the projected favorites driven by returning ability + development.
       let preseason = false;
       if (!list.length && game.season && game.season.preseasonIndividuals) {
         preseason = true;
         list = (game.season.preseasonIndividuals[activeGender] || [])
-          .filter((r) => (r.division || 'DI') === playerDiv)
+          .filter((r) => (r.division || 'DA') === playerDiv)
           .filter((r) => activeTab === 'individual' || r.classYear === 'Freshman')
           .slice(0, 100)
           .map((r, i) => ({ ...r, rank: i + 1 }));
@@ -101,10 +101,10 @@
         </table></div>`
         : '<div style="color:var(--text-dim);">No race results yet this season — rankings publish after the first meets.</div>';
     } else {
-      const playerDiv = school.division || 'DI';
+      const playerDiv = school.division || 'DA';
       const divLabel = window.XCD.data.divisionFor(playerDiv).label;
       // Every poll is scoped to the player's division (Update 3).
-      let rows = R[activeGender].filter((r) => (r.division || 'DI') === playerDiv);
+      let rows = R[activeGender].filter((r) => (r.division || 'DA') === playerDiv);
       let heading = `${divLabel} National Poll`;
       if (activeTab === 'region') {
         rows = rows.filter((r) => r.region === school.region);

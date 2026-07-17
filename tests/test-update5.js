@@ -170,30 +170,30 @@ async function run() {
   ok(/Conf\. Standing/i.test(dashWidget), 'dashboard conference standing missing');
 
   // ---- 8) Nike Cross Nationals (Section 9) ----
-  const nxn = await page.evaluate(() => {
+  const hsxn = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     const rng = new window.XCD.core.SeededRNG(777);
     window.XCD.engine.Awards.runNXN(g, rng);
-    const champs = Object.values(g.world.recruits).filter((x) => x.nxn && x.nxn.champion);
+    const champs = Object.values(g.world.recruits).filter((x) => x.hsxn && x.hsxn.champion);
     const champ = champs[0];
     let carried = false, badge = false;
     if (champ) {
       champ.signed = true; champ.committedTo = g.playerSchoolId;
       window.XCD.engine.Recruiting.enrollSignees(g);
       const ath = g.world.athletes[champ.id];
-      carried = !!(ath && ath.honorYears.nxnChampion && ath.honorYears.nxnChampion.length &&
-        ath.accolades.some((a) => a.type === 'nxnChampion'));
-      badge = window.XCD.engine.Legacy.badgesFor(ath).some((b) => b.key === 'nxnChampion');
+      carried = !!(ath && ath.honorYears.hsxnChampion && ath.honorYears.hsxnChampion.length &&
+        ath.accolades.some((a) => a.type === 'hsxnChampion'));
+      badge = window.XCD.engine.Legacy.badgesFor(ath).some((b) => b.key === 'hsxnChampion');
     }
     return {
-      stored: !!(g.season.nxn && g.season.nxn.M.length && g.season.nxn.W.length),
+      stored: !!(g.season.hsxn && g.season.hsxn.M.length && g.season.hsxn.W.length),
       champCount: champs.length, carried, badge
     };
   });
-  ok(nxn.stored, 'NXN results not stored on season');
-  ok(nxn.champCount >= 2, 'NXN did not crown a champion per gender');
-  ok(nxn.carried, 'NXN honors did not carry into the enrolled athlete');
-  ok(nxn.badge, 'NXN badge not shown for enrolled champion');
+  ok(hsxn.stored, 'NXN results not stored on season');
+  ok(hsxn.champCount >= 2, 'NXN did not crown a champion per gender');
+  ok(hsxn.carried, 'NXN honors did not carry into the enrolled athlete');
+  ok(hsxn.badge, 'NXN badge not shown for enrolled champion');
 
   // ---- 9) Division-separated recruiting rankings (Section 11) ----
   const divRank = await page.evaluate(() => {

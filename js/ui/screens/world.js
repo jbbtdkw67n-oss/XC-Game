@@ -72,13 +72,13 @@
 
   function buildRows(game, schools) {
     return schools
-      .filter((s) => divisionFilter === 'All' || (s.division || 'DI') === divisionFilter)
+      .filter((s) => divisionFilter === 'All' || (s.division || 'DA') === divisionFilter)
       .filter((s) => conferenceFilter === 'All' || s.conference === conferenceFilter)
       .map((s) => ({
         school: s,
         name: s.name,
         conference: s.conference,
-        division: s.division || 'DI',
+        division: s.division || 'DA',
         state: s.state,
         prestige: s.prestige,
         facilities: s.facilitiesOverall,
@@ -99,7 +99,7 @@
         <h1>World — ${schools.length} Schools</h1>
         <div class="actions">
           <select class="search-input" id="div-filter" style="min-width:110px;">
-            ${['All', 'DI', 'DII', 'DIII'].map((d) => `<option value="${d}" ${d === divisionFilter ? 'selected' : ''}>${d === 'All' ? 'All Divisions' : d}</option>`).join('')}
+            ${['All', 'DA', 'DB', 'DC'].map((d) => `<option value="${d}" ${d === divisionFilter ? 'selected' : ''}>${d === 'All' ? 'All Divisions' : d}</option>`).join('')}
           </select>
           <select class="search-input" id="conf-filter" style="min-width:160px;">
             ${conferences.map((c) => `<option value="${Utils.escapeHtml(c)}" ${c === conferenceFilter ? 'selected' : ''}>${Utils.escapeHtml(c)}</option>`).join('')}

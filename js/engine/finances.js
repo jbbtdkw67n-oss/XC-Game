@@ -28,14 +28,14 @@
 
   /*
    * School size (facilities overhaul): in this world a program's size IS its
-   * division and conference tier — a power-conference DI school is a huge
-   * state university with a giant alumni base; a DIII program is a small
+   * division and conference tier — a power-conference DA school is a huge
+   * state university with a giant alumni base; a DC program is a small
    * college. Size scales how much money a fundraising push can move.
    */
   function schoolSizeFactor(school) {
-    const div = school.division || 'DI';
-    if (div === 'DII') return 0.55;
-    if (div === 'DIII') return 0.4;
+    const div = school.division || 'DA';
+    if (div === 'DB') return 0.55;
+    if (div === 'DC') return 0.4;
     return ({ 1: 1.5, 2: 1.15, 3: 0.9 }[school.conferenceTier] || 0.9);
   }
 
@@ -105,7 +105,7 @@
       });
 
       // Budgets track prestige slowly (booster enthusiasm), scaled by the
-      // school's division (Part 13): DII/DIII operate on far less money.
+      // school's division (Part 13): DB/DC operate on far less money.
       const division = window.XCD.data.divisionFor(school);
       const tierScale = ({ 1: 1.0, 2: 0.65, 3: 0.4, 4: 0.22 }[school.conferenceTier] || 0.4) * division.budgetScale;
       const target = Math.round((300000 + school.prestige * 4000) * tierScale);

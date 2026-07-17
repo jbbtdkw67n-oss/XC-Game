@@ -25,7 +25,7 @@
           Week ${Portal().DECISION_WEEK}. ${lastSummary ? `Last cycle: ${lastSummary.entries} entries, ${lastSummary.moved} transfers.` : ''}
           <br><br>☀️ The <strong>summer window</strong> (Weeks 1-${Portal().SUMMER_FINAL_WEEK}) reopens the portal
           exclusively for Division B and C programs, stocked with Division A roster cuts.
-          ${lastSummer ? `Last summer: ${lastSummer.entries} cuts entered, ${lastSummer.placed} continued their careers at DII/DIII programs.` : ''}
+          ${lastSummer ? `Last summer: ${lastSummer.entries} cuts entered, ${lastSummer.placed} continued their careers at DB/DC programs.` : ''}
         </div>`;
       return;
     }
@@ -54,7 +54,7 @@
       ${summer ? `
         <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent); padding:10px 14px; font-size:13px;">
           ☀️ Division A roster cuts looking to continue their careers. This window is
-          <strong>exclusive to Division B and C programs</strong>${(game.getPlayerSchool().division || 'DI') === 'DI'
+          <strong>exclusive to Division B and C programs</strong>${(game.getPlayerSchool().division || 'DA') === 'DA'
             ? ' — as a Division A coach you can only watch the market move.'
             : ' — pursue up to ' + Portal().PLAYER_OFFER_LIMIT + ' before it closes at the end of Week ' + Portal().SUMMER_FINAL_WEEK + '.'}
         </div>` : ''}

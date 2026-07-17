@@ -398,7 +398,7 @@
         region: '',
         conference: '',
         conferenceTier: 3,
-        division: 'DI', // internal division key into XCD.data.DIVISIONS (label via WORLD.divisionLabel)
+        division: 'DA', // internal division key into XCD.data.DIVISIONS (label via WORLD.divisionLabel)
 
         // Identity (fictional universe): team nickname/mascot and the two-color
         // palette used on the program's cards. Both are original and legally
@@ -526,8 +526,8 @@
         scoutNotes: null,         // soft scouting lines ("Late bloomer.") — gems AND ordinary grinders
 
         // Division preference (Update 11): some recruits genuinely want the
-        // DII/DIII experience and will pick a strong lower-division program
-        // over riding a Division A bench. 'DII' | 'DIII' | null.
+        // DB/DC experience and will pick a strong lower-division program
+        // over riding a Division A bench. 'DB' | 'DC' | null.
         divisionPreference: null,
 
         // Hidden decision drivers (revealed to the player via scouting)
