@@ -185,30 +185,62 @@
     return `<path fill="${color}" d="M21.5 22 C21 37.5 25 45 32 45 C39 45 43 37.5 42.5 22 C42.5 30 38.5 32.2 32 32.2 C25.5 32.2 21.5 30 21.5 22 Z M26.4 29.6 C28.4 28.6 30.2 29.2 32 29.2 C33.8 29.2 35.6 28.6 37.6 29.6 C35.6 31.2 33.6 30.8 32 30.8 C30.4 30.8 28.4 31.2 26.4 29.6 Z"/>`; // bushy
   }
 
-  function outfitSvg(app, kind, seed) {
+  // Uniform designs (Update 13): every program's kit has a look, derived
+  // deterministically from the school so a team's runners match.
+  const UNIFORM_DESIGNS = ['plain', 'sidestripe', 'pinstripe', 'chest'];
+  function designFor(seedStr) {
+    return UNIFORM_DESIGNS[hashStr('kit|' + (seedStr || '')) % UNIFORM_DESIGNS.length];
+  }
+
+  function outfitSvg(app, kind, seed, kit) {
+    const cols = kit && kit.colors && kit.colors.length >= 2 ? kit.colors : null;
+    const skin = SKIN_TONES[app.skin] || SKIN_TONES[2];
+
     if (kind === 'suit' || kind === 'polo') {
-      // Coaching polo (Update 13): coaches dress like real XC coaches — a
-      // bright polo with a collar and button placket. A player-built coach
-      // picks the color in the wizard (app.polo); everyone else derives it.
-      const polo = POLO_COLORS[app.polo !== undefined && app.polo !== null
+      // Coaching polo (Update 13): a program-colored polo with a real collar,
+      // button placket, sleeve trim, and side panels. A coach attached to a
+      // school wears the SCHOOL's colors (Ex. Kansas State → purple/white);
+      // a free agent / creation preview falls back to the wizard color.
+      const polo = cols ? cols[0] : POLO_COLORS[app.polo !== undefined && app.polo !== null
         ? Math.max(0, Math.min(POLO_COLORS.length - 1, app.polo))
         : (seed >>> 6) % POLO_COLORS.length];
-      const trim = shade(polo, -38);
+      const accent = cols ? cols[1] : shade(polo, -38);
+      const btn = shade(accent, -26);
       return `
-        <path fill="${polo}" d="M8.5 64 C10 47 19 40.5 32 40.5 C45 40.5 54 47 55.5 64 Z"/>
-        <path fill="${trim}" d="M25.8 41.4 L32 45.2 L38.2 41.4 L39.5 44.4 L32 49.2 L24.5 44.4 Z"/>
-        <path fill="${SKIN_TONES[app.skin] || SKIN_TONES[2]}" d="M30.5 44 L32 43.1 L33.5 44 L33 46.4 L31 46.4 Z"/>
-        <rect x="31.3" y="47.6" width="1.4" height="6.4" rx="0.7" fill="${trim}"/>`;
+        <path fill="${polo}" d="M11 64 C12.5 48.5 20 42.5 32 42.5 C44 42.5 51.5 48.5 53 64 Z"/>
+        <path fill="${shade(polo, 14)}" d="M11 64 C12.5 48.5 20 42.5 32 42.5 L32 64 Z" opacity="0.25"/>
+        <path fill="${accent}" d="M12 62.5 C12.6 57 13.7 53 15.3 50 L17.6 51.2 C16 54.2 15 58 14.5 63 Z M52 62.5 C51.4 57 50.3 53 48.7 50 L46.4 51.2 C48 54.2 49 58 49.5 63 Z"/>
+        <path fill="${accent}" d="M25.6 43 L32 47 L38.4 43 L40.3 45.6 L32 51.6 L23.7 45.6 Z"/>
+        <path fill="${skin}" d="M30.4 46 L32 45 L33.6 46 L33.1 48.6 L30.9 48.6 Z"/>
+        <rect x="31.2" y="48.4" width="1.6" height="7.4" rx="0.8" fill="${accent}"/>
+        <circle cx="32" cy="50.6" r="0.75" fill="${btn}"/><circle cx="32" cy="53.6" r="0.75" fill="${btn}"/>`;
     }
-    // Racing singlet (Update 13): the colored singlet goes up and over the
-    // shoulders like a real race kit — straps follow the shoulder line, with
-    // a scoop neck and contrast neckline trim. Skin shows only at the arms.
-    const jersey = app.jersey || JERSEY_COLORS[(seed >>> 9) % JERSEY_COLORS.length];
-    const skin = SKIN_TONES[app.skin];
+
+    // Racing singlet (Update 13): a lean runner's build (slimmer torso than
+    // before). The singlet is the program's primary color with a contrast
+    // neckline and one of several designs (side stripes, pinstripes, chest
+    // band, or plain). Athletes inherit their school's kit automatically, so a
+    // transfer simply picks up the new team's colors.
+    const primary = cols ? cols[0] : (app.jersey || JERSEY_COLORS[(seed >>> 9) % JERSEY_COLORS.length]);
+    const secondary = cols ? cols[1] : shade(primary, -30);
+    const design = (kit && kit.design) || 'plain';
+    const clip = 'sg' + ((seed >>> 0) % 100000);
+    const body = 'M18 64 C19 52.5 23 45.4 27 43.6 C28.4 46.3 30.1 47.7 32 47.7 C33.9 47.7 35.6 46.3 37 43.6 C41 45.4 45 52.5 46 64 Z';
+    let overlay = '';
+    if (design === 'sidestripe') {
+      overlay = `<path fill="${secondary}" d="M19.4 64 C20 55.5 21.4 49.6 23 46.6 L25.4 47.7 C23.8 50.7 22.6 56.4 22.1 64 Z M44.6 64 C44 55.5 42.6 49.6 41 46.6 L38.6 47.7 C40.2 50.7 41.4 56.4 41.9 64 Z"/>`;
+    } else if (design === 'pinstripe') {
+      overlay = `<g stroke="${secondary}" stroke-width="0.85" opacity="0.9">` +
+        [23, 27, 32, 37, 41].map((x) => `<line x1="${x}" y1="47" x2="${x}" y2="64"/>`).join('') + `</g>`;
+    } else if (design === 'chest') {
+      overlay = `<rect x="17" y="51" width="30" height="3.6" fill="${secondary}"/>`;
+    }
     return `
-      <path fill="${skin}" d="M10 64 C11.5 48 20 41 32 41 C44 41 52.5 48 54 64 Z"/>
-      <path fill="${jersey}" d="M14.5 64 C15.5 51.5 20.5 43.8 26.5 41.6 C28 44.8 30 46.4 32 46.4 C34 46.4 36 44.8 37.5 41.6 C43.5 43.8 48.5 51.5 49.5 64 Z"/>
-      <path fill="${shade(jersey, -30)}" d="M26.5 41.6 C28 44.8 30 46.4 32 46.4 C34 46.4 36 44.8 37.5 41.6 L38.7 42.7 C37.1 46.1 34.6 47.8 32 47.8 C29.4 47.8 26.9 46.1 25.3 42.7 Z"/>`;
+      <path fill="${skin}" d="M14 64 C15 50 21 43 32 43 C43 43 49 50 50 64 Z"/>
+      <clipPath id="${clip}"><path d="${body}"/></clipPath>
+      <path fill="${primary}" d="${body}"/>
+      <g clip-path="url(#${clip})">${overlay}</g>
+      <path fill="${secondary}" d="M27 43.6 C28.4 46.3 30.1 47.7 32 47.7 C33.9 47.7 35.6 46.3 37 43.6 L38.1 44.5 C36.5 47.5 34.3 49.1 32 49.1 C29.7 49.1 27.5 47.5 25.9 44.5 Z"/>`;
   }
 
   // Lighten/darken a #rrggbb color by `amt`.
@@ -232,16 +264,20 @@
     const hairC = HAIR_COLORS[Math.max(0, Math.min(HAIR_COLORS.length - 1, app.hair || 0))];
     const seed = app._seed !== undefined ? app._seed : hashStr(JSON.stringify([app.skin, app.hair, app.hairStyle, app.beard]));
     const round = opts.round !== false;
+    // Neck (Update 13 fix): a taller neck column that runs from behind the
+    // head down INTO the torso so it always connects — the outfit (drawn last)
+    // overlaps its base, leaving a continuous head → neck → body silhouette.
     return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true"
       style="display:inline-block; vertical-align:middle; flex:none; ${round ? 'border-radius:50%; background:var(--bg-hover, #232b37);' : ''}">
       ${hairBack(app, hairC)}
-      <rect x="27.5" y="31" width="9" height="10" rx="3" fill="${shade(skin, -14)}"/>
+      <path d="M27.4 33 L36.6 33 L36.6 45 C36.6 46.2 35 47 32 47 C29 47 27.4 46.2 27.4 45 Z" fill="${shade(skin, -16)}"/>
+      <path d="M27.4 33 L36.6 33 L36.6 38 C34.8 39.4 29.2 39.4 27.4 38 Z" fill="${shade(skin, -24)}" opacity="0.6"/>
       <ellipse cx="32" cy="25" rx="10.5" ry="11.5" fill="${skin}"/>
       <ellipse cx="21.7" cy="25.5" rx="1.8" ry="2.6" fill="${skin}"/>
       <ellipse cx="42.3" cy="25.5" rx="1.8" ry="2.6" fill="${skin}"/>
       ${beardPath(app, hairC)}
       ${hairFront(app, hairC)}
-      ${outfitSvg(app, outfit, seed)}
+      ${outfitSvg(app, outfit, seed, opts.kit)}
     </svg>`;
   };
 
@@ -250,11 +286,29 @@
    * appearance and render it. `person` may be a live entity, a historical
    * record, or { name, gender }.
    */
+  // Resolve a person's team kit (colors + design) so every athlete/coach wears
+  // their program's uniform. Colors come from the live school (so a transfer
+  // automatically inherits the new team's kit) or an explicit opts.teamColors;
+  // recruits and free agents (no school) fall back to generic hashed colors.
+  function resolveKit(person, opts) {
+    if (opts.teamColors && opts.teamColors.length >= 2) {
+      return { colors: opts.teamColors, design: opts.teamDesign || designFor(opts.teamColors.join('')) };
+    }
+    const game = window.XCD.ui.state && window.XCD.ui.state.game;
+    const sid = person && person.schoolId;
+    const school = (game && sid && game.world && game.world.schools) ? game.world.schools[sid] : null;
+    if (school && school.colors && school.colors.length >= 2) {
+      return { colors: school.colors, design: designFor(school.name || school.id) };
+    }
+    return null;
+  }
+
   UI.avatar = function (person, opts = {}) {
     const app = UI.appearanceFor(person, opts);
     const outfit = opts.outfit || ((person && (person.role === 'Head' || person.role === 'Assistant' ||
       person.coachAccolades || person.careerRecord)) ? 'polo' : 'jersey');
-    return UI.avatarSvg(app, Object.assign({}, opts, { outfit }));
+    const kit = opts.kit || resolveKit(person, opts);
+    return UI.avatarSvg(app, Object.assign({}, opts, { outfit, kit }));
   };
 
   UI.AVATAR = {
