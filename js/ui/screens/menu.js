@@ -5,6 +5,11 @@
   const UI = window.XCD.ui;
   const Utils = window.XCD.core.Utils;
 
+  // The custom-league spec loaded for the next New Dynasty (Update 13). Held
+  // at module scope so it survives navigation between menu screens, and is
+  // applied to the previewed world + carried into the game on start.
+  let customLeagueSpec = null;
+
   function renderMainMenu(root) {
     root.innerHTML = `
       <div id="menu-root">
@@ -15,13 +20,16 @@
             <button class="btn primary" id="btn-new">🏁 New Dynasty</button>
             <button class="btn" id="btn-load">💾 Load Dynasty</button>
             <button class="btn" id="btn-import">📂 Import Save File</button>
+            <button class="btn" id="btn-custom">🔧 Custom League${customLeagueSpec ? ' <span style="color:var(--accent);">(loaded)</span>' : ''}</button>
           </div>
+          ${customLeagueSpec ? `<div style="color:var(--text-dim); font-size:12px; margin-top:8px;">Custom league ready — ${(customLeagueSpec.teams || []).length} custom team${(customLeagueSpec.teams || []).length === 1 ? '' : 's'}. Your next New Dynasty uses it.</div>` : ''}
           <input type="file" id="import-file" accept=".json,application/json" style="display:none">
         </div>
       </div>`;
 
     root.querySelector('#btn-new').addEventListener('click', () => renderNewGame(root));
     root.querySelector('#btn-load').addEventListener('click', () => renderLoadMenu(root));
+    root.querySelector('#btn-custom').addEventListener('click', () => renderCustomLeague(root));
 
     const fileInput = root.querySelector('#import-file');
     root.querySelector('#btn-import').addEventListener('click', () => fileInput.click());
@@ -48,8 +56,130 @@
   function renderNewGame(root) {
     // Generate a preview world so the school list shows real prestige values.
     const seed = (Math.random() * 0xFFFFFFFF) >>> 0;
+    // Custom League (Update 13): apply the imported spec's global name
+    // overrides (division labels, conferences, meet/award names) and its team,
+    // mascot, color, and roster overrides to the previewed world — so the
+    // school picker and the started game both reflect the custom league.
+    window.XCD.data.applyCustomLeague(customLeagueSpec);
     const world = window.XCD.engine.WorldGenerator.generate(seed);
+    if (customLeagueSpec) window.XCD.engine.WorldGenerator.applyCustomLeague(world, customLeagueSpec, seed);
     renderCoachCreation(root, seed, world);
+  }
+
+  /*
+   * Custom League editor (Update 13). Paste or import a JSON spec that
+   * renames divisions, adds conferences, sets meet & award names, and defines
+   * custom teams (name, mascot, colors, conference, division) with optional
+   * custom rosters. Teams override an existing program by name/`match`, or add
+   * a brand-new one — the full NCAA world stays intact so the sim never breaks.
+   */
+  function renderCustomLeague(root) {
+    const template = {
+      divisionNames: { DI: 'Premier Division', DII: 'Second Division', DIII: 'Club Division' },
+      conferences: [{ name: 'Coastal League', tier: 1 }],
+      meetNames: ['Autumn Classic', 'Harvest Invitational', 'Founders Cup'],
+      awardNames: { runnerOfYear: 'Golden Spikes', coachOfYear: 'Bench Boss of the Year' },
+      teams: [
+        {
+          match: 'Oregon', name: 'Cascadia', mascot: 'Fighting Firs',
+          colors: ['#0b5d3b', '#f4c20d'], conference: 'Coastal League', division: 'DI',
+          roster: { M: ['Sam Rivera', 'Theo Blake'], W: ['Nina Cole', 'Priya Shah'] }
+        },
+        {
+          name: 'Harbor State', mascot: 'Anchormen',
+          colors: ['#002b5c', '#c0c0c0'], state: 'CA', conference: 'Coastal League', division: 'DI'
+        }
+      ]
+    };
+    const current = customLeagueSpec ? JSON.stringify(customLeagueSpec, null, 2) : '';
+
+    root.innerHTML = `
+      <div id="menu-root">
+        <div class="menu-panel" style="width:min(720px,95vw);">
+          <h1 style="font-size:22px;">Custom <span>League</span></h1>
+          <p class="tagline">Shape your own world. Paste or import a JSON spec — rename divisions, add
+            conferences, set meet & award names, and define custom teams with mascots, colors, and rosters.
+            Teams override an existing program (by <code>match</code>) or add a new one; the rest of the NCAA stays intact.</p>
+          <div class="field">
+            <label>League JSON</label>
+            <textarea id="custom-json" spellcheck="false" style="width:100%; min-height:230px; font-family:monospace; font-size:12px; resize:vertical;" placeholder="Paste your league JSON here, or load the template below…">${Utils.escapeHtml(current)}</textarea>
+          </div>
+          <div id="custom-msg" style="min-height:18px; font-size:12.5px; margin-bottom:8px;"></div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn" id="btn-template">📋 Load Template</button>
+            <button class="btn" id="btn-file">📂 Import File</button>
+            <button class="btn" id="btn-clear">🗑 Clear</button>
+          </div>
+          <input type="file" id="custom-file" accept=".json,application/json" style="display:none">
+          <div style="display:flex; gap:10px; margin-top:18px;">
+            <button class="btn" id="btn-back">← Back</button>
+            <button class="btn primary" id="btn-save" style="flex:1;">Save Custom League</button>
+          </div>
+        </div>
+      </div>`;
+
+    const ta = root.querySelector('#custom-json');
+    const msg = root.querySelector('#custom-msg');
+    const setMsg = (text, ok) => { msg.textContent = text; msg.style.color = ok ? 'var(--success)' : 'var(--danger)'; };
+
+    root.querySelector('#btn-template').addEventListener('click', () => {
+      ta.value = JSON.stringify(template, null, 2);
+      setMsg('Template loaded — edit it, then Save.', true);
+    });
+    root.querySelector('#btn-clear').addEventListener('click', () => {
+      ta.value = '';
+      customLeagueSpec = null;
+      setMsg('Custom league cleared. New dynasties will use the standard NCAA world.', true);
+    });
+    const fileInput = root.querySelector('#custom-file');
+    root.querySelector('#btn-file').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => { ta.value = String(reader.result || ''); setMsg('File loaded — review it, then Save.', true); };
+      reader.onerror = () => setMsg('Could not read that file.', false);
+      reader.readAsText(file);
+    });
+    root.querySelector('#btn-back').addEventListener('click', () => renderMainMenu(root));
+    root.querySelector('#btn-save').addEventListener('click', () => {
+      const raw = ta.value.trim();
+      if (!raw) { customLeagueSpec = null; renderMainMenu(root); return; }
+      const parsed = validateCustomLeague(raw);
+      if (!parsed.ok) { setMsg(parsed.error, false); return; }
+      customLeagueSpec = parsed.spec;
+      UI.toast('Custom league saved — start a New Dynasty to use it.', 'success');
+      renderMainMenu(root);
+    });
+  }
+
+  // Parse + lightly validate a custom-league JSON string. Returns
+  // { ok, spec } or { ok:false, error }. Deliberately permissive: every field
+  // is optional, so a spec with only a couple of teams (or only division
+  // names) is valid.
+  function validateCustomLeague(raw) {
+    let spec;
+    try { spec = JSON.parse(raw); }
+    catch (e) { return { ok: false, error: 'Invalid JSON: ' + e.message }; }
+    if (!spec || typeof spec !== 'object' || Array.isArray(spec)) {
+      return { ok: false, error: 'The league spec must be a JSON object.' };
+    }
+    if (spec.teams !== undefined && !Array.isArray(spec.teams)) {
+      return { ok: false, error: '"teams" must be an array.' };
+    }
+    if (Array.isArray(spec.teams)) {
+      for (const t of spec.teams) {
+        if (!t || typeof t !== 'object') return { ok: false, error: 'Each team must be an object.' };
+        if (!t.name && !t.match) return { ok: false, error: 'Each team needs a "name" (or a "match" to override one).' };
+        if (t.colors !== undefined && (!Array.isArray(t.colors) || t.colors.length < 2)) {
+          return { ok: false, error: `Team "${t.name || t.match}" colors must be an array of two hex strings.` };
+        }
+        if (t.division && !window.XCD.data.DIVISIONS[t.division]) {
+          return { ok: false, error: `Team "${t.name || t.match}" has unknown division "${t.division}" (use DI, DII, or DIII).` };
+        }
+      }
+    }
+    return { ok: true, spec };
   }
 
   // Coach creation is the guided multi-step wizard (Update 6, Section 2).
@@ -67,8 +197,9 @@
     let selectedId = null;
     let divFilter = 'DI'; // most players start in the division they know
 
-    const DIV_TABS = [['DI', 'Division I'], ['DII', 'Division II'], ['DIII', 'Division III']]
-      .filter(([k]) => D.divisionFor(k).active);
+    const DIV_TABS = ['DI', 'DII', 'DIII']
+      .filter((k) => D.divisionFor(k).active)
+      .map((k) => [k, D.divisionFor(k).label]);
 
     root.innerHTML = `
       <div id="menu-root">
@@ -148,7 +279,8 @@
         hometown: coach.hometown,
         almaMater: coach.almaMater,
         seed,
-        world // reuse the previewed world so selected ids stay valid
+        world, // reuse the previewed world so selected ids stay valid
+        customLeague: customLeagueSpec // Update 13: carried into the save
       });
       UI.state.game = game;
       UI.state.currentScreen = 'dashboard';

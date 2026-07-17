@@ -118,11 +118,16 @@
      * Ids are unique per generation, so regenerating from the same seed
      * would produce identical data but different ids.
      */
-    static newGame({ schoolId, dynastyName, coachFirstName, coachLastName, archetype, portrait, gender, appearance, trainingPhilosophy, racePhilosophy, startRole, age, hometown, almaMater, seed, world }) {
+    static newGame({ schoolId, dynastyName, coachFirstName, coachLastName, archetype, portrait, gender, appearance, trainingPhilosophy, racePhilosophy, startRole, age, hometown, almaMater, seed, world, customLeague }) {
       const gs = new GameState();
       gs.dynastyName = dynastyName || `${coachLastName} Dynasty`;
       gs.dynastyId = GameState.newDynastyId();
       gs.seed = seed >>> 0;
+      // Custom League (Update 13): apply the imported spec's global name
+      // overrides before the world is used, so labels read correctly from the
+      // first frame. The world itself was already customized in the preview.
+      gs.customLeague = customLeague || null;
+      D.applyCustomLeague(gs.customLeague);
       gs.world = world || window.XCD.engine.WorldGenerator.generate(gs.seed);
       gs.playerSchoolId = schoolId;
       gs.playerRole = startRole === 'Assistant' ? 'Assistant' : 'Head';
@@ -554,7 +559,10 @@
         weeklyFlow: this.weeklyFlow,
         offseasonReport: this.offseasonReport || null,
         staffHiredYear: this.staffHiredYear || null,
-        week1: this.week1
+        week1: this.week1,
+        // Custom League (Update 13): the imported spec that renamed divisions,
+        // added conferences, and set meet/award names. Re-applied on load.
+        customLeague: this.customLeague || null
       };
     }
 
@@ -613,6 +621,13 @@
         progressionReviewed: true, rosterConfirmed: true,
         scheduleFinalized: obj.week > 1, staffConfirmed: true, setupConfirmed: true
       };
+      // Custom League (Update 13): re-apply the imported spec's global name
+      // overrides (division labels, conferences, meet/award names) so a loaded
+      // custom dynasty reads exactly as it did when created; a standard save
+      // resets the tables back to their defaults.
+      gs.customLeague = obj.customLeague || null;
+      D.applyCustomLeague(gs.customLeague);
+
       // Every dynasty owns a stable id (Phase 5). Pre-multi-save dynasties get
       // one derived deterministically from their seed + creation time, so a
       // legacy save keeps the same autosave slot across loads.

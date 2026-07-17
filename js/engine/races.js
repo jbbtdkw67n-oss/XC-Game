@@ -86,9 +86,12 @@
       const buildGroup = (group) => {
         if (!group.length) return;
         const host = gameState.getSchool(group[0]);
+        // Custom League (Update 13): if the dynasty supplied its own meet
+        // names, invitationals draw from that pool; otherwise the host names it.
+        const custom = window.XCD.data.customMeetName(season._inviteSeq = (season._inviteSeq || 0) + 1);
         const meet = buildMeet(gameState, rng, {
           week,
-          name: `${host.name} Invitational`,
+          name: custom || `${host.name} Invitational`,
           hostId: host.id,
           schoolIds: group,
           type: 'invite'

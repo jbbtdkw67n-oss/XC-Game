@@ -400,6 +400,14 @@
         conferenceTier: 3,
         division: 'DI', // NCAA division key into XCD.data.DIVISIONS
 
+        // Team identity (Update 13): real-world-inspired colors and a mascot
+        // NAME (altered to avoid trademarks). `colors` is [primary, secondary]
+        // and drives every athlete's uniform and the coach's polo; `kit` adds
+        // the deterministic uniform pattern shared by the whole roster.
+        colors: null,
+        mascot: '',
+        kit: null,
+
         prestige: 50, // 0-100 program prestige — dynamic, rises and falls yearly
         prestigeHistory: [], // [{year, prestige}] recent trajectory (last 30)
         prestigeMomentum: 0, // rolling success trend feeding the yearly update
@@ -474,6 +482,19 @@
       if (div && (!data || data.scholarshipsAvailableM === undefined)) {
         this.scholarshipsAvailableM = div.scholarships.M;
         this.scholarshipsAvailableW = div.scholarships.W;
+      }
+
+      // Team identity (Update 13): derive colors + mascot + kit from the
+      // school's real-world-inspired metadata, so new worlds AND loaded saves
+      // (which predate this field) both carry a full uniform identity. A
+      // custom-league override — colors/mascot passed in `data` — always wins.
+      if (window.XCD.data.kitFor) {
+        const meta = window.XCD.data.schoolMeta(this.name);
+        if (!Array.isArray(this.colors) || this.colors.length < 2) this.colors = meta.colors.slice();
+        if (!this.mascot) this.mascot = meta.mascot;
+        if (!this.kit || !this.kit.primary) {
+          this.kit = window.XCD.data.kitFor(this.name, { colors: this.colors });
+        }
       }
     }
 

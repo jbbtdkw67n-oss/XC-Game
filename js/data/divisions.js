@@ -87,6 +87,59 @@
 
   D.DIVISION_ORDER = ['DI', 'DII', 'DIII'];
 
+  /* ================================================================ *
+   * Custom League overrides (Update 13)
+   *
+   * A dynasty can be created from a custom league spec — imported in the New
+   * Dynasty flow — that renames divisions, adds conferences, and supplies
+   * custom meet names and award names. Team/roster overrides are handled in
+   * worldgen; the GLOBAL, name-only overrides live here because they touch the
+   * shared data tables (division labels, conference list). The active game's
+   * spec is re-applied on load and reset when a non-custom game starts.
+   * ================================================================ */
+  const DEFAULT_DIVISION_LABELS = { DI: 'Division I', DII: 'Division II', DIII: 'Division III' };
+  D.CUSTOM = null; // { meetNames?, awardNames? } for the active custom league
+
+  D.applyCustomLeague = function (spec) {
+    D.resetCustomLeague();
+    if (!spec) return;
+    if (spec.divisionNames) {
+      Object.keys(spec.divisionNames).forEach((k) => {
+        if (D.DIVISIONS[k] && spec.divisionNames[k]) D.DIVISIONS[k].label = String(spec.divisionNames[k]);
+      });
+    }
+    if (Array.isArray(spec.conferences)) {
+      spec.conferences.forEach((c) => {
+        if (c && c.name) D.CONFERENCES[c.name] = { tier: Math.max(1, Math.min(4, c.tier || 3)) };
+      });
+    }
+    D.CUSTOM = {
+      meetNames: Array.isArray(spec.meetNames) ? spec.meetNames.filter(Boolean) : null,
+      awardNames: (spec.awardNames && typeof spec.awardNames === 'object') ? spec.awardNames : null
+    };
+  };
+
+  D.resetCustomLeague = function () {
+    Object.keys(DEFAULT_DIVISION_LABELS).forEach((k) => {
+      if (D.DIVISIONS[k]) D.DIVISIONS[k].label = DEFAULT_DIVISION_LABELS[k];
+    });
+    D.CUSTOM = null;
+  };
+
+  // A custom invitational name (deterministic by index), or '' to use the
+  // default host-based name.
+  D.customMeetName = function (index) {
+    const pool = D.CUSTOM && D.CUSTOM.meetNames;
+    if (!pool || !pool.length) return '';
+    return String(pool[Math.abs(index) % pool.length]);
+  };
+
+  // A custom award label for a known key, falling back to the default name.
+  D.awardLabel = function (key, fallback) {
+    const map = D.CUSTOM && D.CUSTOM.awardNames;
+    return (map && map[key]) ? String(map[key]) : fallback;
+  };
+
   // Resolve the division rules for a school (or a raw division key).
   // Everything defaults to DI so pre-Update-2 saves keep working untouched.
   D.divisionFor = function (schoolOrKey) {

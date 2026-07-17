@@ -437,9 +437,118 @@
     return { schools, coaches, athletes, order };
   }
 
+  /* ================================================================ *
+   * Custom League (Update 13) — team, mascot, color & roster overrides.
+   *
+   * A custom-league spec's `teams` are applied ON TOP of a fully generated
+   * world, so the ~500-school ecosystem (conferences, regions, championships)
+   * always stays intact and the simulation never breaks: a team entry either
+   * OVERRIDES an existing school by name (rename it, restyle it, re-conference
+   * it, rewrite its roster) or ADDS a brand-new program. This keeps custom
+   * leagues robust whether the user supplies two teams or two hundred.
+   * ================================================================ */
+  function applyTeamMeta(school, t, renamed) {
+    if (t.mascot) school.mascot = String(t.mascot);
+    else if (renamed) school.mascot = D.schoolMeta(school.name).mascot;
+    if (Array.isArray(t.colors) && t.colors.length >= 2) {
+      school.colors = t.colors.slice(0, 2);
+    } else if (renamed) {
+      school.colors = D.schoolMeta(school.name).colors.slice();
+    }
+    if (t.conference) {
+      school.conference = String(t.conference);
+      school.conferenceTier = (D.CONFERENCES[school.conference] || { tier: 3 }).tier;
+    }
+    if (t.state && D.STATE_REGION[t.state]) {
+      school.state = t.state;
+      school.region = D.STATE_REGION[t.state];
+    }
+    if (t.division && D.DIVISIONS[t.division]) school.division = t.division;
+    // Recompute the kit so pattern (name-seeded) and colors stay consistent.
+    school.kit = D.kitFor(school.name, { colors: school.colors });
+  }
+
+  function applyCustomRoster(world, school, t, rng) {
+    const roster = t.roster;
+    if (!roster) return;
+    ['M', 'W'].forEach((g) => {
+      const names = Array.isArray(roster) ? (g === 'M' ? roster : null) : roster[g];
+      if (!Array.isArray(names) || !names.length) return;
+      const key = g === 'M' ? 'rosterM' : 'rosterW';
+      names.forEach((nm, i) => {
+        const parts = String(nm).trim().split(/\s+/);
+        const first = parts.shift() || 'Runner';
+        const last = parts.join(' ') || 'Athlete';
+        if (i < school[key].length) {
+          const a = world.athletes[school[key][i]];
+          if (a) { a.firstName = first; a.lastName = last; }
+        } else {
+          const a = buildAthlete(rng, school, g);
+          a.firstName = first; a.lastName = last;
+          world.athletes[a.id] = a;
+          school[key].push(a.id);
+        }
+      });
+    });
+  }
+
+  function addCustomSchool(world, t, rng) {
+    const state = (t.state && D.STATE_REGION[t.state]) ? t.state : 'OR';
+    const conf = t.conference || 'Independent';
+    const division = (t.division && D.DIVISIONS[t.division]) ? t.division : 'DI';
+    const school = buildSchool(rng, [String(t.name), state, conf], division);
+    applyTeamMeta(school, t, false);
+    const coach = buildCoach(rng, school, false);
+    school.coachId = coach.id;
+    const assistant = buildCoach(rng, school, false, 'Assistant');
+    school.assistantId = assistant.id;
+    assistant.mentorName = coach.fullName;
+    assistant.mentorId = coach.id;
+    assistant.workedFor = [{ name: coach.fullName, school: school.name, year: null }];
+    world.coaches[coach.id] = coach;
+    world.coaches[assistant.id] = assistant;
+    for (let i = 0; i < 14; i++) { const a = buildAthlete(rng, school, 'M'); world.athletes[a.id] = a; school.rosterM.push(a.id); }
+    for (let i = 0; i < 14; i++) { const a = buildAthlete(rng, school, 'W'); world.athletes[a.id] = a; school.rosterW.push(a.id); }
+    world.schools[school.id] = school;
+    world.schoolOrder.push(school.id);
+    applyCustomRoster(world, school, t, rng);
+    return school;
+  }
+
+  function applyCustomLeague(world, spec, seed) {
+    if (!spec || !Array.isArray(spec.teams) || !spec.teams.length) return world;
+    const rng = new window.XCD.core.SeededRNG((seed ^ 0xC0FFEE) >>> 0);
+    const byName = {};
+    Object.values(world.schools).forEach((s) => { byName[s.name.toLowerCase()] = s; });
+
+    spec.teams.forEach((t) => {
+      if (!t || (!t.name && !t.match)) return;
+      const matchKey = String(t.match || t.name).toLowerCase();
+      const school = byName[matchKey];
+      if (school) {
+        let renamed = false;
+        if (t.name && String(t.name) !== school.name) {
+          delete byName[school.name.toLowerCase()];
+          school.name = String(t.name);
+          byName[school.name.toLowerCase()] = school;
+          renamed = true;
+        }
+        applyTeamMeta(school, t, renamed);
+        applyCustomRoster(world, school, t, rng);
+      } else if (t.name) {
+        const added = addCustomSchool(world, t, rng);
+        byName[added.name.toLowerCase()] = added;
+      }
+    });
+    // Rivalries can shift when states change or teams are added.
+    assignRivalries(Object.values(world.schools));
+    return world;
+  }
+
   window.XCD.engine.WorldGenerator = {
     generate,
     generateLowerDivisions,
+    applyCustomLeague,
     buildAthlete,
     buildWalkOn,
     buildReplacementCoach: (rng, school) => buildCoach(rng, school, false),

@@ -185,30 +185,81 @@
     return `<path fill="${color}" d="M21.5 22 C21 37.5 25 45 32 45 C39 45 43 37.5 42.5 22 C42.5 30 38.5 32.2 32 32.2 C25.5 32.2 21.5 30 21.5 22 Z M26.4 29.6 C28.4 28.6 30.2 29.2 32 29.2 C33.8 29.2 35.6 28.6 37.6 29.6 C35.6 31.2 33.6 30.8 32 30.8 C30.4 30.8 28.4 31.2 26.4 29.6 Z"/>`; // bushy
   }
 
-  function outfitSvg(app, kind, seed) {
-    if (kind === 'suit' || kind === 'polo') {
-      // Coaching polo (Update 13): coaches dress like real XC coaches — a
-      // bright polo with a collar and button placket. A player-built coach
-      // picks the color in the wizard (app.polo); everyone else derives it.
-      const polo = POLO_COLORS[app.polo !== undefined && app.polo !== null
-        ? Math.max(0, Math.min(POLO_COLORS.length - 1, app.polo))
-        : (seed >>> 6) % POLO_COLORS.length];
-      const trim = shade(polo, -38);
-      return `
-        <path fill="${polo}" d="M8.5 64 C10 47 19 40.5 32 40.5 C45 40.5 54 47 55.5 64 Z"/>
-        <path fill="${trim}" d="M25.8 41.4 L32 45.2 L38.2 41.4 L39.5 44.4 L32 49.2 L24.5 44.4 Z"/>
-        <path fill="${SKIN_TONES[app.skin] || SKIN_TONES[2]}" d="M30.5 44 L32 43.1 L33.5 44 L33 46.4 L31 46.4 Z"/>
-        <rect x="31.3" y="47.6" width="1.4" height="6.4" rx="0.7" fill="${trim}"/>`;
+  // A unique id per rendered SVG, so clipped uniform patterns never collide
+  // when many avatars share a page.
+  let _clipSeq = 0;
+
+  /*
+   * Uniform patterns (Update 13). Every athlete on a team shares one kit look,
+   * drawn in the team's SECONDARY color and clipped to the torso so stripes
+   * never spill onto skin. `torso` is the singlet path; `s` the accent color.
+   */
+  function patternSvg(pattern, torso, s, clipId) {
+    if (!pattern || pattern === 'plain') return '';
+    let inner = '';
+    if (pattern === 'sidestripe') {
+      inner = `<rect x="16" y="43" width="3.2" height="21" fill="${s}"/>
+               <rect x="44.8" y="43" width="3.2" height="21" fill="${s}"/>`;
+    } else if (pattern === 'pinstripe') {
+      let stripes = '';
+      for (let x = 19; x <= 45; x += 3.4) stripes += `<rect x="${x}" y="43" width="0.9" height="21" fill="${s}" opacity="0.85"/>`;
+      inner = stripes;
+    } else if (pattern === 'chestband') {
+      inner = `<rect x="14" y="49.5" width="36" height="3.6" fill="${s}"/>`;
+    } else if (pattern === 'yoke') {
+      // A contrast shoulder yoke: the upper singlet is the accent color.
+      inner = `<rect x="14" y="43" width="36" height="6.5" fill="${s}"/>`;
     }
-    // Racing singlet (Update 13): the colored singlet goes up and over the
-    // shoulders like a real race kit — straps follow the shoulder line, with
-    // a scoop neck and contrast neckline trim. Skin shows only at the arms.
-    const jersey = app.jersey || JERSEY_COLORS[(seed >>> 9) % JERSEY_COLORS.length];
+    return `<clipPath id="${clipId}"><path d="${torso}"/></clipPath>
+            <g clip-path="url(#${clipId})">${inner}</g>`;
+  }
+
+  function outfitSvg(app, kind, seed, opts) {
+    if (kind === 'suit' || kind === 'polo') {
+      // Coaching polo (Update 13): coaches dress in their program's colors —
+      // a fitted polo with a real collar, a buttoned placket, and contrast
+      // sleeve trim. The color pair comes from the team (opts.poloColors);
+      // a coach with no team (creation preview) falls back to the picked one.
+      let polo, trim;
+      if (opts && opts.poloColors) {
+        polo = opts.poloColors.primary;
+        trim = opts.poloColors.secondary || shade(polo, -38);
+      } else {
+        polo = POLO_COLORS[app.polo !== undefined && app.polo !== null
+          ? Math.max(0, Math.min(POLO_COLORS.length - 1, app.polo))
+          : (seed >>> 6) % POLO_COLORS.length];
+        trim = shade(polo, -38);
+      }
+      // Keep trim readable against the polo — if they're too close, darken.
+      if (trim.toLowerCase() === polo.toLowerCase()) trim = shade(polo, -40);
+      const skin = SKIN_TONES[app.skin] || SKIN_TONES[2];
+      const btn = shade(trim, -18);
+      return `
+        <path fill="${polo}" d="M11 64 C12.4 48.5 20 42 32 42 C44 42 51.6 48.5 53 64 Z"/>
+        <path fill="${trim}" d="M12.6 64 C13.1 55 14 49.6 15.4 45.4 C16.7 46.2 18 47 19 48 C18 52 17.4 57.6 17.2 64 Z"/>
+        <path fill="${trim}" d="M51.4 64 C50.9 55 50 49.6 48.6 45.4 C47.3 46.2 46 47 45 48 C46 52 46.6 57.6 46.8 64 Z"/>
+        <path fill="${trim}" d="M24.6 42.6 L32 47.4 L39.4 42.6 L41 45.4 L32 51.4 L23 45.4 Z"/>
+        <path fill="${skin}" d="M30.2 44.4 L32 43.2 L33.8 44.4 L33.1 47.2 L30.9 47.2 Z"/>
+        <rect x="31.25" y="47.4" width="1.5" height="9.4" rx="0.75" fill="${trim}"/>
+        <circle cx="32" cy="50.4" r="0.95" fill="${btn}"/>
+        <circle cx="32" cy="53.8" r="0.95" fill="${btn}"/>`;
+    }
+    // Racing singlet (Update 13): a trimmer body than before, with the colored
+    // singlet going up and over the shoulders like a real race kit — straps
+    // follow the shoulder line, a scoop neck with contrast trim, and the team's
+    // uniform pattern (plain / side stripes / pinstripes / chest band / yoke).
+    const uni = (opts && opts.uniform) || null;
+    const primary = uni ? uni.primary : (app.jersey || JERSEY_COLORS[(seed >>> 9) % JERSEY_COLORS.length]);
+    const secondary = uni ? uni.secondary : shade(primary, -30);
+    const pattern = uni ? uni.pattern : 'plain';
     const skin = SKIN_TONES[app.skin];
+    const torso = 'M17 64 C17.8 52 21.6 45.2 26.9 43.4 C28.3 46.2 30 47.6 32 47.6 C34 47.6 35.7 46.2 37.1 43.4 C42.4 45.2 46.2 52 47 64 Z';
+    const clipId = 'xckit' + (_clipSeq++);
     return `
-      <path fill="${skin}" d="M10 64 C11.5 48 20 41 32 41 C44 41 52.5 48 54 64 Z"/>
-      <path fill="${jersey}" d="M14.5 64 C15.5 51.5 20.5 43.8 26.5 41.6 C28 44.8 30 46.4 32 46.4 C34 46.4 36 44.8 37.5 41.6 C43.5 43.8 48.5 51.5 49.5 64 Z"/>
-      <path fill="${shade(jersey, -30)}" d="M26.5 41.6 C28 44.8 30 46.4 32 46.4 C34 46.4 36 44.8 37.5 41.6 L38.7 42.7 C37.1 46.1 34.6 47.8 32 47.8 C29.4 47.8 26.9 46.1 25.3 42.7 Z"/>`;
+      <path fill="${skin}" d="M12.8 64 C13.9 50.5 20.3 43 32 43 C43.7 43 50.1 50.5 51.2 64 Z"/>
+      <path fill="${primary}" d="${torso}"/>
+      ${patternSvg(pattern, torso, secondary, clipId)}
+      <path fill="${secondary}" d="M26.9 43.4 C28.3 46.2 30 47.6 32 47.6 C34 47.6 35.7 46.2 37.1 43.4 L38.3 44.5 C36.7 47.7 34.4 49.2 32 49.2 C29.6 49.2 27.3 47.7 25.7 44.5 Z"/>`;
   }
 
   // Lighten/darken a #rrggbb color by `amt`.
@@ -232,17 +283,59 @@
     const hairC = HAIR_COLORS[Math.max(0, Math.min(HAIR_COLORS.length - 1, app.hair || 0))];
     const seed = app._seed !== undefined ? app._seed : hashStr(JSON.stringify([app.skin, app.hair, app.hairStyle, app.beard]));
     const round = opts.round !== false;
+    // The neck (Update 13 fix): a trapezoid that flares from under the jaw
+    // down INTO the shoulders, its base tucked below the outfit's neckline so
+    // head, neck, and body read as one connected figure — no floating column.
+    const neck = `<path fill="${shade(skin, -16)}" d="M27.4 33 L36.6 33 L38 44 C38 46.2 26 46.2 26 44 Z"/>`;
     return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true"
       style="display:inline-block; vertical-align:middle; flex:none; ${round ? 'border-radius:50%; background:var(--bg-hover, #232b37);' : ''}">
       ${hairBack(app, hairC)}
-      <rect x="27.5" y="31" width="9" height="10" rx="3" fill="${shade(skin, -14)}"/>
+      ${neck}
       <ellipse cx="32" cy="25" rx="10.5" ry="11.5" fill="${skin}"/>
       <ellipse cx="21.7" cy="25.5" rx="1.8" ry="2.6" fill="${skin}"/>
       <ellipse cx="42.3" cy="25.5" rx="1.8" ry="2.6" fill="${skin}"/>
       ${beardPath(app, hairC)}
       ${hairFront(app, hairC)}
-      ${outfitSvg(app, outfit, seed)}
+      ${outfitSvg(app, outfit, seed, opts)}
     </svg>`;
+  };
+
+  /*
+   * The team uniform an athlete wears (Update 13). Colors follow the athlete's
+   * CURRENT school, so a transfer immediately inherits their new team's kit.
+   * Returns { primary, secondary, pattern } or null (→ hashed fallback) for
+   * historical records with no resolvable live school.
+   */
+  UI.uniformFor = function (person) {
+    if (!person) return null;
+    if (person.uniform && person.uniform.primary) return person.uniform;
+    const game = (UI.state && UI.state.game) || null;
+    const sid = person.schoolId;
+    if (game && sid && game.getSchool) {
+      const sch = game.getSchool(sid);
+      if (sch) {
+        if (sch.kit && sch.kit.primary) return sch.kit;
+        if (window.XCD.data.kitFor) return window.XCD.data.kitFor(sch.name, { colors: sch.colors });
+      }
+    }
+    return null;
+  };
+
+  /*
+   * The polo color pair a coach wears (Update 13): their program's team
+   * colors. A coach with no resolvable team (creation preview, free agent)
+   * returns null so the picked/derived polo color is used instead.
+   */
+  UI.poloColorsFor = function (person) {
+    const game = (UI.state && UI.state.game) || null;
+    const sid = person && person.schoolId;
+    if (game && sid && game.getSchool) {
+      const sch = game.getSchool(sid);
+      if (sch && Array.isArray(sch.colors) && sch.colors.length >= 2) {
+        return { primary: sch.colors[0], secondary: sch.colors[1] || '#ffffff' };
+      }
+    }
+    return null;
   };
 
   /*
@@ -254,7 +347,24 @@
     const app = UI.appearanceFor(person, opts);
     const outfit = opts.outfit || ((person && (person.role === 'Head' || person.role === 'Assistant' ||
       person.coachAccolades || person.careerRecord)) ? 'polo' : 'jersey');
-    return UI.avatarSvg(app, Object.assign({}, opts, { outfit }));
+    const extra = {};
+    if (outfit === 'jersey') { const u = UI.uniformFor(person); if (u) extra.uniform = u; }
+    else { const pc = UI.poloColorsFor(person); if (pc) extra.poloColors = pc; }
+    return UI.avatarSvg(app, Object.assign({}, opts, { outfit }, extra));
+  };
+
+  /*
+   * A tiny two-tone team-color swatch (Update 13) — the program's primary and
+   * secondary colors as a split disc, shown next to a school's mascot.
+   */
+  UI.kitSwatch = function (school, size = 16) {
+    const colors = (school && Array.isArray(school.colors) && school.colors.length >= 2)
+      ? school.colors
+      : (window.XCD.data.schoolMeta && school ? window.XCD.data.schoolMeta(school.name).colors : ['#888', '#ccc']);
+    return `<span title="Team colors" style="display:inline-flex; flex:none; width:${size}px; height:${size}px; border-radius:50%; overflow:hidden; border:1px solid rgba(255,255,255,0.25); vertical-align:middle;">
+      <span style="width:50%; height:100%; background:${colors[0]};"></span>
+      <span style="width:50%; height:100%; background:${colors[1] || '#ffffff'};"></span>
+    </span>`;
   };
 
   UI.AVATAR = {

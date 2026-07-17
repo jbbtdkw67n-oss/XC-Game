@@ -81,7 +81,7 @@
         addHonor(gameState, champ.athleteId, 'natChamp');
         addHonor(gameState, champ.athleteId, 'Runner of the Year');
         if (division === (gameState.getPlayerSchool().division || 'DI')) {
-          gameState.logNews(`🏅 ${champ.name} (${yearAwards[gender].runnerOfYear.school}) is the ${label} ${divLabel} Runner of the Year.`);
+          gameState.logNews(`🏅 ${champ.name} (${yearAwards[gender].runnerOfYear.school}) is the ${label} ${divLabel} ${window.XCD.data.awardLabel('runnerOfYear', 'Runner of the Year')}.`);
         }
       }
 
@@ -141,8 +141,9 @@
             Legacy.recordCoachAccolade(coach, { year: gameState.year, division, type: 'natCOY', label: `${divLabel} Coach of the Year (${label})` });
           }
           if (coach && coach.isPlayer) {
-            gameState.logNews(`🏅 YOU are the ${label} ${divLabel} Coach of the Year (preseason #${(pre[best.schoolId] || '—')} → final #${best.finalRank})!`);
-            gameState.career.awards.push(`${label} ${divLabel} Coach of the Year (${gameState.year})`);
+            const coyLabel = window.XCD.data.awardLabel('coachOfYear', 'Coach of the Year');
+            gameState.logNews(`🏅 YOU are the ${label} ${divLabel} ${coyLabel} (preseason #${(pre[best.schoolId] || '—')} → final #${best.finalRank})!`);
+            gameState.career.awards.push(`${label} ${divLabel} ${coyLabel} (${gameState.year})`);
           }
         }
       }
@@ -271,7 +272,7 @@
 
     if (pts > 0 && coach) {
       coach.upgradePoints = (coach.upgradePoints || 0) + pts;
-      gameState.logNews(`📋 COACHING RÉSUMÉ: you earn ${pts} upgrade point${pts > 1 ? 's' : ''} — ${why.join(', ')}. Spend them on My Program.`);
+      gameState.logNews(`📋 COACHING RÉSUMÉ: you earn ${pts} dynasty point${pts > 1 ? 's' : ''} — ${why.join(', ')}. Spend them on ratings or facilities in My Program.`);
     }
 
     // CPU coaches run the same progression (Update 13): they bank upgrade

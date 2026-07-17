@@ -413,8 +413,9 @@
     let selectedId = game.playerSchoolId; // staying home is the natural default
     let divFilter = (game.getPlayerSchool().division || 'DI');
 
-    const DIV_TABS = [['DI', 'Division I'], ['DII', 'Division II'], ['DIII', 'Division III']]
-      .filter(([k]) => D.divisionFor(k).active);
+    const DIV_TABS = ['DI', 'DII', 'DIII']
+      .filter((k) => D.divisionFor(k).active)
+      .map((k) => [k, D.divisionFor(k).label]);
 
     root.innerHTML = `
       <div id="menu-root">

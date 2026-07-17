@@ -85,6 +85,7 @@
       <div class="player-card-header">
         <div class="who">
           <h2>${Utils.escapeHtml(school.name)}${school.id === game.playerSchoolId ? ' <span style="color:var(--accent);">★ (You)</span>' : ''}</h2>
+          <div class="sub" style="display:flex; align-items:center; gap:7px;">${UI.kitSwatch(school, 15)}<span style="font-weight:600; color:var(--text);">${Utils.escapeHtml(school.mascot || '')}</span></div>
           <div class="sub">${divLabel} • ${Utils.escapeHtml(school.conference)} • ${school.region} • ${(D.STATE_NAMES || {})[school.state] || school.state}</div>
           <div class="sub">
             Head Coach:

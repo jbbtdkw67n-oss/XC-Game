@@ -26,6 +26,26 @@
     return { ok: true, message: `Upgrade complete (+${UPGRADE_STEP}) — $${cost.toLocaleString()} spent.`, cost };
   }
 
+  // Dynasty Points (Update 13): the currency a coach earns through success can
+  // now be spent to upgrade a facility directly — a second path alongside the
+  // booster-money route above. Points are held on the player's coach.
+  const FACILITY_POINT_COST = 2;
+
+  function upgradeFacilityWithPoints(gameState, schoolId, facilityKey) {
+    const school = gameState.getSchool(schoolId);
+    const coach = gameState.getPlayerCoach();
+    if (!school || !(facilityKey in school.facilities)) return { ok: false, message: 'Unknown facility.' };
+    if (!coach) return { ok: false, message: 'No coach.' };
+    const level = school.facilities[facilityKey];
+    if (level >= 99) return { ok: false, message: 'Already world-class.' };
+    if ((coach.upgradePoints || 0) < FACILITY_POINT_COST) {
+      return { ok: false, message: `Need ${FACILITY_POINT_COST} dynasty points to upgrade this facility.` };
+    }
+    coach.upgradePoints -= FACILITY_POINT_COST;
+    school.facilities[facilityKey] = Utils.clamp(level + UPGRADE_STEP, 0, 99);
+    return { ok: true, message: `Upgrade complete (+${UPGRADE_STEP}) — ${FACILITY_POINT_COST} dynasty points spent.` };
+  }
+
   /*
    * School size (facilities overhaul): in this world a program's size IS its
    * division and conference tier — a power-conference DI school is a huge
@@ -159,7 +179,7 @@
   }
 
   window.XCD.engine.Finances = {
-    upgradeFacility, fundraise, yearlyRefresh, upgradeCost,
-    schoolSizeFactor, schoolSizeLabel, programSuccessScore, UPGRADE_STEP
+    upgradeFacility, upgradeFacilityWithPoints, fundraise, yearlyRefresh, upgradeCost,
+    schoolSizeFactor, schoolSizeLabel, programSuccessScore, UPGRADE_STEP, FACILITY_POINT_COST
   };
 })();
