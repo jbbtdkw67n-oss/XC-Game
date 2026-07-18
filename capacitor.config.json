@@ -1,9 +1,10 @@
 {
   "appId": "com.xcgame.mobile",
-  "appName": "XC Game",
+  "appName": "XC Dynasty",
   "webDir": "www",
   "ios": {
-    "contentInset": "automatic",
-    "backgroundColor": "#0e1116"
+    "contentInset": "never",
+    "backgroundColor": "#0e1116",
+    "scrollEnabled": false
   }
 }

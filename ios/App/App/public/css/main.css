@@ -48,6 +48,9 @@ html, body {
   -webkit-text-size-adjust: 100%;
   overflow-x: hidden;
   overscroll-behavior-y: none;
+  /* Panning only — pinch-zoom is disabled app-wide (a stuck zoom on iOS
+     had no way back out; games don't zoom). */
+  touch-action: pan-x pan-y;
 }
 
 button, .clickable, .nav-item { touch-action: manipulation; }
@@ -176,9 +179,9 @@ button { font-family: inherit; }
   padding: 22px;
 }
 
-.screen { animation: screen-in 0.22s ease; }
+.screen { animation: screen-in 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
 @keyframes screen-in {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -321,8 +324,8 @@ button { font-family: inherit; }
   transition: background 0.15s, border-color 0.15s, transform 0.05s;
 }
 .btn:hover { background: #2b3543; }
-.btn:active { transform: translateY(1px); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:active { transform: scale(0.97); }
+.btn.primary { background: linear-gradient(135deg, var(--accent), #2f6fd8); border-color: transparent; color: #fff; box-shadow: 0 2px 10px rgba(61, 139, 253, 0.22); }
 .btn.primary:hover { background: var(--accent-hover); }
 .btn.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
 .btn.danger:hover { background: rgba(229, 83, 75, 0.12); }
@@ -552,12 +555,16 @@ details.filter-collapse .filter-body {
   gap: 8px;
 }
 
-/* ---------- Main menu (pre-game) ---------- */
+/* ---------- Main menu (pre-game) ----------
+   ONE scroll surface: #menu-root scrolls, the panel flows inside it
+   (margin:auto centers without top-clipping tall content). No nested
+   scroll areas — the "two scroll wheels" bug lived here. */
 #menu-root {
   height: 100vh;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
   background:
     radial-gradient(1200px 500px at 70% -10%, rgba(61, 139, 253, 0.16), transparent),
@@ -566,15 +573,13 @@ details.filter-collapse .filter-body {
 }
 .menu-panel {
   width: min(560px, 96vw);
+  margin: auto;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 36px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
   animation: screen-in 0.3s ease;
-  max-height: 100%;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
 .menu-panel h1 { font-size: 30px; margin-bottom: 4px; }
 .menu-panel h1 span { color: var(--accent); }
@@ -582,8 +587,125 @@ details.filter-collapse .filter-body {
 .menu-panel .menu-buttons { display: flex; flex-direction: column; gap: 10px; }
 .menu-panel .btn { justify-content: center; padding: 13px; font-size: 15px; min-height: var(--tap); }
 
+/* ---------- Title screen (XC Dynasty hero) ---------- */
+#menu-root.menu-home {
+  background:
+    radial-gradient(1100px 620px at 75% -12%, rgba(61, 139, 253, 0.22), transparent 65%),
+    radial-gradient(800px 520px at 8% 108%, rgba(52, 201, 142, 0.12), transparent 60%),
+    radial-gradient(600px 400px at 50% 55%, rgba(61, 139, 253, 0.05), transparent 70%),
+    linear-gradient(180deg, #0b0e13, #0e1116 40%, #10141b);
+}
+.menu-hero {
+  width: min(440px, 100%);
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: hero-in 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes hero-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.hero-crest {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 14px;
+  filter: drop-shadow(0 6px 18px rgba(61, 139, 253, 0.35));
+}
+.hero-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+.hero-wordmark {
+  margin: 0;
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.9;
+}
+.hero-wordmark span {
+  display: block;
+  padding-right: 0.08em; /* italic overhang never clips */
+}
+.hero-wordmark .wm-top {
+  font-size: clamp(40px, 12vw, 56px);
+  background: linear-gradient(115deg, var(--accent), #7db2ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.hero-wordmark .wm-main {
+  font-size: clamp(58px, 17.5vw, 86px);
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #f4f8ff 35%, #b9cfef 85%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter: drop-shadow(0 10px 28px rgba(61, 139, 253, 0.18));
+}
+.hero-rule {
+  width: 120px;
+  height: 3px;
+  border-radius: 2px;
+  margin: 18px auto 14px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+.hero-tagline {
+  color: var(--text-dim);
+  font-size: 14.5px;
+  line-height: 1.5;
+  max-width: 320px;
+  margin: 0 auto 30px;
+}
+.menu-hero .menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  width: min(320px, 100%);
+}
+.menu-hero .btn {
+  justify-content: center;
+  padding: 14px;
+  font-size: 15px;
+  min-height: 50px;
+  border-radius: 14px;
+  background: rgba(27, 33, 43, 0.82);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.menu-hero .btn.primary {
+  background: linear-gradient(135deg, var(--accent), #2f6fd8);
+  border-color: transparent;
+  box-shadow: 0 10px 30px rgba(61, 139, 253, 0.35);
+  font-size: 16px;
+  min-height: 54px;
+}
+.menu-hero .hero-note { color: var(--text-dim); font-size: 12px; margin-top: 12px; }
+.menu-hero .hero-footer {
+  margin-top: 34px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
 /* school picker list */
-.school-pick-list { max-height: 340px; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.school-pick-list {
+  max-height: 340px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain; /* list edges never drag the page */
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
 .school-pick {
   display: flex;
   justify-content: space-between;
@@ -758,7 +880,6 @@ details.filter-collapse .filter-body {
   .search-input { min-width: 0; width: 100%; flex: 1; }
   select.search-input { min-width: 0; }
   .pill-tabs button { padding: 9px 15px; min-height: 38px; }
-  input[type="range"] { min-height: var(--tap); } /* comfortable drag zone */
   input[type="range"]::-webkit-slider-thumb { width: 28px; height: 28px; }
   input[type="range"]::-moz-range-thumb { width: 28px; height: 28px; }
 
@@ -791,8 +912,12 @@ details.filter-collapse .filter-body {
     to { opacity: 1; transform: translateY(0); }
   }
 
-  .menu-panel { padding: 24px 20px; border-radius: 16px; }
+  /* Pre-game screens read as full pages on a phone: the panel spans the
+     width and the page (#menu-root) is the one and only scroll wheel. */
+  .menu-panel { width: 100%; padding: 24px 18px; border-radius: 16px; }
   .menu-panel h1 { font-size: 26px; }
+  .school-pick-list { max-height: 46dvh; }
+  .menu-hero .menu-buttons { width: 100%; }
 
   .attr-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
   .archetype-grid { grid-template-columns: 1fr; }
@@ -904,14 +1029,19 @@ details.filter-collapse .filter-body {
 
 /* Coach creation */
 .archetype-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 10px 0; }
+/* One card per row on phones. (Declared here, after the base rule — this
+   selector also appears earlier in the phone block, where the later base
+   rule was silently overriding it back to two cramped columns.) */
+@media (max-width: 760px) { .archetype-grid { grid-template-columns: 1fr; } }
 .archetype-card {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s ease;
 }
 .archetype-card:hover { border-color: var(--accent); }
+.archetype-card:active { transform: scale(0.985); background: var(--bg-hover); }
 .archetype-card.selected { border-color: var(--accent); background: var(--accent-soft); }
 .archetype-card .arch-name { font-weight: 700; margin-bottom: 4px; }
 .archetype-card .arch-desc { font-size: 12px; color: var(--text-dim); line-height: 1.4; }
@@ -971,3 +1101,53 @@ details.filter-collapse .filter-body {
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
   color: var(--text-faint); margin-bottom: 6px;
 }
+
+/* Phone range sliders — declared after every base slider rule so it wins:
+   a comfortable 44px drag zone, but only a slim track is painted (a
+   full-height background reads as a giant bar, not a slider). */
+@media (max-width: 760px) {
+  input[type="range"] {
+    height: auto;
+    min-height: var(--tap);
+    background: linear-gradient(var(--bg-hover), var(--bg-hover)) center / 100% 6px no-repeat;
+    border-radius: 0;
+  }
+  .avatar-slider input[type="range"] {
+    background: linear-gradient(var(--accent-soft), var(--accent-soft)) center / 100% 5px no-repeat;
+  }
+}
+
+/* ---------- Shop (storefront shell — catalog arrives in a future update) ---------- */
+.shop-hero {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 20px;
+  margin-bottom: 16px;
+  background:
+    radial-gradient(520px 200px at 85% -20%, rgba(61, 139, 253, 0.18), transparent 70%),
+    radial-gradient(420px 220px at 0% 120%, rgba(52, 201, 142, 0.08), transparent 65%),
+    var(--bg-card);
+}
+.shop-hero h2 { font-size: 19px; margin-bottom: 4px; }
+.shop-hero p { color: var(--text-dim); font-size: 13.5px; max-width: 520px; }
+.shop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 980px) { .shop-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 760px) { .shop-grid { grid-template-columns: 1fr; } }
+.shop-card {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-card);
+  padding: 16px;
+  overflow: hidden;
+}
+.shop-card .shop-icon { font-size: 26px; line-height: 1; margin-bottom: 10px; }
+.shop-card .shop-name { font-weight: 700; font-size: 14.5px; margin-bottom: 4px; }
+.shop-card .shop-desc { font-size: 12.5px; color: var(--text-dim); line-height: 1.45; }
+.shop-card .shop-soon {
+  position: absolute; top: 12px; right: 12px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent-hover); background: var(--accent-soft);
+  border-radius: 999px; padding: 3px 9px;
+}
+.shop-footnote { color: var(--text-faint); font-size: 12px; margin-top: 14px; line-height: 1.5; }

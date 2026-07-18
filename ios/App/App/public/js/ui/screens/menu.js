@@ -12,18 +12,22 @@
 
   function renderMainMenu(root) {
     root.innerHTML = `
-      <div id="menu-root">
-        <div class="menu-panel">
-          <h1>Cross Country <span>Dynasty</span></h1>
-          <p class="tagline">Build a small program into the greatest dynasty in NCAA history.</p>
+      <div id="menu-root" class="menu-home">
+        <div class="menu-hero">
+          <div class="hero-crest">🏃</div>
+          <div class="hero-badge">Collegiate Cross Country</div>
+          <h1 class="hero-wordmark"><span class="wm-top">XC</span><span class="wm-main">Dynasty</span></h1>
+          <div class="hero-rule"></div>
+          <p class="hero-tagline">Recruit. Train. Race. Build the greatest program in NCAA history.</p>
           <div class="menu-buttons">
-            <button class="btn primary" id="btn-new">🏁 New Dynasty</button>
-            <button class="btn" id="btn-load">💾 Load Dynasty</button>
-            <button class="btn" id="btn-import">📂 Import Save File</button>
-            <button class="btn" id="btn-custom">🔧 Custom League${customLeagueSpec ? ' <span style="color:var(--accent);">(loaded)</span>' : ''}</button>
+            <button class="btn primary" id="btn-new">New Dynasty</button>
+            <button class="btn" id="btn-load">Load Dynasty</button>
+            <button class="btn" id="btn-import">Import Save File</button>
+            <button class="btn" id="btn-custom">Custom League${customLeagueSpec ? ' <span style="color:var(--success);">•</span>' : ''}</button>
           </div>
-          ${customLeagueSpec ? `<div style="color:var(--text-dim); font-size:12px; margin-top:8px;">Custom league ready — ${(customLeagueSpec.teams || []).length} custom team${(customLeagueSpec.teams || []).length === 1 ? '' : 's'}. Your next New Dynasty uses it.</div>` : ''}
+          ${customLeagueSpec ? `<div class="hero-note">Custom league ready — ${(customLeagueSpec.teams || []).length} custom team${(customLeagueSpec.teams || []).length === 1 ? '' : 's'}. Your next New Dynasty uses it.</div>` : ''}
           <input type="file" id="import-file" accept=".json,application/json" style="display:none">
+          <div class="hero-footer">XC Dynasty · v${window.XCD.VERSION}</div>
         </div>
       </div>`;
 

@@ -282,7 +282,7 @@
         'Permanent for this coach\'s career — its effectiveness scales with your Training rating. Every philosophy trades something away.',
         `
         <div class="field" style="margin-bottom:0;">
-          <div class="archetype-grid" id="tp-grid" style="max-height:300px; overflow-y:auto;">
+          <div class="archetype-grid" id="tp-grid">
             ${D.TRAINING_PHILOSOPHIES.map((tp) => `
               <div class="archetype-card ${spec.trainingPhilosophy === tp.key ? 'selected' : ''}" data-tp="${tp.key}">
                 <div class="arch-name">${tp.icon} ${tp.label}</div>
@@ -310,7 +310,7 @@
         'How your teams run when the gun goes off. Unlike training philosophy, this can be changed later.',
         `
         <div class="field" style="margin-bottom:0;">
-          <div class="archetype-grid" id="rp-grid" style="max-height:300px; overflow-y:auto;">
+          <div class="archetype-grid" id="rp-grid">
             ${D.RACE_PHILOSOPHIES.map((rp) => `
               <div class="archetype-card ${spec.racePhilosophy === rp.key ? 'selected' : ''}" data-rp="${rp.key}">
                 <div class="arch-name">${rp.icon} ${rp.label}</div>
@@ -385,7 +385,14 @@
     }
 
     const renderers = [renderIdentity, renderAppearance, renderArchetype, renderTraining, renderRacing, renderSummary];
-    function render() { renderers[step](); window.scrollTo(0, 0); }
+    function render() {
+      renderers[step]();
+      // Each step starts at the top — #menu-root is the scroll surface
+      // (the window itself never scrolls inside the app shell).
+      const scroller = root.querySelector('#menu-root');
+      if (scroller) scroller.scrollTop = 0;
+      window.scrollTo(0, 0);
+    }
     render();
   };
 

@@ -5,14 +5,16 @@
   <!-- Mobile / iOS groundwork (Update 13): viewport-fit lets the UI extend
        under the iPhone notch (safe-area insets in CSS keep content clear),
        and the apple-* tags make the game run full-screen from a home-screen
-       install or inside the Capacitor iOS shell. -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+       install or inside the Capacitor iOS shell. Pinch/double-tap zoom is
+       disabled — the game is an app, not a document; a stray zoom on iOS
+       had no way back out. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="XC Dynasty">
   <meta name="theme-color" content="#0e1116">
-  <title>Cross Country Dynasty</title>
+  <title>XC Dynasty</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="assets/icon-180.png">
   <link rel="stylesheet" href="css/main.css">
@@ -56,6 +58,7 @@
   <script src="js/engine/careers.js"></script>
   <script src="js/engine/gamestate.js"></script>
   <script src="js/engine/savemanager.js"></script>
+  <script src="js/engine/store.js"></script>
 
   <!-- UI -->
   <script src="js/ui/framework.js"></script>
@@ -77,6 +80,7 @@
   <script src="js/ui/screens/school.js"></script>
   <script src="js/ui/screens/world.js"></script>
   <script src="js/ui/screens/news.js"></script>
+  <script src="js/ui/screens/shop.js"></script>
   <script src="js/ui/screens/saves.js"></script>
 
   <!-- Boot -->
@@ -85,6 +89,10 @@
        whole game. Only registered over http(s) — file:// (local play, the
        test suite) and the Capacitor shell don't need or support it. -->
   <script>
+    // iOS belt-and-braces zoom lock: older WebKit builds ignore user-scalable=no
+    // for pinch gestures, and a stuck zoom has no way back out inside the app.
+    document.addEventListener('gesturestart', (e) => e.preventDefault());
+    document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').catch(() => { /* offline play is a bonus, never an error */ });
