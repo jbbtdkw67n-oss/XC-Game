@@ -10,15 +10,70 @@
   // applied to the previewed world + carried into the game on start.
   let customLeagueSpec = null;
 
+  /*
+   * The title-page mascot: a flat-vector runner in the game's avatar style,
+   * mid-stride at the line with both index fingers raised — the "we're #1"
+   * finish. Light blue singlet with gold trim, black shorts, blond hair,
+   * deliberately no bib. Gently animated via .hero-crest CSS.
+   */
+  function heroRunnerSvg() {
+    const skin = '#F0C8A6', skinD = '#DDB28D';
+    const hair = '#E7CE8C', hairD = '#CBA45D';
+    const kit = '#7FB9E8', trim = '#D9BC6A';
+    const shorts = '#262B33';
+    const shoe = '#F2F5F8', sole = '#9AA5B4';
+    return `<svg viewBox="0 0 64 88" width="76" height="104" aria-hidden="true">
+      <!-- arms: raised V, index fingers pointing up -->
+      <g stroke="${skin}" stroke-width="4.6" stroke-linecap="round" fill="none">
+        <path d="M25.5 30 L17.5 20 L14.5 10.5"/>
+        <path d="M38.5 30 L46.5 20 L49.5 10.5"/>
+      </g>
+      <circle cx="14.5" cy="9.5" r="2.6" fill="${skin}"/>
+      <circle cx="49.5" cy="9.5" r="2.6" fill="${skin}"/>
+      <g stroke="${skin}" stroke-width="2" stroke-linecap="round">
+        <path d="M13.9 8.5 L13.2 3.6"/>
+        <path d="M50.1 8.5 L50.8 3.6"/>
+      </g>
+      <!-- legs: mid-stride, back heel kicked up -->
+      <g stroke="${skin}" stroke-width="5.4" stroke-linecap="round" fill="none">
+        <path d="M29 52 L27.5 63 L26.5 73"/>
+        <path d="M35 52 L40.5 60.5 L38.5 68"/>
+      </g>
+      <!-- shoes -->
+      <g>
+        <path fill="${shoe}" d="M22.5 74.5 Q26.5 71.5 30.5 74.5 L30.5 77.5 L22.5 77.5 Z"/>
+        <rect x="22.5" y="76.6" width="8" height="1.6" rx="0.8" fill="${sole}"/>
+        <path fill="${shoe}" d="M35 69.5 Q39 66.5 43 69.5 L43 72.5 L35 72.5 Z" transform="rotate(-14 39 71)"/>
+        <rect x="35" y="71.4" width="8" height="1.6" rx="0.8" fill="${sole}" transform="rotate(-14 39 71)"/>
+      </g>
+      <!-- neck -->
+      <path fill="${skinD}" d="M29.5 22 L34.5 22 L35.3 28 C35.3 29.4 28.7 29.4 28.7 28 Z"/>
+      <!-- singlet: light blue, gold trim, straps over the shoulders -->
+      <path fill="${kit}" d="M24.6 27.2 C23.2 33.5 23.6 41 25.6 47.5 C25.9 50.4 26.8 52.6 28 53.5 L36 53.5 C37.2 52.6 38.1 50.4 38.4 47.5 C40.4 41 40.8 33.5 39.4 27.2 C38 26.4 36.6 25.9 35.2 25.7 C34.5 27.9 33.4 29 32 29 C30.6 29 29.5 27.9 28.8 25.7 C27.4 25.9 26 26.4 24.6 27.2 Z"/>
+      <path fill="${trim}" d="M28.8 25.7 C29.5 27.9 30.6 29 32 29 C33.4 29 34.5 27.9 35.2 25.7 L36.1 26.5 C35.1 28.9 33.7 30.1 32 30.1 C30.3 30.1 28.9 28.9 27.9 26.5 Z"/>
+      <path fill="${trim}" d="M24.9 30.5 C24.5 33 24.4 35.8 24.6 38.6 L26.1 38.6 C25.9 35.8 26 33 26.4 30.5 Z"/>
+      <path fill="${trim}" d="M39.1 30.5 C39.5 33 39.6 35.8 39.4 38.6 L37.9 38.6 C38.1 35.8 38 33 37.6 30.5 Z"/>
+      <!-- shorts -->
+      <path fill="${shorts}" d="M25.4 46.5 L38.6 46.5 C39.3 49.5 39.2 52.5 38.2 55 L34.2 55.5 L32 51.5 L29.8 55.5 L25.8 55 C24.8 52.5 24.7 49.5 25.4 46.5 Z"/>
+      <!-- head -->
+      <ellipse cx="32" cy="14.5" rx="7" ry="7.6" fill="${skin}"/>
+      <ellipse cx="25.2" cy="15" rx="1.2" ry="1.7" fill="${skin}"/>
+      <ellipse cx="38.8" cy="15" rx="1.2" ry="1.7" fill="${skin}"/>
+      <!-- blond crew cut, in the avatar system's hair language -->
+      <path fill="${hair}" d="M25 13.5 C25.2 6.8 28.5 4.8 32 4.8 C35.5 4.8 38.8 6.8 39 13.5 C37.6 9.2 35.2 7.9 32 7.9 C28.8 7.9 26.4 9.2 25 13.5 Z"/>
+      <path fill="${hairD}" opacity="0.35" d="M25 13.5 C26.4 9.2 28.8 7.9 32 7.9 C35.2 7.9 37.6 9.2 39 13.5 C37.4 10.6 35 9.6 32 9.6 C29 9.6 26.6 10.6 25 13.5 Z"/>
+    </svg>`;
+  }
+
   function renderMainMenu(root) {
     root.innerHTML = `
       <div id="menu-root" class="menu-home">
         <div class="menu-hero">
-          <div class="hero-crest">🏃</div>
+          <div class="hero-crest">${heroRunnerSvg()}</div>
           <div class="hero-badge">Collegiate Cross Country</div>
           <h1 class="hero-wordmark"><span class="wm-top">XC</span><span class="wm-main">Dynasty</span></h1>
           <div class="hero-rule"></div>
-          <p class="hero-tagline">Recruit. Train. Race. Build the greatest program in NCAA history.</p>
+          <p class="hero-tagline">Recruit. Train. Race. Build the greatest program in collegiate history.</p>
           <div class="menu-buttons">
             <button class="btn primary" id="btn-new">New Dynasty</button>
             <button class="btn" id="btn-load">Load Dynasty</button>
