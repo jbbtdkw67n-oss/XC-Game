@@ -10,58 +10,11 @@
   // applied to the previewed world + carried into the game on start.
   let customLeagueSpec = null;
 
-  /*
-   * The title-page mascot: a flat-vector runner in the game's avatar style,
-   * in full side-profile stride — arms pumping, back heel kicked up. Kit from
-   * the reference photo: light blue singlet with gold trim, black shorts,
-   * blond hair, deliberately no bib. Gently animated via .hero-crest CSS.
-   */
-  function heroRunnerSvg() {
-    const skin = '#F0C8A6', skinD = '#DDB28D';
-    const hair = '#E7CE8C', hairD = '#CBA45D';
-    const kit = '#7FB9E8', trim = '#D9BC6A';
-    const shorts = '#262B33';
-    const shoe = '#F2F5F8', sole = '#9AA5B4';
-    return `<svg viewBox="0 0 76 76" width="88" height="88" aria-hidden="true">
-      <!-- far-side limbs first (behind the torso) -->
-      <g stroke="${skinD}" stroke-width="4.8" stroke-linecap="round" fill="none">
-        <path d="M42 26 L34 31.5 L26.5 28.5"/>   <!-- far arm, swinging back -->
-        <path d="M37 43 L28.5 50.5 L21 46.5"/>   <!-- far leg, heel kicked up -->
-      </g>
-      <path fill="${shoe}" d="M20.9 41.5 Q17.4 44.6 18.3 49.4 L21.3 50 L23.9 43.7 Z" transform="rotate(64 21 46)"/>
-      <!-- torso: forward lean, singlet with gold trim -->
-      <path fill="${kit}" d="M46.5 21.5 C41 22.5 37.5 26.5 36.6 31.5 C35.9 35.6 36.1 39.8 37.2 44.5 L47.5 45.5 C49.9 39 51 32 50.8 25 C49.6 23.2 48.2 22 46.5 21.5 Z"/>
-      <path fill="${trim}" d="M46.5 21.5 C44.9 21.8 43.5 22.5 42.3 23.5 C43.9 25.9 46.4 27.4 49.5 27.9 C50 26.9 50.4 25.9 50.8 25 C49.6 23.2 48.2 22 46.5 21.5 Z" opacity="0.9"/>
-      <path fill="${trim}" d="M37.2 44.5 L47.5 45.5 C47.8 44.7 48.1 43.9 48.4 43 L36.8 42 C36.9 42.8 37 43.7 37.2 44.5 Z"/>
-      <!-- shorts: hip wrap + both thighs -->
-      <path fill="${shorts}" d="M36.8 41.5 C35.5 45.5 34 48.5 31.5 51.5 L38.5 56.5 C41.5 53.5 44.5 50.5 48.5 48.5 L48.2 43 Z"/>
-      <!-- near leg: driving forward, knee high -->
-      <g stroke="${skin}" stroke-width="5.2" stroke-linecap="round" fill="none">
-        <path d="M43 47 L52.5 54.5 L51.5 65.5"/>
-      </g>
-      <path fill="${shoe}" d="M48.7 66.8 Q52.7 63.6 57.4 65.4 L57.6 68.4 L49.3 69.4 Z" transform="rotate(8 53 67)"/>
-      <rect x="49" y="68.3" width="8.4" height="1.7" rx="0.85" fill="${sole}" transform="rotate(8 53 67)"/>
-      <!-- near arm: pumping forward at ~90°, hand loose -->
-      <g stroke="${skin}" stroke-width="4.8" stroke-linecap="round" fill="none">
-        <path d="M47 26.5 L44.5 34.5 L53.5 36.5"/>
-      </g>
-      <circle cx="54.5" cy="36.8" r="2.5" fill="${skin}"/>
-      <!-- neck + head, facing right -->
-      <path fill="${skinD}" d="M46 18 L50.5 16.5 L52.5 22.5 C52.8 24 47.5 25.6 47 24 Z"/>
-      <circle cx="51" cy="12" r="7.2" fill="${skin}"/>
-      <ellipse cx="44.6" cy="12.8" rx="1.3" ry="1.8" fill="${skin}"/>
-      <!-- blond hair: hugs the crown, swept back off the forehead -->
-      <path fill="${hair}" d="M57.6 8.4 C56.4 5.6 54 4.3 51 4.3 C46.7 4.3 43.6 7.4 43.7 11.8 C43.7 13.9 44.3 15.6 45.3 16.8 C44.9 13.3 45.8 10.8 48 9.7 C51 8.2 55 8 57.6 8.4 Z"/>
-      <path fill="${hair}" d="M44.4 12.2 C42.8 12.4 41.6 13.2 41 14.5 C42.4 14.9 43.8 14.5 44.9 13.5 Z"/>
-      <path fill="${hairD}" opacity="0.35" d="M48 9.7 C51 8.2 55 8 57.6 8.4 C57.2 9.4 56.6 10 55.6 10 C53 9.7 50.2 9.9 48.6 10.9 C46.8 12 46 13.9 45.3 16.8 C44.9 13.3 45.8 10.8 48 9.7 Z"/>
-    </svg>`;
-  }
-
   function renderMainMenu(root) {
     root.innerHTML = `
       <div id="menu-root" class="menu-home">
         <div class="menu-hero">
-          <div class="hero-crest">${heroRunnerSvg()}</div>
+          <div class="hero-crest">🏃</div>
           <div class="hero-badge">Collegiate Cross Country</div>
           <h1 class="hero-wordmark"><span class="wm-top">XC</span><span class="wm-main">Dynasty</span></h1>
           <div class="hero-rule"></div>
