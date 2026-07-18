@@ -12,9 +12,9 @@
 
   /*
    * The title-page mascot: a flat-vector runner in the game's avatar style,
-   * mid-stride at the line with both index fingers raised — the "we're #1"
-   * finish. Light blue singlet with gold trim, black shorts, blond hair,
-   * deliberately no bib. Gently animated via .hero-crest CSS.
+   * in full side-profile stride — arms pumping, back heel kicked up. Kit from
+   * the reference photo: light blue singlet with gold trim, black shorts,
+   * blond hair, deliberately no bib. Gently animated via .hero-crest CSS.
    */
   function heroRunnerSvg() {
     const skin = '#F0C8A6', skinD = '#DDB28D';
@@ -22,46 +22,38 @@
     const kit = '#7FB9E8', trim = '#D9BC6A';
     const shorts = '#262B33';
     const shoe = '#F2F5F8', sole = '#9AA5B4';
-    return `<svg viewBox="0 0 64 88" width="76" height="104" aria-hidden="true">
-      <!-- arms: raised V, index fingers pointing up -->
-      <g stroke="${skin}" stroke-width="4.6" stroke-linecap="round" fill="none">
-        <path d="M25.5 30 L17.5 20 L14.5 10.5"/>
-        <path d="M38.5 30 L46.5 20 L49.5 10.5"/>
+    return `<svg viewBox="0 0 76 76" width="88" height="88" aria-hidden="true">
+      <!-- far-side limbs first (behind the torso) -->
+      <g stroke="${skinD}" stroke-width="4.8" stroke-linecap="round" fill="none">
+        <path d="M42 26 L34 31.5 L26.5 28.5"/>   <!-- far arm, swinging back -->
+        <path d="M37 43 L28.5 50.5 L21 46.5"/>   <!-- far leg, heel kicked up -->
       </g>
-      <circle cx="14.5" cy="9.5" r="2.6" fill="${skin}"/>
-      <circle cx="49.5" cy="9.5" r="2.6" fill="${skin}"/>
-      <g stroke="${skin}" stroke-width="2" stroke-linecap="round">
-        <path d="M13.9 8.5 L13.2 3.6"/>
-        <path d="M50.1 8.5 L50.8 3.6"/>
+      <path fill="${shoe}" d="M20.9 41.5 Q17.4 44.6 18.3 49.4 L21.3 50 L23.9 43.7 Z" transform="rotate(64 21 46)"/>
+      <!-- torso: forward lean, singlet with gold trim -->
+      <path fill="${kit}" d="M46.5 21.5 C41 22.5 37.5 26.5 36.6 31.5 C35.9 35.6 36.1 39.8 37.2 44.5 L47.5 45.5 C49.9 39 51 32 50.8 25 C49.6 23.2 48.2 22 46.5 21.5 Z"/>
+      <path fill="${trim}" d="M46.5 21.5 C44.9 21.8 43.5 22.5 42.3 23.5 C43.9 25.9 46.4 27.4 49.5 27.9 C50 26.9 50.4 25.9 50.8 25 C49.6 23.2 48.2 22 46.5 21.5 Z" opacity="0.9"/>
+      <path fill="${trim}" d="M37.2 44.5 L47.5 45.5 C47.8 44.7 48.1 43.9 48.4 43 L36.8 42 C36.9 42.8 37 43.7 37.2 44.5 Z"/>
+      <!-- shorts: hip wrap + both thighs -->
+      <path fill="${shorts}" d="M36.8 41.5 C35.5 45.5 34 48.5 31.5 51.5 L38.5 56.5 C41.5 53.5 44.5 50.5 48.5 48.5 L48.2 43 Z"/>
+      <!-- near leg: driving forward, knee high -->
+      <g stroke="${skin}" stroke-width="5.2" stroke-linecap="round" fill="none">
+        <path d="M43 47 L52.5 54.5 L51.5 65.5"/>
       </g>
-      <!-- legs: mid-stride, back heel kicked up -->
-      <g stroke="${skin}" stroke-width="5.4" stroke-linecap="round" fill="none">
-        <path d="M29 52 L27.5 63 L26.5 73"/>
-        <path d="M35 52 L40.5 60.5 L38.5 68"/>
+      <path fill="${shoe}" d="M48.7 66.8 Q52.7 63.6 57.4 65.4 L57.6 68.4 L49.3 69.4 Z" transform="rotate(8 53 67)"/>
+      <rect x="49" y="68.3" width="8.4" height="1.7" rx="0.85" fill="${sole}" transform="rotate(8 53 67)"/>
+      <!-- near arm: pumping forward at ~90°, hand loose -->
+      <g stroke="${skin}" stroke-width="4.8" stroke-linecap="round" fill="none">
+        <path d="M47 26.5 L44.5 34.5 L53.5 36.5"/>
       </g>
-      <!-- shoes -->
-      <g>
-        <path fill="${shoe}" d="M22.5 74.5 Q26.5 71.5 30.5 74.5 L30.5 77.5 L22.5 77.5 Z"/>
-        <rect x="22.5" y="76.6" width="8" height="1.6" rx="0.8" fill="${sole}"/>
-        <path fill="${shoe}" d="M35 69.5 Q39 66.5 43 69.5 L43 72.5 L35 72.5 Z" transform="rotate(-14 39 71)"/>
-        <rect x="35" y="71.4" width="8" height="1.6" rx="0.8" fill="${sole}" transform="rotate(-14 39 71)"/>
-      </g>
-      <!-- neck -->
-      <path fill="${skinD}" d="M29.5 22 L34.5 22 L35.3 28 C35.3 29.4 28.7 29.4 28.7 28 Z"/>
-      <!-- singlet: light blue, gold trim, straps over the shoulders -->
-      <path fill="${kit}" d="M24.6 27.2 C23.2 33.5 23.6 41 25.6 47.5 C25.9 50.4 26.8 52.6 28 53.5 L36 53.5 C37.2 52.6 38.1 50.4 38.4 47.5 C40.4 41 40.8 33.5 39.4 27.2 C38 26.4 36.6 25.9 35.2 25.7 C34.5 27.9 33.4 29 32 29 C30.6 29 29.5 27.9 28.8 25.7 C27.4 25.9 26 26.4 24.6 27.2 Z"/>
-      <path fill="${trim}" d="M28.8 25.7 C29.5 27.9 30.6 29 32 29 C33.4 29 34.5 27.9 35.2 25.7 L36.1 26.5 C35.1 28.9 33.7 30.1 32 30.1 C30.3 30.1 28.9 28.9 27.9 26.5 Z"/>
-      <path fill="${trim}" d="M24.9 30.5 C24.5 33 24.4 35.8 24.6 38.6 L26.1 38.6 C25.9 35.8 26 33 26.4 30.5 Z"/>
-      <path fill="${trim}" d="M39.1 30.5 C39.5 33 39.6 35.8 39.4 38.6 L37.9 38.6 C38.1 35.8 38 33 37.6 30.5 Z"/>
-      <!-- shorts -->
-      <path fill="${shorts}" d="M25.4 46.5 L38.6 46.5 C39.3 49.5 39.2 52.5 38.2 55 L34.2 55.5 L32 51.5 L29.8 55.5 L25.8 55 C24.8 52.5 24.7 49.5 25.4 46.5 Z"/>
-      <!-- head -->
-      <ellipse cx="32" cy="14.5" rx="7" ry="7.6" fill="${skin}"/>
-      <ellipse cx="25.2" cy="15" rx="1.2" ry="1.7" fill="${skin}"/>
-      <ellipse cx="38.8" cy="15" rx="1.2" ry="1.7" fill="${skin}"/>
-      <!-- blond crew cut, in the avatar system's hair language -->
-      <path fill="${hair}" d="M25 13.5 C25.2 6.8 28.5 4.8 32 4.8 C35.5 4.8 38.8 6.8 39 13.5 C37.6 9.2 35.2 7.9 32 7.9 C28.8 7.9 26.4 9.2 25 13.5 Z"/>
-      <path fill="${hairD}" opacity="0.35" d="M25 13.5 C26.4 9.2 28.8 7.9 32 7.9 C35.2 7.9 37.6 9.2 39 13.5 C37.4 10.6 35 9.6 32 9.6 C29 9.6 26.6 10.6 25 13.5 Z"/>
+      <circle cx="54.5" cy="36.8" r="2.5" fill="${skin}"/>
+      <!-- neck + head, facing right -->
+      <path fill="${skinD}" d="M46 18 L50.5 16.5 L52.5 22.5 C52.8 24 47.5 25.6 47 24 Z"/>
+      <circle cx="51" cy="12" r="7.2" fill="${skin}"/>
+      <ellipse cx="44.6" cy="12.8" rx="1.3" ry="1.8" fill="${skin}"/>
+      <!-- blond hair: hugs the crown, swept back off the forehead -->
+      <path fill="${hair}" d="M57.6 8.4 C56.4 5.6 54 4.3 51 4.3 C46.7 4.3 43.6 7.4 43.7 11.8 C43.7 13.9 44.3 15.6 45.3 16.8 C44.9 13.3 45.8 10.8 48 9.7 C51 8.2 55 8 57.6 8.4 Z"/>
+      <path fill="${hair}" d="M44.4 12.2 C42.8 12.4 41.6 13.2 41 14.5 C42.4 14.9 43.8 14.5 44.9 13.5 Z"/>
+      <path fill="${hairD}" opacity="0.35" d="M48 9.7 C51 8.2 55 8 57.6 8.4 C57.2 9.4 56.6 10 55.6 10 C53 9.7 50.2 9.9 48.6 10.9 C46.8 12 46 13.9 45.3 16.8 C44.9 13.3 45.8 10.8 48 9.7 Z"/>
     </svg>`;
   }
 
