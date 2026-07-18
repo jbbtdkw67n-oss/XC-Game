@@ -1,0 +1,10 @@
+{
+	"appId": "com.xcgame.mobile",
+	"appName": "XC Game",
+	"webDir": "www",
+	"ios": {
+		"contentInset": "automatic",
+		"backgroundColor": "#0e1116"
+	},
+	"packageClassList": []
+}

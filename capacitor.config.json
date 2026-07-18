@@ -1,6 +1,6 @@
 {
-  "appId": "com.xcdynasty.app",
-  "appName": "XC Dynasty",
+  "appId": "com.xcgame.mobile",
+  "appName": "XC Game",
   "webDir": "www",
   "ios": {
     "contentInset": "automatic",
