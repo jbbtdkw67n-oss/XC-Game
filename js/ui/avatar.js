@@ -234,12 +234,16 @@
       if (trim.toLowerCase() === polo.toLowerCase()) trim = shade(polo, -40);
       const skin = SKIN_TONES[app.skin] || SKIN_TONES[2];
       const btn = shade(trim, -18);
+      // Rounded-off polo (Update 14): softer, rounder shoulders (the body
+      // curve tucks in at the base and arcs over the shoulder caps), rounded
+      // sleeve-trim bands, and a collar drawn with curves instead of the old
+      // angular V — the whole shirt reads softer.
       return `
-        <path fill="${polo}" d="M11 64 C12.4 48.5 20 42 32 42 C44 42 51.6 48.5 53 64 Z"/>
-        <path fill="${trim}" d="M12.6 64 C13.1 55 14 49.6 15.4 45.4 C16.7 46.2 18 47 19 48 C18 52 17.4 57.6 17.2 64 Z"/>
-        <path fill="${trim}" d="M51.4 64 C50.9 55 50 49.6 48.6 45.4 C47.3 46.2 46 47 45 48 C46 52 46.6 57.6 46.8 64 Z"/>
-        <path fill="${trim}" d="M24.6 42.6 L32 47.4 L39.4 42.6 L41 45.4 L32 51.4 L23 45.4 Z"/>
-        <path fill="${skin}" d="M30.2 44.4 L32 43.2 L33.8 44.4 L33.1 47.2 L30.9 47.2 Z"/>
+        <path fill="${polo}" d="M12.5 64 C12.6 52.5 16.5 44.6 24 42.5 C26.5 41.8 29 41.4 32 41.4 C35 41.4 37.5 41.8 40 42.5 C47.5 44.6 51.4 52.5 51.5 64 Z"/>
+        <path fill="${trim}" d="M13.9 64 C14.2 55.5 15.4 49.8 17.4 45.9 C18.6 46.8 19.7 47.8 20.5 48.9 C19.3 52.7 18.6 57.8 18.5 64 Z"/>
+        <path fill="${trim}" d="M50.1 64 C49.8 55.5 48.6 49.8 46.6 45.9 C45.4 46.8 44.3 47.8 43.5 48.9 C44.7 52.7 45.4 57.8 45.5 64 Z"/>
+        <path fill="${trim}" d="M25 42.2 C27.1 44.5 29.4 46.3 32 47.5 C34.6 46.3 36.9 44.5 39 42.2 C39.8 43.1 40.5 44.2 41 45.4 C38.6 48.2 35.6 50.3 32 51.5 C28.4 50.3 25.4 48.2 23 45.4 C23.5 44.2 24.2 43.1 25 42.2 Z"/>
+        <path fill="${skin}" d="M30.1 44.3 C30.6 43.8 31.2 43.4 32 43.1 C32.8 43.4 33.4 43.8 33.9 44.3 C33.6 45.4 33.4 46.4 33.1 47.2 L30.9 47.2 C30.6 46.4 30.4 45.4 30.1 44.3 Z"/>
         <rect x="31.25" y="47.4" width="1.5" height="9.4" rx="0.75" fill="${trim}"/>
         <circle cx="32" cy="50.4" r="0.95" fill="${btn}"/>
         <circle cx="32" cy="53.8" r="0.95" fill="${btn}"/>`;

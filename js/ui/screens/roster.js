@@ -46,12 +46,53 @@
 
     const roster = game.getRoster(school.id, activeGender);
 
+    // Phone view (Update 14): each athlete is a tappable card — identity,
+    // ratings, and the three health meters at a glance; management actions
+    // (captain / redshirt / cut) ride along in the card footer.
+    const mobileCard = (a) => {
+      const isCapt = game.culture.captains[activeGender].includes(a.id);
+      const status = a.injury
+        ? `<span style="color:var(--danger);">🩼 ${Utils.escapeHtml(a.injury.type)}</span>`
+        : a.health === 'Recovering'
+          ? '<span style="color:var(--warning);">Recovering</span>'
+          : '<span style="color:var(--success);">Healthy</span>';
+      const actions = [];
+      if (canManage) {
+        if (isCapt) actions.push(`<button class="btn small" data-capt="${a.id}" style="border-color:var(--gold); color:var(--gold);">⭐ Captain</button>`);
+        else if (['Junior', 'Senior', 'Graduate'].includes(a.classYear)) actions.push(`<button class="btn small" data-capt="${a.id}">Make Captain</button>`);
+        if (a.redshirt === 'True') actions.push(`<button class="btn small" data-rs="${a.id}" style="border-color:var(--warning); color:var(--warning);">Redshirting ✕</button>`);
+        else if (a.redshirt === 'Medical') actions.push('<span style="color:var(--warning); font-size:12px; align-self:center;">Medical RS</span>');
+        else if (a.redshirt !== 'Used') {
+          const chk = window.XCD.engine.Portal.canRedshirt(game, a);
+          actions.push(`<button class="btn small" data-rs="${a.id}" ${chk.ok ? '' : `disabled title="${chk.why}"`}>Redshirt</button>`);
+        }
+      }
+      if (cutMode) actions.push(`<button class="btn small danger" data-cut="${a.id}">✂️ Cut</button>`);
+      return `
+        <div class="m-head">
+          ${UI.avatar(a, { size: 42 })}
+          <div class="m-title">${isCapt ? '⭐ ' : ''}${Utils.escapeHtml(a.fullName)}${a.isWalkOn ? ' <span style="color:var(--text-faint); font-size:10px;">WO</span>' : ''}
+            <div class="m-sub">${a.classYear} • ${Utils.escapeHtml(a.hometownCity)}, ${a.hometownState} • ${status}</div>
+          </div>
+          <div class="m-badge">${UI.ratingBadge(a.currentOverall)}
+            <div class="m-sub">POT ${Math.round(a.potential)}</div>
+          </div>
+        </div>
+        <div class="m-stats">
+          <div class="m-stat"><div class="k">Fitness</div>${UI.meter(a.fitness)}</div>
+          <div class="m-stat"><div class="k">Fatigue</div>${UI.meter(a.fatigue, a.fatigue > 70 ? 'red' : a.fatigue > 40 ? 'yellow' : 'green')}</div>
+          <div class="m-stat"><div class="k">Morale</div>${UI.meter(a.morale, a.morale < 40 ? 'red' : a.morale < 65 ? 'yellow' : 'green')}</div>
+        </div>
+        ${actions.length ? `<div class="m-actions">${actions.join('')}</div>` : ''}`;
+    };
+
     const table = UI.renderSortableTable(container.querySelector('#roster-table'), {
       rows: roster,
       defaultSort: 'currentOverall',
       defaultDir: 'desc',
       searchKeys: ['firstName', 'lastName', 'classYear', 'hometownState', 'personality'],
       onRowClick: (a) => UI.showPlayerCard(a, game),
+      mobileCard,
       columns: [
         { key: 'lastName', label: 'Name', render: (a) => `${UI.avatar(a, { size: 24 })} <strong>${Utils.escapeHtml(a.fullName)}</strong>${a.isWalkOn ? ' <span style="color:var(--text-faint); font-size:10px;" title="Walk-on">WO</span>' : ''}` },
         { key: 'classYear', label: 'Class', sortValue: (a) => window.XCD.data.CLASS_YEARS.indexOf(a.classYear) },

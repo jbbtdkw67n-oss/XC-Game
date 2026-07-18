@@ -60,12 +60,12 @@
         ${gDist(meet, activeGender)} • ${meet.conditions.tempF}°F${meet.conditions.rain ? ' • Rain' : ''} •
         Hills ${meet.conditions.hilliness}/100 • ${meet.conditions.altitude} altitude • Week ${meet.week}, ${game.season.year}
       </div>
-      <div class="grid" style="grid-template-columns: 1.5fr 1fr; gap:16px;">
+      <div class="race-layout">
         <div class="card" id="race-track" style="min-height:300px;"></div>
         <div>
-          <div class="card" id="live-ticker" style="margin-bottom:16px;"></div>
           <div class="card" id="live-board" style="margin-bottom:16px;"></div>
-          <div class="card" id="live-teams"></div>
+          <div class="card" id="live-teams" style="margin-bottom:16px;"></div>
+          <div class="card" id="live-ticker"></div>
         </div>
       </div>`;
 
@@ -142,7 +142,7 @@
 
     track.innerHTML = `<h2 id="race-clock">0:00</h2>` + shown.map((r, i) => `
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
-        <div style="width:150px; font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; ${r.mine ? 'color:var(--accent-hover); font-weight:700;' : 'color:var(--text-dim);'}">
+        <div class="race-runner-name" style="width:150px; font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; ${r.mine ? 'color:var(--accent-hover); font-weight:700;' : 'color:var(--text-dim);'}">
           ${Utils.escapeHtml(r.name)}
         </div>
         <div class="meter" style="flex:1; height:9px;"><span id="bar-${i}" style="width:0%; ${r.mine ? '' : 'background:#5a6b85;'}"></span></div>

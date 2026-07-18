@@ -98,6 +98,33 @@
       defaultDir: 'desc',
       searchKeys: ['name', 'from', 'reason', 'classYear'],
       onRowClick: (row) => UI.showPlayerCard(row.a, game),
+      // Phone view (Update 14): portal entries as cards with the pursue/
+      // withdraw action right on the card.
+      mobileCard: (r) => {
+        let statusHtml;
+        if (r.e.destination) {
+          const to = game.getSchool(r.e.destination);
+          const mine = r.e.destination === game.playerSchoolId;
+          statusHtml = `<span style="color:${mine ? 'var(--success)' : 'var(--text-dim)'};">→ ${Utils.escapeHtml(to?.name || '?')}</span>`;
+        } else if (r.e.fromSchoolId === game.playerSchoolId) statusHtml = '<span style="color:var(--danger);">Your player</span>';
+        else if (!portal.open) statusHtml = '<span style="color:var(--text-faint);">Stayed</span>';
+        else {
+          const offered = r.e.offers.includes(game.playerSchoolId);
+          statusHtml = `<button class="btn small ${offered ? 'danger' : 'primary'}" data-offer="${r.a.id}">${offered ? 'Withdraw' : 'Pursue'}</button>`;
+        }
+        return `
+          <div class="m-head">
+            ${UI.avatar(r.a, { size: 42 })}
+            <div class="m-title">${Utils.escapeHtml(r.name)}
+              <div class="m-sub">${r.classYear} • ${r.eligLeft > 0 ? r.eligLeft + ' yr' + (r.eligLeft === 1 ? '' : 's') + ' left' : 'final year'} • from ${Utils.escapeHtml(r.from)}</div>
+              <div class="m-sub">${Utils.escapeHtml(r.reason)} • ${r.offers} offer${r.offers === 1 ? '' : 's'}</div>
+            </div>
+            <div class="m-badge">${UI.ratingBadge(r.overall)}
+              <div class="m-sub">POT ${Math.round(r.potential)}</div>
+            </div>
+          </div>
+          <div class="m-actions">${statusHtml}</div>`;
+      },
       columns: [
         { key: 'name', label: 'Runner', render: (r) => `${UI.avatar(r.a, { size: 24 })} <strong>${Utils.escapeHtml(r.name)}</strong>` },
         { key: 'classYear', label: 'Class' },

@@ -135,7 +135,9 @@
       { week: season.nationalWeek, label: 'Nationals' }
     ];
 
-    const rows = weeks.map(({ week, label }) => {
+    // One entry per season week — rendered as a table on desktop and as
+    // meet cards on phones (Update 14), from the same data.
+    const entries = weeks.map(({ week, label }) => {
       let meetId = season.playerMeetByWeek[week];
       let note = '';
       if (week === season.nationalWeek) {
@@ -174,15 +176,39 @@
       const conditions = meet
         ? `${meet.conditions.tempF}°F${meet.conditions.rain ? ' 🌧' : ''} · hills ${meet.conditions.hilliness}`
         : '';
+      return { week, label, meet, done, note, status, field, conditions };
+    });
 
-      return `<tr class="${meet && done ? 'clickable' : ''}" ${meet && done ? `data-meet="${meet.id}"` : ''}>
-        <td>Wk ${week}</td>
-        <td><strong>${meet ? Utils.escapeHtml(meet.name) : (note || 'No meet')}</strong>
-          <span style="color:var(--text-faint); font-size:11px;"> ${label}</span></td>
-        <td>${field}</td>
-        <td style="font-size:12.5px; color:var(--text-dim);">${conditions}</td>
-        <td>${status}</td>
-      </tr>`;
+    const rows = entries.map((e) => `
+      <tr class="${e.meet && e.done ? 'clickable' : ''}" ${e.meet && e.done ? `data-meet="${e.meet.id}"` : ''}>
+        <td>Wk ${e.week}</td>
+        <td><strong>${e.meet ? Utils.escapeHtml(e.meet.name) : (e.note || 'No meet')}</strong>
+          <span style="color:var(--text-faint); font-size:11px;"> ${e.label}</span></td>
+        <td>${e.field}</td>
+        <td style="font-size:12.5px; color:var(--text-dim);">${e.conditions}</td>
+        <td>${e.status}</td>
+      </tr>`).join('');
+
+    // Meet cards (phone): date, name, importance, conditions, and — after
+    // the race — the result, with a big touch-friendly results button.
+    const meetCards = entries.map((e) => {
+      const importance = e.label === 'Nationals' ? '🏆 Nationals'
+        : e.label === 'Regional' ? '🌍 Regional'
+        : e.label === 'Conference' ? '🏅 Conference'
+        : e.label;
+      const thisWeek = e.week === game.week;
+      return `
+      <div class="m-card ${e.meet && e.done ? 'clickable' : ''}" ${e.meet && e.done ? `data-meet="${e.meet.id}"` : ''}
+        ${thisWeek ? 'style="border-color:var(--warning);"' : ''}>
+        <div class="m-head">
+          <div class="m-title">${e.meet ? Utils.escapeHtml(e.meet.name) : (e.note || 'No meet')}
+            <div class="m-sub">Week ${e.week} • ${importance}${e.field ? ' • ' + e.field : ''}</div>
+            ${e.conditions ? `<div class="m-sub">${e.conditions}</div>` : ''}
+          </div>
+          <div class="m-badge" style="font-size:12.5px;">${e.status}</div>
+        </div>
+        ${e.meet && e.done ? '<div class="m-actions"><button class="btn small" style="pointer-events:none;">📊 View Full Results</button></div>' : ''}
+      </div>`;
     }).join('');
 
     const rankM = Rk.teamRank(game, school.id, 'M');
@@ -319,11 +345,12 @@
       ${preNatsHtml}
       ${scheduleHtml}
       <div class="card">
-        <div class="table-wrap"><table class="data">
+        <div class="table-wrap desktop-only"><table class="data">
           <thead><tr><th>Week</th><th>Meet</th><th>Field</th><th>Conditions</th><th>Result</th></tr></thead>
           <tbody>${rows}</tbody>
         </table></div>
-        <div style="color:var(--text-faint); font-size:12px; margin-top:8px;">Click a completed meet for full results.</div>
+        <div class="card-list mobile-only">${meetCards}</div>
+        <div style="color:var(--text-faint); font-size:12px; margin-top:8px;">Tap a completed meet for full results.</div>
       </div>
       ${previewHtml}`;
 

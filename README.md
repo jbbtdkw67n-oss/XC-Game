@@ -14,6 +14,43 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 11.2 — Update 14: Full iPhone UI Redesign
+
+The whole interface now works like a native iPhone game — every gameplay
+system is untouched; every screen was re-laid-out for a phone.
+
+- **Bottom tab navigation.** On phones the sidebar is replaced by an
+  iOS-style bottom tab bar — Home, Team, Train, Recruit — plus a **More**
+  sheet that opens every other screen (Schedule, Race Center, Rankings,
+  Portal, My Program, History, World, News, Save/Load) in one tap. The
+  desktop sidebar layout is unchanged.
+- **Cards instead of wide tables.** The roster, recruiting search/board,
+  transfer portal, world browser, and schedule render as tappable cards on
+  phones — athlete cards show class, overall, potential, fitness, fatigue,
+  and morale with the captain/redshirt/cut actions right on the card;
+  recruit cards show stars, rank, scouted overall, interest, distance, and
+  commitment status. A sort dropdown + direction toggle replaces column-header
+  sorting; search still works everywhere.
+- **Touch-first controls.** Finger-sized buttons (44px tap targets), big
+  slider thumbs, 16px inputs (no iOS zoom-on-focus), collapsible filter
+  menus on Recruiting, horizontally scrollable pill tabs, and no
+  hover-dependent interactions.
+- **Bottom-sheet dialogs.** Every popup (athlete/coach/school profiles,
+  recruit cards, meet results, confirmations) slides up as a full-width
+  sheet that always fits the screen and scrolls internally.
+- **Compact topbar.** Date + phase, the weekly flow strip, and a compact
+  Advance/Race button in two tidy rows on phones.
+- **Race Center on mobile.** Stacked layout with the live leaderboard and
+  team scores directly under the race strip, bigger rows, and the feed below.
+- **No horizontal page scrolling anywhere.** Remaining data tables trim
+  secondary columns on phones or scroll inside their own container.
+- **Custom league from a URL.** The Custom League editor can now load a
+  league JSON straight from a link (in addition to paste and file import).
+- **Rounder coach polos.** The polo silhouette got rounder shoulders and a
+  curved collar.
+- Performance: capped mobile list sizes, `content-visibility` on card
+  lists, momentum scrolling, and reduced-motion support.
+
 ## Version 11.1 — Update 13 (second wave): CPU Coach Progression, Avatar Wardrobe & iPhone Groundwork
 
 - **Championship results, decluttered.** The gold row/text highlighting is

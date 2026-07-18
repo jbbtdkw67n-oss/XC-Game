@@ -92,7 +92,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       eastAfricans: eastAfricans.length, darkShare,
       athleteSvgOk: svg.includes('<svg') && svg.includes('ellipse'),
       // Update 13: coaches wear polos — the button placket rect is the marker.
-      coachPolo: coachSvg.includes('x="31.3"')
+      coachPolo: coachSvg.includes('x="31.25"')
     };
   });
   console.log('avatars:', JSON.stringify(av));

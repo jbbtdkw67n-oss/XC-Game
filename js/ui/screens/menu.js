@@ -104,6 +104,13 @@
             <label>League JSON</label>
             <textarea id="custom-json" spellcheck="false" style="width:100%; min-height:230px; font-family:monospace; font-size:12px; resize:vertical;" placeholder="Paste your league JSON here, or load the template below…">${Utils.escapeHtml(current)}</textarea>
           </div>
+          <div class="field">
+            <label>Load from URL</label>
+            <div style="display:flex; gap:8px;">
+              <input type="url" id="custom-url" placeholder="https://example.com/my-league.json" style="flex:1; min-width:0;" inputmode="url" autocapitalize="off" autocorrect="off">
+              <button class="btn" id="btn-url">🌐 Load</button>
+            </div>
+          </div>
           <div id="custom-msg" style="min-height:18px; font-size:12.5px; margin-bottom:8px;"></div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="btn" id="btn-template">📋 Load Template</button>
@@ -130,6 +137,30 @@
       ta.value = '';
       customLeagueSpec = null;
       setMsg('Custom league cleared. New dynasties will use the standard NCAA world.', true);
+    });
+    // Load a league spec straight from a URL (Update 14): fetch the JSON,
+    // drop it into the editor, and validate on Save like any other source.
+    const urlInput = root.querySelector('#custom-url');
+    const urlBtn = root.querySelector('#btn-url');
+    urlBtn.addEventListener('click', async () => {
+      const url = (urlInput.value || '').trim();
+      if (!url) { setMsg('Enter a URL first (a link to a raw .json file).', false); return; }
+      if (!/^https?:\/\//i.test(url)) { setMsg('The URL must start with http:// or https://.', false); return; }
+      urlBtn.disabled = true;
+      urlBtn.textContent = '⏳ Loading…';
+      try {
+        const resp = await fetch(url, { mode: 'cors' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const text = await resp.text();
+        JSON.parse(text); // fail fast on non-JSON responses (e.g. HTML pages)
+        ta.value = text;
+        setMsg('Loaded from URL — review it, then Save.', true);
+      } catch (err) {
+        setMsg(`Could not load that URL (${err.message}). It must be a public link to raw JSON — e.g. a GitHub "raw" link.`, false);
+      } finally {
+        urlBtn.disabled = false;
+        urlBtn.textContent = '🌐 Load';
+      }
     });
     const fileInput = root.querySelector('#custom-file');
     root.querySelector('#btn-file').addEventListener('click', () => fileInput.click());

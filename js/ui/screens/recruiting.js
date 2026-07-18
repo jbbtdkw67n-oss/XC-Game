@@ -264,9 +264,38 @@
 
   function recruitTable(game, container, rows, opts = {}) {
     const school = game.getPlayerSchool();
+    // Phone view (Update 14): each recruit is a tappable card — stars, rank,
+    // scouted overall, interest, distance, and commitment status. Tapping
+    // opens the full recruit profile with every recruiting action.
+    const mobileCard = (r) => {
+      const st = r.getSchoolState(school.id);
+      const interest = st ? Math.round(st.interest) : 0;
+      const dist = r.hometownState === 'INT' ? null : RE().distanceMiles(r.hometownState, school.state);
+      let status;
+      if (r.signed) status = `<span style="color:var(--success);">Signed: ${Utils.escapeHtml(game.getSchool(r.committedTo)?.name || '?')}</span>`;
+      else if (r.committedTo) status = `<span style="color:var(--warning);">Verbal: ${Utils.escapeHtml(game.getSchool(r.committedTo)?.name || '?')}</span>`;
+      else status = st && st.offered ? '<span style="color:var(--accent-hover);">Offered</span>' : '<span style="color:var(--text-faint);">Open</span>';
+      return `
+        <div class="m-head">
+          ${UI.avatar(r, { size: 42 })}
+          <div class="m-title">${r.generational ? '⭐ ' : ''}${r.nxn && r.nxn.champion ? '👟 ' : r.nxn && r.nxn.allAmerican ? '🎽 ' : ''}${Utils.escapeHtml(r.fullName)}${r.source !== 'HS' ? ` <span style="font-size:10px; color:var(--warning);">${r.source}</span>` : ''}
+            <div class="m-sub">${stars(r.starRating)} • Natl #${r.nationalRank}</div>
+          </div>
+          <div class="m-badge">${fogBadge(r.currentOverall, r.playerKnowledge.scout)}
+            <div class="m-sub">Scouted ${r.playerKnowledge.scout}%</div>
+          </div>
+        </div>
+        <div class="m-stats">
+          <div class="m-stat"><div class="k">Interest</div>${UI.meter(interest, 'green')}</div>
+          <div class="m-stat"><div class="k">Distance</div><div class="v">${dist === null ? Utils.escapeHtml(r.country) : dist + ' mi'}</div></div>
+          <div class="m-stat"><div class="k">5K PB</div><div class="v">${r.hsPB !== undefined ? window.XCD.engine.Races.formatTime(r.hsPB) : '—'}</div></div>
+        </div>
+        <div class="m-sub" style="margin-top:8px;">${status} • ${r.hometownState === 'INT' ? Utils.escapeHtml(r.country) : `${Utils.escapeHtml(r.hometownCity)}, ${r.hometownState}`} • tap for actions</div>`;
+    };
     return UI.renderSortableTable(container, {
       rows,
       emptyMessage: opts.emptyMessage,
+      mobileCard,
       // The national pool is 3,000/gender. Rendering hundreds of heavy
       // rows (meters, stars, badges) on every view is what pushed
       // memory-limited Safari over the edge, so the visible window is
@@ -486,6 +515,17 @@
     if (activeTab === 'rankings') { renderClassRankings(game, body); return; }
 
     const isSearch = activeTab === 'search';
+    // Filters collapse into an expandable menu on phones (Update 14) so the
+    // recruit list starts right below the fold; on desktop they stay inline.
+    const mobile = UI.isMobile();
+    const filterControls = isSearch ? `
+      <select class="search-input" id="star-filter" style="min-width:120px;">
+        ${[0, 2, 3, 4, 5].map((s) => `<option value="${s}" ${starFilter === s ? 'selected' : ''}>${s === 0 ? 'All Stars' : s + '★ +'}</option>`).join('')}
+      </select>
+      <select class="search-input" id="source-filter" style="min-width:110px;">
+        ${['All', 'HS', 'JUCO', 'International'].map((s) => `<option ${sourceFilter === s ? 'selected' : ''}>${s}</option>`).join('')}
+      </select>` : '';
+    const activeFilterCount = (starFilter !== 0 ? 1 : 0) + (sourceFilter !== 'All' ? 1 : 0);
     body.innerHTML = `
       <div class="screen-header" style="margin-bottom:12px;">
         <div class="actions">
@@ -493,16 +533,15 @@
             <button id="g-m" class="${activeGender === 'M' ? 'active' : ''}">Men</button>
             <button id="g-w" class="${activeGender === 'W' ? 'active' : ''}">Women</button>
           </div>
-          ${isSearch ? `
-            <select class="search-input" id="star-filter" style="min-width:120px;">
-              ${[0, 2, 3, 4, 5].map((s) => `<option value="${s}" ${starFilter === s ? 'selected' : ''}>${s === 0 ? 'All Stars' : s + '★ +'}</option>`).join('')}
-            </select>
-            <select class="search-input" id="source-filter" style="min-width:110px;">
-              ${['All', 'HS', 'JUCO', 'International'].map((s) => `<option ${sourceFilter === s ? 'selected' : ''}>${s}</option>`).join('')}
-            </select>` : ''}
+          ${mobile && isSearch ? '' : filterControls}
           <input class="search-input" id="rec-search" placeholder="Search recruits...">
         </div>
       </div>
+      ${mobile && isSearch ? `
+        <details class="filter-collapse" style="margin-bottom:12px;" ${activeFilterCount ? 'open' : ''}>
+          <summary>Filters${activeFilterCount ? ` (${activeFilterCount} active)` : ''}</summary>
+          <div class="filter-body">${filterControls}</div>
+        </details>` : ''}
       <div class="card"><div id="rec-table"></div>
         ${isSearch ? `<div style="color:var(--text-faint); font-size:12px; margin-top:8px;">Click any recruit to scout and recruit them. Sorted lists show the full class.</div>` : ''}
       </div>`;

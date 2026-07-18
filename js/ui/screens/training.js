@@ -145,6 +145,51 @@
 
       <div class="card" style="margin-bottom:16px;">
         <h2>Squad Monitor</h2>
+        ${UI.isMobile() ? `
+        <div class="m-cards">
+          ${roster.map((a) => {
+            const override = game.training.overrides[a.id] || 'normal';
+            const ready = TE().readiness(a);
+            const progMiles = game.training.mileage[activeGender];
+            const miOverride = game.training.mileageOverrides[a.id];
+            const miles = miOverride !== undefined ? miOverride : progMiles;
+            const safe = TE().safeMileage(a);
+            const overVolume = miles > safe;
+            const status = a.injury
+              ? `<span style="color:var(--danger);">🩼 ${Utils.escapeHtml(a.injury.type)} (${a.injury.weeksRemaining}w)</span>`
+              : a.health === 'Recovering'
+                ? `<span style="color:var(--warning);">Recovering (${Math.max(1, a.recentInjuryWeeks || 1)}w)</span>`
+                : '<span style="color:var(--success);">Healthy</span>';
+            return `
+            <div class="m-card">
+              <div class="m-head clickable" data-ath="${a.id}">
+                ${UI.avatar(a, { size: 40 })}
+                <div class="m-title">${Utils.escapeHtml(a.fullName)}${a.isWalkOn ? ' <span style="color:var(--text-faint); font-size:10px;">WO</span>' : ''}${a.generational ? ' ⭐' : ''}
+                  <div class="m-sub">${a.classYear} • Ready ${ready} • ${status}</div>
+                </div>
+                <div class="m-badge">${UI.ratingBadge(a.currentOverall)}
+                  <div class="m-sub" style="color:${(a.seasonDev || 0) > 0 ? 'var(--success)' : 'var(--text-faint)'};">${(a.seasonDev || 0) > 0 ? '+' + a.seasonDev : 'Δ —'}</div>
+                </div>
+              </div>
+              <div class="m-stats">
+                <div class="m-stat"><div class="k">Fitness</div>${UI.meter(a.fitness)}</div>
+                <div class="m-stat"><div class="k">Fatigue</div>${UI.meter(a.fatigue, a.fatigue > 70 ? 'red' : a.fatigue > 45 ? 'yellow' : 'green')}</div>
+                <div class="m-stat"><div class="k">Morale</div>${UI.meter(a.morale, a.morale < 40 ? 'red' : a.morale < 65 ? 'yellow' : 'green')}</div>
+              </div>
+              <div class="m-actions" style="align-items:center;">
+                <select data-load="${a.id}" class="search-input" style="flex:1; min-width:110px;" ${a.injury ? 'disabled title="Injured — rehabbing automatically"' : ''}>
+                  <option value="normal" ${override === 'normal' ? 'selected' : ''}>Normal load</option>
+                  <option value="reduced" ${override === 'reduced' ? 'selected' : ''}>Reduced load</option>
+                  <option value="rest" ${override === 'rest' ? 'selected' : ''}>Rest</option>
+                </select>
+                <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-dim);">Mi/wk
+                  <input type="number" inputmode="numeric" data-miles="${a.id}" min="${D.MILEAGE.MIN}" max="${D.MILEAGE.MAX}" value="${miles}"
+                    class="search-input" style="width:74px; min-width:0; ${overVolume ? 'border-color:var(--danger); color:var(--danger);' : miOverride !== undefined ? 'border-color:var(--accent);' : ''}">
+                </label>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>` : `
         <div class="table-wrap"><table class="data">
           <thead><tr>
             <th>Name</th><th>Class</th><th class="num">OVR</th><th class="num">Δ Season</th>
@@ -190,7 +235,7 @@
               </tr>`;
             }).join('')}
           </tbody>
-        </table></div>
+        </table></div>`}
       </div>
 
       <div class="card">

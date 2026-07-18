@@ -397,12 +397,12 @@
               <td>${o.kind === 'Dream job' ? '🌟 ' : ''}<strong>${Utils.escapeHtml(o.schoolName)}</strong>
                 <div><span class="rating ${o.kind === 'Dream job' || o.kind === 'Jump to DI' || o.kind === 'Elite assistant post' ? 'r-elite' : o.kind === 'Step up' || o.kind === 'Bigger assistant job' ? 'r-great' : o.kind === 'Lateral move' ? 'r-avg' : 'r-poor'}" style="font-size:10px;">${o.kind}</span></div></td>
               <td>${o.division}</td>
-              <td style="font-size:12px;">${Utils.escapeHtml(o.conference)}</td>
+              <td class="hide-mobile" style="font-size:12px;">${Utils.escapeHtml(o.conference)}</td>
               <td class="num">${o.prestige}</td>
-              <td class="num">$${o.budget ? (o.budget / 1000).toFixed(0) + 'k' : '—'}</td>
-              <td class="num">${o.facilities ?? '—'}</td>
-              <td class="num">${o.bestRank ? '#' + o.bestRank : '—'}</td>
-              <td class="num">${o.natTitles || 0}🏆</td>
+              <td class="num hide-mobile">$${o.budget ? (o.budget / 1000).toFixed(0) + 'k' : '—'}</td>
+              <td class="num hide-mobile">${o.facilities ?? '—'}</td>
+              <td class="num hide-mobile">${o.bestRank ? '#' + o.bestRank : '—'}</td>
+              <td class="num hide-mobile">${o.natTitles || 0}🏆</td>
               <td class="num">${direct
                 ? '<span style="color:var(--success); font-weight:700;" title="They came to you — the job is yours to take">Offer</span>'
                 : `<span style="color:${iColor}; font-weight:700;" title="The school's interest in you — your chance of landing the job if you apply. They may go another direction.">${interest}%</span>`}</td>
@@ -418,7 +418,7 @@
               : `Every open chair in the country, all divisions. <strong>Interest</strong> is each school's interest in you — the chance they hire you if you apply. Fail the roll and they go another direction (final for the cycle). The market moves weekly and closes after Week ${game.jobOffers.expiresWeek}.`}
           </div>
           <div class="table-wrap" style="max-height:340px; overflow-y:auto;"><table class="data">
-            <thead><tr><th>School</th><th>Div</th><th>Conf</th><th class="num">Prestige</th><th class="num">Budget</th><th class="num">Facilities</th><th class="num">Recent</th><th class="num">Titles</th><th class="num">Interest</th><th></th></tr></thead>
+            <thead><tr><th>School</th><th>Div</th><th class="hide-mobile">Conf</th><th class="num">Prestige</th><th class="num hide-mobile">Budget</th><th class="num hide-mobile">Facilities</th><th class="num hide-mobile">Recent</th><th class="num hide-mobile">Titles</th><th class="num">Interest</th><th></th></tr></thead>
             <tbody>${rows}</tbody>
           </table></div>
           <div style="margin-top:10px; display:flex; gap:8px;">

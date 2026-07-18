@@ -52,17 +52,17 @@
       body.innerHTML = `
         <h2>National Coach Rankings</h2>
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>Rank</th><th>Coach</th><th>School</th><th>Style</th><th class="num">Natl Titles</th><th class="num">Conf Titles</th><th class="num">Best Poll</th><th class="num">Score</th></tr></thead>
+          <thead><tr><th>Rank</th><th>Coach</th><th class="hide-mobile">School</th><th class="hide-mobile">Style</th><th class="num">Natl Titles</th><th class="num">Conf Titles</th><th class="num hide-mobile">Best Poll</th><th class="num">Score</th></tr></thead>
           <tbody>
             ${rows.map((r) => `
               <tr class="clickable" data-coach="${r.coachId}" ${r.isPlayer ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>#${r.rank}</td>
                 <td>${UI.avatar(game.getCoach(r.coachId) || { name: r.name }, { size: 22, outfit: 'suit' })} <strong>${Utils.escapeHtml(r.name)}</strong>${r.isPlayer ? ' <span style="color:var(--accent);">(You)</span>' : ''}</td>
-                <td>${Utils.escapeHtml(r.school)}</td>
-                <td style="font-size:12px; color:var(--text-dim);">${Utils.escapeHtml(r.personality)}</td>
+                <td class="hide-mobile">${Utils.escapeHtml(r.school)}</td>
+                <td class="hide-mobile" style="font-size:12px; color:var(--text-dim);">${Utils.escapeHtml(r.personality)}</td>
                 <td class="num">${r.natTitles}</td>
                 <td class="num">${r.confTitles}</td>
-                <td class="num">${r.bestRank <= 354 ? '#' + r.bestRank : '—'}</td>
+                <td class="num hide-mobile">${r.bestRank <= 354 ? '#' + r.bestRank : '—'}</td>
                 <td class="num">${r.score}</td>
               </tr>`).join('')}
           </tbody>
@@ -86,16 +86,16 @@
       body.innerHTML = list.length ? `
         ${preseason ? '<div style="color:var(--text-dim); font-size:12.5px; margin-bottom:10px;">📊 <strong>Preseason projections</strong> — favorites by returning ability, fitness, and expected development. Real rankings publish once racing begins.</div>' : ''}
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>Rank</th><th>Runner</th><th>Class</th><th>School</th><th class="num">${preseason ? 'Projection' : 'Best Pace/km'}</th><th class="num">${preseason ? '' : 'Wins'}</th></tr></thead>
+          <thead><tr><th>Rank</th><th>Runner</th><th class="hide-mobile">Class</th><th>School</th><th class="num">${preseason ? 'Projection' : 'Best Pace/km'}</th><th class="num hide-mobile">${preseason ? '' : 'Wins'}</th></tr></thead>
           <tbody>
             ${list.map((r) => `
               <tr class="clickable" data-ath="${r.athleteId}" ${r.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>#${r.rank}</td>
                 <td>${UI.avatar(game.getAthlete(r.athleteId) || { name: r.name, gender: activeGender }, { size: 22 })} <strong>${r.generational ? '⭐ ' : ''}${Utils.escapeHtml(r.name)}</strong></td>
-                <td>${r.classYear}</td>
+                <td class="hide-mobile">${r.classYear}</td>
                 <td class="clickable-school" data-school="${r.schoolId}" style="cursor:pointer;">${Utils.escapeHtml(r.school)}</td>
                 <td class="num">${preseason ? r.proj : window.XCD.engine.Races.formatTime(r.pace)}</td>
-                <td class="num">${preseason ? '' : r.wins}</td>
+                <td class="num hide-mobile">${preseason ? '' : r.wins}</td>
               </tr>`).join('')}
           </tbody>
         </table></div>`
@@ -118,15 +118,15 @@
       body.innerHTML = `
         <h2>${heading} — Week ${R.computedWeek}</h2>
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>Rank</th><th></th><th>Team</th><th>Conference</th><th>Region</th><th class="num">Score</th></tr></thead>
+          <thead><tr><th>Rank</th><th></th><th>Team</th><th class="hide-mobile">Conference</th><th class="hide-mobile">Region</th><th class="num">Score</th></tr></thead>
           <tbody>
             ${rows.map((r, i) => `
               <tr class="clickable" data-school="${r.schoolId}" ${r.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>#${activeTab === 'national' ? r.rank : i + 1}${activeTab !== 'national' ? ` <span style="color:var(--text-faint); font-size:11px;">(div #${r.rank})</span>` : ''}</td>
                 <td>${arrow(r)}</td>
-                <td><strong>${Utils.escapeHtml(r.name)}</strong></td>
-                <td>${Utils.escapeHtml(r.conference)}</td>
-                <td>${Utils.escapeHtml(r.region)}</td>
+                <td><strong>${Utils.escapeHtml(r.name)}</strong>${UI.isMobile() ? `<div style="font-size:11px; color:var(--text-faint); font-weight:400;">${Utils.escapeHtml(r.conference)}</div>` : ''}</td>
+                <td class="hide-mobile">${Utils.escapeHtml(r.conference)}</td>
+                <td class="hide-mobile">${Utils.escapeHtml(r.region)}</td>
                 <td class="num">${r.score}</td>
               </tr>`).join('')}
           </tbody>

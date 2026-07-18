@@ -121,6 +121,19 @@
         defaultDir: 'desc',
         searchKeys: ['name', 'conference', 'state', 'coachName'],
         onRowClick: (row) => (UI.showSchoolCard ? UI.showSchoolCard(row.school, game) : showSchoolModal(game, row.school)),
+        mobileCard: (r) => `
+          <div class="m-head">
+            ${UI.kitSwatch(r.school, 26)}
+            <div class="m-title">${Utils.escapeHtml(r.name)}${r.school.id === game.playerSchoolId ? ' <span style="color:var(--accent);">★</span>' : ''}
+              <div class="m-sub">${r.division} • ${Utils.escapeHtml(r.conference)} • ${r.state}</div>
+            </div>
+            <div class="m-badge">${UI.ratingBadge(r.prestige)}<div class="m-sub">Prestige</div></div>
+          </div>
+          <div class="m-stats">
+            <div class="m-stat"><div class="k">Men</div><div class="v">${UI.ratingBadge(r.strengthM)}</div></div>
+            <div class="m-stat"><div class="k">Women</div><div class="v">${UI.ratingBadge(r.strengthW)}</div></div>
+            <div class="m-stat"><div class="k">Coach</div><div class="v" style="font-size:12px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${Utils.escapeHtml(r.coachName)}</div></div>
+          </div>`,
         columns: [
           {
             key: 'name', label: 'School',

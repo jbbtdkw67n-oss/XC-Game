@@ -12,6 +12,20 @@
     game: null // active GameState
   };
 
+  /* ---------------- Mobile detection ----------------
+   * One breakpoint, shared with css/main.css: at or under 760px the game
+   * wears its phone shell (bottom tab bar, card lists, bottom sheets).
+   */
+  const mobileQuery = window.matchMedia ? window.matchMedia('(max-width: 760px)') : null;
+  UI.isMobile = function () { return !!(mobileQuery && mobileQuery.matches); };
+  if (mobileQuery) {
+    // Crossing the breakpoint re-renders the shell so tables/cards and the
+    // navigation swap to the right form factor (e.g. iPad rotation).
+    const onFlip = () => { if (UI.state.game) UI.renderShell(); };
+    if (mobileQuery.addEventListener) mobileQuery.addEventListener('change', onFlip);
+    else if (mobileQuery.addListener) mobileQuery.addListener(onFlip);
+  }
+
   /* ---------------- Toasts ---------------- */
   UI.toast = function (message, type = 'info', duration = 3200) {
     let container = document.getElementById('toast-container');
@@ -128,11 +142,53 @@
       });
 
       // Very large datasets (e.g. the national recruit pool) are capped per
-      // view; sorting/searching still operates over the full set.
+      // view; sorting/searching still operates over the full set. Phones cap
+      // lower — hundreds of card nodes is what makes mobile Safari stutter.
       const totalRows = rows.length;
-      const cap = config.maxRows || 400;
+      const mobileCards = !!(config.mobileCard && UI.isMobile());
+      const cap = mobileCards ? Math.min(config.maxRows || 400, 120) : (config.maxRows || 400);
       const truncated = totalRows > cap;
       if (truncated) rows = rows.slice(0, cap);
+
+      /* Phone rendering: a sort bar + one tappable card per row instead of a
+       * wide table. The same rows, sorting, search, and row-click behavior. */
+      if (mobileCards) {
+        const sortable = config.columns.filter((c) => c.label);
+        container.innerHTML = `
+          <div class="sort-bar">
+            <select class="search-input" data-sort-select aria-label="Sort by">
+              ${sortable.map((c) => `<option value="${c.key}" ${c.key === state.sortKey ? 'selected' : ''}>Sort: ${c.label}</option>`).join('')}
+            </select>
+            <button class="btn sort-dir" data-sort-dir title="Toggle sort direction">${state.sortDir === 'asc' ? '↑' : '↓'}</button>
+          </div>
+          <div class="m-cards">
+            ${rows.length
+              ? rows.map((row, i) => `<div class="m-card ${config.onRowClick ? 'clickable' : ''}" data-row="${i}">${config.mobileCard(row, i)}</div>`).join('')
+              : `<div class="m-empty">${config.emptyMessage || 'No results match the current filters.'}</div>`}
+          </div>
+          ${truncated ? `<div style="color:var(--text-faint); font-size:12px; padding:8px 2px 0;">Showing ${cap} of ${totalRows.toLocaleString()} — narrow with search or sorting.</div>` : ''}`;
+
+        const sel = container.querySelector('[data-sort-select]');
+        sel.addEventListener('change', () => {
+          state.sortKey = sel.value;
+          const newCol = config.columns.find((c) => c.key === state.sortKey);
+          state.sortDir = newCol && newCol.numeric ? 'desc' : 'asc';
+          draw();
+        });
+        container.querySelector('[data-sort-dir]').addEventListener('click', () => {
+          state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+          draw();
+        });
+        if (config.onRowClick) {
+          container.querySelectorAll('.m-card[data-row]').forEach((el) => {
+            el.addEventListener('click', (e) => {
+              if (e.target.closest('button, select, input, a')) return; // in-card actions win
+              config.onRowClick(rows[Number(el.dataset.row)]);
+            });
+          });
+        }
+        return;
+      }
 
       const thead = config.columns.map((c) => {
         const sorted = c.key === state.sortKey ? ` sorted-${state.sortDir}` : '';
@@ -187,15 +243,19 @@
     };
   };
 
-  /* ---------------- Screen routing ---------------- */
+  /* ---------------- Screen routing ----------------
+   * `mobile` marks the screens pinned to the phone's bottom tab bar (the
+   * weekly rhythm: home → team → training → recruiting); everything else
+   * lives one tap away in the "More" sheet. `short` is the tab-bar label.
+   */
   const NAV_ITEMS = [
-    { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
+    { id: 'dashboard', label: 'Dashboard', icon: '🏠', mobile: true, short: 'Home' },
     { id: 'schedule', label: 'Schedule', icon: '📅' },
     { id: 'racecenter', label: 'Race Center', icon: '📺' },
     { id: 'rankings', label: 'Rankings', icon: '🏅' },
-    { id: 'roster', label: 'Roster', icon: '👟' },
-    { id: 'training', label: 'Training', icon: '📋' },
-    { id: 'recruiting', label: 'Recruiting', icon: '🎯' },
+    { id: 'roster', label: 'Roster', icon: '👟', mobile: true, short: 'Team' },
+    { id: 'training', label: 'Training', icon: '📋', mobile: true, short: 'Train' },
+    { id: 'recruiting', label: 'Recruiting', icon: '🎯', mobile: true, short: 'Recruit' },
     { id: 'portal', label: 'Portal', icon: '🔄' },
     { id: 'school', label: 'My Program', icon: '🏫' },
     { id: 'history', label: 'History', icon: '🏛' },
@@ -212,12 +272,19 @@
   UI.renderShell = function () {
     const game = UI.state.game;
     const root = document.getElementById('root');
+    const staleSheet = document.getElementById('more-sheet');
+    if (staleSheet) staleSheet.remove(); // sheets never outlive a navigation
+    UI.closeModal(); // modals belong to the screen that opened them
     if (!game) {
       UI.screens.menu.render(root);
       return;
     }
 
     const school = game.getPlayerSchool();
+    const mobile = UI.isMobile();
+    const primaryNav = NAV_ITEMS.filter((n) => n.mobile);
+    const moreNav = NAV_ITEMS.filter((n) => !n.mobile);
+    const inMore = moreNav.some((n) => n.id === UI.state.currentScreen);
     root.innerHTML = `
       <div id="app">
         <nav id="sidebar">
@@ -228,6 +295,17 @@
               <span class="icon">${n.icon}</span>${n.label}
             </button>`).join('')}
           <div class="sidebar-footer">v${window.XCD.VERSION}</div>
+        </nav>
+        <nav id="bottombar" aria-label="Main navigation">
+          <div class="bnav-row">
+            ${primaryNav.map((n) => `
+              <button class="bnav-item ${UI.state.currentScreen === n.id ? 'active' : ''}" data-nav="${n.id}">
+                <span class="icon">${n.icon}</span>${n.short || n.label}
+              </button>`).join('')}
+            <button class="bnav-item ${inMore ? 'active' : ''}" data-more-toggle>
+              <span class="icon">☰</span>More
+            </button>
+          </div>
         </nav>
         <div id="main">
           <div id="topbar">
@@ -240,7 +318,7 @@
               const step = !f.trainingConfirmed ? 1 : !f.recruitingDone ? 2 : 3;
               const cls = (n, done) => `flow-step ${done ? 'done' : step === n ? 'current' : ''}`;
               const asst = game.isAssistant && game.isAssistant();
-              const trainingLabel = asst ? 'Training (Head Coach)' : 'Training Plan';
+              const trainingLabel = mobile ? 'Training' : (asst ? 'Training (Head Coach)' : 'Training Plan');
               return `<div class="flow-steps" title="The weekly coaching rhythm: ${asst ? 'the head coach runs training — you recruit, then advance.' : 'plan training, then recruit, then advance.'}">
                 <button class="${cls(1, f.trainingConfirmed)}" data-flow-nav="training" style="cursor:pointer;">${f.trainingConfirmed ? '✓' : '1'} ${trainingLabel}</button>
                 <span style="color:var(--text-faint);">→</span>
@@ -249,19 +327,19 @@
                 <button class="${cls(3, false)}" data-flow-advance style="cursor:pointer;" title="Advance the week once training and recruiting are wrapped">3 Advance</button>
               </div>`;
             })()}
-            <div style="display:flex; gap:8px;">
+            <div class="topbar-actions">
               ${(() => {
                 const s = game.season;
                 const racingNow = s && (s.playerMeetByWeek[game.week] ||
                   (game.week === s.nationalWeek && (s.nationalsFieldIds.M?.includes(game.playerSchoolId) || s.nationalsFieldIds.W?.includes(game.playerSchoolId))));
-                return racingNow ? '' : '<button class="btn" id="btn-sim-race" title="Simulate weeks until your next race day">⏩ Sim to Race</button>';
+                return racingNow ? '' : `<button class="btn" id="btn-sim-race" title="Simulate weeks until your next race day" aria-label="Sim to race">⏩${mobile ? '' : ' Sim to Race'}</button>`;
               })()}
               <button class="btn primary" id="btn-advance-week">${(() => {
                 const s = game.season;
-                if (!s) return 'Advance Week ▸';
+                if (!s) return mobile ? 'Advance ▸' : 'Advance Week ▸';
                 const racing = s.playerMeetByWeek[game.week] ||
                   (game.week === s.nationalWeek && (s.nationalsFieldIds.M?.includes(game.playerSchoolId) || s.nationalsFieldIds.W?.includes(game.playerSchoolId)));
-                return racing ? '🏁 Race & Advance ▸' : 'Advance Week ▸';
+                return racing ? (mobile ? '🏁 Race ▸' : '🏁 Race & Advance ▸') : (mobile ? 'Advance ▸' : 'Advance Week ▸');
               })()}</button>
             </div>
           </div>
@@ -272,6 +350,33 @@
     root.querySelectorAll('[data-nav]').forEach((btn) => {
       btn.addEventListener('click', () => UI.navigate(btn.dataset.nav));
     });
+
+    // "More" bottom sheet (mobile): every secondary screen, one tap away.
+    const moreToggle = root.querySelector('[data-more-toggle]');
+    if (moreToggle) {
+      moreToggle.addEventListener('click', () => {
+        const existing = document.getElementById('more-sheet');
+        if (existing) { existing.remove(); return; }
+        const sheet = document.createElement('div');
+        sheet.id = 'more-sheet';
+        sheet.innerHTML = `
+          <div class="sheet-panel">
+            <div class="sheet-grip"></div>
+            <div class="sheet-title">All Screens</div>
+            <div class="sheet-grid">
+              ${moreNav.map((n) => `
+                <button class="sheet-item ${UI.state.currentScreen === n.id ? 'active' : ''}" data-sheet-nav="${n.id}">
+                  <span class="icon">${n.icon}</span>${n.label}
+                </button>`).join('')}
+            </div>
+          </div>`;
+        sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.remove(); });
+        sheet.querySelectorAll('[data-sheet-nav]').forEach((b) => {
+          b.addEventListener('click', () => { sheet.remove(); UI.navigate(b.dataset.sheetNav); });
+        });
+        document.body.appendChild(sheet);
+      });
+    }
 
     root.querySelectorAll('[data-flow-nav]').forEach((btn) => {
       btn.addEventListener('click', () => UI.navigate(btn.dataset.flowNav));
