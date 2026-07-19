@@ -158,7 +158,7 @@
       // Braids (Update 13 fix): the plait strands used to run straight down
       // the middle of the face (x 28/36). They now texture the hair panels
       // that fall BESIDE the head (drawn by hairBack), never the face.
-      if (s === 7) return crown + `<path stroke="${shade(color, -26)}" stroke-width="1.4" fill="none" d="M22 26 L21.4 46 M24.2 27 L23.9 47.5 M42 26 L42.6 46 M39.8 27 L40.1 47.5"/>`; // braids
+      if (s === 7) return crown + `<path stroke="${shade(color, -26)}" stroke-width="1.3" fill="none" stroke-linecap="round" d="M19.9 30 L19.6 47 M21.4 30 L21.2 47.5 M44.1 30 L44.4 47 M42.6 30 L42.8 47.5"/>`; // braids — strokes texture the side panels beside the head, never the face (Update 15)
       return crown;
     }
     // Men
@@ -167,7 +167,7 @@
     if (s === 2) return `<path fill="${color}" d="M21.7 23 C22 14.4 26.5 11.3 32 11.3 C37.5 11.3 42 14.4 42.3 23 C40.2 16.8 36.8 15 32 15 C27.2 15 23.8 16.8 21.7 23 Z"/>`; // short
     if (s === 3) return `<path fill="${color}" d="M21.5 24.5 C21.3 13.6 26.5 10.7 32 10.7 C37.5 10.7 42.7 13.6 42.5 24.5 C41 17.4 37.3 15.3 32 15.3 C26.7 15.3 23 17.4 21.5 24.5 Z"/>`; // crew
     if (s === 4) return `<path fill="${color}" d="M21.5 23.5 C21.5 13.4 27 10.7 32 10.7 C38 10.7 42.7 13.3 42.7 19.5 C37.6 16.5 29.6 16.2 25.5 18.5 C23.5 19.8 22 21.4 21.5 23.5 Z"/>`; // side part
-    if (s === 5) return `<path fill="${color}" d="M19.8 21 C18.2 8.8 26.5 5.5 32 5.5 C37.5 5.5 45.8 8.8 44.2 21 C43.5 15.6 39.5 14.2 32 14.2 C24.5 14.2 20.5 15.6 19.8 21 Z"/><path fill="${color}" d="M20 17.5 C18.6 21 18.9 25.5 20.5 28 L22.4 19.5 Z M44 17.5 C45.4 21 45.1 25.5 43.5 28 L41.6 19.5 Z"/>`; // curly / afro — crown puff only, off the face (Update 13)
+    if (s === 5) return `<path fill="${color}" d="M18.6 27 C15.8 8 25.5 4.5 32 4.5 C38.5 4.5 48.2 8 45.4 27 C44.3 17.5 39.5 14.6 32 14.6 C24.5 14.6 19.7 17.5 18.6 27 Z"/>`; // curly / afro — one connected crescent hugging crown + temples, no detached side puffs (Update 15)
     if (s === 6) return `<path fill="${color}" d="M21.3 24 C21 13 27 10.4 32 10.4 C37 10.4 43 13 42.7 24 C41.8 20 40.3 18.5 39.3 19.6 C37.8 17 35.8 16.4 34.3 17.4 C32.3 15.4 29.7 15.4 28.2 17.4 C26.2 16.4 24.2 17.6 23.7 19.6 C22.7 18.6 21.9 20.5 21.3 24 Z"/>`; // messy
     if (s === 7) return `<path fill="${color}" d="M21.2 23 C20.8 12.4 26.5 10 32 10 C37.5 10 43.2 12.4 42.8 23 C41 17.2 37.5 15.4 32 15.4 C26.5 15.4 23 17.2 21.2 23 Z"/>`; // long (front)
     return '';
