@@ -27,15 +27,30 @@ async function walkCoachWizard(page, { archetype = 'Developer', role = null } = 
   await page.click('#btn-next');
 }
 
-async function newDynasty(page, { archetype = 'Developer', role = null } = {}) {
+async function newDynasty(page, { archetype = 'Developer', role = null, school = null } = {}) {
   await page.goto('file://' + require('path').resolve(__dirname, '../index.html'));
   await page.click('#btn-new');
   await walkCoachWizard(page, { archetype, role });
-  // School selection
+  // School selection (optionally search for a specific program)
   await page.waitForSelector('.school-pick');
+  if (school) {
+    await page.fill('#school-search', school);
+    await page.waitForTimeout(60);
+  }
   await page.click('.school-pick');
   await page.click('#btn-start');
   await page.waitForSelector('#sidebar');
+  await skipTutorial(page);
+}
+
+// Update 15: a brand-new dynasty opens on the origin story + tutorial offer.
+// Tests dismiss it (story → prompt → skip) unless they test the tutorial itself.
+async function skipTutorial(page) {
+  await page.waitForSelector('#tut-begin', { timeout: 5000 });
+  await page.click('#tut-begin');
+  await page.waitForSelector('#tut-skip');
+  await page.click('#tut-skip');
+  await page.waitForTimeout(80);
 }
 
 function wireErrors(page, errors) {
@@ -43,4 +58,4 @@ function wireErrors(page, errors) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
 }
 
-module.exports = { newDynasty, walkCoachWizard, wireErrors, launchOpts };
+module.exports = { newDynasty, walkCoachWizard, skipTutorial, wireErrors, launchOpts };

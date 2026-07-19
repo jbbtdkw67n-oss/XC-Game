@@ -121,11 +121,14 @@
       else if (a.requires === 'visited' && !st.visited) disabledReason = 'Needs campus visit first';
       else if (a.requires === 'sway') {
         if (st.interest < 20) disabledReason = 'Needs modest interest to sway';
-        else if (RE().commitChance(game, school, rec) < 0.10) disabledReason = 'Commit chance too low to sway';
+        else if (RE().commitChance(game, school, rec) < 0.07) disabledReason = 'Commit chance too low to sway';
       }
       const label = key === 'offer' ? terms.action : a.label;
+      // Every action carries a plain-language tooltip (Update 15); a disabled
+      // button explains why it's unavailable instead.
+      const tip = disabledReason || a.tip || '';
       return `
-        <button class="btn small" data-action="${key}" ${disabledReason ? `disabled title="${disabledReason}"` : ''}>
+        <button class="btn small" data-action="${key}" ${disabledReason ? 'disabled' : ''} ${tip ? `title="${Utils.escapeHtml(tip)}"` : ''}>
           ${label} <span style="color:var(--text-faint); font-weight:400;">(${a.points}pt${a.cost ? ` · $${a.cost}` : ''})</span>
         </button>`;
     }).join('');

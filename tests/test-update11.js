@@ -302,7 +302,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       // transfers up to the offer limit; record eligibility of committed
       // transfers just before the rollover, then verify they aged.
       let pendingCheck = null;
-      for (let s = 0; s < 5 && (out.pursued < 40 || out.aging.length < 6); s++) {
+      for (let s = 0; s < 8 && (out.pursued < 25 || out.aging.length < 6); s++) {
         const yr = g.year;
         while (g.year === yr) {
           g.weeklyFlow.trainingConfirmed = true;
@@ -312,12 +312,20 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
             const mine = g.getRoster(g.playerSchoolId, 'M').concat(g.getRoster(g.playerSchoolId, 'W'))
               .map((a) => a.currentOverall).sort((x, y) => y - x);
             const fifth = mine[4] || 45;
+            // Update 15: pursuits run on the transfer-points budget — spread
+            // ~45%-of-lock stakes so a mid program can work several targets.
             g.portal.entries.filter((e) => !e.destination &&
               !e.offers.includes(g.playerSchoolId) && e.fromSchoolId !== g.playerSchoolId)
-              .map((e) => g.getAthlete(e.athleteId)).filter(Boolean)
-              .filter((a) => a.currentOverall >= fifth - 6 && a.currentOverall <= fifth + 10)
-              .sort((a, b) => b.currentOverall - a.currentOverall)
-              .slice(0, 10).forEach((a) => P.playerOffer(g, a.id));
+              .map((e) => ({ e, a: g.getAthlete(e.athleteId) })).filter((x) => x.a)
+              .filter(({ a }) => a.currentOverall >= fifth - 6 && a.currentOverall <= fifth + 10)
+              .sort((x, y) => y.a.currentOverall - x.a.currentOverall)
+              .slice(0, 10).forEach(({ e, a }) => {
+                const left = P.transferPointsLeft(g);
+                const lock = P.pointsToLock(g, a, g.getPlayerSchool(), e);
+                // Meaningful stakes only — a token allocation is a wasted pursuit.
+                if (left < Math.max(20, lock * 0.35)) return;
+                P.setTransferPoints(g, a.id, Math.min(left, Math.round(lock * 0.6)));
+              });
           }
           if (g.week === P.DECISION_WEEK) {
             pendingCheck = [];
@@ -353,14 +361,12 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   else {
     if (portalRun.offerLimit < 5) fail('player should be able to pursue more transfers at once: ' + portalRun.offerLimit);
     const landPct = portalRun.pursued ? portalRun.landed / portalRun.pursued : 0;
-    // Active pursuit must be a real edge — the player lands a solid share of
-    // level-appropriate targets (was a ~20-30% coin flip before Update 11.1).
-    if (portalRun.pursued < 15) fail('not enough player pursuits sampled: ' + portalRun.pursued);
-    // Baseline (pure appeal, no pursuit edge) was a ~20-25% coin flip; the
-    // active-pursuit edge must lift a mid program well clear of that. Kept a
-    // touch below the observed ~50-60% average so a weak-appeal random dynasty
-    // doesn't flake.
-    else if (landPct < 0.35) fail(`player still can't land level-appropriate transfers: ${(landPct * 100).toFixed(0)}% (${portalRun.landed}/${portalRun.pursued})`);
+    // Update 15: pursuits are budget-limited (transfer points), so a mid
+    // program realistically works ~3-5 targets a cycle rather than ten.
+    if (portalRun.pursued < 10) fail('not enough player pursuits sampled: ' + portalRun.pursued);
+    // A ~45%-of-lock stake should land ~45% of pursuits — the points model
+    // pays out exactly the published odds, well clear of the old coin flip.
+    else if (landPct < 0.3) fail(`player still can't land level-appropriate transfers: ${(landPct * 100).toFixed(0)}% (${portalRun.landed}/${portalRun.pursued})`);
     // Every transfer must age a year of eligibility across the move.
     const notAged = portalRun.aging.filter((r) => !r.aged);
     if (!portalRun.aging.length) fail('no transfers sampled for the eligibility-aging check');

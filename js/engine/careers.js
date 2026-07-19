@@ -895,6 +895,9 @@
       retiredYear: year,
       dynastyCareer: JSON.parse(JSON.stringify(gameState.career))
     });
+    // The tutorial belongs to the dynasty's first coach alone (Update 15):
+    // a successor never sees the origin story or the first-season tips.
+    gameState.tutorial = null;
     if (old.role === 'Assistant') {
       if (oldSchool.assistantId === old.id) oldSchool.assistantId = null;
     } else if (oldSchool.coachId === old.id) {

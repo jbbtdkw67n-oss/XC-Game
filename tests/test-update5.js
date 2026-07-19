@@ -3,7 +3,7 @@
 // attributes, job-security labels, altitude programs, blue-chip talent floor,
 // and a multi-season stability check that the assistant→head promotion works.
 const { chromium } = require('playwright');
-const { newDynasty, wireErrors, launchOpts } = require('./helpers');
+const { newDynasty, skipTutorial, wireErrors, launchOpts } = require('./helpers');
 const path = require('path');
 
 async function run() {
@@ -23,6 +23,7 @@ async function run() {
   await page.click('.school-pick');
   await page.click('#btn-start');
   await page.waitForSelector('#sidebar');
+  await skipTutorial(page);
 
   const asst = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;

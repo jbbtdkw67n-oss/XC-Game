@@ -473,5 +473,9 @@
     wrapper.className = 'screen';
     container.appendChild(wrapper);
     screen.render(wrapper);
+
+    // First-season tutorial (Update 15): the intro story for a brand-new
+    // dynasty, then one-time tip banners per screen for season one only.
+    if (UI.tutorial) UI.tutorial.onShellRender(game, wrapper);
   };
 })();

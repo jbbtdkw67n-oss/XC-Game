@@ -14,6 +14,46 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 12.2 — Update 15: Transfer Points, the Sway Edge & the First-Season Tutorial
+
+Recruiting and the transfer portal rebalanced around player skill, plus a
+full onboarding experience — all iPhone-ready.
+
+- **Transfer Points (Campus-Dynasty-style portal).** Every portal window
+  your program earns a points budget from **prestige + your recruiting
+  skill** (a high-caliber program with an elite recruiter earns ~300).
+  Open any portal athlete's pursuit profile and **slide points onto
+  them**: enough points **locks the commit at 100%**, or divide the budget
+  across several targets and take your published odds when the window
+  closes. Win a national title and next window's budget grows; a genuinely
+  poor season shrinks it.
+- **Live bidding wars.** Top transfers draw ~5 pursuing schools; the
+  pursuit profile shows every school in the race and its live win
+  percentage. A max-level program that fits an athlete locks even a star
+  for ~1/3 of its budget — a mid-major must empty the tank for the same name.
+- **Transfer preferences.** Portal athletes show what they're looking for
+  (racing time, a contender, closer to home, academics, development, NIL,
+  culture, facilities); every preference your program matches lowers their
+  lock cost, so the right fits come cheaper.
+- **Sway is now the player's closing weapon.** The human coach's Sway pitch
+  succeeds ~80-92% (CPU staffs stay modest), swings more interest per
+  success, almost never backfires, and each success banks lasting commit-math
+  momentum — the tool that lets a blue-blood player close five-stars while
+  keeping recruiting hard.
+- **Preferences weighted in regular recruiting.** The visible school-size
+  preference now genuinely matters (it previously did nothing), and climate
+  preference carries more weight.
+- **First-season tutorial.** A new dynasty opens on your coach's origin
+  story, then offers a skippable step-by-step walkthrough (recruiting,
+  training, race weeks, the portal, where everything lives) plus one-time
+  tip banners on every screen during your first season only. It never
+  appears again for successor coaches in the same dynasty.
+- **Action tooltips.** Every recruiting action button explains what it does.
+- Balance-validated with a **40-season stress sim**
+  (`tests/test-update15-balance.js`): a blue-blood player lands 3-6
+  transfers per cycle and genuine top-5 classes, while CPU powers still win
+  their share of titles.
+
 ## Version 11.2 — Update 14: Full iPhone UI Redesign
 
 The whole interface now works like a native iPhone game — every gameplay

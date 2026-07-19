@@ -10,5 +10,5 @@ window.XCD = window.XCD || {
   models: {},
   engine: {},
   ui: { screens: {} },
-  VERSION: '12.1.0'
+  VERSION: '12.2.0'
 };

@@ -110,6 +110,12 @@
       // Team culture: player-selected captains per squad
       this.culture = { captains: { M: [], W: [] } };
       this.jobOffers = null; // outside interest after strong seasons
+
+      // First-season tutorial (Update 15): set at dynasty creation for the
+      // FIRST coach only ({ pending, tipsYear, seen }); cleared forever when
+      // a successor coach is created inside the same dynasty. Null for
+      // pre-Update-15 saves — they never see it.
+      this.tutorial = null;
     }
 
     /*
@@ -209,6 +215,11 @@
       gs.capturePreseasonRanks();
       // An assistant never plans training — that step is pre-confirmed.
       if (!gs.controlsTraining()) gs.weeklyFlow.trainingConfirmed = true;
+
+      // The first coach of a dynasty gets the origin story + optional
+      // tutorial on their first screen (Update 15). Successor coaches
+      // created later in this dynasty never will.
+      gs.tutorial = { pending: true, tipsYear: null, seen: {} };
       return gs;
     }
 
@@ -560,6 +571,8 @@
         offseasonReport: this.offseasonReport || null,
         staffHiredYear: this.staffHiredYear || null,
         week1: this.week1,
+        // First-season tutorial state (Update 15).
+        tutorial: this.tutorial || null,
         // Custom League (Update 13): the imported spec that renamed divisions,
         // added conferences, and set meet/award names. Re-applied on load.
         customLeague: this.customLeague || null
@@ -614,6 +627,8 @@
       gs.weeklyFlow = obj.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
       gs.offseasonReport = obj.offseasonReport || null;
       gs.staffHiredYear = obj.staffHiredYear || null;
+      // Tutorial state (Update 15): null for older saves — never shown to them.
+      gs.tutorial = obj.tutorial || null;
       // Saves from before the Week 1 administrative phase are grandfathered:
       // the in-progress season's checklist counts as complete (its schedule
       // still locks normally once Week 1 passes).

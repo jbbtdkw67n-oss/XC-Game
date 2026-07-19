@@ -6,7 +6,7 @@
 // recruiting + pivots, generational HS/INT-only sourcing, staff management,
 // and elite assistant offers for sitting head coaches.
 const { chromium } = require('playwright');
-const { wireErrors, launchOpts } = require('./helpers');
+const { wireErrors, launchOpts, skipTutorial } = require('./helpers');
 const path = require('path');
 
 async function run() {
@@ -44,6 +44,7 @@ async function run() {
   await page.click('.school-pick');
   await page.click('#btn-start');
   await page.waitForSelector('#sidebar');
+  await skipTutorial(page);
 
   const created = await page.evaluate(() => {
     const c = window.XCD.ui.state.game.getPlayerCoach();

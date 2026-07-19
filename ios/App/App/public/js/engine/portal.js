@@ -24,20 +24,9 @@
   const SUMMER_FINAL_WEEK = CAL.SUMMER_WEEKS;
   const SEASON_END_WEEK = CAL.NATIONAL_WEEK;
   const REDSHIRT_CUTOFF = CAL.MEET_WEEKS[2];  // mid regular season
-  // The player can work more of the board at once (Update 11.1) — chasing
-  // only three transfers made landing any of them a coin-flip grind.
-  const PLAYER_OFFER_LIMIT = 6;
-  // A transfer the player actively pursues is being recruited by a head
-  // coach in person — direct contact and a real pitch the passive CPU
-  // market doesn't match. Two levers model that edge:
-  //  - a modest appeal bump, so the player's program clears the athlete's
-  //    "worth committing to" bar and lands among the finalists; and
-  //  - a heavier weight in the final choice, because an athlete genuinely
-  //    prefers the staff courting them hardest.
-  // It's a real edge, not a guarantee: a blue blood can still out-pull the
-  // player for a true star, where CPU appeal towers over a mid program's.
-  const PLAYER_PURSUIT_BONUS = 16;
-  const PLAYER_PURSUIT_WEIGHT = 6;
+  // The player can spread transfer points across a wider board (Update 15) —
+  // the points budget, not this cap, is the real constraint.
+  const PLAYER_OFFER_LIMIT = 8;
 
   // Transfer Portal Nerf (Update 13, Phase 4): desire-driven portal entries
   // are throttled to ~75% of their former rate — the portal was providing too
@@ -45,36 +34,335 @@
   // and unaffected.)
   const PORTAL_ENTRY_SCALE = 0.75;
 
-  // Rank a portal entry's suitors by the athlete's real appeal, with the
-  // player's own program credited for actively pursuing (see above).
+  /* ================================================================ *
+   * The Transfer Points system (Update 15) — a Campus-Dynasty-style,
+   * skill-based portal.
+   *
+   * Every window the player gets a TRANSFER POINTS budget determined by
+   * program prestige and the coach's recruiting craft (a high-caliber
+   * program with an elite recruiter earns ~300; winning a national title
+   * raises next window's budget, a genuinely poor season lowers it). Each
+   * portal athlete carries a LOCK COST — the points that make the commit a
+   * 100% certainty. Put your whole budget on one star or slide points
+   * across several targets: your commit percentage is exactly
+   * allocated / lockCost, and every rival school's live percentage shows
+   * on the athlete's pursuit profile. Transfers also carry visible
+   * PREFERENCES (racing time, contender, close to home, academics, NIL,
+   * development, culture) — each preference your program matches lowers
+   * that athlete's lock cost, so the right fits come cheaper. Top-level
+   * transfers draw ~5-school bidding wars; a max-level program that
+   * matches an athlete's preferences locks even a star for roughly a
+   * third of its budget, while a mid-major must empty the tank to beat
+   * the field for the same name.
+   * ================================================================ */
+  const TP = {
+    BASE: 65,           // everyone can work the phones a little
+    PRESTIGE: 1.75,     // the brand does the heavy lifting
+    RECRUITING: 0.9,    // the coach's recruiting rating buys real points
+    PORTAL_CRAFT: 0.3,  // transfer-recruiting specialists add a touch
+    TITLE_BONUS: 50,    // champions recruit from the podium
+    POOR_SEASON: -40,   // a bad year quiets the pitch
+    MIN: 90, MAX: 400
+  };
+
+  function transferQuality(a) {
+    return a.currentOverall * 0.7 + a.potential * 0.3;
+  }
+
+  /*
+   * The window's transfer-points budget for the player's program.
+   * Returns { budget, base, titleBonus, seasonAdj } so the UI can explain
+   * exactly where the number came from.
+   */
+  function playerTransferBudget(gameState, summer) {
+    const school = gameState.getPlayerSchool();
+    const coach = gameState.getPlayerCoach();
+    if (!school || !coach) return { budget: 0, base: 0, titleBonus: 0, seasonAdj: 0 };
+    const base = TP.BASE + (school.prestige || 50) * TP.PRESTIGE +
+      (coach.recruiting || 50) * TP.RECRUITING +
+      ((coach.transferRecruiting || 55) - 55) * TP.PORTAL_CRAFT;
+
+    // The season that just ended: the fall window opens after this year's
+    // nationals; the summer window follows last calendar year's season.
+    const seasonYear = summer ? gameState.year - 1 : gameState.year;
+    const slate = (gameState.history.nationalChampions || {})[seasonYear] || {};
+    const wonTitle = Object.values(slate).some((c) => c && c.teamId === school.id);
+    let titleBonus = 0;
+    let seasonAdj = 0;
+    if (wonTitle) {
+      titleBonus = TP.TITLE_BONUS;
+    } else if (gameState.rankings) {
+      // A poor season: the final poll far below where the prestige says the
+      // program should sit (same expectation curve the prestige engine uses).
+      const rk = gameState.rankings;
+      const div = school.division || 'DI';
+      const divSize = (rk.divisionSizes && rk.divisionSizes[div]) || rk.M.length || 300;
+      let best = divSize;
+      ['M', 'W'].forEach((g) => {
+        const row = (rk[g] || []).find((r) => r.schoolId === school.id);
+        if (row) best = Math.min(best, row.rank);
+      });
+      const expected = Math.round((1 - (school.prestige || 50) / 100) * divSize * 0.92) + 4;
+      if (best > expected + Math.max(25, divSize * 0.1)) seasonAdj = TP.POOR_SEASON;
+    }
+    return {
+      budget: Utils.clamp(Math.round(base + titleBonus + seasonAdj), TP.MIN, TP.MAX),
+      base: Math.round(base),
+      titleBonus,
+      seasonAdj
+    };
+  }
+
+  // The player's per-window points ledger, created when a window opens and
+  // rebuilt lazily for saves that predate the system.
+  function ensurePlayerPoints(gameState) {
+    const portal = gameState.portal;
+    if (!portal) return null;
+    if (!portal.player) {
+      const b = playerTransferBudget(gameState, !!portal.summer);
+      portal.player = { budget: b.budget, base: b.base, titleBonus: b.titleBonus, seasonAdj: b.seasonAdj, allocations: {} };
+    }
+    return portal.player;
+  }
+
+  function transferPointsSpent(gameState) {
+    const p = gameState.portal && gameState.portal.player;
+    if (!p) return 0;
+    return Object.values(p.allocations || {}).reduce((s, v) => s + (v || 0), 0);
+  }
+
+  function transferPointsLeft(gameState) {
+    const p = ensurePlayerPoints(gameState);
+    if (!p) return 0;
+    return Math.max(0, p.budget - transferPointsSpent(gameState));
+  }
+
+  /*
+   * What this transfer is looking for in a program (Update 15). Up to three
+   * visible preferences derived from who they are and why they left; each
+   * one a program matches lowers the lock cost (and raises a CPU suitor's
+   * pull), so genuine fits close cheaper — for everyone.
+   */
+  function transferPreferences(gameState, athlete, entry) {
+    const RE = window.XCD.engine.Recruiting;
+    const R = window.XCD.data.PORTAL_REASONS;
+    const reason = entry ? entry.reason : '';
+    const from = entry && gameState.getSchool(entry.fromSchoolId);
+    const prefs = [];
+
+    if (reason === R.racing || reason === R.rosterCut || reason === R.walkOnCut) {
+      prefs.push({
+        key: 'racing', icon: '🏁', label: 'Wants to race right away',
+        match: (s) => {
+          const top = gameState.getRoster(s.id, athlete.gender)
+            .map((x) => x.currentOverall).sort((x, y) => y - x);
+          return athlete.currentOverall >= (top[4] ?? 40);
+        }
+      });
+    }
+    if (reason === R.contender || reason === R.moveUp || athlete.currentOverall >= 72) {
+      prefs.push({ key: 'contender', icon: '🏆', label: 'Wants a national contender', match: (s) => s.prestige >= 72 });
+    }
+    if (reason === R.homesick || (athlete.hometownState !== 'INT' && from &&
+        RE.distanceMiles(athlete.hometownState, from.state) > 900)) {
+      prefs.push({
+        key: 'home', icon: '🏠', label: 'Wants to be closer to home',
+        match: (s) => athlete.hometownState !== 'INT' && RE.distanceMiles(athlete.hometownState, s.state) < 400
+      });
+    }
+    if (reason === R.academics || athlete.academics > 78) {
+      prefs.push({ key: 'academics', icon: '🎓', label: 'Values strong academics', match: (s) => s.academics >= 70 });
+    }
+    if (reason === R.stagnant || (athlete.potential - athlete.currentOverall) > 10) {
+      prefs.push({
+        key: 'development', icon: '📈', label: 'Wants a staff that develops runners',
+        match: (s) => {
+          const c = gameState.getCoach(s.coachId);
+          return !!c && (c.training >= 62 || (s.facilities && s.facilities.trainingCenter >= 68));
+        }
+      });
+    }
+    if (reason === R.nil || athlete.personality === 'Individualist') {
+      prefs.push({
+        key: 'nil', icon: '💵', label: 'Wants real NIL money',
+        match: (s) => {
+          const d = window.XCD.data.divisionFor(s);
+          return !!d.nil && s.budget.nil >= 25000;
+        }
+      });
+    }
+    if (reason === 'Facilities' || reason === R.trainingFit || reason === R.overtraining) {
+      prefs.push({ key: 'facilities', icon: '🏟', label: 'Wants elite facilities & sports science', match: (s) => s.facilitiesOverall >= 68 });
+    }
+    if (reason === R.culture || reason === R.relationship || reason === R.teamChem || reason === R.miserable) {
+      prefs.push({
+        key: 'culture', icon: '🤝', label: 'Wants a healthy locker room',
+        match: (s) => {
+          const c = gameState.getCoach(s.coachId);
+          return (s.teamMorale ?? 65) >= 68 || (!!c && c.culture >= 62);
+        }
+      });
+    }
+    // Everyone cares about something: round out thin lists.
+    if (prefs.length < 2) {
+      prefs.push({ key: 'winning', icon: '📊', label: 'Wants a program on the rise', match: (s) => (s.prestigeMomentum || 0) > 0.4 || s.prestige >= 62 });
+    }
+    return prefs.slice(0, 3);
+  }
+
+  function prefMatchCount(gameState, athlete, entry, school) {
+    return transferPreferences(gameState, athlete, entry).filter((p) => {
+      try { return !!p.match(school); } catch (e) { return false; }
+    }).length;
+  }
+
+  // Each matched preference is worth 7% more effective recruiting pull.
+  function prefMultiplier(gameState, athlete, entry, school) {
+    return 1 + 0.07 * prefMatchCount(gameState, athlete, entry, school);
+  }
+
+  /*
+   * The points that make this commit a certainty for `school`. Cost rises
+   * steeply with talent, climbs further when the athlete is a reach above
+   * the program's level, and falls when the program matches the athlete's
+   * preferences. Calibration: a max-level program matching an elite
+   * transfer's preferences locks them for ~1/3 of a ~300-point budget; a
+   * mid-major must spend nearly everything for the same star.
+   */
+  function pointsToLock(gameState, athlete, school, entry) {
+    school = school || gameState.getPlayerSchool();
+    const quality = transferQuality(athlete);
+    let cost = 20 + (quality * quality) / 82;
+    const levelMark = 30 + (school.prestige || 50) * 0.55;
+    const reach = quality - levelMark;
+    if (reach > 6) cost *= Math.min(2.2, 1 + (reach - 6) * 0.045);
+    cost /= prefMultiplier(gameState, athlete, entry, school);
+    return Math.max(35, Math.round(cost));
+  }
+
+  /*
+   * A CPU suitor's effective points in the race for this athlete — the same
+   * currency the player spends, derived from the pursuing program's level,
+   * its staff's recruiting craft, and how well it matches the athlete's
+   * preferences. Assigned once when the offer lands so the market is stable
+   * week to week.
+   */
+  function cpuTransferPoints(gameState, school, athlete, entry, rng) {
+    const coach = gameState.getCoach(school.coachId);
+    const base = (30 + (school.prestige || 50) * 0.55) * 0.85 +
+      ((coach && coach.recruiting) || 55) * 0.30 +
+      ((coach && coach.transferRecruiting) || 55) * 0.25;
+    const noise = 0.85 + (rng ? rng.next() : Math.random()) * 0.3;
+    return Math.max(20, Math.round(base * prefMultiplier(gameState, athlete, entry, school) * noise));
+  }
+
+  /*
+   * The live win percentages for every school pursuing a portal athlete.
+   * The player's chance is exactly allocatedPoints / lockCost (capped at
+   * 100%); rival schools split the remaining probability by their own
+   * effective points. Anything left over when the field is thin is the
+   * chance the athlete withdraws and stays put.
+   * Returns { probs: {schoolId: 0..1}, pPlayer, lock, alloc, stay }.
+   */
+  function winProbabilities(gameState, entry) {
+    const a = gameState.getAthlete(entry.athleteId);
+    const playerId = gameState.playerSchoolId;
+    const out = { probs: {}, pPlayer: 0, lock: 0, alloc: 0, stay: 0 };
+    if (!a) return out;
+
+    const playerIn = entry.offers.includes(playerId);
+    if (playerIn) {
+      const p = ensurePlayerPoints(gameState);
+      out.alloc = (p && p.allocations[a.id]) || 0;
+      out.lock = pointsToLock(gameState, a, gameState.getPlayerSchool(), entry);
+      out.pPlayer = Math.min(1, out.alloc / out.lock);
+      out.probs[playerId] = out.pPlayer;
+    }
+
+    const cpuIds = entry.offers.filter((sid) => sid !== playerId && gameState.getSchool(sid));
+    entry.cpuPoints = entry.cpuPoints || {};
+    const weights = cpuIds.map((sid) => {
+      if (entry.cpuPoints[sid] === undefined) {
+        entry.cpuPoints[sid] = cpuTransferPoints(gameState, gameState.getSchool(sid), a, entry, null);
+      }
+      return entry.cpuPoints[sid];
+    });
+    const wsum = weights.reduce((s, w) => s + w, 0);
+    const remaining = 1 - out.pPlayer;
+    if (wsum > 0) {
+      cpuIds.forEach((sid, i) => { out.probs[sid] = remaining * (weights[i] / wsum); });
+    } else {
+      // Nobody else is pursuing: whatever the player hasn't earned is the
+      // chance the athlete simply withdraws and stays.
+      out.stay = playerIn ? remaining : 1;
+    }
+    return out;
+  }
+
+  /*
+   * Slide transfer points onto (or off) a portal athlete. `points <= 0`
+   * withdraws the pursuit and refunds everything. Returns { ok, message }.
+   */
+  function setTransferPoints(gameState, athleteId, points) {
+    const portal = gameState.portal;
+    if (!portal || !portal.open) return { ok: false, message: 'The portal is closed.' };
+    if (portal.summer && (gameState.getPlayerSchool().division || 'DI') === 'DI') {
+      return { ok: false, message: 'The summer window is exclusive to Division II and III programs.' };
+    }
+    const entry = portal.entries.find((e) => e.athleteId === athleteId);
+    if (!entry) return { ok: false, message: 'Not in the portal.' };
+    if (entry.destination) return { ok: false, message: 'Already committed elsewhere.' };
+    if (entry.fromSchoolId === gameState.playerSchoolId) return { ok: false, message: "That's your own player." };
+
+    const p = ensurePlayerPoints(gameState);
+    const a = gameState.getAthlete(athleteId);
+    const name = a ? a.fullName : 'transfer';
+    const current = p.allocations[athleteId] || 0;
+
+    if (!points || points <= 0) {
+      if (!current && !entry.offers.includes(gameState.playerSchoolId)) {
+        return { ok: false, message: 'You are not pursuing this athlete.' };
+      }
+      delete p.allocations[athleteId];
+      entry.offers = entry.offers.filter((id) => id !== gameState.playerSchoolId);
+      return { ok: true, message: `Pursuit withdrawn — ${current} points refunded.` };
+    }
+
+    const pursuing = Object.keys(p.allocations).filter((id) => {
+      const e = portal.entries.find((x) => x.athleteId === id);
+      return e && !e.destination && (p.allocations[id] || 0) > 0;
+    }).length;
+    if (!current && pursuing >= PLAYER_OFFER_LIMIT) {
+      return { ok: false, message: `You can only pursue ${PLAYER_OFFER_LIMIT} portal athletes at once.` };
+    }
+
+    const lock = pointsToLock(gameState, a, gameState.getPlayerSchool(), entry);
+    const available = p.budget - (transferPointsSpent(gameState) - current);
+    const pts = Math.min(Math.round(points), lock, available);
+    if (pts <= 0) return { ok: false, message: 'No transfer points left — withdraw from another pursuit first.' };
+    p.allocations[athleteId] = pts;
+    if (!entry.offers.includes(gameState.playerSchoolId)) entry.offers.push(gameState.playerSchoolId);
+    const pct = Math.round(Math.min(1, pts / lock) * 100);
+    const terms = window.XCD.data.offerTerms(gameState.getPlayerSchool());
+    return {
+      ok: true,
+      message: pct >= 100
+        ? `${name} is LOCKED IN — 100% committed to your program!`
+        : `${pts} points on ${name} — ${pct}% commit chance. ${terms.made.replace(/!$/, '')}.`
+    };
+  }
+
+  // Rank a portal entry's suitors by the athlete's real appeal (CPU-only
+  // races — entries the player is pursuing resolve through winProbabilities).
   function rankedOffers(gameState, entry, a, fromSchool) {
     return entry.offers
-      .map((sid) => {
-        let appeal = portalAppeal(gameState, gameState.getSchool(sid), a, fromSchool);
-        if (sid === gameState.playerSchoolId) {
-          appeal = Utils.clamp(appeal + PLAYER_PURSUIT_BONUS, 0, 100);
-        }
-        return { sid, appeal };
-      })
+      .map((sid) => ({ sid, appeal: portalAppeal(gameState, gameState.getSchool(sid), a, fromSchool) }))
       .sort((x, y) => y.appeal - x.appeal);
   }
 
-  // The athlete's final pick among its finalists: appeal, steeply weighted,
-  // with the player's active pursuit favored. The edge is strongest for
-  // athletes who'd realistically choose a program at the player's level and
-  // fades (never to nothing) for stars far above it, who have their pick of
-  // blue bloods — so the player reliably lands roster help they focus on, but
-  // still has to win a real fight for a difference-maker.
-  function chooseSuitor(gameState, ranked, rng, pow, athlete) {
-    const school = gameState.getPlayerSchool();
-    let mult = PLAYER_PURSUIT_WEIGHT;
-    if (athlete && school) {
-      const reach = athlete.currentOverall - (30 + school.prestige * 0.55);
-      if (reach > 10) mult = Math.max(2, PLAYER_PURSUIT_WEIGHT - (reach - 10) * 0.35);
-    }
-    return rng.weightedChoice(ranked.slice(0, 3), (o) =>
-      Math.pow(Math.max(o.appeal, 1), pow) *
-      (o.sid === gameState.playerSchoolId ? mult : 1));
+  // The athlete's final pick among CPU finalists: appeal, steeply weighted.
+  function chooseSuitor(gameState, ranked, rng, pow) {
+    return rng.weightedChoice(ranked.slice(0, 3), (o) => Math.pow(Math.max(o.appeal, 1), pow));
   }
 
   /* ================================================================ *
@@ -368,6 +656,13 @@
     });
 
     gameState.portal = { year: gameState.year, entries, open: true };
+    // The player's transfer-points budget for this window (Update 15).
+    const pp = ensurePlayerPoints(gameState);
+    if (pp && pp.titleBonus) {
+      gameState.logNews(`🏆 Recruiting from the podium: the national title boosts your transfer points budget to ${pp.budget}.`);
+    } else if (pp && pp.seasonAdj) {
+      gameState.logNews(`📉 A down season quiets the pitch: your transfer points budget falls to ${pp.budget} this window.`);
+    }
 
     const stars = entries
       .map((e) => gameState.getAthlete(e.athleteId))
@@ -534,12 +829,14 @@
   }
 
   // How many programs should end up chasing this athlete across the window.
-  // Update 11: reverted to an intimate market — 2-4 programs pursue each
-  // athlete. Level-matching still holds (pursuitScore below): the top
+  // Update 15: top-level transfers are genuine national events — roughly
+  // FIVE schools chase a proven star, so the player's points must beat a
+  // real field. Level-matching still holds (pursuitScore below): the top
   // programs chase the top names, smaller programs work the middle and
-  // bottom of the market; only the suitor COUNT came back down.
+  // bottom of the market.
   function suitorTarget(quality, rng) {
-    if (quality >= 66) return 3 + rng.int(0, 1); // proven scorer & up: 3-4 serious suitors
+    if (quality >= 70) return 4 + rng.int(0, 1); // star: a 4-5 school bidding war
+    if (quality >= 62) return 3 + rng.int(0, 1); // proven scorer: 3-4 serious suitors
     if (quality >= 56) return 2 + rng.int(0, 2); // solid contributor: 2-4
     return 2 + rng.int(0, 1);                    // developmental / depth: 2-3
   }
@@ -662,10 +959,20 @@
         const pick = rng.weightedChoice(pool, (c) => Math.max(1, c.s - bar + 8));
         pool.splice(pool.indexOf(pick), 1);
         entry.offers.push(pick.prof.school.id);
+        // The suitor's effective transfer points — set once, so the race the
+        // player sees on the pursuit profile is stable across the window.
+        entry.cpuPoints = entry.cpuPoints || {};
+        entry.cpuPoints[pick.prof.school.id] = cpuTransferPoints(gameState, pick.prof.school, a, entry, rng);
       }
     });
   }
 
+  /*
+   * Quick pursue/withdraw toggle (Update 15: now backed by transfer points).
+   * Pursuing without an explicit slider value assigns a sensible default —
+   * about half the athlete's lock cost — which the pursuit profile's slider
+   * can then fine-tune. Calling again withdraws and refunds the points.
+   */
   function playerOffer(gameState, athleteId) {
     const portal = gameState.portal;
     if (!portal || !portal.open) return { ok: false, message: 'The portal is closed.' };
@@ -678,16 +985,60 @@
     if (entry.destination) return { ok: false, message: 'Already committed elsewhere.' };
     if (entry.fromSchoolId === gameState.playerSchoolId) return { ok: false, message: "That's your own player." };
     if (entry.offers.includes(gameState.playerSchoolId)) {
-      entry.offers = entry.offers.filter((id) => id !== gameState.playerSchoolId);
-      return { ok: true, message: 'Offer withdrawn.' };
+      return setTransferPoints(gameState, athleteId, 0); // withdraw + refund
     }
-    const active = portal.entries.filter((e) => !e.destination && e.offers.includes(gameState.playerSchoolId)).length;
-    if (active >= PLAYER_OFFER_LIMIT) return { ok: false, message: `You can only pursue ${PLAYER_OFFER_LIMIT} portal athletes at once.` };
-    entry.offers.push(gameState.playerSchoolId);
     const a = gameState.getAthlete(athleteId);
-    // DIII programs offer roster spots, not scholarships (Update X, Part 3).
-    const terms = window.XCD.data.offerTerms(gameState.getPlayerSchool());
-    return { ok: true, message: `${terms.made} ${a ? a.fullName : 'transfer'}.` };
+    if (!a) return { ok: false, message: 'Unknown athlete.' };
+    const remaining = transferPointsLeft(gameState);
+    if (remaining < 15) return { ok: false, message: 'No transfer points left — withdraw from another pursuit to free some up.' };
+    const lock = pointsToLock(gameState, a, gameState.getPlayerSchool(), entry);
+    return setTransferPoints(gameState, athleteId, Math.min(remaining, Math.max(25, Math.round(lock * 0.55))));
+  }
+
+  /*
+   * Resolve one player-pursued entry with the transfer-points model
+   * (Update 15). A locked athlete (100%) commits to the player on the spot;
+   * otherwise the athlete waits for the deadline, then a single weighted
+   * draw over the published percentages decides it — exactly the odds the
+   * pursuit profile displayed. Returns true if the entry resolved.
+   */
+  function resolvePointsEntry(gameState, entry, a, rng, final) {
+    const { probs, pPlayer, stay } = winProbabilities(gameState, entry);
+    if (pPlayer >= 0.999) {
+      commitEntry(gameState, entry, a, gameState.playerSchoolId, true);
+      return true;
+    }
+    if (!final) return false; // pursued athletes take the whole window
+    let r = rng.next();
+    for (const sid of Object.keys(probs)) {
+      r -= probs[sid];
+      if (r <= 0) { commitEntry(gameState, entry, a, sid, false); return true; }
+    }
+    // The leftover slice (thin market): the athlete withdraws and stays.
+    // (Summer-window cuts can't stay — they fall through to the close-of-
+    // window placement instead, so no message here.)
+    if ((stay > 0 || r > 0) && !(gameState.portal && gameState.portal.summer)) {
+      const school = gameState.getSchool(entry.fromSchoolId);
+      if (a.currentOverall >= 60 || entry.fromSchoolId === gameState.playerSchoolId) {
+        gameState.logNews(`${a.fullName} withdraws from the portal and stays at ${school ? school.name : 'their program'}.`);
+      }
+    }
+    return true;
+  }
+
+  function commitEntry(gameState, entry, a, sid, locked) {
+    const fromSchool = gameState.getSchool(entry.fromSchoolId);
+    entry.destination = sid;
+    entry.decidedWeek = gameState.week;
+    const to = gameState.getSchool(sid);
+    const crossDiv = fromSchool && (fromSchool.division || 'DI') !== (to.division || 'DI');
+    const moveNote = crossDiv ? ` (${fromSchool.division || 'DI'} → ${to.division || 'DI'})` : '';
+    if (sid === gameState.playerSchoolId) {
+      gameState.logNews(`✅ TRANSFER COMMIT: ${a.fullName} (${a.currentOverall} OVR) is coming to ${to.name} from ${fromSchool?.name}${moveNote}${locked ? ' — your points locked it in' : ''}!`);
+    } else if (a.currentOverall >= 72 || entry.fromSchoolId === gameState.playerSchoolId ||
+               entry.offers.includes(gameState.playerSchoolId) || crossDiv) {
+      gameState.logNews(`Transfer: ${a.fullName} picks ${to.name}${moveNote} over ${entry.offers.length - 1} other offer${entry.offers.length > 2 ? 's' : ''}.`);
+    }
   }
 
   function resolveDecisions(gameState, rng, final = false) {
@@ -696,14 +1047,20 @@
 
     portal.entries.forEach((entry) => {
       if (entry.destination || !entry.offers.length) return;
-      // Rolling decisions; everyone left decides at the deadline.
-      if (!final && !rng.bool(0.22)) return;
-
       const a = gameState.getAthlete(entry.athleteId);
-      const fromSchool = gameState.getSchool(entry.fromSchoolId);
       if (!a) return;
-      // Elite transfers let their (smaller, Update 11) market develop: a
-      // star doesn't commit on the first call — the top suitors line up.
+
+      // The player's pursuits run on the transfer-points model (Update 15).
+      if (entry.offers.includes(gameState.playerSchoolId)) {
+        resolvePointsEntry(gameState, entry, a, rng, final);
+        return;
+      }
+
+      // CPU-only races: rolling decisions; everyone left decides at the deadline.
+      if (!final && !rng.bool(0.22)) return;
+      const fromSchool = gameState.getSchool(entry.fromSchoolId);
+      // Elite transfers let their market develop: a star doesn't commit on
+      // the first call — the top suitors line up.
       if (!final && a.currentOverall >= 72 && entry.offers.length < 3) return;
       const ranked = rankedOffers(gameState, entry, a, fromSchool);
       if (ranked[0].appeal < 45 && !final) return;
@@ -711,17 +1068,8 @@
       // Elite transfers weigh their bidding war carefully (Update X): the
       // best recruiter / best program pursuing them wins far more often.
       const pow = a.currentOverall >= 72 ? 4 : 3;
-      const choice = chooseSuitor(gameState, ranked, rng, pow, a);
-      entry.destination = choice.sid;
-      entry.decidedWeek = gameState.week;
-      const to = gameState.getSchool(choice.sid);
-      const crossDiv = fromSchool && (fromSchool.division || 'DI') !== (to.division || 'DI');
-      const moveNote = crossDiv ? ` (${fromSchool.division || 'DI'} → ${to.division || 'DI'})` : '';
-      if (choice.sid === gameState.playerSchoolId) {
-        gameState.logNews(`✅ TRANSFER COMMIT: ${a.fullName} (${a.currentOverall} OVR) is coming to ${to.name} from ${fromSchool?.name}${moveNote}!`);
-      } else if (a.currentOverall >= 72 || entry.fromSchoolId === gameState.playerSchoolId || crossDiv) {
-        gameState.logNews(`Transfer: ${a.fullName} picks ${to.name}${moveNote} over ${entry.offers.length - 1} other offer${entry.offers.length > 2 ? 's' : ''}.`);
-      }
+      const choice = chooseSuitor(gameState, ranked, rng, pow);
+      commitEntry(gameState, entry, a, choice.sid, false);
     });
 
     if (final) {
@@ -759,6 +1107,8 @@
       decidedWeek: null
     }));
     gameState.portal = { year: gameState.year, entries, open: true, summer: true };
+    // A DII/DIII player works the summer market on transfer points too.
+    if ((gameState.getPlayerSchool().division || 'DI') !== 'DI') ensurePlayerPoints(gameState);
     const impact = cuts.filter(({ athlete }) => athlete.currentOverall >= 55).length;
     gameState.logNews(`☀️ SUMMER WINDOW: the transfer portal reopens for Division II and III — ${entries.length} Division I roster cuts hit the market${impact ? ` (${impact} rated 55+ overall)` : ''}.`);
   }
@@ -804,14 +1154,27 @@
 
     portal.entries.forEach((entry) => {
       if (entry.destination || !entry.offers.length) return;
-      // Rolling commitments across the window; everyone decides at the end.
-      if (!final && !rng.bool(0.3)) return;
       const a = gameState.getAthlete(entry.athleteId);
       const fromSchool = gameState.getSchool(entry.fromSchoolId);
       if (!a) return;
+
+      // A DII/DIII player's summer pursuits run on transfer points too
+      // (Update 15): locked cuts commit immediately, the rest resolve by
+      // the published percentages when the window closes.
+      if (entry.offers.includes(gameState.playerSchoolId)) {
+        const before = entry.destination;
+        resolvePointsEntry(gameState, entry, a, rng, final);
+        if (entry.destination && entry.destination !== before) {
+          if (applySummerMove(gameState, entry, rng)) moved++;
+        }
+        return;
+      }
+
+      // Rolling commitments across the window; everyone decides at the end.
+      if (!final && !rng.bool(0.3)) return;
       const ranked = rankedOffers(gameState, entry, a, fromSchool);
       if (!final && ranked[0].appeal < 45) return;
-      const choice = chooseSuitor(gameState, ranked, rng, 3, a);
+      const choice = chooseSuitor(gameState, ranked, rng, 3);
       entry.destination = choice.sid;
       entry.decidedWeek = gameState.week;
       if (applySummerMove(gameState, entry, rng)) {
@@ -1086,6 +1449,17 @@
     applyTransfers,
     cutAthlete,
     trimRosters,
+    // Transfer Points system (Update 15)
+    playerTransferBudget,
+    ensurePlayerPoints,
+    transferPointsLeft,
+    transferPointsSpent,
+    setTransferPoints,
+    pointsToLock,
+    transferPreferences,
+    prefMatchCount,
+    winProbabilities,
+    transferQuality,
     ENTRY_WEEK,
     DECISION_WEEK,
     SUMMER_FINAL_WEEK,

@@ -1166,3 +1166,93 @@ details.filter-collapse .filter-body {
 .shop-empty .shop-empty-icon { font-size: 34px; margin-bottom: 10px; opacity: 0.7; }
 .shop-empty .shop-empty-title { font-weight: 700; font-size: 15px; color: var(--text); margin-bottom: 4px; }
 .shop-empty .shop-empty-sub { font-size: 13px; }
+
+/* =========================================================
+   First-Season Tutorial (Update 15): the origin-story overlay,
+   the step-by-step walkthrough, and one-time tip banners.
+   iPhone-safe: dvh sizing, safe-area padding, tap-sized buttons.
+   ========================================================= */
+#tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200; /* above modals and sheets */
+  background: rgba(6, 8, 12, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(16px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right))
+           calc(16px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+  animation: fade-in 0.22s ease;
+}
+.tutorial-card {
+  width: min(560px, 94vw);
+  max-height: 86dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 26px 24px;
+  box-shadow: var(--shadow-pop);
+  animation: screen-in 0.25s ease;
+}
+.tutorial-card h2 { font-size: 20px; margin-bottom: 10px; text-align: center; }
+.tutorial-emblem { font-size: 40px; text-align: center; margin-bottom: 10px; }
+.tutorial-story-text {
+  color: var(--text);
+  font-size: 15.5px;
+  line-height: 1.65;
+  text-align: center;
+}
+.tutorial-signature {
+  color: var(--text-dim);
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+  margin-top: 12px;
+}
+.tutorial-step-text { color: var(--text-dim); font-size: 14px; line-height: 1.6; }
+.tutorial-step-text strong { color: var(--text); }
+.tutorial-card .btn { min-height: var(--tap); justify-content: center; }
+.tutorial-dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 14px; }
+.tutorial-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--border);
+}
+.tutorial-dot.active { background: var(--accent); }
+.tutorial-dot.done { background: var(--text-faint); }
+.tutorial-skip-link {
+  width: 100%;
+  margin-top: 8px;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+
+/* One-time tip banners (first season only) */
+.tip-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(61, 139, 253, 0.35);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  animation: fade-in 0.25s ease;
+}
+.tip-banner .tip-icon { font-size: 16px; line-height: 1.4; }
+.tip-banner .tip-text { flex: 1; font-size: 13px; line-height: 1.5; color: var(--text); }
+.tip-banner .tip-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  min-width: 28px;
+  min-height: 28px;
+}
+.tip-banner .tip-close:hover { color: var(--text); }

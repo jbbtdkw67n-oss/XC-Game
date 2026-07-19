@@ -1,7 +1,7 @@
 // Phase 5 test: coach creation flow, 4 ratings only, archetype bonus,
 // upgrade points earned + spendable, archetype gameplay effects.
 const { chromium } = require('playwright');
-const { newDynasty, wireErrors, launchOpts } = require('./helpers');
+const { newDynasty, skipTutorial, wireErrors, launchOpts } = require('./helpers');
 
 (async () => {
   const browser = await chromium.launch(launchOpts());
@@ -34,6 +34,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   await page.click('.school-pick');
   await page.click('#btn-start');
   await page.waitForSelector('#sidebar');
+  await skipTutorial(page);
 
   const coach = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;

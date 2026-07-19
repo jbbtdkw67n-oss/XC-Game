@@ -635,8 +635,25 @@
       fit += rep >= 80 ? 22 : rep >= 66 ? 14 : rep >= 50 ? 6 : rep >= 34 ? 0 : -12;
     }
 
-    // Climate preference (visible) folds in lightly.
-    fit += (climateScore(school, recruit) - 60) * 0.1;
+    // Climate preference (visible) folds in with real weight (Update 15):
+    // a Warm-preference kid genuinely favors the Southeast over the Plains.
+    fit += (climateScore(school, recruit) - 60) * 0.14;
+
+    // School-size preference (Update 15): the visible Small/Medium/Large
+    // preference now genuinely matters. Size derives from division and
+    // conference tier (the same read the finance engine uses): power-
+    // conference DI reads Large, mid-tier DI Medium, low-major DI and
+    // DII/DIII Small. A match helps; a hard mismatch (Small kid at a huge
+    // state school, Large kid at a tiny college) costs real appeal.
+    if (recruit.preferredSchoolSize && recruit.preferredSchoolSize !== 'No Preference') {
+      const F = window.XCD.engine.Finances;
+      const sizeF = F && F.schoolSizeFactor ? F.schoolSizeFactor(school) : 1;
+      const sizeCat = sizeF >= 1.4 ? 'Large' : sizeF >= 0.9 ? 'Medium' : 'Small';
+      if (recruit.preferredSchoolSize === sizeCat) fit += 4;
+      else if ((recruit.preferredSchoolSize === 'Large' && sizeCat === 'Small') ||
+               (recruit.preferredSchoolSize === 'Small' && sizeCat === 'Large')) fit -= 5;
+      else fit -= 1;
+    }
 
     // Facilities are a universal draw beyond personal importance: elite
     // buildings turn heads, run-down ones cost you visits.
@@ -711,14 +728,20 @@
   }
 
   // Total appeal = long-term fit + relationship built through recruiting.
+  // Sway momentum (Update 15): each successful Sway banks a lasting point of
+  // momentum (capped at 3) worth +3 appeal apiece — because the commit draw
+  // cubes appeal, a fully-swayed recruit is decisively more likely to pick
+  // the program that closed hardest. The player's staff lands sways far more
+  // reliably than the CPU, making this the human coach's real closing edge.
   function appeal(gameState, school, recruit, ctx) {
     const st = recruit.getSchoolState(school.id);
     const rel = st ? st.relationship : 0;
     const interest = st ? st.interest : 0;
     const offered = st && st.offered ? 8 : 0;
     const visited = st && st.visited ? 5 : 0;
+    const momentum = st ? Math.min(st.sway || 0, 3) * 3 : 0;
     return Utils.clamp(
-      fitScore(gameState, school, recruit, ctx) * 0.55 + rel * 0.25 + interest * 0.20 + offered + visited,
+      fitScore(gameState, school, recruit, ctx) * 0.55 + rel * 0.25 + interest * 0.20 + offered + visited + momentum,
       0, 100
     );
   }
@@ -818,28 +841,39 @@
       int += rec.starRating >= 4 ? 0 : 4; // lower-rated kids are flattered
     }
 
-    // Sway (Update 13, Phase 4): resolve the momentum swing. Better recruiters
-    // (and more coachable recruits) succeed more often; occasionally the pitch
-    // falls flat or even costs a touch of momentum.
+    // Sway (Update 13, Phase 4; rebalanced Update 15): resolve the momentum
+    // swing. Sway is deliberately the PLAYER'S closing tool — the human coach
+    // in the living room sells the program in a way the passive CPU pitch
+    // can't. The player's staff succeeds far more often (~80-92%), swings
+    // more interest per success, and almost never backfires; CPU staffs keep
+    // a modest hit rate. Each successful sway also banks a point of lasting
+    // MOMENTUM with the recruit (capped) that feeds straight into the commit
+    // math — this is how a blue-blood player closes five-stars: build the
+    // relationship, then sway the finish.
     if (actionKey === 'sway') {
       const roll = rand();
-      const successChance = Utils.clamp(0.42 + coach.recruiting / 260 + rec.coachability / 500, 0.35, 0.82);
+      const isPlayerStaff = school.id === gameState.playerSchoolId;
+      const successChance = isPlayerStaff
+        ? Utils.clamp(0.52 + coach.recruiting / 300 + rec.coachability / 600, 0.55, 0.92)
+        : Utils.clamp(0.38 + coach.recruiting / 280 + rec.coachability / 550, 0.30, 0.72);
       let outcome;
       if (roll < successChance) {                 // a genuine momentum swing
-        int = (5 + rand() * 5) * recruitingMul;   // ~5-10 interest
-        rel = 3;
+        int = ((isPlayerStaff ? 7 : 5) + rand() * (isPlayerStaff ? 6 : 5)) * recruitingMul;
+        rel = isPlayerStaff ? 4 : 3;
+        st.sway = Math.min((st.sway || 0) + 1, 3); // lasting commit-math momentum
         outcome = 'boost';
-      } else if (roll < successChance + 0.20) {   // just a warmer relationship
-        int = 0; rel = 4;
+      } else if (roll < successChance + (isPlayerStaff ? 0.18 : 0.20)) {
+        int = 0; rel = 4;                         // just a warmer relationship
         outcome = 'relationship';
-      } else if (roll < successChance + 0.32) {   // no effect
-        int = 0; rel = 0;
+      } else if (roll < successChance + (isPlayerStaff ? 0.27 : 0.32)) {
+        int = 0; rel = 0;                         // no effect
         outcome = 'none';
       } else {                                    // a misstep — lost momentum
-        int = -3; rel = -2;
+        int = isPlayerStaff ? -2 : -3;
+        rel = isPlayerStaff ? -1 : -2;
         outcome = 'backfire';
       }
-      if (school.id === gameState.playerSchoolId) st._swayOutcome = outcome;
+      if (isPlayerStaff) st._swayOutcome = outcome;
     }
 
     st.relationship = Utils.clamp(st.relationship + rel, 0, 100);
@@ -892,14 +926,16 @@
     if (action.requires === 'visited' && !st.visited) {
       return { ok: false, message: 'An overnight requires a campus visit first.' };
     }
-    // Sway gate (Update 13, Phase 4): you can't magically pull in a recruit
-    // with no interest. They must already be considering you — modest interest
-    // AND a realistic (>~10%) chance of choosing your program.
+    // Sway gate (Update 13, Phase 4; eased Update 15): you can't magically
+    // pull in a recruit with no interest. They must already be considering
+    // you — modest interest AND a realistic (>~7%) chance of choosing your
+    // program. The gate sits just low enough that a blue-blood staff grinding
+    // a contested five-star can still fight its way into the race.
     if (action.requires === 'sway') {
       if (st.interest < 20) {
         return { ok: false, message: `${rec.lastName} isn't considering you enough to sway yet — build a relationship and some interest first.` };
       }
-      if (commitChance(gameState, school, rec) < 0.10) {
+      if (commitChance(gameState, school, rec) < 0.07) {
         return { ok: false, message: `${rec.lastName}'s commitment chance is too low to sway — you need a real foot in the door first.` };
       }
     }
@@ -1107,7 +1143,7 @@
     if (action.requires === 'interest30' && st.interest < 30) return false;
     if (action.requires === 'visited' && !st.visited) return false;
     if (action.requires === 'sway' &&
-        (st.interest < 20 || commitChance(gameState, school, rec) < 0.10)) return false;
+        (st.interest < 20 || commitChance(gameState, school, rec) < 0.07)) return false;
 
     econ.points -= action.points;
     econ.budget -= action.cost;

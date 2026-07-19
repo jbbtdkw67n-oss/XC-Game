@@ -308,23 +308,36 @@
    * reveal  — chance to uncover one hidden motivation
    * requires — gating rules checked by the engine
    */
+  // `tip` (Update 15) is the plain-language tooltip shown on each action
+  // button so new players know what everything does.
   D.RECRUIT_ACTIONS = {
-    letter:        { label: 'Send Letter',          points: 1, cost: 50,   relationship: 2,  interest: 1, scout: 2,  reveal: 0.03 },
-    call:          { label: 'Phone Call',           points: 2, cost: 100,  relationship: 5,  interest: 2, scout: 4,  reveal: 0.22 },
-    watchRace:     { label: 'Watch Race',           points: 3, cost: 500,  relationship: 2,  interest: 2, scout: 30, reveal: 0.05 },
-    assistantVisit:{ label: 'Assistant Visit',      points: 3, cost: 800,  relationship: 7,  interest: 4, scout: 12, reveal: 0.25 },
-    homeVisit:     { label: 'Home Visit',           points: 5, cost: 1200, relationship: 12, interest: 6, scout: 8,  reveal: 0.55 },
-    campusVisit:   { label: 'Campus Visit',         points: 6, cost: 2000, relationship: 8,  interest: 14, scout: 5, reveal: 0.25, requires: 'interest30' },
-    hostOvernight: { label: 'Host Overnight',       points: 4, cost: 1000, relationship: 10, interest: 9, scout: 3,  reveal: 0.15, requires: 'visited' },
-    meetTeam:      { label: 'Invite to Meet Team',  points: 2, cost: 200,  relationship: 5,  interest: 4, scout: 2,  reveal: 0.08 },
-    // Sway (Update 13, Phase 4): a focused push to swing a recruit's momentum
-    // your way. NOT a Flip — it only nudges a recruit who is already genuinely
-    // considering you (modest interest AND >~10% commitment chance). Outcomes
-    // vary: a real momentum swing, just a stronger relationship, nothing, or
-    // (rarely) a misstep that costs a little momentum. Base interest/relationship
-    // are 0 here — the engine resolves the swing with a randomized outcome.
-    sway:          { label: 'Sway',                 points: 3, cost: 5000, relationship: 0,  interest: 0, scout: 1,  reveal: 0.06, requires: 'sway' },
-    offer:         { label: 'Offer Scholarship',    points: 2, cost: 0,    relationship: 6,  interest: 10, scout: 0, reveal: 0 }
+    letter:        { label: 'Send Letter',          points: 1, cost: 50,   relationship: 2,  interest: 1, scout: 2,  reveal: 0.03,
+                     tip: 'Cheap weekly contact — a small relationship bump.' },
+    call:          { label: 'Phone Call',           points: 2, cost: 100,  relationship: 5,  interest: 2, scout: 4,  reveal: 0.22,
+                     tip: 'Builds the relationship and often reveals what the recruit cares about.' },
+    watchRace:     { label: 'Watch Race',           points: 3, cost: 500,  relationship: 2,  interest: 2, scout: 30, reveal: 0.05,
+                     tip: 'Scouting trip — lifts the fog off their true ratings.' },
+    assistantVisit:{ label: 'Assistant Visit',      points: 3, cost: 800,  relationship: 7,  interest: 4, scout: 12, reveal: 0.25,
+                     tip: 'Your assistant works the recruit — effect scales with their recruiting skill.' },
+    homeVisit:     { label: 'Home Visit',           points: 5, cost: 1200, relationship: 12, interest: 6, scout: 8,  reveal: 0.55,
+                     tip: 'Sit down with the family — big relationship gain and the best way to learn hidden motivations.' },
+    campusVisit:   { label: 'Campus Visit',         points: 6, cost: 2000, relationship: 8,  interest: 14, scout: 5, reveal: 0.25, requires: 'interest30',
+                     tip: 'The big sell — lands harder with good facilities. Needs 30 interest.' },
+    hostOvernight: { label: 'Host Overnight',       points: 4, cost: 1000, relationship: 10, interest: 9, scout: 3,  reveal: 0.15, requires: 'visited',
+                     tip: 'A night with the team after a campus visit — strong all-around gains.' },
+    meetTeam:      { label: 'Invite to Meet Team',  points: 2, cost: 200,  relationship: 5,  interest: 4, scout: 2,  reveal: 0.08,
+                     tip: 'Introduce the squad — solid, affordable interest builder.' },
+    // Sway (Update 13, Phase 4; buffed Update 15): a focused push to swing a
+    // recruit's momentum your way. NOT a Flip — it only nudges a recruit who
+    // is already genuinely considering you (modest interest AND >~10%
+    // commitment chance). This is the PLAYER'S closing weapon: the human
+    // coach's pitch succeeds ~80-92% of the time (CPU staffs stay modest),
+    // swings real interest, and banks lasting commit-math momentum. Base
+    // interest/relationship are 0 here — the engine resolves the swing.
+    sway:          { label: 'Sway',                 points: 3, cost: 5000, relationship: 0,  interest: 0, scout: 1,  reveal: 0.06, requires: 'sway',
+                     tip: 'YOUR closing move — swings an interested recruit\'s momentum toward you and stacks lasting commit odds. Needs 20 interest and a real (10%+) commit chance.' },
+    offer:         { label: 'Offer Scholarship',    points: 2, cost: 0,    relationship: 6,  interest: 10, scout: 0, reveal: 0,
+                     tip: 'Put the offer on the table — required before a recruit can ever commit to you.' }
   };
 
   // Weekly cap on actions per recruit (prevents interest-dumping).
