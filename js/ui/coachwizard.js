@@ -413,12 +413,44 @@
       cancel);
   };
 
+  /*
+   * Realistic New Coach Career Path (History & Legacy update, Phase 12):
+   * a brand-new coach created inside an existing dynasty starts at the
+   * bottom of the profession. Only entry-level chairs are offered — new or
+   * struggling DIII/DII programs and low-prestige DI schools with limited
+   * recent success. Blue bloods, contenders, and high-prestige programs are
+   * off the table; great jobs are earned over a career, never inherited.
+   */
+  function entryLevelJob(school, rankIndex) {
+    const div = school.division || 'DI';
+    const cap = div === 'DIII' ? 55 : div === 'DII' ? 50 : 42; // low coaching tiers only
+    if (school.prestige > cap) return false;
+    if ((school.heritage || 0) >= 55) return false;            // no sleeping giants either
+    const rank = rankIndex[school.id];
+    if (rank && rank <= 25) return false;                      // no current top-25 program
+    return true;
+  }
+
   function renderSuccessionSchoolPick(root, game, spec) {
     const D = window.XCD.data;
-    const schools = Object.values(game.world.schools).sort((a, b) => a.name.localeCompare(b.name));
+    // Entry-level filter (Phase 12): a new coach in an ongoing dynasty is
+    // only eligible for the profession's bottom rung.
+    const rankIndex = {};
+    if (game.rankings) {
+      ['M', 'W'].forEach((g) => (game.rankings[g] || []).forEach((r) => {
+        rankIndex[r.schoolId] = Math.min(rankIndex[r.schoolId] || 999, r.rank);
+      }));
+    }
+    const schools = Object.values(game.world.schools)
+      .filter((s) => entryLevelJob(s, rankIndex))
+      .sort((a, b) => a.name.localeCompare(b.name));
     const oldCoach = game.getPlayerCoach();
-    let selectedId = game.playerSchoolId; // staying home is the natural default
+    // Staying home is only possible when the old program is itself entry-level.
+    let selectedId = schools.some((s) => s.id === game.playerSchoolId) ? game.playerSchoolId : null;
     let divFilter = (game.getPlayerSchool().division || 'DI');
+    if (!schools.some((s) => (s.division || 'DI') === divFilter)) {
+      divFilter = (schools[0] && (schools[0].division || 'DI')) || 'DI';
+    }
 
     const DIV_TABS = ['DI', 'DII', 'DIII']
       .filter((k) => D.divisionFor(k).active)
@@ -427,8 +459,8 @@
     root.innerHTML = `
       <div id="menu-root">
         <div class="menu-panel" style="width:min(640px,94vw);">
-          <h1 style="font-size:22px;">Choose Your <span>Program</span></h1>
-          <p class="tagline">${spec.startRole === 'Assistant' ? 'Assistant' : 'Head'} Coach ${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)} succeeds the retiring ${Utils.escapeHtml(oldCoach.fullName)}. Stay home, or start the next era anywhere in the country.</p>
+          <h1 style="font-size:22px;">Choose Your <span>First Job</span></h1>
+          <p class="tagline">${spec.startRole === 'Assistant' ? 'Assistant' : 'Head'} Coach ${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)} succeeds the retiring ${Utils.escapeHtml(oldCoach.fullName)} — and starts at the bottom of the profession. Only entry-level programs are hiring an unproven coach: small and struggling schools looking for someone hungry. Win there, build a name, and the bigger chairs will call.</p>
           <div class="pill-tabs" id="div-tabs" style="margin-bottom:10px;">
             ${DIV_TABS.map(([k, label]) => `<button data-div="${k}" class="${divFilter === k ? 'active' : ''}">${label}</button>`).join('')}
           </div>

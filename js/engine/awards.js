@@ -139,6 +139,8 @@
           if (coach) {
             coach.careerRecord.natCOY = (coach.careerRecord.natCOY || 0) + 1;
             Legacy.recordCoachAccolade(coach, { year: gameState.year, division, type: 'natCOY', label: `${divLabel} Coach of the Year (${label})` });
+            const prog = Legacy.program(gameState, best.schoolId);
+            prog.natCoyAwards = (prog.natCoyAwards || 0) + 1;
           }
           if (coach && coach.isPlayer) {
             const coyLabel = window.XCD.data.awardLabel('coachOfYear', 'Coach of the Year');
@@ -199,6 +201,8 @@
           if (c) {
             c.careerRecord.confCOY = (c.careerRecord.confCOY || 0) + 1;
             Legacy.recordCoachAccolade(c, { year: gameState.year, division, conference: conf, type: 'confCOY', label: 'Coach of the Year' });
+            const ccProg = Legacy.program(gameState, cc.schoolId);
+            ccProg.confCoyAwards = (ccProg.confCoyAwards || 0) + 1;
             g.coachOfYear = { name: c.fullName, school: gameState.getSchool(cc.schoolId).name, coachId: c.id };
             if (c.isPlayer) gameState.career.awards.push(`${conf} Coach of the Year (${gameState.year})`);
           }

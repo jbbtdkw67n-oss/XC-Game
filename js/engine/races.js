@@ -997,13 +997,27 @@
       const w = teamScores.length - t.place;
       const l = t.place - 1;
       const prog = Legacy.program(gameState, t.schoolId);
+      const winsBefore = prog.wins;
       prog.wins += w;
       prog.losses += l;
+      // Program milestone: all-time victory thresholds (Phase 11).
+      [100, 250, 500, 1000, 2000].forEach((mark) => {
+        if (winsBefore < mark && prog.wins >= mark) {
+          Legacy.recordProgramMilestone(gameState, t.schoolId, `Program reached ${mark} all-time victories.`);
+        }
+      });
       if (t.place === 1 && teamScores.length >= 2) prog.meetWins += 1;
       const coach = gameState.getCoach(gameState.getSchool(t.schoolId)?.coachId);
       if (coach) {
         coach.careerRecord.wins += w;
         coach.careerRecord.losses += l;
+        // Per-school stint ledger (History & Legacy update, Phases 3/6/8):
+        // the coach's record AT this school, tracked alongside the career.
+        const st = (coach.stints || []).find((s) => !s.endYear && s.schoolId === t.schoolId);
+        if (st) {
+          st.wins = (st.wins || 0) + w;
+          st.losses = (st.losses || 0) + l;
+        }
       }
     });
   }
@@ -1021,6 +1035,12 @@
     const confCoach = gameState.getCoach(school.coachId);
     if (confCoach) confCoach.careerRecord.conferenceTitles += 1;
     Legacy.program(gameState, champId).confTitles += 1;
+
+    // Conference runner-up: a Program Statistics ledger line (Phase 7).
+    if (res.teamScores[1]) {
+      const ru = Legacy.program(gameState, res.teamScores[1].schoolId);
+      ru.confRunnerUp = (ru.confRunnerUp || 0) + 1;
+    }
 
     const H = gameState.history;
     H.conferenceChampions = H.conferenceChampions || {};
@@ -1174,10 +1194,27 @@
         }
 
         // NCAA appearances into the permanent program ledger (Part 8).
+        const Legacy = window.XCD.engine.Legacy;
         field.forEach((sid) => {
-          window.XCD.engine.Legacy.program(gameState, sid).ncaaAppearances += 1;
+          const prog = Legacy.program(gameState, sid);
+          prog.ncaaAppearances += 1;
+          if (prog.ncaaAppearances === 1) {
+            Legacy.recordProgramMilestone(gameState, sid, 'First NCAA Championships appearance.');
+          }
           const c = gameState.getCoach(gameState.getSchool(sid)?.coachId);
-          if (c) c.careerRecord.nationalsAppearances += 1;
+          if (c) {
+            c.careerRecord.nationalsAppearances += 1;
+            const st = (c.stints || []).find((s) => !s.endYear && s.schoolId === sid);
+            if (st) st.ncaaApps = (st.ncaaApps || 0) + 1;
+          }
+        });
+        // Individual NCAA qualifiers stamp the program statistics ledger.
+        individuals.forEach((athId) => {
+          const a = gameState.world.athletes[athId];
+          if (a && a.schoolId) {
+            const p = Legacy.program(gameState, a.schoolId);
+            p.indivNcaaQualifiers = (p.indivNcaaQualifiers || 0) + 1;
+          }
         });
       });
     });
@@ -1195,10 +1232,13 @@
     if (natCoach) natCoach.careerRecord.nationalTitles += 1;
     Legacy.program(gameState, champId).natTitles += 1;
 
-    // Podiums + best finish into the permanent program ledger (Part 8).
+    // Podiums + best finish into the permanent program ledger (Part 8),
+    // plus top-5 / top-10 nationals finishes for Program Statistics (Phase 7).
     res.teamScores.forEach((t) => {
       const prog = Legacy.program(gameState, t.schoolId);
       if (t.place <= 4) prog.podiums += 1;
+      if (t.place <= 5) prog.top5Finishes = (prog.top5Finishes || 0) + 1;
+      if (t.place <= 10) prog.top10Finishes = (prog.top10Finishes || 0) + 1;
       if (!prog.bestFinish || t.place < prog.bestFinish) prog.bestFinish = t.place;
     });
 
@@ -1297,9 +1337,27 @@
       fieldSize: res.teamScores.length,
       individual: indiv ? indiv.name : '',
       individualId: indiv ? indiv.athleteId : null,
-      // The title-team roster, preserved forever for the program archive's
-      // Roster Link (Update 12, Phase 4) — the seven who toed the line.
-      roster: champScorers.map((f) => ({ name: f.name, athleteId: f.athleteId, place: f.place }))
+      // Historical championship roster (History & Legacy update, Phase 10):
+      // the seven who toed the line, snapshotted AS THEY WERE that season —
+      // class year, rating, finishing place and time, and All-America
+      // honors — permanently preserved so legendary teams can be relived.
+      roster: champScorers.map((f) => {
+        const a = gameState.world.athletes[f.athleteId];
+        const aaWindow = ((window.XCD.data.divisionFor(division) || {}).championship || {}).allAmericans || 40;
+        return {
+          name: f.name, athleteId: f.athleteId, place: f.place,
+          time: f.time || null,
+          classYear: a ? a.classYear : (f.classYear || null),
+          overall: a ? a.currentOverall : null,
+          seasonWins: a ? (a.careerStats || {}).wins : null,
+          allAmerican: f.place <= aaWindow
+        };
+      }),
+      // Did the champions also win their conference that season?
+      wonConference: (() => {
+        const conf = (H.conferenceChampions || {})[gameState.year] || {};
+        return conf[`${school.conference}-${gender}`] === school.name;
+      })()
     });
 
     const label = gender === 'M' ? "men's" : "women's";

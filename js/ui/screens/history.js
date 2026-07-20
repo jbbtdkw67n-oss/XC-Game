@@ -314,10 +314,10 @@
       </div>
 
       <div class="card">
-        <h2>Coach Registry — ${registry.length} retired</h2>
+        <h2>Coach Registry — ${registry.length} archived</h2>
         <div style="color:var(--text-dim); font-size:12px; margin-bottom:8px;">
-          The permanent record of historically significant careers. Brief, unremarkable stints fade a few
-          years after retirement — champions, award winners, and long tenures are remembered forever.
+          The permanent record of every coaching career. No coach ever disappears from history —
+          every profile, record, and timeline is preserved for as long as the dynasty runs.
         </div>
         <input type="text" id="coach-search" class="search-input" placeholder="Search retired coaches…" style="margin-bottom:10px; max-width:280px;">
         <div id="registry-list">
@@ -426,10 +426,11 @@
           </tbody></table></div>`
         : '<div style="color:var(--text-dim);">No championship teams match the current filters — the first title team starts the list.</div>'}
       </div>`;
+    // A historical team opens the roster that ACTUALLY won that season —
+    // preserved as it was, never the current roster (Phase 10).
     el.querySelectorAll('[data-gteam]').forEach((tr) => {
       tr.addEventListener('click', () => {
-        const s = game.getSchool(rows[Number(tr.dataset.gteam)].schoolId);
-        if (s) UI.showSchoolCard(s, game);
+        UI.showChampionTeamCard(game, rows[Number(tr.dataset.gteam)]);
       });
     });
     el.querySelectorAll('[data-team-coach]').forEach((sp) => {

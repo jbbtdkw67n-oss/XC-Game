@@ -220,6 +220,30 @@
       Math.round((coach.reputation + applied) * 10) / 10, 1, 92);
   }
 
+  /*
+   * Assistant → head coach prestige conversion (History & Legacy update,
+   * Phase 13). An assistant's prestige is related to — but never identical
+   * to — a head coach's. On promotion the new head-coach reputation is
+   * derived from the assistant résumé (years served, recruiting ability,
+   * championships contributed to) at a meaningful discount: an elite
+   * assistant becomes a highly promising FIRST-TIME head coach, not an
+   * established legend. Experience, attributes, tendencies, and career
+   * history all carry over untouched — only the prestige converts.
+   */
+  function convertAssistantPrestige(coach) {
+    const rep = coach.reputation || 12;
+    const cr = coach.careerRecord || {};
+    let head = rep * 0.55
+      + Math.min(8, (cr.seasons || 0) * 0.4)                    // years of apprenticeship
+      + Utils.clamp(((coach.recruiting || 55) - 55) * 0.15, -4, 6) // recruiting is the calling card
+      + Math.min(5, (cr.nationalTitles || 0) * 2);              // title runs contributed to
+    // Always a real step down, and never an instant elite standing: blue
+    // blood chairs remain the culmination of a proven head-coaching career.
+    head = Math.min(head, rep - 6, 58);
+    coach.reputation = Utils.clamp(Math.round(head), 8, 58);
+    return coach.reputation;
+  }
+
   /* ---------------- Rating progression ---------------- */
   function progressRatings(coach, rng, isPlayer) {
     const bump = (key, amt) => { coach[key] = Utils.clamp(coach[key] + amt, 15, 99); };
@@ -384,6 +408,7 @@
     if (current && current.isPlayer) return { ok: false, message: 'You cannot replace yourself.' };
     if (current) {
       Legacy.closeStint(gameState, current, school, gameState.year);
+      Legacy.recordRetiredCoach(gameState, current, 'released'); // history keeps every career (Phase 3)
       delete gameState.world.coaches[current.id];
       gameState.logNews(`Staff change: ${school.name} lets assistant ${current.fullName} go.`);
     }
@@ -404,6 +429,7 @@
     yearlyProgression,
     updateReputation,
     updateAssistantReputation,
+    convertAssistantPrestige,
     progressRatings,
     preferredMileage,
     mediaPull,

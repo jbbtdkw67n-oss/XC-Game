@@ -36,30 +36,53 @@
     { label: 'High School', types: ['nxnChampion', 'nxnAllAmerican'] }
   ];
 
+  /*
+   * Organized Accolades (History & Legacy update, Phase 9): instead of a
+   * chronological list, every accomplishment category is grouped together
+   * with its years listed in order — "All-American: 2027 · 2028 · 2029".
+   * Conference honors keep their conference next to the year; honors earned
+   * outside Division I carry their division tag. Used by every profile:
+   * live athletes, legends, alumni, and Hall of Famers.
+   */
+  const DIV_TAG = { DI: 'D1', DII: 'D2', DIII: 'D3' };
+
+  function accoladeTypeRows(rows) {
+    // Sub-group the section's rows by honor type, years chronological.
+    const order = [...new Set(rows.map((a) => a.type))];
+    return order.map((type) => {
+      const list = rows.filter((a) => a.type === type).sort((a, b) => a.year - b.year);
+      const label = list[0].label || type;
+      const yearTag = (a) => {
+        const ctx = a.conference || (a.division && a.division !== 'DI' ? (DIV_TAG[a.division] || a.division) : '');
+        return ctx
+          ? `${a.year}&nbsp;<span style="color:var(--text-faint);">(${Utils.escapeHtml(ctx)})</span>`
+          : `${a.year}`;
+      };
+      return `<div class="attr-row" style="padding:4px 0; align-items:flex-start; gap:12px;">
+        <span style="flex:0 1 auto;">${ACC_ICON[type] || '🎖'} <strong>${Utils.escapeHtml(label)}</strong>${list.length > 1 ? ` <span style="color:var(--text-faint); font-size:11.5px;">×${list.length}</span>` : ''}</span>
+        <span style="text-align:right; color:var(--text-dim); font-size:12.5px; flex:1; min-width:0; overflow-wrap:anywhere;">${list.map(yearTag).join(' · ')}</span>
+      </div>`;
+    }).join('');
+  }
+
   function accoladesCard(accolades, Legacy) {
     if (!accolades || !accolades.length) return '';
-    const label = (acc) => Legacy && Legacy.accoladeLabel
-      ? Legacy.accoladeLabel(acc) : `${acc.year} ${acc.label || acc.type}`;
-    const row = (acc) => `<div class="attr-row" style="padding:4px 0;">
-      <span>${ACC_ICON[acc.type] || '🎖'} ${Utils.escapeHtml(label(acc))}</span></div>`;
-    let seen = 0;
     const sections = ACC_GROUPS.map((grp) => {
       const rows = accolades.filter((a) => grp.types.includes(a.type));
       if (!rows.length) return '';
-      seen += rows.length;
       return `<div style="margin-bottom:6px;">
         <div style="font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-faint); margin:4px 0;">${grp.label} — ${rows.length}</div>
-        ${rows.map(row).join('')}</div>`;
+        ${accoladeTypeRows(rows)}</div>`;
     }).join('');
     // Any accolade type not in a known group still shows (forward-compatible).
     const other = accolades.filter((a) => !ACC_GROUPS.some((g) => g.types.includes(a.type)));
     const otherHtml = other.length ? `<div style="margin-bottom:6px;">
       <div style="font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-faint); margin:4px 0;">Other — ${other.length}</div>
-      ${other.map(row).join('')}</div>` : '';
+      ${accoladeTypeRows(other)}</div>` : '';
     return `
       <div class="card" style="padding:12px; margin-bottom:14px;">
         <h3>Career Accolades — ${accolades.length}</h3>
-        <div style="max-height:240px; overflow-y:auto;">${sections}${otherHtml}</div>
+        <div style="max-height:280px; overflow-y:auto;">${sections}${otherHtml}</div>
       </div>`;
   }
   UI._accoladesCard = accoladesCard;
@@ -285,7 +308,7 @@
         <div class="who">
           <h2>${rec.generational ? '⭐ ' : '🏛 '}${Utils.escapeHtml(rec.name)}</h2>
           <div class="sub">
-            ${rec.gender === 'M' ? "Men's" : "Women's"} •
+            ${rec.gender ? (rec.gender === 'M' ? "Men's • " : "Women's • ") : ''}
             <span class="${school ? 'clickable' : ''}" id="legend-school" ${school ? 'style="cursor:pointer; color:var(--accent-hover);"' : ''}>${Utils.escapeHtml(rec.school || '?')}</span>
             ${rec.gradYear ? ` • Class of ${rec.gradYear}` : ''}${rec.yearsCompeted ? ` • Competed ${rec.yearsCompeted}` : ''}
             ${rec.inducted ? ` • <span style="color:var(--gold, #d4a017);">Hall of Fame ’${String(rec.inducted).slice(2)}</span>` : ''}
@@ -359,23 +382,91 @@
       const hof = (game.history.hallOfFame || []).slice().reverse().find((x) => x.name === fallbackName);
       if (hof) { UI.showLegendCard(hof, game); return true; }
     }
-    UI.toast('That career has faded from the historical record.', 'info');
+    // History never closes a door (Phase 4): even when a full ledger record
+    // isn't available (old saves recorded selectively), the profile still
+    // opens with everything history remembers.
+    if (fallbackName) {
+      UI.showLegendCard({ name: fallbackName, school: '?', stats: {}, accolades: [] }, game);
+      return true;
+    }
     return false;
   };
 
-  // Universal coach opener: live coach, or the retired registry.
+  /*
+   * Historical championship team card (History & Legacy update, Phase 10):
+   * opening a legendary team shows the roster that ACTUALLY won that season
+   * — names, class years, ratings at the time, finishing places and times,
+   * and All-America honors — permanently preserved, never the current
+   * roster. Every runner and the coach open their own profiles.
+   */
+  UI.showChampionTeamCard = function (game, t) {
+    if (!t) return;
+    const gTag = t.gender === 'M' ? "Men's" : "Women's";
+    const DIV_LABELS = { DI: 'D1', DII: 'D2', DIII: 'D3' };
+    const roster = t.roster || [];
+    const rich = roster.some((r) => r.classYear || r.overall);
+    const ft = window.XCD.engine.Races.formatTime;
+    UI.showModal(`
+      <button class="btn small modal-close" data-modal-close>✕ Close</button>
+      <h2>🏆 ${t.year} ${Utils.escapeHtml(t.school)} — ${gTag} National Champions</h2>
+      <div style="color:var(--text-dim); font-size:12.5px; margin-bottom:10px;">
+        ${DIV_LABELS[t.division] || t.division || 'D1'} • ${Utils.escapeHtml(t.conference || '')} •
+        Coach: <span class="clickable" id="champ-team-coach" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(t.coachName || '—')}</span>
+      </div>
+      <div class="grid cols-4" style="margin-bottom:12px;">
+        <div class="stat-tile"><div class="label">National Finish</div><div class="value">1st</div>${t.teamScore != null ? `<div class="sub">${t.teamScore} points</div>` : ''}</div>
+        <div class="stat-tile"><div class="label">Margin</div><div class="value">${t.margin != null ? t.margin : '—'}</div><div class="sub">over the runner-up</div></div>
+        <div class="stat-tile"><div class="label">Team Rating</div><div class="value">${t.teamOverall || '—'}</div><div class="sub">scoring five, that season</div></div>
+        <div class="stat-tile"><div class="label">Conference</div><div class="value">${t.wonConference === undefined ? '—' : (t.wonConference ? '🥇 1st' : '—')}</div><div class="sub">${t.wonConference ? 'conference champions' : 'conference finish'}</div></div>
+      </div>
+      ${roster.length ? `
+      <div class="card" style="padding:12px;">
+        <h3>The Championship Roster — as they were in ${t.year}</h3>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Finish</th><th>Runner</th>${rich ? '<th>Class</th><th class="num">OVR</th><th class="num">Time</th>' : ''}<th>Honors</th></tr></thead>
+          <tbody>${roster.map((r) => `
+            <tr class="clickable" data-ath="${r.athleteId || ''}" data-ath-name="${Utils.escapeHtml(r.name)}" style="cursor:pointer;">
+              <td>${Utils.ordinal(r.place)}</td>
+              <td style="color:var(--accent-hover);">${Utils.escapeHtml(r.name)}</td>
+              ${rich ? `
+                <td>${Utils.escapeHtml(r.classYear || '—')}</td>
+                <td class="num">${r.overall ?? '—'}</td>
+                <td class="num">${r.time ? ft(r.time) : '—'}</td>` : ''}
+              <td>${r.allAmerican ? '🇺🇸 All-American' : (r.place === 1 ? '🥇 National Champion' : '')}</td>
+            </tr>`).join('')}</tbody>
+        </table></div>
+        <div style="color:var(--text-faint); font-size:11.5px; margin-top:6px;">
+          Class years, ratings, and times are the season they won — preserved forever. Tap any runner for their full profile.
+        </div>
+      </div>` : '<div style="color:var(--text-dim); font-size:13px;">The roster ledger for this title predates roster preservation.</div>'}
+    `, (modal) => {
+      modal.querySelectorAll('[data-ath]').forEach((tr) => {
+        tr.addEventListener('click', () => UI.openAthlete(game, tr.dataset.ath, tr.dataset.athName));
+      });
+      const cb = modal.querySelector('#champ-team-coach');
+      if (cb && t.coachName && t.coachName !== '—') cb.addEventListener('click', () => UI.openCoach(game, t.coachId, t.coachName));
+    });
+  };
+
+  // Universal coach opener: live coach, or the permanent registry. Every
+  // coaching career opens forever — nothing ever "fades" (Phase 4).
   UI.openCoach = function (game, coachId, fallbackName) {
     if (coachId) {
       const live = game.getCoach(coachId);
       if (live) { UI.showCoachCard(live, game); return true; }
+      const regById = (game.history.coachRegistry || []).slice().reverse().find((r) => r.coachId === coachId);
+      if (regById) { UI.showCoachCard(regById, game, { retired: true }); return true; }
     }
     if (fallbackName) {
       const reg = (game.history.coachRegistry || []).slice().reverse().find((r) => r.name === fallbackName);
       if (reg) { UI.showCoachCard(reg, game, { retired: true }); return true; }
       const past = (game.history.playerCareers || []).slice().reverse().find((r) => r.name === fallbackName);
       if (past) { UI.showCoachCard(past, game, { retired: true }); return true; }
+      // Pre-update saves pruned some careers; the profile still opens with
+      // whatever the record books preserved.
+      UI.showCoachCard({ fullName: fallbackName, name: fallbackName, careerRecord: {}, stints: [] }, game, { retired: true });
+      return true;
     }
-    UI.toast('That coaching career has faded from the registry.', 'info');
     return false;
   };
 })();

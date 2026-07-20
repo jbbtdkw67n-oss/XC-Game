@@ -62,9 +62,13 @@
       const cr = classRank[school.id];
       if (cr) score += cr <= 5 ? 0.7 : cr <= 15 ? 0.45 : cr <= 30 ? 0.2 : 0;
 
-      // 4) Facilities, budget, and the coach's name.
+      // 4) Facilities, budget, and the coach's name. The head coach is one of
+      // the strongest influences on a program's trajectory (History & Legacy
+      // update, Phase 14): an elite coach can drag an average program toward
+      // national relevance, and sustained poor leadership erodes even a
+      // historically successful one.
       score += Utils.clamp((school.facilitiesOverall - school.prestige) / 40, -0.5, 0.5);
-      if (coach) score += Utils.clamp(((coach.reputation || 25) - school.prestige) / 60, -0.4, 0.6);
+      if (coach) score += Utils.clamp(((coach.reputation || 25) - school.prestige) / 55, -0.7, 0.8);
 
       // 5) Athlete development reputation (programs that improve runners).
       const roster = gameState.getRoster(school.id, 'M');
@@ -81,6 +85,17 @@
       // and rock bottom eventually finds new leadership energy.
       if (school.prestige >= 88 && score < 0.5) delta -= 0.4;
       if (school.prestige <= 25 && score > -0.5) delta += 0.3;
+
+      // Prestige inflation guard (Phase 14): climbing INTO and THROUGH the
+      // elite tier gets progressively harder, so decades of play produce a
+      // small set of true blue bloods atop a large, competitive middle class
+      // rather than a nation full of 90+ programs. Declines are untouched —
+      // gravity still works at full strength.
+      if (delta > 0) {
+        if (school.prestige >= 90) delta *= 0.4;
+        else if (school.prestige >= 82) delta *= 0.6;
+        else if (school.prestige >= 74) delta *= 0.8;
+      }
 
       // --- Heritage resilience (Update 4, Part 8) --------------------------
       // Historically great programs resist collapse: a blue blood needs

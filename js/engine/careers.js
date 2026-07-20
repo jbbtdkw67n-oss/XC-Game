@@ -381,6 +381,7 @@
       const asst = newSchool.assistantId && gameState.world.coaches[newSchool.assistantId];
       if (asst && !asst.isPlayer) {
         Legacy.closeStint(gameState, asst, newSchool, gameState.year);
+        Legacy.recordRetiredCoach(gameState, asst, 'released'); // no coach ever vanishes (Phase 3)
         delete gameState.world.coaches[asst.id];
       }
       coach.role = 'Assistant';
@@ -433,6 +434,7 @@
       const displaced = newSchool.assistantId && gameState.world.coaches[newSchool.assistantId];
       if (displaced && !displaced.isPlayer) {
         Legacy.closeStint(gameState, displaced, newSchool, gameState.year);
+        Legacy.recordRetiredCoach(gameState, displaced, 'released'); // no coach ever vanishes (Phase 3)
         delete gameState.world.coaches[displaced.id];
       }
       coach.schoolId = newSchool.id;
@@ -483,6 +485,10 @@
       }
       coach.role = 'Head';
       gameState.playerRole = 'Head';
+      // Assistant prestige does not transfer 1:1 into a head-coaching
+      // reputation (Phase 13): the converted value reflects the résumé but
+      // is always a step down — first-time head coaches prove themselves.
+      window.XCD.engine.Coaching.convertAssistantPrestige(coach);
       newSchool.coachId = coach.id;
       coach.schoolId = newSchool.id;
       coach.yearsAtSchool = 0;
@@ -687,6 +693,8 @@
         // The boss they leave behind earns a branch on the coaching tree.
         Legacy.creditPromotion(gameState, promo, school, gameState.year);
         promo.role = 'Head'; // set before openStint so the program ledger records it
+        // Promotion converts (and reduces) assistant prestige (Phase 13).
+        window.XCD.engine.Coaching.convertAssistantPrestige(promo);
         promo.schoolId = school.id;
         promo.yearsAtSchool = 0;
         promo.hotSeat = 0;
@@ -802,6 +810,7 @@
       // Programs churn staff: a weak, stagnating assistant is occasionally let go.
       if ((asst.reputation || 0) < 18 && asst.age >= 34 && rng.bool(0.12)) {
         Legacy.closeStint(gameState, asst, school, gameState.year);
+        Legacy.recordRetiredCoach(gameState, asst, 'released'); // history keeps every career (Phase 3)
         delete gameState.world.coaches[asst.id]; // assistants don't pool as free agents
         school.assistantId = null;
       }
@@ -925,6 +934,7 @@
       const asst = newSchool.assistantId && gameState.world.coaches[newSchool.assistantId];
       if (asst && !asst.isPlayer) {
         Legacy.closeStint(gameState, asst, newSchool, year);
+        Legacy.recordRetiredCoach(gameState, asst, 'released'); // history keeps every career (Phase 3)
         delete gameState.world.coaches[asst.id];
       }
       newSchool.assistantId = null;

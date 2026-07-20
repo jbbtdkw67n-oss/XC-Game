@@ -228,7 +228,23 @@ async function run() {
   await page.click('#btn-next');
   await page.waitForSelector('.wizard-summary-box');
   await page.click('#btn-next');
-  await page.waitForSelector('.school-pick');           // program select (default: stay)
+  // Program select — History & Legacy update (Phase 12): a brand-new coach
+  // only sees entry-level chairs, so pick the first eligible program.
+  await page.waitForSelector('.school-pick');
+  const entryLevel = await page.evaluate(() => {
+    const g = window.XCD.ui.state.game;
+    const caps = { DI: 42, DII: 50, DIII: 55 };
+    const listed = [...document.querySelectorAll('.school-pick')]
+      .map((el) => g.world.schools[el.dataset.id]).filter(Boolean);
+    return {
+      count: listed.length,
+      allLow: listed.every((s) => s.prestige <= (caps[s.division || 'DI'] || 42))
+    };
+  });
+  console.log('entry-level chairs:', JSON.stringify(entryLevel));
+  ok(entryLevel.count > 0, 'a new coach must have entry-level chairs to choose from');
+  ok(entryLevel.allLow, 'a new coach must only see low-prestige programs (Phase 12)');
+  await page.click('.school-pick');
   await page.click('#btn-start');
   await page.waitForSelector('#sidebar');
 
@@ -237,6 +253,7 @@ async function run() {
     return {
       coach: g.getPlayerCoach().fullName,
       school: g.getPlayerSchool().name,
+      prestige: g.getPlayerSchool().prestige,
       seasons: g.career.seasons,
       lineage: (g.history.playerCareers || []).map((p) => p.name),
       registryHasPlayer: (g.history.coachRegistry || []).some((r) => r.isPlayer),
@@ -248,7 +265,7 @@ async function run() {
   });
   console.log('succession:', JSON.stringify(post));
   ok(post.coach === 'Nova Reyes', 'successor not installed');
-  ok(post.school === pre.school, 'staying home should be the default');
+  ok(post.prestige <= 55, 'a brand-new coach must start at an entry-level program (Phase 12)');
   ok(post.seasons === 0, 'successor must start a fresh career ledger');
   ok(post.lineage.includes(pre.coach), 'lineage must remember the retired coach');
   ok(post.registryHasPlayer, 'retired player coach missing from the registry');
