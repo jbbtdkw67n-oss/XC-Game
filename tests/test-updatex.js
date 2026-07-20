@@ -7,9 +7,9 @@
 //  - commitment logic: every recruit with >= 1 offer signs somewhere
 //  - CPU recruiting participation: nearly every program (esp. DIII) signs
 //  - Auto Recruiting spends the player's real points/budget and scouts
-//  - transfer portal: an intimate 2-4 suitor market per athlete (Update 11
-//    reverted the big bidding wars), offers ledger (inBySchool) feeds
-//    staff reputation
+//  - transfer portal: elite transfers draw a genuine national bidding war
+//    (Update 16 restored the big wars — the CPU fully works the market), and
+//    the offers ledger (inBySchool) feeds staff reputation
 //  - CPU fitness: ranked teams' varsity arrives at nationals rested
 //  - generational talent odds unchanged (still ~1 per 7-10 classes)
 const { chromium } = require('playwright');
@@ -167,10 +167,12 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     });
     const eliteAvg = sim.portalElite.length
       ? sim.portalElite.reduce((a, b) => a + b, 0) / sim.portalElite.length : 0;
-    // Update 11: the portal is an intimate market again — 2-4 programs
-    // pursue each athlete, elite names included. Assert on the average.
-    if (sim.portalElite.length && (eliteAvg < 1.5 || eliteAvg > 4.6)) {
-      fail(`elite transfers should average 2-4 suitors, got ${eliteAvg.toFixed(1)}: ${JSON.stringify(sim.portalElite)}`);
+    // Update 16: elite transfers are national recruiting battles — the CPU
+    // fully works the portal, so an All-American-caliber name draws a deep
+    // field of suitors. Assert on the average (a real war, not an intimate
+    // handful).
+    if (sim.portalElite.length && eliteAvg < 6) {
+      fail(`elite transfers should draw a deep bidding war (8+ suitors), got avg ${eliteAvg.toFixed(1)}: ${JSON.stringify(sim.portalElite)}`);
     }
     sim.fitness.forEach((f, i) => {
       if (f.fat > 30) fail(`year ${i + 1}: CPU varsity arrived at nationals fatigued (${f.fat})`);

@@ -322,9 +322,16 @@
           ${row(t.scheduleFinalized, 'Finalize schedule',
             'pick your meets and answer invitations, then lock the slate for the season',
             '<button class="btn small" id="w1-schedule">Go to Schedule</button>')}
-          ${row(staffDone, 'Settle the staff',
-            'keep your assistant or make your one offseason hire (Manage Staff on My Program)',
-            '<button class="btn small primary" id="w1-staff">Keep Current Staff</button>')}
+          ${(() => {
+            const seatEmpty = !(game.getPlayerSchool().assistantId && game.getCoach(game.getPlayerSchool().assistantId));
+            return row(staffDone, 'Settle the staff',
+              seatEmpty
+                ? '<span style="color:var(--warning);">your assistant left — hire a replacement from the pool (Manage Staff on My Program)</span>'
+                : 'keep your assistant or make your one offseason hire (Manage Staff on My Program)',
+              seatEmpty
+                ? '<button class="btn small" id="w1-staff-go">Go to My Program</button>'
+                : '<button class="btn small primary" id="w1-staff">Keep Current Staff</button>');
+          })()}
           ${row(t.setupConfirmed, 'Confirm season setup',
             'the final sign-off that opens Week 2',
             `<button class="btn small ${preDone ? 'primary' : ''}" id="w1-confirm" ${preDone ? '' : 'disabled title="Finish the tasks above first"'}>Confirm & Unlock Week 2</button>`)}
@@ -376,6 +383,32 @@
           <div class="sub">${game.career.nationalsAppearances} nationals trips</div>
         </div>
       </div>
+
+      ${(() => {
+        // Assistant departure (Update 16): the player's coordinator left for a
+        // job of their own. A major offseason event — the seat is open until
+        // the player hires a replacement from the pool on My Program.
+        if (game.isAssistant && game.isAssistant()) return '';
+        const school = game.getPlayerSchool();
+        if (!school || (school.assistantId && game.getCoach(school.assistantId))) return '';
+        const dep = game.assistantDeparture;
+        const line = dep
+          ? (dep.kind === 'head'
+              ? `${Utils.escapeHtml(dep.coachName)} accepted the head coaching job at ${Utils.escapeHtml(dep.school || 'another program')}.`
+              : dep.kind === 'lateral'
+                ? `${Utils.escapeHtml(dep.coachName)} left for a bigger assistant post at ${Utils.escapeHtml(dep.school || 'another program')}.`
+                : `${Utils.escapeHtml(dep.coachName)} has moved on from your staff.`)
+          : 'Your assistant coach position is vacant.';
+        return `
+        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--warning);">
+          <h2 style="margin:0 0 4px;">📣 Assistant Coach Vacancy</h2>
+          <div style="color:var(--text-dim); font-size:13px; line-height:1.5;">
+            ${line} Losing a coordinator matters — recruiting pull, development, and chemistry all
+            change until you hire a replacement. Build a new hire from the pool on My Program.
+          </div>
+          <button class="btn small primary" id="btn-go-hire-asst" style="margin-top:10px;">Go to My Program →</button>
+        </div>`;
+      })()}
 
       ${game.jobOffers && game.jobOffers.offers.length && game.seasonPhase === 'Offseason' ? (() => {
         // The open coaching market (spec + user request): every vacant chair
@@ -507,6 +540,9 @@
     const reportBtn = container.querySelector('#btn-offseason-report');
     if (reportBtn) reportBtn.addEventListener('click', () => { markReviewed(); showOffseasonReport(game); render(container); });
 
+    const hireAsstBtn = container.querySelector('#btn-go-hire-asst');
+    if (hireAsstBtn) hireAsstBtn.addEventListener('click', () => UI.navigate('school'));
+
     // Week 1 checklist wiring (Section 15).
     const w1 = (id, fn) => { const el = container.querySelector(id); if (el) el.addEventListener('click', fn); };
     w1('#w1-report', () => {
@@ -529,6 +565,7 @@
       UI.toast('Staff settled for the season.', 'success');
       render(container);
     });
+    w1('#w1-staff-go', () => UI.navigate('school'));
     w1('#w1-confirm', () => {
       game.week1.setupConfirmed = true;
       UI.toast('Season setup confirmed — Week 2 is unlocked. Good luck out there.', 'success');

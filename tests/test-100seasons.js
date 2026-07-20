@@ -62,7 +62,12 @@ async function run() {
       return k.length !== 5 || FIVE.some((x) => !(s.facilities[x] >= 5 && s.facilities[x] <= 99));
     }).length;
     const noCoach = schools.filter((s) => !s.coachId || !g.world.coaches[s.coachId]).length;
-    const noAsst = schools.filter((s) => !s.assistantId || !g.world.coaches[s.assistantId]).length;
+    // Update 16: the player's own coordinator seat may sit vacant by choice —
+    // when their assistant leaves for a job of their own, replacing them is a
+    // strategic decision the player makes from the hiring pool, not an
+    // auto-fill. Every CPU program still keeps a full staff at all times.
+    const noAsst = schools.filter((s) => s.id !== g.playerSchoolId &&
+      (!s.assistantId || !g.world.coaches[s.assistantId])).length;
     const thinRosters = schools.filter((s) => s.rosterM.length < 14 || s.rosterW.length < 14).length;
     const overDI = schools.filter((s) => (s.division || 'DI') === 'DI' &&
       s.id !== g.playerSchoolId && (s.rosterM.length > 14 || s.rosterW.length > 14)).length;

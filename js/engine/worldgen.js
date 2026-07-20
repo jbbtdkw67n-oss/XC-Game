@@ -258,6 +258,11 @@
     t.push(rng.bool(0.55) ? (rng.bool(0.5) ? 'aggressive' : 'conservative') : null);
     coach.tendencies = t.filter(Boolean).slice(0, 3);
 
+    // Hidden career ambition (Update 16): lightly biased by the coach's
+    // archetype so identities feel of a piece, but with real spread — every
+    // motivation appears across the simulation, and it stays private.
+    coach.ambition = pickAmbition(rng, coach);
+
     // Coaching philosophies (Update 4): seeded from identity for variety, with
     // real randomness so every philosophy appears across the simulation. The
     // training philosophy is permanent; the race philosophy is a tactic.
@@ -292,6 +297,21 @@
     if (coach.archetype === 'Players Coach' && rng.bool(0.45)) return 'pack';
     if (coach.speed >= 70 && rng.bool(0.4)) return 'sit-and-kick';
     return rng.choice(D.RACE_PHILOSOPHIES).key;
+  }
+
+  // Hidden career ambition (Update 16): archetype nudges the odds, but every
+  // motivation still shows up across the world so the carousel stays varied.
+  function pickAmbition(rng, coach) {
+    const AM = D.COACH_AMBITIONS || [];
+    if (!AM.length) return null;
+    const bias = {
+      Recruiter: 'recruiter', Developer: 'builder',
+      Tactician: 'careerBuilder', 'Players Coach': 'loyal'
+    }[coach.archetype];
+    if (bias && rng.bool(0.4)) return bias;
+    // Assistants skew a touch more ambitious — they're climbing the ladder.
+    if (coach.role === 'Assistant' && rng.bool(0.28)) return 'careerBuilder';
+    return rng.choice(AM).key;
   }
 
   function assignRivalries(schools) {

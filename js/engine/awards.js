@@ -5,6 +5,25 @@
 (function () {
   const Utils = window.XCD.core.Utils;
 
+  /*
+   * Per-season, per-school staff-honor tally (Update 16): counts the
+   * All-Americans and individual national champions a program produced this
+   * season, stamped while the roster is still intact. Consumed at the year
+   * rollover by the assistant-reputation pass (coaching.js), which credits a
+   * recruiting coordinator for developing national-caliber athletes.
+   */
+  function creditStaffHonor(gameState, schoolId, kind) {
+    if (!schoolId) return;
+    const H = gameState.history.seasonStaffHonors = gameState.history.seasonStaffHonors || {};
+    // Transient: only the just-ended season is read at the rollover, so keep
+    // the ledger to the last two years — it never bloats a century-long save.
+    Object.keys(H).forEach((y) => { if (+y < gameState.year - 1) delete H[y]; });
+    const year = (H[gameState.year] = H[gameState.year] || {});
+    const s = (year[schoolId] = year[schoolId] || { allAmericans: 0, indivNatChamps: 0 });
+    if (kind === 'allAmerican') s.allAmericans += 1;
+    else if (kind === 'indivNatChamp') s.indivNatChamps += 1;
+  }
+
   function addHonor(gameState, athleteId, honor) {
     const a = gameState.world.athletes[athleteId];
     if (!a) return;
@@ -80,6 +99,7 @@
         yearAwards[gender].runnerOfYear = { name: champ.name, school: gameState.getSchool(champ.schoolId)?.name || '?', athleteId: champ.athleteId };
         addHonor(gameState, champ.athleteId, 'natChamp');
         addHonor(gameState, champ.athleteId, 'Runner of the Year');
+        creditStaffHonor(gameState, champ.schoolId, 'indivNatChamp'); // Update 16
         if (division === (gameState.getPlayerSchool().division || 'DI')) {
           gameState.logNews(`🏅 ${champ.name} (${yearAwards[gender].runnerOfYear.school}) is the ${label} ${divLabel} ${window.XCD.data.awardLabel('runnerOfYear', 'Runner of the Year')}.`);
         }
@@ -110,6 +130,7 @@
         window.XCD.engine.Legacy.program(gameState, f.schoolId).allAmericans += 1;
         const c = gameState.getCoach(gameState.getSchool(f.schoolId)?.coachId);
         if (c) c.careerRecord.allAmericans = (c.careerRecord.allAmericans || 0) + 1;
+        creditStaffHonor(gameState, f.schoolId, 'allAmerican'); // Update 16: the whole staff shares
       });
       const mine = allAmericans.filter((f) => f.schoolId === gameState.playerSchoolId);
       if (mine.length) {

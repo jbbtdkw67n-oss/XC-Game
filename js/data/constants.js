@@ -79,6 +79,30 @@
     { key: 'Players Coach', rating: 'culture',    icon: '🤝', desc: 'Runs the best locker room in the country. Starts with bonus Culture — happier athletes, better chemistry, fewer transfers.' }
   ];
 
+  /*
+   * Coach ambitions (Update 16) — a coach's HIDDEN career motivation, seeded
+   * at birth and carried for life. Separate from the public archetype, it
+   * shapes when and where a coach moves on the carousel: a Career Builder
+   * jumps at the first head job, a Loyal grinder stays put, a Prestige Chaser
+   * holds out for a blue blood. It governs the player's own hired assistants
+   * exactly as it does every CPU coach, so losing a Career Builder to a head
+   * job (and keeping a Loyal one for a decade) both feel earned.
+   *
+   *  weightHC      — pull toward accepting a HEAD-coaching promotion (1 = base)
+   *  weightLateral — pull toward a bigger ASSISTANT seat (1 = base)
+   *  prestigePull  — how much destination prestige sways the decision
+   *  stay          — inertia: how strongly they resist leaving at all
+   */
+  D.COACH_AMBITIONS = [
+    { key: 'careerBuilder', label: 'Career Builder', icon: '🚀', hint: 'Chases head-coaching jobs the moment they come.', weightHC: 1.7, weightLateral: 1.15, prestigePull: 0.6, stay: 0.7 },
+    { key: 'loyal',         label: 'Loyal',          icon: '🤝', hint: 'Values stability — slow to leave a good situation.',   weightHC: 0.6, weightLateral: 0.55, prestigePull: 0.5, stay: 1.8 },
+    { key: 'recruiter',     label: 'Recruiter',      icon: '📣', hint: 'Drawn to programs that recruit at the highest level.', weightHC: 1.0, weightLateral: 1.4,  prestigePull: 1.1, stay: 0.95 },
+    { key: 'builder',       label: 'Builder',        icon: '🏗', hint: 'Relishes a rebuild — will take on a struggling job.',    weightHC: 1.4, weightLateral: 0.85, prestigePull: 0.3, stay: 0.9 },
+    { key: 'prestigeChaser',label: 'Prestige Chaser',icon: '👑', hint: 'Holds out for blue-blood programs.',                    weightHC: 1.1, weightLateral: 1.2,  prestigePull: 1.6, stay: 1.0 },
+    { key: 'moneyFocused',  label: 'Money Focused',  icon: '💰', hint: 'Follows the biggest budgets and best resources.',       weightHC: 1.2, weightLateral: 1.25, prestigePull: 1.3, stay: 0.85 }
+  ];
+  D.coachAmbition = (key) => D.COACH_AMBITIONS.find((a) => a.key === key) || null;
+
   // Expanded for the Update 6 creation wizard: hair, facial hair, skin tones,
   // ages, and accessories — enough variety that successive coaches in a
   // century-long dynasty don't all wear the same face.

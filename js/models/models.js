@@ -238,6 +238,19 @@
         // Long-term identity (Part 2): tendencies persist for a career.
         tendencies: [],
 
+        // Hidden career ambition (Update 16): a private motivation — Career
+        // Builder, Loyal, Recruiter, Builder, Prestige Chaser, Money Focused —
+        // that governs when and where the coach chases the next job. Seeded at
+        // birth, never shown to opposing programs, and applied identically to
+        // the player's own assistants and every CPU coach.
+        ambition: null,
+
+        // Where a hiring-pool candidate came from (Update 16): "Up-and-coming
+        // assistant", "Former head coach", "Former All-American entering
+        // coaching", etc. Flavor for the Manage Staff panel so replacements
+        // read as real careers, not generic names. '' for established coaches.
+        origin: '',
+
         // Coaching tree (Update 6, Section 1). Careers connect: an assistant
         // remembers who first hired them (mentor) and every head coach they
         // served under; a head coach remembers every assistant who left their
@@ -282,6 +295,17 @@
       if (this.gender !== 'M' && this.gender !== 'W') {
         const D = window.XCD.data || {};
         this.gender = (D.FIRST_NAMES_W || []).includes(this.firstName) ? 'W' : 'M';
+      }
+      // Update 16: coaches from before hidden ambitions get one assigned
+      // deterministically (from the id) so old worlds gain motivated careers
+      // without a regeneration — the archetype nudges the likely bent.
+      if (!this.ambition) {
+        const AM = (window.XCD.data || {}).COACH_AMBITIONS || [];
+        if (AM.length) {
+          const bias = { Recruiter: 'recruiter', Developer: 'builder', Tactician: 'careerBuilder', 'Players Coach': 'loyal' }[this.archetype];
+          const seed = ((this.id || 'coach').charCodeAt((this.id || 'x').length - 1) || 7);
+          this.ambition = (bias && seed % 2 === 0) ? bias : AM[seed % AM.length].key;
+        }
       }
     }
 

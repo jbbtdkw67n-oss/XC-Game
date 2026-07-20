@@ -921,7 +921,7 @@
           <div style="flex:1;">
             <div><strong>${UI.avatar(c, { size: 22, outfit: 'suit' })} ${Utils.escapeHtml(c.fullName)}</strong>
               <span style="color:var(--text-faint); font-size:11.5px;"> ${tag}</span>
-              ${veteran && !tag ? '<span class="rating r-good" style="font-size:10px;" title="A real free agent from the coaching pool — career history and all">Free Agent</span>' : ''}</div>
+              ${c.origin && !tag ? `<span class="rating r-good" style="font-size:10px;" title="Where this candidate comes from — every hire is a real career, not a generic name">${Utils.escapeHtml(c.origin)}</span>` : (veteran && !tag ? '<span class="rating r-good" style="font-size:10px;" title="A real free agent from the coaching pool — career history and all">Free Agent</span>' : '')}</div>
             <div style="color:var(--text-dim); font-size:12px; margin-top:2px;">
               Age ${c.age} • ${Utils.escapeHtml(c.archetype || '')} •
               ${Utils.escapeHtml((window.XCD.data.trainingPhilosophy(c.trainingPhilosophy) || {}).label || '')}${rp.label ? ` / ${Utils.escapeHtml(rp.label)}` : ''}

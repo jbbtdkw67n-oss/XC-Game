@@ -232,8 +232,13 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     if (sim.portalOffers.length) {
       const avg = sim.portalOffers.reduce((a, b) => a + b, 0) / sim.portalOffers.length;
       const max = Math.max(...sim.portalOffers);
-      if (avg < 1 || avg > 4.6) fail('fall portal should average 2-4 suitors: ' + avg.toFixed(1));
-      if (max > 6) fail('fall portal suitor cap blown: max ' + max);
+      // Update 16 supersedes Update 11's intimate market: the CPU now fully
+      // works the portal, so nearly every athlete is contested and the elite
+      // names draw deep bidding wars (10-15). Across all entries the average
+      // stays modest (most portal names are role players), but the top of the
+      // board is a genuine national battle.
+      if (avg < 1) fail('fall portal should show real contested markets: avg ' + avg.toFixed(1));
+      if (max < 8) fail('the top of the fall portal should be a genuine bidding war: max ' + max);
     }
     if (!sim.summer.openAtW1 || !sim.summer.entries) fail('summer window must open at week 1 with DI cuts: ' + JSON.stringify(sim.summer));
     if (!sim.summer.closedByW4) fail('summer window must be closed before the regular season');

@@ -789,6 +789,8 @@
       const per = {};
       ['M', 'W'].forEach((gender) => {
         const roster = gameState.getRoster(school.id, gender);
+        const overalls = roster.map((a) => a.currentOverall).sort((x, y) => y - x);
+        const fifth = overalls[4] ?? 40;
         const leaving = roster.filter((a) =>
           a.redshirt !== 'True' && a.redshirt !== 'Medical' &&
           (a.eligibilityRemaining <= 1 || a.classYear === 'Graduate'));
@@ -796,21 +798,35 @@
         leaving.forEach((a) => {
           eventNeeds[a.preferredDistance] = (eventNeeds[a.preferredDistance] || 0) + 1;
         });
-        const overalls = roster.map((a) => a.currentOverall).sort((x, y) => y - x);
         per[gender] = {
           returning: roster.length - leaving.length,
           leaving: leaving.length,
+          // Departing scorers (Update 16): losing front-runners is a louder
+          // need than losing depth — those programs attack the portal for
+          // ready replacements rather than leaning on freshmen.
+          leavingTop: leaving.filter((a) => a.currentOverall >= fifth).length,
           eventNeeds,
-          fifth: overalls[4] ?? 40,
+          fifth,
           // Quality shortage: a roster propped up by walk-ons is a roster
           // shortage in disguise — those programs hit the summer market first.
           walkOns: roster.filter((a) => a.isWalkOn).length,
           pending: 0 // transfers already committed here this cycle
         };
       });
+      // AI aggression (Update 16): programs coming off a disappointing season,
+      // and those that just changed staff, work the portal hardest.
+      const divSize = (gameState.rankings && gameState.rankings.divisionSizes &&
+        gameState.rankings.divisionSizes[school.division || 'DI']) ||
+        (gameState.rankings ? gameState.rankings.M.length : 300);
+      const bestRank = rankIndex[school.id] || 999;
+      const expected = Math.round((1 - (school.prestige || 50) / 100) * divSize * 0.92) + 4;
+      let aggression = 0;
+      if (bestRank < 999 && bestRank > expected + Math.max(20, divSize * 0.1)) aggression += 10; // down year
+      if (school.coachChangedYear === gameState.year) aggression += 8;                            // new staff
       profiles.push({
         school, coach,
-        bestRank: rankIndex[school.id] || 999,
+        bestRank,
+        aggression,
         hunter: coach && (coach.archetype === 'Recruiter' ||
           (coach.hasTendency && coach.hasTendency('transfer-expert')) ||
           (coach.transferRecruiting || 55) >= 75),
@@ -829,16 +845,22 @@
   }
 
   // How many programs should end up chasing this athlete across the window.
-  // Update 15: top-level transfers are genuine national events — roughly
-  // FIVE schools chase a proven star, so the player's points must beat a
-  // real field. Level-matching still holds (pursuitScore below): the top
-  // programs chase the top names, smaller programs work the middle and
-  // bottom of the market.
+  // Update 16 — the portal is a true offseason battle: the CPU fully works
+  // the market, so nearly every impact athlete is contested and the elite
+  // names become national recruiting wars. Level-matching still holds
+  // (pursuitScore below): the top programs chase the top names, smaller
+  // programs work the middle and bottom of the market.
+  //   Elite / All-American caliber : 10-15 suitors (a national storyline)
+  //   Good, proven scorers         : 5-10
+  //   Average contributors         : 2-6
+  //   Lower-rated depth / walk-ons : 0-3
   function suitorTarget(quality, rng) {
-    if (quality >= 70) return 4 + rng.int(0, 1); // star: a 4-5 school bidding war
-    if (quality >= 62) return 3 + rng.int(0, 1); // proven scorer: 3-4 serious suitors
-    if (quality >= 56) return 2 + rng.int(0, 2); // solid contributor: 2-4
-    return 2 + rng.int(0, 1);                    // developmental / depth: 2-3
+    if (quality >= 72) return 10 + rng.int(0, 5); // elite: a 10-15 school war
+    if (quality >= 66) return 7 + rng.int(0, 3);  // star: 7-10
+    if (quality >= 60) return 5 + rng.int(0, 3);  // proven scorer: 5-8
+    if (quality >= 54) return 3 + rng.int(0, 3);  // solid contributor: 3-6
+    if (quality >= 48) return 2 + rng.int(0, 2);  // depth piece: 2-4
+    return rng.int(0, 3);                          // marginal / walk-on: 0-3
   }
 
   function pursuitScore(prof, a, quality, rng, summer) {
@@ -865,8 +887,10 @@
     const gap = quality - levelMark;
     let score = 38 - Math.abs(gap) * (gap > 0 ? 0.5 : 1.4);
 
-    // Roster needs: graduation losses and empty spots demand replacements.
+    // Roster needs: graduation losses and empty spots demand replacements —
+    // and losing front-runners (leavingTop) is a louder need than losing depth.
     score += Math.min(18, need.leaving * 4.5) + Math.min(12, Math.max(0, spots - 1) * 2);
+    score += Math.min(12, (need.leavingTop || 0) * 6); // graduated a scorer → attack the portal
     // Event needs: a graduating senior leaves a hole in this event group.
     if (need.eventNeeds[a.preferredDistance]) score += 8;
 
@@ -877,9 +901,38 @@
     if (contender && quality >= 72) score += 14;
     if (school.prestige < 58 && a.currentOverall >= need.fifth) score += 10;
 
+    // Program identity fit (Update 16): a pursuit should make sense for who
+    // the program is. Each school leans toward the transfers that fit its
+    // coaching identity, so the same athlete is a better fit some places than
+    // others — and no single factor decides every race.
+    const coach = prof.coach;
+    const headroom = (a.potential || 60) - (a.currentOverall || 50);
+    // Development programs chase high-ceiling projects.
+    if (coach && (coach.archetype === 'Developer' || coach.training >= 70 ||
+        (coach.hasTendency && coach.hasTendency('development-specialist'))) && headroom >= 10) {
+      score += Math.min(12, headroom * 0.5);
+    }
+    // Championship contenders want immediate contributors, not projects.
+    if (contender && a.currentOverall >= need.fifth) score += 8;
+    // Rebuilding programs value youth they can grow with.
+    if (school.prestige < 55 && (a.eligibilityRemaining || 0) >= 3) score += 7;
+    // Distance-focused (mileage-heavy) programs value aerobic engines.
+    if (coach && coach.hasTendency && coach.hasTendency('mileage-heavy')) {
+      const engine = ((a.stamina || 55) + (a.vo2Max || 55) + (a.lactateThreshold || 55)) / 3;
+      if (engine >= 62) score += Math.min(9, (engine - 60) * 0.5);
+    }
+    // Aggressive / kick-based racing teams value speed and competitiveness.
+    if (coach && (coach.racePhilosophy === 'aggressive' || coach.racePhilosophy === 'sit-and-kick' ||
+        (coach.hasTendency && coach.hasTendency('aggressive')))) {
+      const kick = ((a.speed || 55) + (a.consistency || 55)) / 2;
+      if (kick >= 60) score += Math.min(8, (kick - 58) * 0.5);
+    }
+
     // Coaching philosophy & staff craft: portal hunters live in this market.
     if (prof.hunter) score += 12;
     if (prof.coach) score += ((prof.coach.transferRecruiting || 55) - 55) * 0.15;
+    // Down-year and coaching-change programs press the portal harder (Update 16).
+    score += prof.aggression || 0;
 
     // Recruiting budget: deep pockets can afford to chase more targets.
     score += Math.min(8, school.budget.recruiting / 15000);
@@ -915,9 +968,13 @@
       }
       const cap = entry.suitorCap;
       if (entry.offers.length >= cap) return;
-      // Offers roll in across the window rather than landing all at once.
+      // Offers roll in across the window rather than landing all at once, but
+      // the bigger bidding wars (Update 16) need a higher weekly throughput to
+      // actually materialize before the deadline — so the per-week cap scales
+      // with how contested the athlete is, and elite names surge fastest.
+      const perWeekCap = cap >= 10 ? 6 : cap >= 6 ? 5 : 4;
       const additions = Math.min(
-        Utils.clamp(Math.ceil((cap - entry.offers.length) / weeksLeft) + (quality >= 74 ? 1 : 0), 1, 4),
+        Utils.clamp(Math.ceil((cap - entry.offers.length) / weeksLeft) + (quality >= 74 ? 2 : quality >= 66 ? 1 : 0), 1, perWeekCap),
         cap - entry.offers.length);
 
       const fromSchool = gameState.getSchool(entry.fromSchoolId);
@@ -1038,6 +1095,37 @@
     } else if (a.currentOverall >= 72 || entry.fromSchoolId === gameState.playerSchoolId ||
                entry.offers.includes(gameState.playerSchoolId) || crossDiv) {
       gameState.logNews(`Transfer: ${a.fullName} picks ${to.name}${moveNote} over ${entry.offers.length - 1} other offer${entry.offers.length > 2 ? 's' : ''}.`);
+    }
+  }
+
+  /*
+   * Transfer-ranking storylines (Update 16): the highest-rated portal athletes
+   * are national news. A couple of times across the window, surface the top
+   * uncommitted name and the fiercest bidding war so the offseason has a
+   * portal narrative — "the #1 transfer remains unsigned", "eight schools are
+   * pursuing the former NCAA champion." Logged sparingly to avoid spam.
+   */
+  function portalStorylines(gameState) {
+    const portal = gameState.portal;
+    if (!portal || !portal.open || portal.summer) return;
+    const unsigned = portal.entries
+      .filter((e) => !e.destination && e.offers.length)
+      .map((e) => ({ e, a: gameState.getAthlete(e.athleteId) }))
+      .filter((x) => x.a)
+      .sort((x, y) => transferQuality(y.a) - transferQuality(x.a));
+    if (!unsigned.length) return;
+
+    const top = unsigned[0];
+    if (transferQuality(top.a) >= 66) {
+      const n = top.e.offers.length;
+      const champ = top.a.honors && top.a.honors.natChamp ? 'former NCAA champion ' : '';
+      gameState.logNews(`📰 PORTAL WATCH: ${champ}${top.a.fullName} (${top.a.currentOverall} OVR) is the top uncommitted transfer${n >= 3 ? ` — ${n} programs are chasing` : ' still on the board'}.`);
+    }
+    // The fiercest bidding war on the board (a different athlete, deep field).
+    const contested = unsigned.find((x) => x.a.id !== top.a.id && x.e.offers.length >= 8);
+    if (contested) {
+      const champ = contested.a.honors && contested.a.honors.natChamp ? 'former NCAA champion ' : '';
+      gameState.logNews(`📰 A full-blown recruiting war: ${contested.e.offers.length} schools are pursuing ${champ}${contested.a.fullName}.`);
     }
   }
 
@@ -1430,6 +1518,9 @@
     if (week === ENTRY_WEEK) openPortal(gameState, rng);
     if (week > ENTRY_WEEK && week < DECISION_WEEK) {
       aiPortalOffers(gameState, rng);
+      // Mid-window portal narrative: who's the prize, and who's fighting over
+      // whom (logged twice across the window, not every single week).
+      if (week === ENTRY_WEEK + 2 || week === DECISION_WEEK - 1) portalStorylines(gameState);
       resolveDecisions(gameState, rng, false);
     }
     if (week === DECISION_WEEK) {
@@ -1460,6 +1551,8 @@
     prefMatchCount,
     winProbabilities,
     transferQuality,
+    suitorTarget,
+    portalStorylines,
     ENTRY_WEEK,
     DECISION_WEEK,
     SUMMER_FINAL_WEEK,

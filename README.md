@@ -14,6 +14,48 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 12.3 — Update 16: Assistant Coach Mobility & Transfer Portal Competition
+
+The coaching carousel comes alive and the transfer portal becomes a true
+offseason battle — two systems that now feed each other into major offseason
+storylines.
+
+- **Your assistants can leave — even for head jobs.** Player assistants no
+  longer sit stuck forever. They're candidates on the open carousel like
+  everyone else: if a program judges your coordinator the best fit for its
+  head-coaching vacancy (or a bigger assistant seat), and their ambition says
+  go, they're gone. No special protection. Losing a great assistant genuinely
+  matters — recruiting pull, development, and chemistry all change — and the
+  seat stays **open** until you hire a replacement from the pool.
+- **Hidden coach ambitions.** Every coach carries a private motivation —
+  **Career Builder, Loyal, Recruiter, Builder, Prestige Chaser, Money
+  Focused** — that shapes when and where they chase the next job. A Career
+  Builder jumps at the first head chair; a Loyal grinder stays a decade; a
+  Prestige Chaser holds out for a blue blood.
+- **Coaching trees form naturally.** Assistants build reputation from
+  conference and national titles, team improvement, athlete development,
+  recruiting classes, portal wins, **producing All-Americans and national
+  champions**, and years of experience — then step up to run their own
+  programs, hire the next generation, and the cycle repeats over decades.
+- **A real hiring pool.** When you need an assistant, the shortlist is
+  varied and specific — a young up-and-comer, a seasoned veteran, a former
+  head coach, a decorated DII/DIII assistant, or a retired athlete entering
+  coaching — each with a real background and career history, never a generic
+  name.
+- **The CPU fully works the portal.** Nearly every impact athlete is now
+  contested. Elite/All-American-caliber transfers draw **10-15 school bidding
+  wars**, good transfers 5-10, average 2-6, depth pieces 0-3. Programs recruit
+  on **roster need and program identity** — contenders chase immediate
+  contributors, developers chase high-ceiling projects, rebuilders chase
+  youth, distance programs value the aerobic engine, kick-based teams value
+  speed. Down-year and coaching-change programs attack the portal hardest.
+- **Portal storylines.** The top uncommitted transfers become national news
+  ("the #1 transfer remains unsigned", "eight schools are pursuing the former
+  NCAA champion").
+- Validated by `tests/test-update16.js`, and the 40-season balance sim
+  confirms the player still lands 3-6 transfers per cycle while star-transfer
+  suitors climb to ~9 on average.
+
 ## Version 12.2 — Update 15: Transfer Points, the Sway Edge & the First-Season Tutorial
 
 Recruiting and the transfer portal rebalanced around player skill, plus a
