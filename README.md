@@ -14,6 +14,82 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 13.0 — Update 17: Recruiting, Eligibility, Race Simulation, Prestige & UI Overhaul
+
+Realism across the board: mileage, eligibility, recruiting strategy, famous
+meets, course-driven race simulation, and a prestige economy that finally
+breathes.
+
+- **Gendered mileage capacity, fixed.** Men now tolerate more weekly volume
+  than women — typical men absorb 65-90 mpw (durable 90-110, exceptional
+  110-120), women 50-75 / 75-95 / 95-105. Durability is still the dominant
+  driver, with fitness, recovery state (fatigue), and injury history all
+  shifting each runner's safe limit; gender only sets the baseline and the
+  absolute ceiling.
+- **Accurate NCAA eligibility per division.** Division I runs a five-year
+  clock with **five seasons of competition**; DII and DIII run four-in-five
+  per their regulations. Seasons in which an athlete never races no longer
+  burn eligibility (the clock still ticks), redshirts work as before, and
+  transfers retain their remaining seasons. Every athlete profile shows
+  remaining seasons, academic year, redshirt status, and when the clock
+  expires.
+- **Sway rebuilt as a genuine flip attempt.** Sway now exists ONLY for
+  recruits committed to another school, and only when your program holds a
+  real (10%+) commitment chance. Each attempt lands ~35% of the time — a
+  success flips the commitment on the spot; the previous school loses the
+  pledge immediately. Recruiting rating, the assistant's recruiting craft,
+  and the relationship nudge the odds, repeats get harder, and a flip is
+  never guaranteed. CPU staffs take the same shot.
+- **Top-9 interest rankings with rank-based signing odds.** Each recruit's
+  board now shows nine ranked schools, and when recruiting closes the final
+  ranking decides the signature: 1st ≈ 40%, 2nd ≈ 25%, 3rd ≈ 15%, then
+  10/5/3/1/0.5/0.5%. Finishing first finally pays the way it should.
+- **Recruit personality drives action effectiveness.** Academics-first kids
+  shrug at the campus tour but lean into the classroom pitch; title-chasers
+  hear winning programs louder; impact recruits light up at early playing
+  time; homebodies melt for the local in-home visit; culture/family kids
+  bond with coaches who genuinely connect; development believers want the
+  facilities and the coach who improves runners. Every action's value is
+  now dynamic, not static.
+- **CPU assistant coaches spend their points.** AI assistants bank a share
+  of the program's résumé points and spend their whole balance every season
+  — recruiting-focused assistants sharpen Recruiting, training-focused ones
+  Training, weaknesses get patched — so elite staffs grow visibly stronger.
+- **UI: Shop moved between News and Save/Load** for cleaner navigation.
+- **Championship history names the coach.** Conference, regional, national,
+  and individual title entries all display Season · Championship · Coach ·
+  Program — stamped going forward and reconstructed from the head-coaching
+  ledger for old saves.
+- **Archive adds Regional Champions.** Every region, every season — team and
+  individual — now appears in the Champions archive alongside conference and
+  national champions.
+- **Coach Timeline fixed.** Every program's complete head-coaching history:
+  name, years, record, conference/regional/national titles, Coach of the
+  Year awards, the prestige reached, and the reason each tenure ended
+  (retired, fired, left for another program…). Every former coach stays
+  archived forever.
+- **The famous-meet database.** Cowboy Jamboree, Crimson Classic, Panorama
+  Farms, Roy Griak, Joe Piane, Paul Short, Nuttycombe, Gans Creek, Chile
+  Pepper, and Pre-Nationals — each with its real location, course, altitude,
+  hilliness profile, and prestige tier, displayed at meet selection.
+- **Courses shape the race.** Flat courses race fast with lower fatigue;
+  rolling courses cost a little; hilly courses are significantly slower and
+  more tiring — and hill specialists with strong endurance outperform
+  expectations on them. Altitude bites: high-altitude meets slow everyone
+  and add fatigue, altitude-trained programs carry a much smaller penalty,
+  and altitude-trained athletes racing at sea level cash a modest bonus.
+- **Invitational balancing.** Elite invitations go out on merit (prestige +
+  current poll) and are dealt across the weekend's named meets, so the
+  contenders spread out — only the biggest fields occasionally draw nearly
+  every title threat. The elite prestige bar dropped a notch, and any top-25
+  team qualifies regardless of brand, so risers break in years sooner.
+- **Prestige rebalanced.** Conference titles, regional success,
+  All-Americans, and title contention move prestige quickly; multiple poor
+  seasons compound into real decline; blue-blood inertia fades within a
+  handful of bad years; and new powers can climb into prominence within
+  several strong seasons — while the very top stays stable, with only a few
+  true perennial powers at a time.
+
 ## Version 12.3 — Update 16: Assistant Coach Mobility & Transfer Portal Competition
 
 The coaching carousel comes alive and the transfer portal becomes a true

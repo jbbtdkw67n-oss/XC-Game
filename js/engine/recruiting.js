@@ -700,48 +700,65 @@
   }
 
   /*
-   * A recruit's approximate commitment chance FOR a given school (Update 13):
-   * the school's share of the appeal^3 weighting among the recruit's serious
-   * suitors — the same math the commit engine uses to pick a winner. Used to
-   * gate the Sway action (you can't sway a kid who isn't really considering
-   * you) and available to the UI as a legible percentage.
+   * Rank-based signing odds (recruiting rankings overhaul): a recruit's
+   * decision is driven primarily by where each school sits in their top-9
+   * interest ranking. The leader signs them 40% of the time, the runner-up
+   * 25%, and it falls away steeply from there — finishing 1st on a recruit's
+   * board finally matters the way it should.
+   */
+  const RANK_ODDS = [40, 25, 15, 10, 5, 3, 1, 0.5, 0.5];
+  const rankWeight = (idx) => RANK_ODDS[idx] ?? 0.5;
+
+  /*
+   * The recruit's ranked suitor list — every school with a real recruitment
+   * (an offer or meaningful interest), ordered by appeal, capped at nine.
+   * This is the single ranking the UI displays and the commit/signing math
+   * draws from, so what the player sees is exactly what decides the race.
+   */
+  function rankedSuitors(gameState, recruit, ctx) {
+    return Object.keys(recruit.interests || {})
+      .filter((sid) => {
+        const s = recruit.interests[sid];
+        return s && (s.offered || s.interest >= 15) && gameState.getSchool(sid);
+      })
+      .map((sid) => ({ sid, appeal: appeal(gameState, gameState.getSchool(sid), recruit, ctx || null) }))
+      .sort((x, y) => y.appeal - x.appeal)
+      .slice(0, 9);
+  }
+
+  /*
+   * A recruit's approximate commitment chance FOR a given school: the
+   * school's share of the rank-based odds among the recruit's top-9 suitors
+   * — the same math the commit engine and signing day use to pick a winner.
+   * Gates the Sway action and feeds the UI as a legible percentage.
    */
   function commitChance(gameState, school, recruit) {
     if (!recruit || recruit.signed) return 0;
-    const suitors = Object.keys(recruit.interests || {}).filter((sid) => {
-      const s = recruit.interests[sid];
-      return s && (s.offered || s.interest >= 15) && gameState.getSchool(sid);
-    });
-    if (!suitors.includes(school.id)) {
+    const pool = rankedSuitors(gameState, recruit, null);
+    if (!pool.some((p) => p.sid === school.id)) {
       const st = recruit.getSchoolState(school.id);
       if (!st || (!st.offered && st.interest < 15)) return 0;
-      suitors.push(school.id);
+      pool.push({ sid: school.id, appeal: appeal(gameState, school, recruit, null) });
+      pool.sort((x, y) => y.appeal - x.appeal);
+      if (pool.length > 9) pool.length = 9;
     }
-    const pool = suitors
-      .map((sid) => ({ sid, a: appeal(gameState, gameState.getSchool(sid), recruit, null) }))
-      .sort((x, y) => y.a - x.a)
-      .slice(0, 3); // commit choice is drawn from the top three suitors
-    const denom = pool.reduce((s, p) => s + Math.pow(Math.max(p.a, 1), 3), 0);
-    const mine = pool.find((p) => p.sid === school.id);
-    if (!mine || denom <= 0) return 0;
-    return Math.pow(Math.max(mine.a, 1), 3) / denom;
+    const idx = pool.findIndex((p) => p.sid === school.id);
+    if (idx < 0) return 0;
+    const denom = pool.reduce((s, p, i) => s + rankWeight(i), 0);
+    return denom > 0 ? rankWeight(idx) / denom : 0;
   }
 
   // Total appeal = long-term fit + relationship built through recruiting.
-  // Sway momentum (Update 15): each successful Sway banks a lasting point of
-  // momentum (capped at 3) worth +3 appeal apiece — because the commit draw
-  // cubes appeal, a fully-swayed recruit is decisively more likely to pick
-  // the program that closed hardest. The player's staff lands sways far more
-  // reliably than the CPU, making this the human coach's real closing edge.
+  // Appeal decides each school's RANK on the recruit's board; the rank-based
+  // odds (RANK_ODDS) then decide commitments and signing day.
   function appeal(gameState, school, recruit, ctx) {
     const st = recruit.getSchoolState(school.id);
     const rel = st ? st.relationship : 0;
     const interest = st ? st.interest : 0;
     const offered = st && st.offered ? 8 : 0;
     const visited = st && st.visited ? 5 : 0;
-    const momentum = st ? Math.min(st.sway || 0, 3) * 3 : 0;
     return Utils.clamp(
-      fitScore(gameState, school, recruit, ctx) * 0.55 + rel * 0.25 + interest * 0.20 + offered + visited + momentum,
+      fitScore(gameState, school, recruit, ctx) * 0.55 + rel * 0.25 + interest * 0.20 + offered + visited,
       0, 100
     );
   }
@@ -809,6 +826,71 @@
   }
 
   /*
+   * Recruit personality (personality overhaul): a recruit's stated
+   * priorities and hidden motivations dynamically reshape how well each
+   * recruiting action lands, instead of every action carrying static value.
+   * An academics-first kid shrugs at the campus tour but leans in when the
+   * conversation is about the classroom; a title-chaser hears every pitch
+   * louder from a winning program; an impact recruit lights up at early
+   * playing time; a homebody melts for the in-home visit from the local
+   * school; a culture/family kid bonds with a coach who genuinely connects;
+   * a development believer wants the facilities and the coach who improves
+   * runners. Returns { rel, int } multipliers for the action.
+   */
+  function personalityEffect(gameState, school, coach, rec, actionKey) {
+    const imp = rec.importance || {};
+    const mot = rec.motivations || [];
+    let rel = 1, int = 1;
+    const w = (v) => Utils.clamp(((v ?? 50) - 50) / 50, -0.7, 1); // −0.7..1
+
+    // Academics: the academic pitch lands much harder, the tour less.
+    const acad = w(imp.academics) + (mot.includes('scholar') ? 0.5 : 0);
+    if (acad > 0.25) {
+      if (actionKey === 'campusVisit') int *= 1 - acad * 0.25;
+      if (actionKey === 'call' || actionKey === 'homeVisit' || actionKey === 'letter') {
+        const strong = school.academics >= 72;
+        int *= 1 + acad * (strong ? 0.35 : 0.05);
+        rel *= 1 + acad * (strong ? 0.25 : 0);
+      }
+    }
+    // Championships: winning programs' pitches carry extra weight.
+    const champ = w(imp.prestige) + (mot.includes('title-chaser') ? 0.5 : 0);
+    if (champ > 0.25 && school.prestige >= 75) int *= 1 + champ * 0.30;
+    // Playing time: the early-playing-time pitch (meet the team, the offer
+    // itself) is very effective when the depth chart genuinely has room.
+    const pt = w(imp.playingTime) + (mot.includes('impact') ? 0.5 : 0);
+    if (pt > 0.25 && (actionKey === 'meetTeam' || actionKey === 'offer' || actionKey === 'hostOvernight')) {
+      const ptScore = playingTimeScore(gameState, school, rec, null);
+      int *= 1 + pt * (ptScore >= 70 ? 0.40 : ptScore <= 30 ? -0.20 : 0.10);
+    }
+    // Distance from home: proximity supercharges the family-facing actions.
+    const home = w(imp.location) + (mot.includes('homebody') ? 0.5 : 0);
+    if (home > 0.25 && (actionKey === 'homeVisit' || actionKey === 'campusVisit')) {
+      const dist = rec.hometownState === 'INT' ? 1200 : distanceMiles(rec.hometownState, school.state);
+      int *= 1 + home * (dist < 250 ? 0.35 : dist > 800 ? -0.20 : 0.05);
+      rel *= 1 + home * (dist < 250 ? 0.20 : 0);
+    }
+    // Culture: for family-first / team-first kids the coach's genuine
+    // relationship craft is what actually moves the needle.
+    if (mot.includes('family-first') || rec.personality === 'Team-First') {
+      if (['call', 'homeVisit', 'meetTeam', 'hostOvernight'].includes(actionKey)) {
+        rel *= 1 + ((coach.culture ?? 55) - 55) / 140 + ((coach.relationships ?? 55) - 55) / 180;
+      }
+    }
+    // Development: training facilities and a coach who demonstrably
+    // improves runners sell themselves to a project-minded recruit.
+    const dev = w(imp.development) + (mot.includes('project') ? 0.5 : 0);
+    if (dev > 0.25) {
+      if (actionKey === 'campusVisit') int *= 1 + dev * ((school.facilities.trainingCenter - 50) / 130);
+      if (actionKey === 'call' || actionKey === 'assistantVisit') int *= 1 + dev * (((coach.training ?? 55) - 55) / 150);
+    }
+    return {
+      rel: Utils.clamp(rel, 0.5, 1.8),
+      int: Utils.clamp(int, 0.5, 1.8)
+    };
+  }
+
+  /*
    * The shared heart of every recruiting action: relationship/interest
    * effects, visit flags, offer flags, and (for the player's program only)
    * scouting knowledge + motivation discovery. `rand` is a 0-1 generator —
@@ -822,6 +904,14 @@
     const coachabilityMul = 0.8 + rec.coachability / 250;
     let rel = action.relationship * recruitingMul * coachabilityMul;
     let int = action.interest * recruitingMul;
+
+    // Personality-driven dynamic effectiveness: who this recruit is changes
+    // how hard each action lands (never applied to the Sway flip roll).
+    if (actionKey !== 'sway') {
+      const p = personalityEffect(gameState, school, coach, rec, actionKey);
+      rel *= p.rel;
+      int *= p.int;
+    }
 
     // Campus visit lands harder when the campus/facilities are genuinely good.
     if (actionKey === 'campusVisit') {
@@ -841,39 +931,41 @@
       int += rec.starRating >= 4 ? 0 : 4; // lower-rated kids are flattered
     }
 
-    // Sway (Update 13, Phase 4; rebalanced Update 15): resolve the momentum
-    // swing. Sway is deliberately the PLAYER'S closing tool — the human coach
-    // in the living room sells the program in a way the passive CPU pitch
-    // can't. The player's staff succeeds far more often (~80-92%), swings
-    // more interest per success, and almost never backfires; CPU staffs keep
-    // a modest hit rate. Each successful sway also banks a point of lasting
-    // MOMENTUM with the recruit (capped) that feeds straight into the commit
-    // math — this is how a blue-blood player closes five-stars: build the
-    // relationship, then sway the finish.
+    // Sway (rebuilt): a genuine FLIP attempt on a recruit committed to
+    // another program. Roughly 35% of attempts land — a success flips the
+    // commitment to this school ON THE SPOT (the previous school loses the
+    // pledge immediately); a miss leaves them committed where they were.
+    // The staff's recruiting rating, the assistant coach's recruiting craft,
+    // and the built relationship each nudge the odds a little — and repeat
+    // attempts get progressively harder, so hammering the button can never
+    // grind a flip into a certainty.
     if (actionKey === 'sway') {
-      const roll = rand();
-      const isPlayerStaff = school.id === gameState.playerSchoolId;
-      const successChance = isPlayerStaff
-        ? Utils.clamp(0.52 + coach.recruiting / 300 + rec.coachability / 600, 0.55, 0.92)
-        : Utils.clamp(0.38 + coach.recruiting / 280 + rec.coachability / 550, 0.30, 0.72);
-      let outcome;
-      if (roll < successChance) {                 // a genuine momentum swing
-        int = ((isPlayerStaff ? 7 : 5) + rand() * (isPlayerStaff ? 6 : 5)) * recruitingMul;
-        rel = isPlayerStaff ? 4 : 3;
-        st.sway = Math.min((st.sway || 0) + 1, 3); // lasting commit-math momentum
-        outcome = 'boost';
-      } else if (roll < successChance + (isPlayerStaff ? 0.18 : 0.20)) {
-        int = 0; rel = 4;                         // just a warmer relationship
-        outcome = 'relationship';
-      } else if (roll < successChance + (isPlayerStaff ? 0.27 : 0.32)) {
-        int = 0; rel = 0;                         // no effect
-        outcome = 'none';
-      } else {                                    // a misstep — lost momentum
-        int = isPlayerStaff ? -2 : -3;
-        rel = isPlayerStaff ? -1 : -2;
-        outcome = 'backfire';
+      const assistant = gameState.getCoach(school.assistantId);
+      let flip = 0.35;
+      flip += ((coach.recruiting ?? 55) - 55) * 0.0015;                 // recruiting rating: ±~6%
+      if (assistant && assistant.id !== coach.id) {
+        flip += ((assistant.recruiting ?? 55) - 55) * 0.0008;           // the assistant works the flip too
       }
-      if (isPlayerStaff) st._swayOutcome = outcome;
+      flip += ((st.relationship || 0) - 50) * 0.001;                    // the bond: ±~5%
+      st.swayAttempts = (st.swayAttempts || 0) + 1;
+      if (st.swayAttempts > 1) flip *= Math.pow(0.85, st.swayAttempts - 1); // diminishing repeats
+      flip = Utils.clamp(flip, 0.08, 0.50);
+
+      const prevId = rec.committedTo;
+      if (rand() < flip) {
+        const prev = prevId && gameState.getSchool(prevId);
+        rec.committedTo = school.id;                                    // the flip is immediate
+        rec.commitWeek = gameState.week;
+        rel = 6; int = 8;
+        if (school.id === gameState.playerSchoolId) st._swayOutcome = 'flip';
+        if (rec.starRating >= 3 || school.id === gameState.playerSchoolId ||
+            prevId === gameState.playerSchoolId) {
+          gameState.logNews(`FLIP: ${rec.fullName} is swayed away from ${prev ? prev.name : '?'} and commits to ${school.name}!`);
+        }
+      } else {
+        rel = 2; int = 0;                                               // they hear you out, but stay
+        if (school.id === gameState.playerSchoolId) st._swayOutcome = 'hold';
+      }
     }
 
     st.relationship = Utils.clamp(st.relationship + rel, 0, 100);
@@ -926,17 +1018,15 @@
     if (action.requires === 'visited' && !st.visited) {
       return { ok: false, message: 'An overnight requires a campus visit first.' };
     }
-    // Sway gate (Update 13, Phase 4; eased Update 15): you can't magically
-    // pull in a recruit with no interest. They must already be considering
-    // you — modest interest AND a realistic (>~7%) chance of choosing your
-    // program. The gate sits just low enough that a blue-blood staff grinding
-    // a contested five-star can still fight its way into the race.
+    // Sway gate (rebuilt): Sway is a FLIP attempt, so it only exists when
+    // the recruit is verbally committed to ANOTHER school and your program
+    // holds a real (10%+) commitment chance with them.
     if (action.requires === 'sway') {
-      if (st.interest < 20) {
-        return { ok: false, message: `${rec.lastName} isn't considering you enough to sway yet — build a relationship and some interest first.` };
+      if (!rec.committedTo || rec.committedTo === school.id) {
+        return { ok: false, message: `Sway is a flip attempt — ${rec.lastName} isn't committed to another school.` };
       }
-      if (commitChance(gameState, school, rec) < 0.07) {
-        return { ok: false, message: `${rec.lastName}'s commitment chance is too low to sway — you need a real foot in the door first.` };
+      if (commitChance(gameState, school, rec) < 0.10) {
+        return { ok: false, message: `${rec.lastName}'s commitment chance with you is under 10% — build the relationship before attempting a flip.` };
       }
     }
     if (actionKey === 'offer') {
@@ -966,10 +1056,8 @@
       meetTeam: `${rec.fullName} met the squad.`,
       sway: (() => {
         switch (st._swayOutcome) {
-          case 'boost': return `You swayed ${rec.fullName} — real momentum toward your program.`;
-          case 'relationship': return `A strong conversation with ${rec.fullName} — the relationship is stronger, if not the interest yet.`;
-          case 'none': return `${rec.fullName} heard you out, but nothing moved.`;
-          default: return `The pitch to ${rec.fullName} fell flat — you may have lost a little momentum.`;
+          case 'flip': return `🔥 FLIPPED! ${rec.fullName} decommits and pledges to YOUR program!`;
+          default: return `${rec.fullName} heard the pitch but is staying committed — for now.`;
         }
       })(),
       offer: `${terms.made} ${rec.fullName}!`
@@ -1006,7 +1094,15 @@
       const week = gameState.week;
       board[gender] = board[gender].filter((id) => {
         const r = gameState.world.recruits[id];
-        if (!r || r.signed || (r.committedTo && r.committedTo !== school.id)) return false;
+        if (!r || r.signed) return false;
+        // A recruit committed elsewhere normally drops off the board — but a
+        // staff holding an offer and a real commitment chance keeps them on
+        // as a Sway (flip) target for a while.
+        if (r.committedTo && r.committedTo !== school.id) {
+          const mine = r.interests[school.id];
+          return !!(mine && mine.offered && (mine.swayAttempts || 0) < 3 &&
+            commitChance(gameState, school, r) >= 0.10);
+        }
         // Dynamic pivots (Update 6, Section 6): boards evolve weekly. Once a
         // rival's relationship lead is decisive and the clock is running,
         // stop wasting pushes on a lost battle — replace the target instead.
@@ -1143,7 +1239,8 @@
     if (action.requires === 'interest30' && st.interest < 30) return false;
     if (action.requires === 'visited' && !st.visited) return false;
     if (action.requires === 'sway' &&
-        (st.interest < 20 || commitChance(gameState, school, rec) < 0.07)) return false;
+        (!rec.committedTo || rec.committedTo === school.id ||
+         commitChance(gameState, school, rec) < 0.10)) return false;
 
     econ.points -= action.points;
     econ.budget -= action.cost;
@@ -1167,6 +1264,17 @@
     const A = D.RECRUIT_ACTIONS;
     const affordable = (k) =>
       o.econ.points >= A[k].points && o.econ.budget >= A[k].cost && A[k].cost <= o.weekSpend + 400;
+
+    // 0) A recruit committed ELSEWHERE: the only play left is the Sway flip
+    //    attempt (rebuilt). Confident staffs with a real foot in the door
+    //    occasionally take the ~35% shot; everyone else moves on.
+    if (rec.committedTo && rec.committedTo !== school.id) {
+      if (st.offered && affordable('sway') && o.coachRecruiting >= 60 &&
+          o.rng && o.rng.bool(o.coachRecruiting >= 78 ? 0.20 : 0.10)) {
+        if (commitChance(gameState, school, rec) >= 0.10) return 'sway';
+      }
+      return null;
+    }
 
     // 1) The close: offer when the AI believes in the match and slots remain.
     //    Late in the cycle programs behind on their class lower the bar —
@@ -1201,15 +1309,6 @@
     // 2) The big sell: get them to campus, then keep them overnight.
     if (!st.visited && st.interest >= 30 && affordable('campusVisit')) return 'campusVisit';
     if (st.visited && !st.overnight && st.interest >= 45 && affordable('hostOvernight')) return 'hostOvernight';
-    // 2b) Sway (Update 13, Phase 8): a strong, well-regarded staff selectively
-    //     swings a recruit who's already offered and interested but still
-    //     undecided — spent only when there's a real foot in the door and the
-    //     race isn't already won. Lower-tier staffs rarely reach for it.
-    if (st.offered && !rec.committedTo && st.interest >= 30 && affordable('sway') &&
-        o.coachRecruiting >= 66 && o.rng && o.rng.bool(o.coachRecruiting >= 80 ? 0.22 : 0.13)) {
-      const cc = commitChance(gameState, school, rec);
-      if (cc >= 0.12 && cc < 0.6) return 'sway';
-    }
     // 3) Work the family when the bond is the bottleneck.
     if (st.relationship < 55 && affordable('homeVisit')) return 'homeVisit';
     // 4) Keep contact flowing at whatever the budget allows.
@@ -1270,7 +1369,12 @@
         const targets = board[gender]
           .map((id) => gameState.world.recruits[id])
           .filter((r) => {
-            if (!r || r.signed || r.committedTo) return false;
+            if (!r || r.signed || r.committedTo === school.id) return false;
+            // Committed-elsewhere recruits stay workable only as flip targets.
+            if (r.committedTo) {
+              const mine = r.interests[school.id];
+              return !!(mine && mine.offered);
+            }
             // Mid-majors shift resources off a generational battle once
             // it's clearly a blue-blood bidding war (Part 12.5).
             if (r.generational && school.prestige < 62 && !aggressive) {
@@ -1371,9 +1475,10 @@
         const urgency = (week - rec.decisionWeek + 1) / Math.max(1, D.RECRUITING.SIGNING_WEEK - rec.decisionWeek + 1);
         const p = Utils.clamp(0.08 + urgency * 0.35 + (best.appeal - 52) / 150, 0, 0.75);
         if (rng.bool(p)) {
-          // Usually the leader, but not always — hidden hearts want what they want.
-          const pool = ranked.slice(0, 3);
-          const choice = rng.weightedChoice(pool, (o) => Math.pow(o.appeal, 3));
+          // The decision runs on the recruit's top-9 ranking: the leader wins
+          // 40% of these, #2 25%, #3 15% — finishing first genuinely pays.
+          const pool = ranked.slice(0, 9).map((o, i) => ({ ...o, rank: i }));
+          const choice = rng.weightedChoice(pool, (o) => rankWeight(o.rank));
           rec.committedTo = choice.sid;
           rec.commitWeek = week;
           const school = gameState.getSchool(choice.sid);
@@ -1439,12 +1544,15 @@
         const offers = Object.keys(rec.interests).filter((sid) =>
           rec.interests[sid].offered && gameState.getSchool(sid));
         if (offers.length) {
+          // Signing probability runs on the final top-9 ranking: 1st signs
+          // them 40% of the time, 2nd 25%, 3rd 15%, then 10/5/3/1/0.5/0.5 —
+          // the school that finishes first on the board wins far more often.
           const ranked = offers
             .map((sid) => ({ sid, appeal: appeal(gameState, gameState.getSchool(sid), rec, ctx) }))
             .sort((a, b) => b.appeal - a.appeal);
-          const pool = ranked.slice(0, 3);
+          const pool = ranked.slice(0, 9).map((o, i) => ({ ...o, rank: i }));
           rec.committedTo = pool.length > 1
-            ? rng.weightedChoice(pool, (o) => Math.pow(Math.max(o.appeal, 1), 3)).sid
+            ? rng.weightedChoice(pool, (o) => rankWeight(o.rank)).sid
             : pool[0].sid;
         }
       }
@@ -1525,6 +1633,13 @@
         coach.upgradePoints = (coach.upgradePoints || 0) + 1;
         window.XCD.engine.Awards.cpuSpendUpgradePoints(coach, rng);
       }
+      // A top-10 class is the recruiting coordinator's résumé line too: the
+      // CPU assistant banks the same point and spends it immediately.
+      const asst = school && school.assistantId && gameState.getCoach(school.assistantId);
+      if (asst && !asst.isPlayer && asst.id !== (coach && coach.id)) {
+        asst.upgradePoints = (asst.upgradePoints || 0) + 1;
+        window.XCD.engine.Awards.cpuSpendUpgradePoints(asst, rng);
+      }
     });
 
     // Generational signings are national news one more time.
@@ -1592,13 +1707,19 @@
     for (const [schoolId, recs] of Object.entries(bySchool)) {
       const school = gameState.getSchool(schoolId);
       if (!school) continue;
+      // Eligibility is granted by the division the athlete ENROLLS in
+      // (accurate NCAA rules): DI freshmen hold five seasons of competition
+      // on the five-year clock, DII/DIII four-in-five. JUCO transfers have
+      // already burned a season of competition on their clock.
+      const divSeasons = (D.eligibilityFor ? D.eligibilityFor(school) : { seasons: 4 }).seasons;
       recs.forEach((rec) => {
         const athlete = new M.Athlete({
           ...rec,
           id: rec.id, // keep identity for history continuity
           isRecruit: false,
           classYear: rec.source === 'JUCO' ? 'Sophomore' : 'Freshman',
-          eligibilityRemaining: rec.eligibilityRemaining,
+          eligibilityRemaining: rec.source === 'JUCO' ? divSeasons - 1 : divSeasons,
+          yearsOnCampus: rec.source === 'JUCO' ? 2 : 1,
           schoolId,
           morale: 75,
           fatigue: 10
@@ -1671,6 +1792,8 @@
     doAction,
     appeal,
     commitChance,
+    rankedSuitors,
+    RANK_ODDS,
     fitScore,
     distanceMiles,
     recruitComposite,

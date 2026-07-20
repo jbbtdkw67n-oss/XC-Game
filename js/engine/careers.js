@@ -373,14 +373,14 @@
       const coach = gameState.getPlayerCoach();
       const rng = new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 41 + schoolId.length) >>> 0);
 
-      Legacy.closeStint(gameState, coach, oldSchool, gameState.year);
+      Legacy.closeStint(gameState, coach, oldSchool, gameState.year, 'left');
       oldSchool.coachId = null;
       oldSchool.coachChangedYear = gameState.year;
       fillVacancy(gameState, oldSchool, rng, 0);
 
       const asst = newSchool.assistantId && gameState.world.coaches[newSchool.assistantId];
       if (asst && !asst.isPlayer) {
-        Legacy.closeStint(gameState, asst, newSchool, gameState.year);
+        Legacy.closeStint(gameState, asst, newSchool, gameState.year, 'released');
         Legacy.recordRetiredCoach(gameState, asst, 'released'); // no coach ever vanishes (Phase 3)
         delete gameState.world.coaches[asst.id];
       }
@@ -422,7 +422,7 @@
       const coach = gameState.getPlayerCoach();
       const rng = new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 43 + schoolId.length) >>> 0);
 
-      Legacy.closeStint(gameState, coach, oldSchool, gameState.year);
+      Legacy.closeStint(gameState, coach, oldSchool, gameState.year, 'left');
       if (oldSchool.assistantId === coach.id) oldSchool.assistantId = null;
       const fill = WG.buildAssistant(rng, oldSchool);
       fill.age = rng.int(25, 40);
@@ -433,7 +433,7 @@
 
       const displaced = newSchool.assistantId && gameState.world.coaches[newSchool.assistantId];
       if (displaced && !displaced.isPlayer) {
-        Legacy.closeStint(gameState, displaced, newSchool, gameState.year);
+        Legacy.closeStint(gameState, displaced, newSchool, gameState.year, 'released');
         Legacy.recordRetiredCoach(gameState, displaced, 'released'); // no coach ever vanishes (Phase 3)
         delete gameState.world.coaches[displaced.id];
       }
@@ -470,14 +470,14 @@
       const coach = gameState.getPlayerCoach();
       const rng = new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 37 + schoolId.length) >>> 0);
 
-      Legacy.closeStint(gameState, coach, oldSchool, gameState.year);
+      Legacy.closeStint(gameState, coach, oldSchool, gameState.year, 'promoted');
       if (oldSchool.assistantId === coach.id) oldSchool.assistantId = null;
       // Your old boss's coaching tree grows a branch (Update 6).
       Legacy.creditPromotion(gameState, coach, newSchool, gameState.year);
 
       const incumbent = newSchool.coachId && gameState.world.coaches[newSchool.coachId];
       if (incumbent && !incumbent.isPlayer) {
-        Legacy.closeStint(gameState, incumbent, newSchool, gameState.year);
+        Legacy.closeStint(gameState, incumbent, newSchool, gameState.year, 'fired');
         incumbent.schoolId = null;
         incumbent.hotSeat = 0;
         incumbent.hotSeatYears = 0;
@@ -519,7 +519,7 @@
     const rng = new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 31 + schoolId.length) >>> 0);
 
     // Your departure opens a real vacancy behind you.
-    Legacy.closeStint(gameState, coach, oldSchool, gameState.year);
+    Legacy.closeStint(gameState, coach, oldSchool, gameState.year, 'left');
     oldSchool.coachId = null;
     oldSchool.coachChangedYear = gameState.year;
     fillVacancy(gameState, oldSchool, rng, 0);
@@ -527,7 +527,7 @@
     // If the new chair somehow still has a sitting coach, they hit the market.
     const incumbent = newSchool.coachId && gameState.world.coaches[newSchool.coachId];
     if (incumbent) {
-      Legacy.closeStint(gameState, incumbent, newSchool, gameState.year);
+      Legacy.closeStint(gameState, incumbent, newSchool, gameState.year, 'fired');
       incumbent.schoolId = null;
       incumbent.hotSeat = 0;
     }
@@ -727,7 +727,7 @@
       if (targets.length) {
         const from = targets[rng.int(0, Math.min(2, targets.length - 1))];
         const c = gameState.world.coaches[from.coachId];
-        Legacy.closeStint(gameState, c, from, gameState.year);
+        Legacy.closeStint(gameState, c, from, gameState.year, 'left');
         from.coachId = null;
         from.coachChangedYear = gameState.year;
         school.coachId = c.id;
@@ -775,7 +775,7 @@
         const promo = pick.c, fromSchool = pick.s, internal = pick.internal;
         const wasPlayerAsst = fromSchool.id === gameState.playerSchoolId && fromSchool.assistantId === promo.id;
         if (fromSchool.assistantId === promo.id) fromSchool.assistantId = null;
-        Legacy.closeStint(gameState, promo, fromSchool, gameState.year);
+        Legacy.closeStint(gameState, promo, fromSchool, gameState.year, 'promoted');
         // The boss they leave behind earns a branch on the coaching tree.
         Legacy.creditPromotion(gameState, promo, school, gameState.year);
         promo.role = 'Head'; // set before openStint so the program ledger records it
@@ -843,7 +843,7 @@
       // stopping point. Most still coach until 75+.
       const earlyRetire = coach.age >= 66 && rng.bool(Math.min(0.14, (coach.age - 65) * 0.02));
       if (coach.age >= coach.retireAge || earlyRetire) {
-        Legacy.closeStint(gameState, coach, school, gameState.year);
+        Legacy.closeStint(gameState, coach, school, gameState.year, 'retired');
         Legacy.recordRetiredCoach(gameState, coach, 'retired');
         delete gameState.world.coaches[coach.id];
         school.coachId = null;
@@ -900,7 +900,7 @@
 
       const earlyRetire = asst.age >= 63 && rng.bool(Math.min(0.12, (asst.age - 62) * 0.02));
       if (asst.age >= (asst.retireAge || 75) || earlyRetire) {
-        Legacy.closeStint(gameState, asst, school, gameState.year);
+        Legacy.closeStint(gameState, asst, school, gameState.year, 'retired');
         Legacy.recordRetiredCoach(gameState, asst, 'retired');
         delete gameState.world.coaches[asst.id];
         school.assistantId = null;
@@ -913,7 +913,7 @@
       // Programs churn staff: a weak, stagnating assistant is occasionally let
       // go. The player makes their own firing calls, so never auto-fire theirs.
       if (!playerAsst && (asst.reputation || 0) < 18 && asst.age >= 34 && rng.bool(0.12)) {
-        Legacy.closeStint(gameState, asst, school, gameState.year);
+        Legacy.closeStint(gameState, asst, school, gameState.year, 'released');
         Legacy.recordRetiredCoach(gameState, asst, 'released'); // history keeps every career (Phase 3)
         delete gameState.world.coaches[asst.id]; // assistants don't pool as free agents
         school.assistantId = null;
@@ -949,7 +949,7 @@
         const from = choice.s, c = choice.c;
         const wasPlayerAsst = from.id === playerHeadSchoolId;
         from.assistantId = null;
-        Legacy.closeStint(gameState, c, from, gameState.year);
+        Legacy.closeStint(gameState, c, from, gameState.year, 'left');
         c.schoolId = school.id;
         c.yearsAtSchool = 0;
         school.assistantId = c.id;
@@ -1013,7 +1013,7 @@
 
     // 1) The retirement: career sealed into the permanent registry, and into
     //    the dynasty's own lineage ledger (viewable forever on My Career).
-    Legacy.closeStint(gameState, old, oldSchool, year);
+    Legacy.closeStint(gameState, old, oldSchool, year, 'retired');
     Legacy.recordRetiredCoach(gameState, old, 'retired');
     const registryEntry = gameState.history.coachRegistry[gameState.history.coachRegistry.length - 1];
     gameState.history.playerCareers = gameState.history.playerCareers || [];
@@ -1042,7 +1042,7 @@
     if (!isAssistant) {
       const incumbent = newSchool.coachId && gameState.world.coaches[newSchool.coachId];
       if (incumbent) {
-        Legacy.closeStint(gameState, incumbent, newSchool, year);
+        Legacy.closeStint(gameState, incumbent, newSchool, year, 'fired');
         incumbent.schoolId = null;
         incumbent.hotSeat = 0;
         incumbent.hotSeatYears = 0;
@@ -1053,7 +1053,7 @@
     } else {
       const asst = newSchool.assistantId && gameState.world.coaches[newSchool.assistantId];
       if (asst && !asst.isPlayer) {
-        Legacy.closeStint(gameState, asst, newSchool, year);
+        Legacy.closeStint(gameState, asst, newSchool, year, 'released');
         Legacy.recordRetiredCoach(gameState, asst, 'released'); // history keeps every career (Phase 3)
         delete gameState.world.coaches[asst.id];
       }

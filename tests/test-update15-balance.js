@@ -131,20 +131,31 @@ const { walkCoachWizard, wireErrors, launchOpts } = require('./helpers');
           if (g.week <= window.XCD.data.RECRUITING.SIGNING_WEEK) {
             const school = g.getPlayerSchool();
             ['M', 'W'].forEach((gender) => {
-              const pool = Object.values(g.world.recruits)
-                .filter((r) => r.gender === gender && !r.signed && !r.committedTo)
+              const all = Object.values(g.world.recruits)
+                .filter((r) => r.gender === gender && !r.signed)
                 .sort((a, b) => a.nationalRank - b.nationalRank);
+              const pool = all.filter((r) => !r.committedTo);
               // A realistic board: chase the top two 5★s AND the top two
-              // 4★s (less contested) instead of going all-in on the elite.
+              // 4★s (less contested) instead of going all-in on the elite —
+              // plus flip attempts on elite recruits committed elsewhere
+              // that we already hold an offer with (the rebuilt Sway).
+              const flipTargets = all.filter((r) => {
+                if (!r.committedTo || r.committedTo === school.id || r.starRating < 4) return false;
+                const st = r.interests[school.id];
+                return !!(st && st.offered);
+              }).slice(0, 2);
               const targets = pool.filter((r) => r.starRating === 5).slice(0, 2)
-                .concat(pool.filter((r) => r.starRating === 4).slice(0, 2));
+                .concat(pool.filter((r) => r.starRating === 4).slice(0, 2))
+                .concat(flipTargets);
               for (const r of targets) {
                 for (let act = 0; act < 2; act++) {
                   if (g.recruiting.pointsLeft <= 6) break;
                   const st = r.getSchoolState(school.id, true);
                   const cc = st.offered ? RE.commitChance(g, school, r) : 0;
+                  const committedElsewhere = r.committedTo && r.committedTo !== school.id;
                   let key;
-                  if (st.interest >= 20 && st.offered && cc >= 0.07 && cc < 0.9) key = 'sway';
+                  if (committedElsewhere && st.offered && cc >= 0.10) key = 'sway';
+                  else if (committedElsewhere) break; // nothing else moves a committed recruit
                   else if (!st.offered && st.interest >= 10) key = 'offer';
                   else if (st.interest >= 30 && !st.visited) key = 'campusVisit';
                   else if (st.visited && !st.overnight && st.interest >= 45) key = 'hostOvernight';
@@ -154,9 +165,10 @@ const { walkCoachWizard, wireErrors, launchOpts } = require('./helpers');
                   // Count only sways that actually resolved (not the fallback call).
                   if (key === 'sway' && res.ok) {
                     out.swayUses++;
-                    if (/swayed/.test(res.message)) out.swayBoosts++;
+                    if (/FLIPPED/.test(res.message)) out.swayBoosts++;
+                    break; // one flip attempt per week per recruit is plenty
                   }
-                  if (!res.ok && key !== 'call') res = RE.doAction(g, r.id, 'call');
+                  if (!res.ok && key !== 'call' && !committedElsewhere) res = RE.doAction(g, r.id, 'call');
                   if (!res.ok) break;
                 }
               }
@@ -288,8 +300,12 @@ const { walkCoachWizard, wireErrors, launchOpts } = require('./helpers');
     if (sim.world.distinctChampsM < 4) fail('championship monopoly: ' + sim.world.distinctChampsM + " distinct men's champions");
     // Star transfers draw a real bidding war (~5 schools incl. the player).
     if (sim.suitorSamples.length && avg(sim.suitorSamples) < 3.2) fail('star transfers should draw ~5 suitors: avg ' + avg(sim.suitorSamples).toFixed(1));
-    // Sway must connect at the buffed player rate.
-    if (sim.swayUses >= 20 && sim.swayBoosts / sim.swayUses < 0.6) fail('player sway boost rate below the buffed band: ' + (sim.swayBoosts / sim.swayUses).toFixed(2));
+    // Sway (rebuilt): flip attempts land at roughly the ~35% design rate —
+    // never a sure thing, never useless.
+    if (sim.swayUses >= 30) {
+      const rate = sim.swayBoosts / sim.swayUses;
+      if (rate < 0.12 || rate > 0.6) fail('sway flip rate outside the ~35% design band: ' + rate.toFixed(2));
+    }
     // World health.
     if (sim.world.avgOvr < 40 || sim.world.avgOvr > 60) fail('rating drift after 40 seasons: ' + sim.world.avgOvr);
     if (sim.world.athletes < 8000) fail('athlete population collapsed: ' + sim.world.athletes);

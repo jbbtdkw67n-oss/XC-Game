@@ -595,8 +595,27 @@
     const natl = game.history.nationalChampions || {};
     const conf = game.history.conferenceChampions || {};
     const confIndiv = game.history.confIndivChampions || {};
+    const confMeta = game.history.confChampMeta || {};
+    const regional = game.history.regionalChampions || {};
+    const regMeta = game.history.regChampMeta || {};
+    const regIndiv = game.history.regIndivChampions || {};
     const confDiv = confDivisions(game);
-    let years = [...new Set([...Object.keys(natl), ...Object.keys(conf)])].sort((a, b) => b - a);
+    // Every school name → division, so old regional ledgers (which carry only
+    // the champion's name) still land in the right division's archive.
+    const schoolDiv = {};
+    Object.values(game.world.schools).forEach((s) => { schoolDiv[s.name] = s.division || 'DI'; });
+    const Legacy = window.XCD.engine.Legacy;
+    // The coach responsible for a championship entry: the stamped name when
+    // recorded, otherwise resolved from the program's head-coaching ledger.
+    const coachFor = (schoolName, year, stamped, schoolId) => {
+      if (stamped) return stamped;
+      const sid = schoolId || (Object.values(game.world.schools).find((s) => s.name === schoolName) || {}).id;
+      return sid ? Legacy.coachForSchoolYear(game, sid, year) : '';
+    };
+    const coachTag = (name) => name
+      ? ` <span style="color:var(--text-faint); font-size:11.5px;">🧢 <span class="clickable" data-coach="" data-coach-name="${Utils.escapeHtml(name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(name)}</span></span>`
+      : '';
+    let years = [...new Set([...Object.keys(natl), ...Object.keys(conf), ...Object.keys(regional)])].sort((a, b) => b - a);
     if (champYear) years = years.filter((y) => String(y).includes(champYear));
     const ft = window.XCD.engine.Races.formatTime;
 
@@ -615,17 +634,62 @@
         const natBlock = ['M', 'W'].map((g) => {
           const rec = n[natKey(champDiv, g)];
           if (!rec) return '';
+          const teamCoach = coachFor(rec.team, year, rec.coach, rec.teamId);
+          const indivCoach = coachFor(rec.individualSchool, year, rec.individualCoach, rec.individualSchoolId);
           return `
             <div class="attr-row">
               <span>🏆 ${g === 'M' ? "Men's" : "Women's"} National Champions:
-                <strong class="clickable-school" data-school="${rec.teamId || ''}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(rec.team)}</strong></span>
-              <span style="color:var(--text-dim);">🥇 <span class="${rec.individualId ? 'clickable' : ''}" ${rec.individualId ? `data-ath="${rec.individualId}" data-ath-name="${Utils.escapeHtml(rec.individual)}" style="cursor:pointer; color:var(--accent-hover);"` : ''}>${Utils.escapeHtml(rec.individual)}</span> (<span class="${rec.individualSchoolId ? 'clickable' : ''}" ${rec.individualSchoolId ? `data-school="${rec.individualSchoolId}" style="cursor:pointer;"` : ''}>${Utils.escapeHtml(rec.individualSchool)}</span>)${rec.individualTime ? ' — ' + ft(rec.individualTime) : ''}</span>
+                <strong class="clickable-school" data-school="${rec.teamId || ''}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(rec.team)}</strong>${coachTag(teamCoach)}</span>
+              <span style="color:var(--text-dim);">🥇 <span class="${rec.individualId ? 'clickable' : ''}" ${rec.individualId ? `data-ath="${rec.individualId}" data-ath-name="${Utils.escapeHtml(rec.individual)}" style="cursor:pointer; color:var(--accent-hover);"` : ''}>${Utils.escapeHtml(rec.individual)}</span> (<span class="${rec.individualSchoolId ? 'clickable' : ''}" ${rec.individualSchoolId ? `data-school="${rec.individualSchoolId}" style="cursor:pointer;"` : ''}>${Utils.escapeHtml(rec.individualSchool)}</span>)${rec.individualTime ? ' — ' + ft(rec.individualTime) : ''}${coachTag(indivCoach)}</span>
             </div>`;
         }).join('');
+
+        // Regional champions in this division (Archive fix): every region's
+        // team champion — with the coach responsible — plus the individual
+        // regional champions, right alongside conference and national titles.
+        const r = regional[year] || {};
+        const rm = regMeta[year] || {};
+        const ri = regIndiv[year] || {};
+        const regionNames = [...new Set(Object.keys(r).map((k) => k.slice(0, k.lastIndexOf('-'))))]
+          .filter((rg) => ['M', 'W'].some((g) => {
+            const m = rm[`${champDiv}:${rg}-${g}`];
+            if (m) return true;
+            return (schoolDiv[r[`${rg}-${g}`]] || 'DI') === champDiv;
+          }))
+          .sort();
+        const regBlock = regionNames.length ? `
+          <details style="margin-top:10px;">
+            <summary style="cursor:pointer; color:var(--text-dim); font-size:13px;">Regional Champions (${regionNames.length} regions)</summary>
+            <div style="margin-top:8px;">
+              ${regionNames.map((rg) => {
+                const teamLine = (g) => {
+                  const m = rm[`${champDiv}:${rg}-${g}`];
+                  const nameOnly = r[`${rg}-${g}`];
+                  const champName = m ? m.school : nameOnly;
+                  if (!champName) return '';
+                  if (!m && (schoolDiv[champName] || 'DI') !== champDiv) return '';
+                  const coach = coachFor(champName, year, m && m.coach, m && m.schoolId);
+                  return `<div style="font-size:12.5px;">${g}: <strong>${Utils.escapeHtml(champName)}</strong>${coachTag(coach)}</div>`;
+                };
+                const indivLine = (g) => {
+                  const rec = ri[`${rg}-${g}`];
+                  if (!rec) return '';
+                  if ((schoolDiv[rec.school] || 'DI') !== champDiv) return '';
+                  return `<div style="color:var(--text-faint); font-size:11.5px;">🥇${g}: <span class="clickable" data-ath="${rec.athleteId}" data-ath-name="${Utils.escapeHtml(rec.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(rec.name)}</span> (${Utils.escapeHtml(rec.school)})${rec.coach ? ` — 🧢 ${Utils.escapeHtml(rec.coach)}` : ''}</div>`;
+                };
+                return `
+                <div class="attr-row" style="align-items:flex-start;">
+                  <span class="attr-name">🗺 ${Utils.escapeHtml(rg)}</span>
+                  <span style="text-align:right;">${teamLine('M')}${teamLine('W')}${indivLine('M')}${indivLine('W')}</span>
+                </div>`;
+              }).join('')}
+            </div>
+          </details>` : '';
 
         // Conference champions in this division, grouped by conference.
         const c = conf[year] || {};
         const ci = confIndiv[year] || {};
+        const cm = confMeta[year] || {};
         const confNames = [...new Set(Object.keys(c).map((k) => k.slice(0, k.lastIndexOf('-'))))]
           .filter((name) => (confDiv[name] || 'DI') === champDiv)
           .sort();
@@ -634,6 +698,13 @@
             <summary style="cursor:pointer; color:var(--text-dim); font-size:13px;">Conference Champions (${confNames.length})</summary>
             <div style="margin-top:8px;">
               ${confNames.map((name) => {
+                const teamBit = (g) => {
+                  const champName = c[`${name}-${g}`];
+                  if (!champName) return '';
+                  const m = cm[`${name}-${g}`];
+                  const coach = coachFor(champName, year, m && m.coach, m && m.schoolId);
+                  return `${g === 'W' ? ' · ' : ''}${g}: ${Utils.escapeHtml(champName)}${coachTag(coach)}`;
+                };
                 const indivLine = (g) => {
                   const rec = ci[`${name}-${g}`];
                   if (!rec) return '';
@@ -642,14 +713,14 @@
                 return `
                 <div class="attr-row">
                   <span class="attr-name">${Utils.escapeHtml(name)}</span>
-                  <span style="font-size:12.5px;">${c[`${name}-M`] ? 'M: ' + Utils.escapeHtml(c[`${name}-M`]) : ''}${c[`${name}-W`] ? ' · W: ' + Utils.escapeHtml(c[`${name}-W`]) : ''}${indivLine('M')}${indivLine('W')}</span>
+                  <span style="font-size:12.5px;">${teamBit('M')}${teamBit('W')}${indivLine('M')}${indivLine('W')}</span>
                 </div>`;
               }).join('')}
             </div>
           </details>` : '';
 
-        if (!natBlock && !confBlock) return '';
-        return `<div class="card" style="margin-bottom:16px;"><h2>${year} — ${window.XCD.data.divisionFor(champDiv).label}</h2>${natBlock}${confBlock}</div>`;
+        if (!natBlock && !confBlock && !regBlock) return '';
+        return `<div class="card" style="margin-bottom:16px;"><h2>${year} — ${window.XCD.data.divisionFor(champDiv).label}</h2>${natBlock}${regBlock}${confBlock}</div>`;
       }).join('') || '<div class="card" style="color:var(--text-dim);">No championships in this division yet.</div>';
 
     el.innerHTML = filterBar + body;

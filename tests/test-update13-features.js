@@ -86,30 +86,35 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   });
   console.log('ideal plans:', JSON.stringify(ideal));
 
-  // ---- 4) Sway gating: no interest → blocked; real interest+chance → works ----
+  // ---- 4) Sway gating (rebuilt): uncommitted → blocked; committed
+  //         elsewhere with a real (10%+) commit chance → flip attempt runs ----
   const sway = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     const RE = window.XCD.engine.Recruiting;
     g.week = 6; g.recruiting.pointsLeft = 40; g.recruiting.budgetLeft = 100000;
     g.recruiting.actionsThisWeek = {};
-    const rec = Object.values(g.world.recruits).find((r) => r.gender === 'M' && !r.signed);
+    const rec = Object.values(g.world.recruits).find((r) => r.gender === 'M' && !r.signed && !r.committedTo);
     const sid = g.playerSchoolId;
-    // No interest yet → Sway refused.
+    // Not committed anywhere → Sway refused (it's a flip attempt).
     const st = rec.getSchoolState(sid, true);
-    st.interest = 0; st.relationship = 0;
-    const blocked = RE.doAction(g, rec.id, 'sway');
-    // Give real interest and make us their leading suitor → Sway allowed.
     st.interest = 60; st.relationship = 60; st.offered = true;
-    rec.interests = { [sid]: st }; // sole serious suitor → high commit chance
+    const blocked = RE.doAction(g, rec.id, 'sway');
+    // Commit them to a rival while we hold a strong position → Sway allowed.
+    const rival = Object.values(g.world.schools).find((s) => s.id !== sid);
+    rec.committedTo = rival.id;
+    const rst = rec.getSchoolState(rival.id, true);
+    rst.offered = true; rst.interest = 30; rst.relationship = 30;
+    rec.interests = { [sid]: st, [rival.id]: rst };
     const cc = RE.commitChance(g, g.getPlayerSchool(), rec);
     g.recruiting.actionsThisWeek = {};
     g.recruiting.pointsLeft = 40; g.recruiting.budgetLeft = 100000;
     const allowed = RE.doAction(g, rec.id, 'sway');
-    return { blockedOk: !blocked.ok, blockedMsg: blocked.message, cc: Math.round(cc * 100), allowedOk: allowed.ok, allowedMsg: allowed.message };
+    const resolved = rec.committedTo === sid ? 'flipped' : 'held';
+    return { blockedOk: !blocked.ok, blockedMsg: blocked.message, cc: Math.round(cc * 100), allowedOk: allowed.ok, allowedMsg: allowed.message, resolved };
   });
-  if (!sway.blockedOk) fail('Sway must be blocked with no interest: ' + sway.blockedMsg);
-  if (sway.cc < 10) fail('sole-suitor commit chance should be high: ' + sway.cc);
-  if (!sway.allowedOk) fail('Sway must work on a genuine target: ' + sway.allowedMsg);
+  if (!sway.blockedOk) fail('Sway must be blocked for uncommitted recruits: ' + sway.blockedMsg);
+  if (sway.cc < 10) fail('leading-suitor commit chance should clear the sway gate: ' + sway.cc);
+  if (!sway.allowedOk) fail('Sway must run on a committed-elsewhere target: ' + sway.allowedMsg);
   console.log('sway:', JSON.stringify(sway));
 
   // ---- 5) Elite-coach motivation: reputation swings fit hard ----

@@ -348,13 +348,17 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
           }
           g.advanceWeek();
         }
-        // Post-rollover: every snapshot transfer must have aged (used a year
-        // of eligibility and moved up a class) or graduated out.
+        // Post-rollover: every snapshot transfer must have moved through the
+        // rollover correctly. Under the accurate NCAA eligibility rules a
+        // season of competition burns only when the athlete actually RACED —
+        // the five-year clock (yearsOnCampus) always ticks — so a transfer
+        // who sat out keeps the season while one who raced ages a year.
         (pendingCheck || []).forEach((snap) => {
           if (out.aging.length >= 6) return;
           const a = g.world.athletes[snap.id];
           const aged = !a /* graduated */ ||
-            (a.eligibilityRemaining === snap.elig - 1 && a.yearsOnCampus === snap.yoc + 1);
+            (a.yearsOnCampus === snap.yoc + 1 &&
+             (a.eligibilityRemaining === snap.elig - 1 || a.eligibilityRemaining === snap.elig));
           out.aging.push({ before: snap.elig, after: a ? a.eligibilityRemaining : 'grad', aged });
         });
         pendingCheck = null;

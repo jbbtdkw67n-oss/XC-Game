@@ -281,14 +281,25 @@
 
   /* ---------------- Coach history (Part 9) ---------------- */
   // Close the coach's open stint and note it on the program ledger.
-  Legacy.closeStint = function (gameState, coach, school, endYear) {
+  // `reason` (Coach Timeline fix) stamps WHY the tenure ended — retired,
+  // fired, left for another job, released — and the prestige the program
+  // stood at when they walked out the door. Both are permanent.
+  Legacy.closeStint = function (gameState, coach, school, endYear, reason) {
     coach.stints = coach.stints || [];
     const open = coach.stints.find((s) => !s.endYear);
-    if (open) open.endYear = endYear;
+    if (open) {
+      open.endYear = endYear;
+      if (reason && !open.reason) open.reason = reason;
+      if (school && open.prestigeEnd === undefined) open.prestigeEnd = school.prestige;
+    }
     if (school) {
       const prog = Legacy.program(gameState, school.id);
       const entry = prog.coaches.find((c) => c.coachId === coach.id && !c.endYear);
-      if (entry) entry.endYear = endYear;
+      if (entry) {
+        entry.endYear = endYear;
+        if (reason && !entry.reason) entry.reason = reason;
+        if (entry.prestigeEnd === undefined) entry.prestigeEnd = school.prestige;
+      }
     }
   };
 
@@ -297,14 +308,60 @@
     const role = coach.role || 'Head';
     coach.stints.push({
       schoolId: school.id, school: school.name,
-      division: school.division || 'DI', startYear, endYear: null, role
+      division: school.division || 'DI', startYear, endYear: null, role,
+      prestigeStart: school.prestige
     });
     // Only head coaches appear on the program's head-coaching ledger; an
     // assistant's stint lives on their own timeline (Update 5).
     if (role === 'Head') {
       const prog = Legacy.program(gameState, school.id);
-      prog.coaches.push({ coachId: coach.id, name: coach.fullName, startYear, endYear: null });
+      prog.coaches.push({ coachId: coach.id, name: coach.fullName, startYear, endYear: null, prestigeStart: school.prestige });
     }
+  };
+
+  /*
+   * Who coached this program in a given year (Championship History fix):
+   * resolved from the permanent head-coaching ledger, so every historical
+   * championship entry can name the coach responsible — even in saves from
+   * before coach names were stamped onto the championship records.
+   */
+  Legacy.coachForSchoolYear = function (gameState, schoolId, year) {
+    if (!schoolId) return '';
+    const prog = (gameState.history.programs || {})[schoolId];
+    if (!prog || !prog.coaches) return '';
+    const y = Number(year);
+    const hit = prog.coaches.slice().reverse().find((c) =>
+      y >= c.startYear && y <= (c.endYear || gameState.year));
+    return hit ? hit.name : '';
+  };
+
+  /*
+   * Why (and in what shape) a head-coaching tenure ended, for the Coach
+   * Timeline. Uses the stamped reason when present, then falls back to the
+   * registry (retired/released careers) and the coach's own later stints
+   * (left for another program), so old saves still read correctly.
+   */
+  Legacy.departureInfo = function (gameState, entry, schoolId) {
+    if (!entry.endYear) return { label: 'Current head coach', current: true };
+    if (entry.reason) {
+      const map = {
+        fired: 'Fired', retired: 'Retired', released: 'Let go',
+        left: 'Left for another program', promoted: 'Promoted away', faded: 'Left the profession'
+      };
+      return { label: map[entry.reason] || entry.reason };
+    }
+    // Registry: a career that ended entirely.
+    const reg = (gameState.history.coachRegistry || []).slice().reverse().find((r) =>
+      (entry.coachId && r.coachId === entry.coachId) || r.name === entry.name);
+    if (reg && Math.abs((reg.year || 0) - entry.endYear) <= 1) {
+      return { label: reg.reason === 'retired' ? 'Retired' : reg.reason === 'faded' ? 'Left the profession' : 'Let go' };
+    }
+    // A later stint elsewhere: they left for another job.
+    const live = entry.coachId && gameState.getCoach && gameState.getCoach(entry.coachId);
+    const stints = (live && live.stints) || (reg && reg.stints) || [];
+    const next = stints.find((s) => s.startYear >= entry.endYear && s.schoolId !== schoolId);
+    if (next) return { label: `Left for ${next.school}` };
+    return { label: 'Moved on' };
   };
 
   // Retired (or permanently departed) coaches stay searchable forever.

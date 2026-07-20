@@ -28,6 +28,10 @@
       developmentEmphasis: 1.0,         // training/development weight in identity
       coachSalaryTier: 3,               // relative pay band (drives coach mobility)
       expectations: 1.0,                // pressure multiplier for hot seats
+      // NCAA eligibility (accurate per-division rules): Division I runs a
+      // five-year clock with five seasons of competition available; a season
+      // in which the athlete never toes a line doesn't burn one.
+      eligibility: { seasons: 5, clockYears: 5 },
       championship: {
         nationalsFieldSize: 31,
         autoQualifiersPerRegional: 2,
@@ -51,6 +55,9 @@
       developmentEmphasis: 1.25,
       coachSalaryTier: 2,
       expectations: 0.8,
+      // DII regulations: four seasons of competition inside the ten-semester
+      // (five-year) window; redshirt and non-competition years preserve seasons.
+      eligibility: { seasons: 4, clockYears: 5 },
       championship: {
         nationalsFieldSize: 32,
         autoQualifiersPerRegional: 3,
@@ -74,6 +81,9 @@
       developmentEmphasis: 1.4,  // coaching and culture over recruiting rankings
       coachSalaryTier: 1,
       expectations: 0.6,
+      // DIII regulations: four seasons of participation within the athlete's
+      // first ten semesters of enrollment (modeled as a five-year window).
+      eligibility: { seasons: 4, clockYears: 5 },
       championship: {
         nationalsFieldSize: 32,
         autoQualifiersPerRegional: 2,
@@ -138,6 +148,12 @@
   D.awardLabel = function (key, fallback) {
     const map = D.CUSTOM && D.CUSTOM.awardNames;
     return (map && map[key]) ? String(map[key]) : fallback;
+  };
+
+  // Eligibility rules for a school/division key. Defaults to a 4-season /
+  // 5-year model when the division carries no explicit block (old saves).
+  D.eligibilityFor = function (schoolOrKey) {
+    return D.divisionFor(schoolOrKey).eligibility || { seasons: 4, clockYears: 5 };
   };
 
   // Resolve the division rules for a school (or a raw division key).

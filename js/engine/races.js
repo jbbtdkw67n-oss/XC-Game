@@ -139,13 +139,26 @@
         return;
       }
 
-      // Elite weekends: the best programs get the invitations, in order
-      // of prestige, with a few hot mid-majors sneaking onto the list.
-      const byPrestige = schoolIds
+      // Elite weekends (Invitational Balancing): invitations go out on MERIT
+      // — prestige blended with the current poll, so a rapidly improving
+      // top-25-caliber program earns elite invites well before its prestige
+      // catches up — and the invite pool is DEALT across the weekend's named
+      // meets instead of piling every contender into one field. The biggest
+      // meets (highest weight) still draw a larger share of the headliners,
+      // so Nuttycombe occasionally lands nearly every national contender —
+      // but most weekends produce several genuinely competitive meets.
+      const prevRank = {};
+      if (gameState.rankings) {
+        ['M', 'W'].forEach((g) => (gameState.rankings[g] || []).forEach((r) => {
+          prevRank[r.schoolId] = Math.min(prevRank[r.schoolId] || 999, r.rank);
+        }));
+      }
+      const meritOf = (s) => s.prestige + (prevRank[s.id] && prevRank[s.id] <= 40
+        ? (40 - prevRank[s.id]) * 0.9 : 0);
+      const byMerit = schoolIds
         .map((id) => gameState.getSchool(id))
-        .sort((a, b) => b.prestige - a.prestige);
+        .sort((a, b) => meritOf(b) - meritOf(a));
       season.byWeek[week] = season.byWeek[week] || [];
-      let cursor = 0;
       const invited = new Set();
 
       // Pre-Nationals is built specially (DI-only, nationals course,
@@ -154,32 +167,51 @@
         buildPreNationals(gameState, rng, week, season, diCourse, invited);
       });
 
-      eliteMeets.filter((em) => !em.preNationals).forEach((em) => {
-        const field = [];
-        // ~15% of each elite field is lottery invites from further down.
-        const lotterySlots = Math.round(em.size * 0.15);
-        while (field.length < em.size - lotterySlots && cursor < byPrestige.length) {
-          const s = byPrestige[cursor++];
-          if (!invited.has(s.id)) { field.push(s.id); invited.add(s.id); }
+      const weekElite = eliteMeets.filter((em) => !em.preNationals);
+      if (weekElite.length) {
+        // ~15% of each elite field stays open for lottery invites from
+        // further down the ladder.
+        const lotterySlots = weekElite.map((em) => Math.round(em.size * 0.15));
+        const fields = weekElite.map(() => []);
+        const meritTotal = weekElite.reduce((s, em, i) => s + em.size - lotterySlots[i], 0);
+        let cursor = 0;
+        let placedCount = 0;
+        while (placedCount < meritTotal && cursor < byMerit.length) {
+          const s = byMerit[cursor++];
+          if (invited.has(s.id)) continue;
+          const open = weekElite
+            .map((em, i) => ({ i, cap: em.size - lotterySlots[i] - fields[i].length, w: em.weight || 1 }))
+            .filter((o) => o.cap > 0);
+          if (!open.length) break;
+          // Bigger meets pull harder for each contender, without a monopoly.
+          const pick = open.length === 1 ? open[0]
+            : rng.weightedChoice(open, (o) => Math.pow(o.w, 4) * Math.min(o.cap, 6));
+          fields[pick.i].push(s.id);
+          invited.add(s.id);
+          placedCount++;
         }
-        const pool = byPrestige.slice(cursor).filter((s) => !invited.has(s.id));
-        for (let i = 0; i < lotterySlots && pool.length; i++) {
-          const pick = pool.splice(rng.int(0, Math.min(pool.length - 1, 60)), 1)[0];
-          field.push(pick.id); invited.add(pick.id);
-        }
-        const host = gameState.getSchool(field[0]);
-        const meet = buildMeet(gameState, rng, {
-          week,
-          name: em.name,
-          hostId: host.id,
-          schoolIds: field,
-          type: 'invite',
-          elite: em.weight // extra poll credit for elite fields
+        const pool = byMerit.filter((s) => !invited.has(s.id));
+        weekElite.forEach((em, i) => {
+          for (let j = 0; j < lotterySlots[i] && pool.length; j++) {
+            const lotto = pool.splice(rng.int(0, Math.min(pool.length - 1, 60)), 1)[0];
+            fields[i].push(lotto.id); invited.add(lotto.id);
+          }
+          if (!fields[i].length) return;
+          const host = gameState.getSchool(fields[i][0]);
+          const meet = buildMeet(gameState, rng, {
+            week,
+            name: em.name,
+            hostId: host.id,
+            schoolIds: fields[i],
+            type: 'invite',
+            elite: em.weight, // extra poll credit for elite fields
+            courseMeta: em    // the famous course's real profile
+          });
+          season.meets[meet.id] = meet;
+          season.byWeek[week].push(meet.id);
+          if (fields[i].includes(gameState.playerSchoolId)) season.playerMeetByWeek[week] = meet.id;
         });
-        season.meets[meet.id] = meet;
-        season.byWeek[week].push(meet.id);
-        if (field.includes(gameState.playerSchoolId)) season.playerMeetByWeek[week] = meet.id;
-      });
+      }
 
       // Everyone not invited runs a regional invitational that weekend.
       scheduleInvitationals(week, schoolIds.filter((id) => !invited.has(id)), true);
@@ -443,14 +475,23 @@
       distances.M = champ.nationalsDistanceM.M;
       distances.W = champ.nationalsDistanceM.W;
     }
+    // Famous meets race on their REAL course (Meet Database Expansion): the
+    // stored hilliness/altitude profile drives conditions instead of random
+    // host-derived terrain, so Gans Creek is always rolling at 738 ft and a
+    // mountain host's invitational is always thin-air racing.
+    const cm = base.courseMeta;
     return {
       id: Utils.generateId('meet'),
       ...base,
       distances,
       conditions: {
         tempF: Math.round(host.weather.tempBase + rng.int(-10, 12) - (base.week - 5) * 1.1),
-        hilliness: rng.int(10, 85),
-        altitude: host.weather.altitude,
+        hilliness: cm && cm.hilliness !== undefined
+          ? Utils.clamp(cm.hilliness + rng.int(-4, 4), 5, 95)
+          : rng.int(10, 85),
+        altitude: cm && cm.altitudeFt !== undefined
+          ? D.altitudeCategory(cm.altitudeFt)
+          : host.weather.altitude,
         rain: rng.bool(0.18)
       },
       results: { M: null, W: null }
@@ -507,6 +548,15 @@
     }
     if (c.rain) mult += 0.004 * (1.3 - weatherSkill);
 
+    // Course profile (Course Hilliness System): flat courses race genuinely
+    // fast, rolling courses a touch slower, hilly courses significantly
+    // slower — and hill specialists (built through Hills training) with
+    // strong endurance lose far less of that time, so they outperform
+    // expectations on hard courses. Centered near "rolling" (40), so a flat
+    // 15-hilliness course is a PR track and an 85 is a war of attrition.
+    const hillSkill = (hillAbility(a) * 0.7 + a.stamina * 0.3) / 100;
+    mult += (c.hilliness - 40) * 0.00028 * (1.45 - hillSkill);
+
     // Difficult terrain (Update 5, Part 7): a genuinely hilly course is an
     // adverse condition all its own, and mentally tough runners lose
     // significantly less over it. (Hill *ability* is modeled per-segment
@@ -516,9 +566,16 @@
       mult += (c.hilliness - 55) * 0.00018 * (1.5 - toughness);
     }
 
-    // Altitude: a big aerobic engine copes best up high.
-    if (c.altitude === 'High') mult += 0.020 * (1.5 - a.vo2Max / 100);
-    else if (c.altitude === 'Medium') mult += 0.007 * (1.5 - a.vo2Max / 100);
+    // Altitude simulation: thin air slows everyone — but adaptation is real.
+    // A big aerobic engine copes best, athletes from programs that TRAIN at
+    // altitude carry a much smaller penalty, and altitude-trained runners
+    // racing at sea level cash in a modest performance bonus.
+    const homeAlt = (gameState.getSchool(a.schoolId) || { weather: {} }).weather.altitude || 'Low';
+    const altAdapt = homeAlt === 'High' ? 0.30 : homeAlt === 'Medium' ? 0.60 : 1;
+    if (c.altitude === 'High') mult += 0.024 * (1.5 - a.vo2Max / 100) * altAdapt;
+    else if (c.altitude === 'Medium') mult += 0.009 * (1.5 - a.vo2Max / 100) * altAdapt;
+    else if (homeAlt === 'High') mult -= 0.004;   // live high, race low
+    else if (homeAlt === 'Medium') mult -= 0.0015;
 
     // Confidence (Update 5, Part 7): current belief in one's running is a
     // meaningful, dynamic race-day edge — a runner riding a wave of PRs
@@ -925,8 +982,20 @@
       const pr = a.careerStats.personalBests[key];
       if (!pr || f.time < pr) a.careerStats.personalBests[key] = f.time;
 
-      // Race fatigue + morale swing
-      a.fatigue = Utils.clamp(a.fatigue + 8, 0, 100);
+      // Race fatigue + morale swing. The course profile matters (Course
+      // Hilliness System + Altitude Simulation): flat courses cost a little
+      // less, hilly ones grind deeper, and racing in thin air taxes
+      // everyone — except athletes whose program trains at altitude.
+      let raceFatigue = 8;
+      const cond = meet.conditions || {};
+      if (cond.hilliness > 55) raceFatigue += Math.min(4, Math.round((cond.hilliness - 55) / 10));
+      else if (cond.hilliness < 30) raceFatigue -= 1;
+      if (cond.altitude === 'High' || cond.altitude === 'Medium') {
+        const homeAlt = (gameState.getSchool(a.schoolId) || { weather: {} }).weather.altitude || 'Low';
+        const adapted = homeAlt === 'High' || (homeAlt === 'Medium' && cond.altitude === 'Medium');
+        raceFatigue += cond.altitude === 'High' ? (adapted ? 1 : 3) : (adapted ? 0 : 1);
+      }
+      a.fatigue = Utils.clamp(a.fatigue + raceFatigue, 0, 100);
       // Recent race intensity (Update 6, Phase 2): the pounding of a hard race
       // leaves the body vulnerable for a couple of weeks. Championship efforts
       // (conference/regional/national) take the biggest toll. Decays weekly in
@@ -1047,6 +1116,16 @@
     H.conferenceChampions[gameState.year] = H.conferenceChampions[gameState.year] || {};
     H.conferenceChampions[gameState.year][`${meet.conference}-${gender}`] = school.name;
 
+    // Championship History fix: every title entry permanently remembers the
+    // coach responsible, so archives can show Season · Championship · Coach ·
+    // Program forever. (The name-only ledger above stays for compatibility.)
+    H.confChampMeta = H.confChampMeta || {};
+    H.confChampMeta[gameState.year] = H.confChampMeta[gameState.year] || {};
+    H.confChampMeta[gameState.year][`${meet.conference}-${gender}`] = {
+      school: school.name, schoolId: champId,
+      coach: confCoach ? confCoach.fullName : '', coachId: confCoach ? confCoach.id : null
+    };
+
     // Individual conference champions persist with full identity (Update 12,
     // Phase 4) so program archives can list Year / Athlete / Coach forever.
     const confWinner = res.finishers[0];
@@ -1104,6 +1183,17 @@
     H.regionalChampions = H.regionalChampions || {};
     H.regionalChampions[gameState.year] = H.regionalChampions[gameState.year] || {};
     H.regionalChampions[gameState.year][`${meet.region}-${gender}`] = school.name;
+
+    // Championship History fix: regional titles remember their coach too.
+    // Keyed with the division so same-named regions across DI/DII/DIII never
+    // overwrite each other in the permanent record.
+    H.regChampMeta = H.regChampMeta || {};
+    H.regChampMeta[gameState.year] = H.regChampMeta[gameState.year] || {};
+    H.regChampMeta[gameState.year][`${meet.division || 'DI'}:${meet.region}-${gender}`] = {
+      school: school.name, schoolId: champId, division: meet.division || 'DI',
+      region: meet.region, gender,
+      coach: coach ? coach.fullName : '', coachId: coach ? coach.id : null
+    };
 
     // Individual regional champion — a permanent honor (Update 12): stamped
     // on the athlete's ledger, the program ledger, and the history books.
@@ -1288,15 +1378,20 @@
     H.nationalChampions = H.nationalChampions || {};
     H.nationalChampions[gameState.year] = H.nationalChampions[gameState.year] || {};
     const key = division === 'DI' ? gender : `${division}-${gender}`;
+    const indivCoach = indiv && gameState.getCoach(gameState.getSchool(indiv.schoolId)?.coachId);
     H.nationalChampions[gameState.year][key] = {
       team: school.name,
       teamId: champId,
       division,
       conference: school.conference,
+      // Championship History fix: the coaches responsible ride with the entry.
+      coach: natCoach ? natCoach.fullName : '',
+      coachId: natCoach ? natCoach.id : null,
       individual: indiv ? indiv.name : '?',
       individualId: indiv ? indiv.athleteId : null,
       individualSchool: indiv ? (gameState.getSchool(indiv.schoolId)?.name || '?') : '?',
       individualSchoolId: indiv ? indiv.schoolId : null,
+      individualCoach: indivCoach ? indivCoach.fullName : '',
       individualTime: indiv ? indiv.time : 0
     };
 

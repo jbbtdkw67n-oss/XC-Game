@@ -1,6 +1,6 @@
 {
   "name": "xc-dynasty",
-  "version": "11.0.0",
+  "version": "13.0.0",
   "description": "Cross Country Dynasty — a browser-based college cross country coaching dynasty game.",
   "private": true,
   "scripts": {

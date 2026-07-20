@@ -362,27 +362,48 @@
       const school = gameState.getSchool(sid);
       const c = school && gameState.getCoach(school.coachId);
       if (c && !c.isPlayer) c.upgradePoints = (c.upgradePoints || 0) + p;
+      // The staff shares in the season's success: CPU assistants bank a
+      // half-share of the program's résumé points toward their own craft.
+      const asst = school && school.assistantId && gameState.getCoach(school.assistantId);
+      if (asst && !asst.isPlayer && asst.id !== (c && c.id)) {
+        asst.upgradePoints = (asst.upgradePoints || 0) + Math.max(1, Math.round(p / 2));
+      }
     });
 
-    // Spend: every CPU coach puts their whole balance to work now — the
-    // archetype's signature rating most of the time, the weakest rating
-    // otherwise — at the same +1-per-point rate the player pays.
+    // Spend: every CPU coach AND every CPU assistant puts their whole
+    // balance to work now — no AI staff member ever sits on banked points —
+    // at the same +1-per-point rate the player pays. Elite staffs therefore
+    // get noticeably stronger season over season.
     Object.values(gameState.world.schools).forEach((school) => {
       const c = gameState.getCoach(school.coachId);
-      if (!c || c.isPlayer) return;
-      cpuSpendUpgradePoints(c, rng);
+      if (c && !c.isPlayer) cpuSpendUpgradePoints(c, rng);
+      const asst = school.assistantId && gameState.getCoach(school.assistantId);
+      if (asst && !asst.isPlayer && asst.id !== (c && c.id)) cpuSpendUpgradePoints(asst, rng);
     });
   }
 
+  /*
+   * CPU point spending (assistant-aware). Head coaches lean into their
+   * archetype's signature rating most of the time and shore up their
+   * weakest rating otherwise. Assistants spend on their SPECIALTY — a
+   * recruiting-focused assistant keeps sharpening Recruiting, a
+   * training-focused one Training — while still patching genuine
+   * weaknesses, so long-tenured elite assistants grow into their role.
+   */
   function cpuSpendUpgradePoints(coach, rng) {
     const D = window.XCD.data;
     const arch = (D.COACH_ARCHETYPES || []).find((a) => a.key === coach.archetype);
     const keys = ['recruiting', 'training', 'peaking', 'culture'];
+    const isAssistant = coach.role === 'Assistant';
+    // An assistant's focus is whichever craft already defines them.
+    const focus = isAssistant
+      ? ((coach.recruiting || 0) >= (coach.training || 0) ? 'recruiting' : 'training')
+      : (arch && arch.rating);
     while ((coach.upgradePoints || 0) > 0) {
       const open = keys.filter((k) => (coach[k] || 0) < 99);
       if (!open.length) break;
-      const target = arch && open.includes(arch.rating) && rng.bool(0.6)
-        ? arch.rating
+      const target = focus && open.includes(focus) && rng.bool(0.6)
+        ? focus
         : open.sort((x, y) => (coach[x] || 0) - (coach[y] || 0))[0];
       coach[target] = Utils.clamp((coach[target] || 0) + 1, 20, 99);
       coach.upgradePoints -= 1;
@@ -486,7 +507,7 @@
       if (coach.hotSeatYears >= 3 && fired < 40) {
         fired++;
         gameState.history.firings = (gameState.history.firings || 0) + 1;
-        window.XCD.engine.Legacy.closeStint(gameState, coach, school, gameState.year);
+        window.XCD.engine.Legacy.closeStint(gameState, coach, school, gameState.year, 'fired');
         coach.schoolId = null;   // into the free-agent pool
         coach.hotSeat = 0;
         coach.hotSeatYears = 0;

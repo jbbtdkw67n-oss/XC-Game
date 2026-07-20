@@ -221,10 +221,30 @@
     return Utils.clamp(m, D.MILEAGE.MIN, D.MILEAGE.MAX);
   }
 
-  // The volume a runner's body can absorb: durability decides who can
-  // live at 100-120 miles (Part 6 — durability matters enormously).
+  /*
+   * The volume a runner's body can absorb (rebalanced — gendered capacity).
+   * Men generally tolerate more weekly volume than women: a typical man
+   * lives at 65-90 mpw, a durable one 90-110, an exceptional workhorse
+   * 110-120; women run 50-75 / 75-95 / 95-105 on the same durability curve.
+   * Gender only shifts the BASELINE and the absolute ceiling — the tolerance
+   * itself is still driven by durability (the dominant factor), current
+   * fitness, recovery state (fatigue), and injury history, so an elite,
+   * durable woman comfortably out-absorbs a fragile man.
+   */
   function safeMileage(athlete) {
-    return Math.round(62 + athlete.injuryResistance * 0.55);
+    const men = athlete.gender !== 'W';
+    const base = men ? 64 : 52;              // gendered baseline tolerance
+    const cap = D.MILEAGE.SAFE_CAP ? D.MILEAGE.SAFE_CAP[men ? 'M' : 'W'] : (men ? 120 : 105);
+    let safe = base + athlete.injuryResistance * (men ? 0.56 : 0.53);
+    // A fit engine absorbs volume; an unfit one breaks under it.
+    safe += ((athlete.fitness ?? 50) - 50) * 0.08;
+    // Recovery state: a body deep in fatigue can't soak up big weeks.
+    if (athlete.fatigue > 60) safe -= (athlete.fatigue - 60) * 0.15;
+    // Injury history: recent layoffs and accumulated major injuries
+    // permanently shave what the legs can handle.
+    if ((athlete.recentInjuryWeeks || 0) > 0) safe -= 8;
+    safe -= majorInjuryCount(athlete) * 3;
+    return Math.round(Utils.clamp(safe, D.MILEAGE.MIN + 5, cap));
   }
 
   /*

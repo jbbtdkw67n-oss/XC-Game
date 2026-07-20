@@ -45,25 +45,18 @@
   }
 
   /* ---------------- Commit probability for the player ---------------- */
+  // Runs on the exact rank-based odds the commit/signing engine uses, so
+  // the displayed percentage is the real one.
   function commitProbability(game, rec) {
     const school = game.getPlayerSchool();
     const mine = rec.getSchoolState(school.id);
     if (!mine || !mine.offered) return null;
-    const offers = Object.keys(rec.interests).filter((sid) => rec.interests[sid].offered);
-    let total = 0;
-    let mineScore = 0;
-    offers.forEach((sid) => {
-      const s = game.getSchool(sid);
-      if (!s) return;
-      const a = Math.pow(RE().appeal(game, s, rec), 3);
-      total += a;
-      if (sid === school.id) mineScore = a;
-    });
-    if (total === 0) return 0;
-    return Math.round((mineScore / total) * 100);
+    return Math.round(RE().commitChance(game, school, rec) * 100);
   }
 
-  function competingSchools(game, rec, limit = 4) {
+  // The recruit's top-9 interest ranking (recruiting rankings overhaul):
+  // every serious suitor, ranked — final ranking drives signing odds.
+  function competingSchools(game, rec, limit = 9) {
     return Object.keys(rec.interests)
       .map((sid) => {
         const s = game.getSchool(sid);
@@ -120,8 +113,8 @@
       else if (a.requires === 'interest30' && st.interest < 30) disabledReason = 'Needs 30 interest';
       else if (a.requires === 'visited' && !st.visited) disabledReason = 'Needs campus visit first';
       else if (a.requires === 'sway') {
-        if (st.interest < 20) disabledReason = 'Needs modest interest to sway';
-        else if (RE().commitChance(game, school, rec) < 0.07) disabledReason = 'Commit chance too low to sway';
+        if (!rec.committedTo || rec.committedTo === school.id) disabledReason = 'Only for recruits committed elsewhere';
+        else if (RE().commitChance(game, school, rec) < 0.10) disabledReason = 'Needs a 10%+ commit chance to attempt a flip';
       }
       const label = key === 'offer' ? terms.action : a.label;
       // Every action carries a plain-language tooltip (Update 15); a disabled
@@ -212,10 +205,13 @@
       </div>
 
       <div class="card" style="padding:12px; margin-bottom:14px;">
-        <h3>Competition</h3>
-        ${rivals.length ? rivals.map((r) => `
+        <h3>Interest Ranking — Top ${Math.min(9, Math.max(rivals.length, 1))}</h3>
+        <div style="color:var(--text-faint); font-size:11.5px; margin-bottom:6px;">
+          When recruiting closes, signing odds follow the final ranking: 1st ≈ 40%, 2nd ≈ 25%, 3rd ≈ 15%, then 10 / 5 / 3 / 1 / 0.5 / 0.5%.
+        </div>
+        ${rivals.length ? rivals.map((r, i) => `
           <div class="attr-row" style="margin-bottom:4px;">
-            <span style="min-width:180px;">${Utils.escapeHtml(r.school.name)}${r.school.id === school.id ? ' <span style="color:var(--accent);">(You)</span>' : ''}${r.st.offered ? ' <span style="color:var(--success); font-size:11px;">OFFERED</span>' : ''}</span>
+            <span style="min-width:200px;"><strong style="color:${i === 0 ? 'var(--gold, #d4af37)' : 'var(--text-dim)'};">${i + 1}.</strong> ${Utils.escapeHtml(r.school.name)}${r.school.id === school.id ? ' <span style="color:var(--accent);">(You)</span>' : ''}${r.st.offered ? ' <span style="color:var(--success); font-size:11px;">OFFERED</span>' : ''}${rec.committedTo === r.school.id ? ' <span style="color:var(--warning); font-size:11px;">COMMITTED</span>' : ''}</span>
             <div style="flex:1; margin:0 8px;">${UI.meter(r.appeal, r.school.id === school.id ? '' : 'yellow')}</div>
             <span style="font-size:12px; font-weight:700;">${r.appeal}</span>
           </div>`).join('') : '<div style="color:var(--text-dim); font-size:13px;">No programs have made contact yet.</div>'}

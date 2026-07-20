@@ -200,7 +200,11 @@
       morale: rng.int(55, 85),
       devProfile: rng.weightedChoice(D.DEV_PROFILES, (p) => p.weight).type,
 
-      eligibilityRemaining: { Freshman: 4, Sophomore: 3, Junior: 2, Senior: 1, Graduate: 1 }[classYear],
+      // Division-accurate eligibility: DI athletes hold five seasons of
+      // competition on the five-year clock; DII/DIII hold four-in-five.
+      eligibilityRemaining: Math.max(1,
+        window.XCD.data.eligibilityFor(school).seasons -
+        ({ Freshman: 0, Sophomore: 1, Junior: 2, Senior: 3, Graduate: 4 }[classYear] || 0)),
       yearsOnCampus: { Freshman: 1, Sophomore: 2, Junior: 3, Senior: 4, Graduate: 5 }[classYear],
       schoolId: school.id
     });
@@ -341,7 +345,7 @@
     const athlete = buildAthlete(rng, school, gender);
     athlete.classYear = 'Freshman';
     athlete.age = 18 + rng.int(0, 1);
-    athlete.eligibilityRemaining = 4;
+    athlete.eligibilityRemaining = window.XCD.data.eligibilityFor(school).seasons;
     athlete.yearsOnCampus = 1;
     athlete.isWalkOn = true;
 

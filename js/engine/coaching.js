@@ -350,7 +350,9 @@
       if (coach.hasTendency && coach.hasTendency('aggressive')) base += 4;
       if (coach.hasTendency && coach.hasTendency('conservative')) base -= 4;
     }
-    if (gender === 'W') base -= 15; // women race 6K on lower volume
+    // Women race 6K on lower volume, and their safe ceiling sits below the
+    // men's (mileage rebalance) — no sane program plans a 105+ week for women.
+    if (gender === 'W') base = Math.min(base - 15, (D.MILEAGE.SAFE_CAP || {}).W || 105);
     return Utils.clamp(base, D.MILEAGE.MIN, D.MILEAGE.MAX);
   }
 
@@ -481,7 +483,7 @@
     const current = school.assistantId && gameState.world.coaches[school.assistantId];
     if (current && current.isPlayer) return { ok: false, message: 'You cannot replace yourself.' };
     if (current) {
-      Legacy.closeStint(gameState, current, school, gameState.year);
+      Legacy.closeStint(gameState, current, school, gameState.year, 'released');
       Legacy.recordRetiredCoach(gameState, current, 'released'); // history keeps every career (Phase 3)
       delete gameState.world.coaches[current.id];
       gameState.logNews(`Staff change: ${school.name} lets assistant ${current.fullName} go.`);

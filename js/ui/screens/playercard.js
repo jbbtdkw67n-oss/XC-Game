@@ -228,8 +228,21 @@
                 : Utils.escapeHtml(athlete.health)
           }</span></div>
           ${riskHtml}
-          <div class="attr-row"><span class="attr-name">Eligibility Left</span><span>${athlete.eligibilityRemaining} yr</span></div>
-          <div class="attr-row"><span class="attr-name">Redshirt</span><span>${athlete.redshirt}</span></div>
+          ${(() => {
+            // NCAA eligibility panel (accurate per-division rules): remaining
+            // seasons of competition, academic year, redshirt status, and
+            // when the eligibility clock expires.
+            const elig = window.XCD.data.eligibilityFor
+              ? window.XCD.data.eligibilityFor(school || 'DI') : { seasons: 4, clockYears: 5 };
+            const onCampus = athlete.yearsOnCampus || 1;
+            const expires = game.year + Math.max(0, elig.clockYears - onCampus);
+            const rsLabel = { None: 'None', True: '🔴 Redshirting', Medical: '🏥 Medical Redshirt', Used: 'Used' }[athlete.redshirt] || athlete.redshirt;
+            return `
+          <div class="attr-row"><span class="attr-name">Seasons Remaining</span><span><strong>${athlete.eligibilityRemaining}</strong> of ${elig.seasons} <span style="color:var(--text-faint); font-size:11.5px;">(${elig.seasons}-in-${elig.clockYears} ${(school && school.division) || 'DI'} rule)</span></span></div>
+          <div class="attr-row"><span class="attr-name">Academic Year</span><span>${athlete.classYear} <span style="color:var(--text-faint); font-size:11.5px;">• Year ${onCampus} on campus</span></span></div>
+          <div class="attr-row"><span class="attr-name">Redshirt</span><span>${rsLabel}</span></div>
+          <div class="attr-row"><span class="attr-name">Eligibility Expires</span><span>${expires <= game.year ? `<span style="color:var(--warning);">After this season</span>` : `End of ${expires}`}</span></div>`;
+          })()}
           <div class="attr-row"><span class="attr-name">Races / Wins / Top-5s</span><span>${athlete.careerStats.races} / ${athlete.careerStats.wins} / ${athlete.careerStats.top5}</span></div>
           ${athlete.hsPB !== undefined ? `<div class="attr-row"><span class="attr-name">HS 5K PB</span><span title="Official high-school personal best — permanent history">${window.XCD.engine.Races.formatTime(athlete.hsPB)}</span></div>` : ''}
           ${athlete.nxn && athlete.nxn.finish ? `<div class="attr-row"><span class="attr-name">NXN Finish</span><span>${athlete.nxn.finish === 1 ? '🥇 Champion' : '#' + athlete.nxn.finish}${athlete.nxn.year ? ` (${athlete.nxn.year})` : ''}</span></div>` : ''}

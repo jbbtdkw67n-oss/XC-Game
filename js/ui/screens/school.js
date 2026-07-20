@@ -46,23 +46,35 @@
       teamNat.push({ year: t.year, gender: t.gender, division: t.division, coach: t.coachName, teamOverall: t.teamOverall, teamScore: t.teamScore, roster: t.roster || [], rec: t });
     });
 
+    const Legacy = window.XCD.engine.Legacy;
+    // Championship History fix: the coach of record for every entry — the
+    // name stamped on the record when available, otherwise resolved from the
+    // permanent head-coaching ledger for that season.
+    const coachOf = (year) => Legacy.coachForSchoolYear(game, sid, year) || '';
+
     Object.keys(H.nationalChampions || {}).forEach((year) => {
       const slate = H.nationalChampions[year];
       Object.keys(slate).forEach((key) => {
         const rec = slate[key];
         const g = key.endsWith('W') ? 'W' : 'M';
         if (rec.individualSchoolId === sid || rec.individualSchool === name) {
-          indivNat.push({ year: Number(year), gender: g, athlete: rec.individual, athleteId: rec.individualId, coach: (game.getCoach(school.coachId) || {}).fullName || '', event: g === 'M' ? '10K' : '6K' });
+          indivNat.push({ year: Number(year), gender: g, athlete: rec.individual, athleteId: rec.individualId, coach: rec.individualCoach || coachOf(year), event: g === 'M' ? '10K' : '6K' });
         }
       });
     });
 
     Object.keys(H.conferenceChampions || {}).forEach((year) => {
       const slate = H.conferenceChampions[year];
+      const meta = (H.confChampMeta || {})[year] || {};
       ['M', 'W'].forEach((g) => {
         Object.keys(slate).forEach((key) => {
           if (!key.endsWith('-' + g)) return;
-          if (slate[key] === name) confTeam.push({ year: Number(year), gender: g, conf: key.slice(0, key.lastIndexOf('-')) });
+          if (slate[key] === name) {
+            confTeam.push({
+              year: Number(year), gender: g, conf: key.slice(0, key.lastIndexOf('-')),
+              coach: (meta[key] && meta[key].coach) || coachOf(year)
+            });
+          }
         });
       });
     });
@@ -77,8 +89,16 @@
 
     Object.keys(H.regionalChampions || {}).forEach((year) => {
       const slate = H.regionalChampions[year];
+      const meta = (H.regChampMeta || {})[year] || {};
       Object.keys(slate).forEach((key) => {
-        if (slate[key] === name) regTeam.push({ year: Number(year), gender: key.endsWith('W') ? 'W' : 'M', region: key.slice(0, key.lastIndexOf('-')) });
+        if (slate[key] === name) {
+          const m = meta[`${school.division || 'DI'}:${key}`] || meta[key];
+          regTeam.push({
+            year: Number(year), gender: key.endsWith('W') ? 'W' : 'M',
+            region: key.slice(0, key.lastIndexOf('-')),
+            coach: (m && m.coach) || coachOf(year)
+          });
+        }
       });
     });
     Object.keys(H.regIndivChampions || {}).forEach((year) => {
@@ -219,8 +239,8 @@
         'No individual national champions yet.')}
 
       ${sectionTable('🏅 Conference Team Championships',
-        ['Year', 'Squad', 'Conference'],
-        h.confTeam.map((t) => `<tr><td>${t.year}</td><td>${gTag(t.gender)}</td><td>${Utils.escapeHtml(t.conf)}</td></tr>`),
+        ['Year', 'Squad', 'Conference', 'Coach'],
+        h.confTeam.map((t) => `<tr><td>${t.year}</td><td>${gTag(t.gender)}</td><td>${Utils.escapeHtml(t.conf)}</td><td>${coachLink(t.coach)}</td></tr>`),
         'No conference team titles recorded yet.')}
 
       ${sectionTable('🥇 Individual Conference Champions',
@@ -229,10 +249,10 @@
         'No individual conference champions yet.')}
 
       ${sectionTable('🗺 Regional Championships — Team & Individual',
-        ['Year', 'Type', 'Detail'],
+        ['Year', 'Type', 'Detail', 'Coach'],
         [
-          ...h.regTeam.map((t) => `<tr><td>${t.year}</td><td>Team (${gTag(t.gender)[0]})</td><td>${Utils.escapeHtml(t.region)} Regional Champions</td></tr>`),
-          ...h.indivReg.map((t) => `<tr><td>${t.year}</td><td>Individual (${gTag(t.gender)[0]})</td><td>${athLink(t.athlete, t.athleteId)}</td></tr>`)
+          ...h.regTeam.map((t) => `<tr><td>${t.year}</td><td>Team (${gTag(t.gender)[0]})</td><td>${Utils.escapeHtml(t.region)} Regional Champions</td><td>${coachLink(t.coach)}</td></tr>`),
+          ...h.indivReg.map((t) => `<tr><td>${t.year}</td><td>Individual (${gTag(t.gender)[0]})</td><td>${athLink(t.athlete, t.athleteId)}</td><td>${coachLink(coachOfYear(game, school, t.year))}</td></tr>`)
         ].sort(),
         'No regional titles recorded yet.')}
 
@@ -243,24 +263,28 @@
           each coach accomplished <strong>at this school</strong> — never at other stops (Phases 3 &amp; 8).
         </div>
         ${prog.coaches.length ? `<div class="table-wrap"><table class="data">
-          <thead><tr><th>Coach</th><th>Years</th><th class="num">Record Here</th><th class="num">Win%</th><th class="num">Titles Here</th><th class="num">NCAA Trips</th><th>Awards Here</th></tr></thead>
+          <thead><tr><th>Coach</th><th>Years</th><th class="num">Record Here</th><th class="num">Win%</th><th class="num">Titles Here</th><th class="num" title="Regional titles won here">Reg</th><th class="num">NCAA Trips</th><th>Coach of the Year</th><th class="num" title="Program prestige when the tenure ended (current prestige for the sitting coach)">Prestige Reached</th><th>Departure</th></tr></thead>
           <tbody>${prog.coaches.slice().reverse().map((c) => {
             const rec = resolveCoachRecord(game, c);
             const sr = rec ? window.XCD.engine.Legacy.coachSchoolRecord(game, rec, school.id)
               : { wins: 0, losses: 0, natTitles: 0, confTitles: 0, regTitles: 0, natApps: 0, natCOY: 0, confCOY: 0, winPct: 0 };
             const wl = (sr.wins || sr.losses) ? `${sr.wins}-${sr.losses}` : '—';
-            const ach = [];
-            if (sr.natCOY) ach.push(`${sr.natCOY}× Nat CoY`);
-            if (sr.confCOY) ach.push(`${sr.confCOY}× Conf CoY`);
-            if (sr.regTitles) ach.push(`${sr.regTitles} regional`);
+            const coy = [];
+            if (sr.natCOY) coy.push(`${sr.natCOY}× National`);
+            if (sr.confCOY) coy.push(`${sr.confCOY}× Conference`);
+            const depart = window.XCD.engine.Legacy.departureInfo(game, c, school.id);
+            const prestigeReached = c.endYear ? (c.prestigeEnd ?? '—') : school.prestige;
             return `<tr>
               <td>${coachLink(c.name)}</td>
               <td style="color:var(--text-dim);">${c.startYear}–${c.endYear || 'present'}</td>
               <td class="num">${wl}</td>
               <td class="num">${(sr.wins || sr.losses) ? sr.winPct + '%' : '—'}</td>
               <td class="num">${sr.natTitles}🏆 ${sr.confTitles}🥇</td>
+              <td class="num">${sr.regTitles || '—'}</td>
               <td class="num">${sr.natApps || '—'}</td>
-              <td style="font-size:12px; color:var(--text-dim);">${ach.join(' · ') || '—'}</td>
+              <td style="font-size:12px; color:var(--text-dim);">${coy.join(' · ') || '—'}</td>
+              <td class="num">${prestigeReached}</td>
+              <td style="font-size:12px; color:${depart.current ? 'var(--success)' : 'var(--text-dim)'};">${Utils.escapeHtml(depart.label)}</td>
             </tr>`;
           }).join('')}</tbody></table></div>`
         : '<div style="color:var(--text-dim); font-size:13px;">Records begin with your arrival.</div>'}
@@ -279,6 +303,11 @@
         if (t && t.rec) UI.showChampionTeamCard(game, t.rec);
       });
     });
+  }
+
+  // The head coach of record for one program-season (Championship History fix).
+  function coachOfYear(game, school, year) {
+    return window.XCD.engine.Legacy.coachForSchoolYear(game, school.id, year) || '';
   }
 
   // Resolve a program-ledger coach entry to a live coach or registry record.
