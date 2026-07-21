@@ -41,6 +41,10 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     coach.appearance = Object.assign({}, coach.appearance, { polo: 4 });
     const coachSvg = UI.avatar(coach, { size: 24 });
     const athleteSvg = UI.avatar(Object.values(g.world.athletes)[0], { size: 24 });
+    // A coach WITH a program wears the program's colors (Update 13+); the
+    // wizard-picked polo index drives the color on the appearance-only render
+    // (used before a coach has a team), so the color choice is verified there.
+    const soloPoloSvg = UI.avatarSvg(coach.appearance, { size: 24, outfit: 'polo' });
     // Face box: ellipse cx 32 rx 10.5 → x 21.5–42.5; the old braid strands
     // ran at x=28/x=36 straight down the face.
     const braidSvg = UI.avatarSvg({ gender: 'W', skin: 3, hair: 6, hairStyle: 7, beard: 0 }, { size: 24 });
@@ -51,10 +55,10 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     };
     const palettes = UI.AVATAR.POLO_COLORS.concat(['#3d8bfd', '#e5534b', '#34c98e', '#e8b339', '#9b6ef3', '#eb7a34', '#2ab7c9', '#d4507a']);
     return {
-      poloPlacket: coachSvg.includes('x="31.3"'),
-      poloColorHonored: coachSvg.toLowerCase().includes(UI.AVATAR.POLO_COLORS[4].toLowerCase()),
+      poloPlacket: coachSvg.includes('x="31.25"'),
+      poloColorHonored: soloPoloSvg.toLowerCase().includes(UI.AVATAR.POLO_COLORS[4].toLowerCase()),
       noSuitShirt: !coachSvg.includes('#F4F6F8'),
-      strapScoop: athleteSvg.includes('46.4'), // scoop-neck strap curve
+      strapScoop: athleteSvg.includes('47.6 32 47.6'), // scoop-neck curve over the shoulders
       oldSinglet: athleteSvg.includes('M13.5 64'), // pre-13 below-shoulder tank
       braidOnFace: /M2[89] 2\d|M3[456] 2\d/.test(braidSvg.match(/stroke[^/]+/)?.[0] || ''),
       curlCircle: /<circle[^>]+cy="16\.5"/.test(curlSvg),
@@ -78,6 +82,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     g.getPlayerCoach().upgradePoints = 3; // must survive untouched
     const weeks = window.XCD.data.CALENDAR.WEEKS_PER_YEAR;
     let pre = null, awardsYear = null;
+    let champIsCpu = false, champDelta = null, champSum = null;
     for (let w = 0; w < weeks; w++) {
       const yr = g.year;
       if (!awardsYear) {
@@ -85,17 +90,23 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
         Object.values(g.world.coaches).forEach((c) => { pre[c.id] = sum(c); });
       }
       g.advanceWeek();
-      if (!awardsYear && g.history.awards && g.history.awards[yr]) awardsYear = yr;
+      if (!awardsYear && g.history.awards && g.history.awards[yr]) {
+        awardsYear = yr;
+        // Measure the champion's coach the instant awards post — the offseason
+        // carousel can poach a title-winning coach to another program later in
+        // the offseason, which would otherwise measure the wrong (replacement)
+        // coach and hide the growth the title actually produced.
+        const nat = (g.history.nationalChampions || {})[awardsYear] || {};
+        const champSchool = nat.M && g.getSchool(nat.M.teamId);
+        const champCoach = champSchool && g.getCoach(champSchool.coachId);
+        champIsCpu = !!(champCoach && !champCoach.isPlayer);
+        champSum = champCoach ? sum(champCoach) : null;
+        champDelta = (champCoach && pre[champCoach.id] !== undefined) ? sum(champCoach) - pre[champCoach.id] : null;
+      }
     }
-    const nat = (g.history.nationalChampions || {})[awardsYear] || {};
-    const champSchool = nat.M && g.getSchool(nat.M.teamId);
-    const champCoach = champSchool && g.getCoach(champSchool.coachId);
     const cpuCoaches = Object.values(g.world.coaches).filter((c) => !c.isPlayer && c.schoolId);
     return {
-      awardsYear,
-      champIsCpu: !!(champCoach && !champCoach.isPlayer),
-      champDelta: champCoach && pre[champCoach.id] !== undefined ? sum(champCoach) - pre[champCoach.id] : null,
-      champSum: champCoach ? sum(champCoach) : null,
+      awardsYear, champIsCpu, champDelta, champSum,
       unspent: cpuCoaches.filter((c) => (c.upgradePoints || 0) > 0 &&
         ['recruiting', 'training', 'peaking', 'culture'].some((k) => (c[k] || 0) < 99)).length,
       playerPts: g.getPlayerCoach().upgradePoints

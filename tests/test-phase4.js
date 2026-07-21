@@ -45,23 +45,29 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       if (Math.abs(fin[id] - late[id]) >= 2) lateMoves++;
     });
 
-    // Do fast finishers (speed+RE) gain over the closing segments? Pool the
-    // ENTIRE field of BOTH early-season races so the quartile means are
-    // statistically stable — the old single-race top-40 sample (10 per
-    // quartile over two segments) made this assertion flaky.
-    const gains = [];
+    // Do fast finishers (speed + running economy) CLOSE faster than slow
+    // finishers? Measured by closing PACE — each runner's final two segments
+    // relative to their own average segment — pooled across both early-season
+    // races. This is unconfounded by starting position (an elite runner already
+    // near the front has no places left to gain, so the old place-change metric
+    // was pure noise under the random dynasty seed); a genuine kick shows up as
+    // a closing ratio below 1 (speeding up), a fade as a ratio above 1.
+    const closers = [];
     [firstMeet && firstMeet.results.M, res].filter((r) => r && r.splits).forEach((r) => {
-      const lateR = placeAtIn(r.splits, 9);
-      const finR = placeAtIn(r.splits, S - 1);
-      r.finishers.forEach((f) => {
-        const a = g.world.athletes[f.athleteId];
-        if (a) gains.push({ spd: a.speed + a.runningEconomy, gain: lateR[f.athleteId] - finR[f.athleteId] });
+      const sp = r.splits;
+      Object.keys(sp).forEach((id) => {
+        const a = g.world.athletes[id];
+        if (!a) return;
+        const t = sp[id];
+        const avgSeg = t[S - 1] / S;
+        const last2 = (t[S - 1] - t[S - 3]) / 2;
+        if (avgSeg > 0) closers.push({ spd: a.speed + a.runningEconomy, closeRatio: last2 / avgSeg });
       });
     });
-    gains.sort((a, b) => b.spd - a.spd);
-    const topQ = gains.slice(0, Math.floor(gains.length / 4));
-    const botQ = gains.slice(-Math.floor(gains.length / 4));
-    const avg = (xs) => xs.reduce((s, x) => s + x.gain, 0) / xs.length;
+    closers.sort((a, b) => b.spd - a.spd);
+    const topQ = closers.slice(0, Math.floor(closers.length / 4));
+    const botQ = closers.slice(-Math.floor(closers.length / 4));
+    const avg = (xs) => xs.reduce((s, x) => s + x.closeRatio, 0) / xs.length;
 
     const winTime = res.finishers[0].time;
     return {
@@ -69,8 +75,8 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       avgAbsMoveMidToFin: +(midToFin / top40.length).toFixed(2),
       avgAbsMoveEarlyToFin: +(earlyToFin / top40.length).toFixed(2),
       lateMovers: lateMoves,
-      fastKickersGain: +avg(topQ).toFixed(2),
-      slowKickersGain: +avg(botQ).toFixed(2),
+      fastKickersClose: +avg(topQ).toFixed(3),
+      slowKickersClose: +avg(botQ).toFixed(3),
       events: (res.events || []).length,
       eventTypes: [...new Set((res.events || []).map((e) => e.type))],
       winTime8k: winTime
@@ -78,7 +84,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   });
   console.log('race dynamics:', JSON.stringify(stats, null, 1));
   if (stats.avgAbsMoveMidToFin < 2) errors.push('Race too static: avg move mid->fin ' + stats.avgAbsMoveMidToFin);
-  if (stats.fastKickersGain <= stats.slowKickersGain) errors.push('Kickers not gaining late');
+  if (stats.fastKickersClose >= stats.slowKickersClose) errors.push('Kickers not closing faster than the field');
   if (!stats.events) errors.push('No race events recorded');
   if (stats.winTime8k < 1300 || stats.winTime8k > 1560) errors.push('Winning 8K time off: ' + stats.winTime8k);
 
