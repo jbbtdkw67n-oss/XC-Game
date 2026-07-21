@@ -77,9 +77,14 @@
     UI.showModal(`
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
       <h2 style="margin:0 0 4px;">${Utils.escapeHtml(meet.name)}</h2>
+      ${(() => {
+        const hostHtml = window.XCD.engine.Scheduling.meetHostHtml
+          ? window.XCD.engine.Scheduling.meetHostHtml(game, meet) : '';
+        return hostHtml ? `<div style="color:var(--text-dim); font-size:12.5px; line-height:1.5;">${hostHtml}${meet.courseMeta && meet.courseMeta.altitudeFt !== undefined ? `<div>⛰ ${meet.courseMeta.altitudeFt.toLocaleString()} ft</div>` : ''}</div>` : '';
+      })()}
       <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">
         Week ${meet.week} • ${meet.conditions.tempF}°F${meet.conditions.rain ? ' • Rain' : ''} •
-        Hills ${meet.conditions.hilliness}/100 • ${meet.conditions.altitude} altitude
+        Hills ${meet.conditions.hilliness}/100 (${window.XCD.data.hillinessLabel ? window.XCD.data.hillinessLabel(meet.conditions.hilliness) : ''}) • ${meet.conditions.altitude} altitude
       </div>
       <div class="pill-tabs" style="display:flex; gap:6px; margin-bottom:14px;">
         ${tabBtn('M', 'Men')}
@@ -114,6 +119,17 @@
   }
 
   UI.showMeetResults = meetResultModal;
+
+  // One-line course summary for tooltips (Meet Database Expansion).
+  function courseTip(ci) {
+    if (!ci) return '';
+    return [
+      ci.location, ci.course,
+      ci.hillinessLabel ? `${ci.hillinessLabel} (${ci.hilliness}/100)` : '',
+      ci.altitudeFt !== undefined ? `${ci.altitudeFt} ft` : `${ci.altitude} altitude`,
+      ci.prestige ? `Prestige: ${ci.prestige}` : ''
+    ].filter(Boolean).join(' · ');
+  }
 
   function render(container) {
     const game = UI.state.game;
@@ -176,14 +192,24 @@
       const conditions = meet
         ? `${meet.conditions.tempF}°F${meet.conditions.rain ? ' 🌧' : ''} · hills ${meet.conditions.hilliness}`
         : '';
-      return { week, label, meet, done, note, status, field, conditions };
+      // Where the meet is held (Realism Update): host + real city (or, for the
+      // national championship, the authentic venue).
+      let where = '';
+      if (meet) {
+        const ci = window.XCD.engine.Scheduling.courseInfo(game, meet);
+        where = meet.type === 'national'
+          ? `📍 ${[ci.venue || ci.course, ci.location].filter(Boolean).join(' · ')}`
+          : `📍 ${[ci.hostName, ci.location].filter(Boolean).join(' · ')}`;
+      }
+      return { week, label, meet, done, note, status, field, conditions, where };
     });
 
     const rows = entries.map((e) => `
       <tr class="${e.meet && e.done ? 'clickable' : ''}" ${e.meet && e.done ? `data-meet="${e.meet.id}"` : ''}>
         <td>Wk ${e.week}</td>
         <td><strong>${e.meet ? Utils.escapeHtml(e.meet.name) : (e.note || 'No meet')}</strong>
-          <span style="color:var(--text-faint); font-size:11px;"> ${e.label}</span></td>
+          <span style="color:var(--text-faint); font-size:11px;"> ${e.label}</span>
+          ${e.where ? `<div style="color:var(--text-faint); font-size:11px;">${Utils.escapeHtml(e.where)}</div>` : ''}</td>
         <td>${e.field}</td>
         <td style="font-size:12.5px; color:var(--text-dim);">${e.conditions}</td>
         <td>${e.status}</td>
@@ -203,6 +229,7 @@
         <div class="m-head">
           <div class="m-title">${e.meet ? Utils.escapeHtml(e.meet.name) : (e.note || 'No meet')}
             <div class="m-sub">Week ${e.week} • ${importance}${e.field ? ' • ' + e.field : ''}</div>
+            ${e.where ? `<div class="m-sub">${Utils.escapeHtml(e.where)}</div>` : ''}
             ${e.conditions ? `<div class="m-sub">${e.conditions}</div>` : ''}
           </div>
           <div class="m-badge" style="font-size:12.5px;">${e.status}</div>
@@ -225,9 +252,17 @@
           .filter((t) => t.school)
           .sort((a, b) => (a.rank || 999) - (b.rank || 999))
           .slice(0, 10);
+        const nextCourse = window.XCD.engine.Scheduling
+          ? window.XCD.engine.Scheduling.courseInfo(game, meet) : null;
         previewHtml = `
           <div class="card" style="margin-top:16px;">
             <h2>Next Up: ${Utils.escapeHtml(meet.name)} (Week ${meet.week})</h2>
+            ${nextCourse ? `<div style="color:var(--text-dim); font-size:12.5px; margin-bottom:4px;">
+              📍 ${Utils.escapeHtml(nextCourse.location || '')}${nextCourse.course ? ` · ${Utils.escapeHtml(nextCourse.course)}` : ''}
+              · Hilliness: <strong>${nextCourse.hillinessLabel}</strong>
+              · Altitude: <strong>${nextCourse.altitudeFt !== undefined ? nextCourse.altitudeFt.toLocaleString() + ' ft' : nextCourse.altitude}</strong>
+              · Prestige: <strong>${Utils.escapeHtml(nextCourse.prestige)}</strong>
+            </div>` : ''}
             <div style="color:var(--text-dim); font-size:13px; margin-bottom:10px;">
               ${meet.conditions.tempF}°F${meet.conditions.rain ? ', rain likely' : ''} ·
               hills ${meet.conditions.hilliness}/100 · ${meet.conditions.altitude} altitude ·
@@ -302,11 +337,24 @@
                   ${w.options.map((o, i) => `
                     <button class="btn small ${o.selected ? 'primary' : ''}" data-sched-week="${w.week}" data-sched-meet="${o.meetId || ''}"
                       ${o.eligible ? '' : 'disabled'}
-                      title="${o.eligible ? (o.host ? 'Host: ' + Utils.escapeHtml(o.host) + ' · ' + o.field + ' teams' : '') : 'Requires prestige ' + o.prestigeReq + '+'}"
+                      title="${o.eligible ? Utils.escapeHtml([o.host ? 'Host: ' + o.host + ' · ' + o.field + ' teams' : '', courseTip(o.course)].filter(Boolean).join(' · ')) : 'Requires prestige ' + o.prestigeReq + '+ (or a top-25 ranking)'}"
                       style="${o.selected ? '' : o.eligible ? '' : 'opacity:0.55;'}">
                       ${o.tier === 'Elite' ? '⭐ ' : o.tier === 'Premier' ? '◆ ' : o.tier === 'Rest' ? '😴 ' : ''}${Utils.escapeHtml(o.label)}${!o.eligible ? ` 🔒${o.prestigeReq}` : ''}
                     </button>`).join('')}
                 </div>
+                ${(() => {
+                  // Course information for the selected meet (Meet Database
+                  // Expansion): location · course · hilliness · altitude · prestige.
+                  const sel = w.options.find((o) => o.selected);
+                  const ci = sel && sel.course;
+                  if (!ci || !sel.meetId) return '';
+                  return `<div style="font-size:11.5px; color:var(--text-faint); margin-top:4px;">
+                    📍 ${Utils.escapeHtml(ci.location || '')}${ci.course ? ` · ${Utils.escapeHtml(ci.course)}` : ''}
+                    · Hilliness: <strong>${ci.hillinessLabel}</strong> (${ci.hilliness}/100)
+                    · Altitude: <strong>${ci.altitudeFt !== undefined ? ci.altitudeFt.toLocaleString() + ' ft' : ci.altitude}</strong>
+                    · Prestige: <strong>${Utils.escapeHtml(ci.prestige)}</strong>
+                  </div>`;
+                })()}
               </div>`).join('')}
             <div style="border-top:1px solid var(--border); padding-top:10px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
               <span style="color:var(--text-dim); font-size:12.5px;">Happy with the slate${pn && pn.playerInvited ? ' (and your Pre-Nationals answer)' : ''}? Finalizing locks it for the whole season.</span>

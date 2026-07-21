@@ -32,10 +32,16 @@
       // five-year clock with five seasons of competition available; a season
       // in which the athlete never toes a line doesn't burn one.
       eligibility: { seasons: 5, clockYears: 5 },
+      // NCAA Division I qualification (real structure): 9 regional meets, the
+      // top 2 teams in each region qualify automatically (18), and 13 at-large
+      // teams are selected on season merit to complete the 31-team field. The
+      // top 4 individuals in each region NOT on a qualifying team advance on
+      // their own (~36 individuals). All-America honors go to the top 40.
       championship: {
         nationalsFieldSize: 31,
         autoQualifiersPerRegional: 2,
-        individualQualifiersPerRegional: 10,
+        atLargeTeams: 13,
+        individualQualifiersPerRegional: 4,
         allAmericans: 40,
         allConference: 14,
         nationalsDistanceM: { M: 10000, W: 6000 }
@@ -58,11 +64,18 @@
       // DII regulations: four seasons of competition inside the ten-semester
       // (five-year) window; redshirt and non-competition years preserve seasons.
       eligibility: { seasons: 4, clockYears: 5 },
+      // NCAA Division II qualification (real structure): 8 regional meets, the
+      // top 2 teams in each region qualify automatically (16), and at-large
+      // selections on season merit complete the 32-team national field. The
+      // top 5 individuals per region not on a qualifying team advance. Division
+      // II awards All-America honors to the TOP 40 finishers at the national
+      // championship (matches real NCAA DII).
       championship: {
         nationalsFieldSize: 32,
-        autoQualifiersPerRegional: 3,
+        autoQualifiersPerRegional: 2,
+        atLargeTeams: 16,
         individualQualifiersPerRegional: 5,
-        allAmericans: 25,
+        allAmericans: 40,
         allConference: 10,
         nationalsDistanceM: { M: 10000, W: 6000 }
       }
@@ -84,10 +97,16 @@
       // DIII regulations: four seasons of participation within the athlete's
       // first ten semesters of enrollment (modeled as a five-year window).
       eligibility: { seasons: 4, clockYears: 5 },
+      // NCAA Division III qualification (real structure): 8 regional meets, the
+      // top 2 teams in each region qualify automatically (16), with at-large
+      // selections completing the 32-team field. The top 5 individuals per
+      // region not on a qualifying team advance. All-America honors go to the
+      // top 40. Division III men race the 8K championship distance.
       championship: {
         nationalsFieldSize: 32,
         autoQualifiersPerRegional: 2,
-        individualQualifiersPerRegional: 7,
+        atLargeTeams: 16,
+        individualQualifiersPerRegional: 5,
         allAmericans: 40,
         allConference: 7,
         nationalsDistanceM: { M: 8000, W: 6000 }

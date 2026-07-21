@@ -20,6 +20,50 @@
     return top.length >= 5 ? Utils.average(top) : (top.length ? Utils.average(top) * 0.8 : 0);
   }
 
+  /*
+   * Final-poll rule (History & Legacy update, Phase 2): once the NCAA
+   * Championships have been run, the final rankings ARE the championship
+   * results. The champion finishes #1, the runner-up #2, and so on through
+   * the nationals field; teams that missed nationals follow, ordered by the
+   * regular formula. Returns { [division]: { schoolId: place } } when this
+   * season's nationals have results, else null.
+   */
+  function championshipTeamPlaces(gameState, gender) {
+    const season = gameState.season;
+    if (!season || season.year !== gameState.year) return null;
+    const natWeek = season.nationalWeek;
+    const out = {};
+    let any = false;
+    (season.byWeek[natWeek] || []).forEach((id) => {
+      const meet = season.meets[id];
+      if (!meet || meet.type !== 'national' || !meet.results[gender]) return;
+      const map = {};
+      meet.results[gender].teamScores.forEach((t) => { map[t.schoolId] = t.place; });
+      out[meet.division || 'DI'] = map;
+      any = true;
+    });
+    return any ? out : null;
+  }
+
+  // Same rule for individuals: the nationals finish order leads the final
+  // individual rankings. { [division]: { athleteId: place } } or null.
+  function championshipIndivPlaces(gameState, gender) {
+    const season = gameState.season;
+    if (!season || season.year !== gameState.year) return null;
+    const natWeek = season.nationalWeek;
+    const out = {};
+    let any = false;
+    (season.byWeek[natWeek] || []).forEach((id) => {
+      const meet = season.meets[id];
+      if (!meet || meet.type !== 'national' || !meet.results[gender]) return;
+      const map = {};
+      meet.results[gender].finishers.forEach((f) => { map[f.athleteId] = f.place; });
+      out[meet.division || 'DI'] = map;
+      any = true;
+    });
+    return any ? out : null;
+  }
+
   function compute(gameState) {
     const season = gameState.season;
     const rankings = {
@@ -64,7 +108,7 @@
           ? Utils.average(results) * 60
           : strength * 0.55; // preseason: strength carries the poll
         const score = strength * 0.55 + resultScore * 0.45;
-        return { schoolId: school.id, name: school.name, conference: school.conference, region: school.region, division: school.division || 'DI', score: Math.round(score * 10) / 10 };
+        return { schoolId: school.id, name: school.name, conference: school.conference, region: school.region, ncaaRegion: window.XCD.data.ncaaRegionFor(school), division: school.division || 'DI', score: Math.round(score * 10) / 10 };
       });
 
       // Rank is WITHIN a division (Update 3): each division runs its own
@@ -75,11 +119,24 @@
       rows.forEach((r) => { (byDivision[r.division] = byDivision[r.division] || []).push(r); });
       const prev = gameState.rankings && gameState.rankings[gender];
       const Legacy = window.XCD.engine.Legacy;
+      // After Nationals, the championship results override the formula
+      // (Phase 2): the final poll mirrors what happened on the course.
+      const champPlaces = championshipTeamPlaces(gameState, gender);
       const ordered = [];
       Object.keys(byDivision)
         .sort((a, b) => (DIV_ORDER[a] ?? 9) - (DIV_ORDER[b] ?? 9))
         .forEach((division) => {
-          const list = byDivision[division].sort((a, b) => b.score - a.score);
+          const places = champPlaces && champPlaces[division];
+          const list = byDivision[division].sort((a, b) => {
+            if (places) {
+              const pa = places[a.schoolId];
+              const pb = places[b.schoolId];
+              if (pa && pb) return pa - pb;      // nationals finish order rules
+              if (pa) return -1;                 // any nationals team outranks
+              if (pb) return 1;                  // every team that missed it
+            }
+            return b.score - a.score;
+          });
           rankings.divisionSizes[division] = list.length;
           list.forEach((r, i) => {
             r.rank = i + 1;
@@ -125,7 +182,23 @@
           });
         });
       });
-      rows.sort((a, b) => (a.pace - b.pace) || (b.wins - a.wins));
+      // Final-poll rule for individuals (Phase 2): nationals finishers hold
+      // the top of the final rankings in finish order — the national champion
+      // is #1 in their division; runners who missed nationals follow by pace.
+      const indivPlaces = championshipIndivPlaces(gameState, gender);
+      const natPlace = (r) => {
+        const map = indivPlaces && indivPlaces[r.division];
+        return (map && map[r.athleteId]) || Infinity;
+      };
+      rows.sort((a, b) => {
+        if (indivPlaces) {
+          const pa = natPlace(a);
+          const pb = natPlace(b);
+          if (pa !== pb) return pa - pb;
+          if (pa !== Infinity) return 0;
+        }
+        return (a.pace - b.pace) || (b.wins - a.wins);
+      });
       const indivByDiv = {};
       const freshByDiv = {};
       const indiv = [];

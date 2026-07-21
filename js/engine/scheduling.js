@@ -53,10 +53,15 @@
     const altitude = (meet.conditions && meet.conditions.altitude) ||
       (cm.altitudeFt !== undefined ? D_.altitudeCategory(cm.altitudeFt) : (host && host.weather.altitude)) || 'Low';
     const stateName = (D_.STATE_NAMES || {})[cm.state || (host && host.state)] || cm.state || (host && host.state) || '';
+    // The host city is a REAL town (Realism Update): the venue's own city for a
+    // famous course, otherwise the host program's real campus city.
+    const hostCity = cm.city || (host ? D_.cityForSchool(host) : '');
     return {
-      city: cm.city || (host ? host.name : ''),
+      hostName: host ? host.name : '',
+      venue: meet.venue || cm.course || '',
+      city: hostCity,
       state: stateName,
-      location: cm.city ? `${cm.city}, ${stateName}` : (host ? `${host.name} campus` : ''),
+      location: hostCity ? `${hostCity}, ${stateName}` : (host ? `${host.name} campus` : ''),
       course: cm.course || (host ? `${host.name} Cross Country Course` : ''),
       altitudeFt: cm.altitudeFt,
       altitude,
@@ -64,6 +69,30 @@
       hillinessLabel: D_.hillinessLabel ? D_.hillinessLabel(hilliness) : '',
       prestige: cm.prestige || (meet.elite ? (meet.elite >= 1.25 ? 'Elite' : 'High') : 'Standard')
     };
+  }
+
+  /*
+   * Host information for a meet, ready to drop into any screen (Race Center,
+   * Schedule): who hosts it and where. Invitationals, conference meets, and
+   * regionals read "Hosted by {school}"; the national championship reads
+   * "Hosted at {venue}" — always with the real city and course.
+   */
+  function meetHostHtml(gameState, meet) {
+    if (!meet) return '';
+    const esc = window.XCD.core.Utils.escapeHtml;
+    const ci = courseInfo(gameState, meet);
+    const cm = meet.courseMeta || {};
+    const namedCourse = meet.venue || cm.course || '';
+    const rows = [];
+    if (meet.type === 'national') {
+      if (namedCourse) rows.push(`<span style="color:var(--text-faint);">Hosted at</span> <strong>${esc(namedCourse)}</strong>`);
+      if (ci.location) rows.push(`📍 ${esc(ci.location)}`);
+    } else {
+      if (ci.hostName) rows.push(`<span style="color:var(--text-faint);">Hosted by</span> <strong>${esc(ci.hostName)}</strong>`);
+      const locBits = [ci.location, namedCourse].filter(Boolean).join(' • ');
+      if (locBits) rows.push(`📍 ${esc(locBits)}`);
+    }
+    return rows.length ? rows.map((r) => `<div>${r}</div>`).join('') : '';
   }
 
   function playerMeetsThisWeek(gameState, week) {
@@ -210,5 +239,5 @@
     };
   }
 
-  window.XCD.engine.Scheduling = { buildOptions, select, eliteRequirement, qualifiesForElite, courseInfo };
+  window.XCD.engine.Scheduling = { buildOptions, select, eliteRequirement, qualifiesForElite, courseInfo, meetHostHtml };
 })();

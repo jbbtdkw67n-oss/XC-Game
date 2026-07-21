@@ -55,10 +55,9 @@
       : [];
     const stateKeys = Object.keys(D.STATE_NAMES || {});
     const randomHometown = () => {
-      const root_ = D.TOWN_ROOTS[Math.floor(Math.random() * D.TOWN_ROOTS.length)];
-      const suf = D.TOWN_SUFFIXES[Math.floor(Math.random() * D.TOWN_SUFFIXES.length)];
       const st = stateKeys[Math.floor(Math.random() * stateKeys.length)] || 'OR';
-      return `${root_}${suf}, ${st}`;
+      const towns = (D.REAL_TOWNS && D.REAL_TOWNS[st]) || ['Portland'];
+      return `${towns[Math.floor(Math.random() * towns.length)]}, ${st}`;
     };
     const randomAlma = () => schoolNames.length
       ? schoolNames[Math.floor(Math.random() * schoolNames.length)]
@@ -413,40 +412,16 @@
       cancel);
   };
 
-  /*
-   * Realistic New Coach Career Path (History & Legacy update, Phase 12):
-   * a brand-new coach created inside an existing dynasty starts at the
-   * bottom of the profession. Only entry-level chairs are offered — new or
-   * struggling DIII/DII programs and low-prestige DI schools with limited
-   * recent success. Blue bloods, contenders, and high-prestige programs are
-   * off the table; great jobs are earned over a career, never inherited.
-   */
-  function entryLevelJob(school, rankIndex) {
-    const div = school.division || 'DI';
-    const cap = div === 'DIII' ? 55 : div === 'DII' ? 50 : 42; // low coaching tiers only
-    if (school.prestige > cap) return false;
-    if ((school.heritage || 0) >= 55) return false;            // no sleeping giants either
-    const rank = rankIndex[school.id];
-    if (rank && rank <= 25) return false;                      // no current top-25 program
-    return true;
-  }
-
   function renderSuccessionSchoolPick(root, game, spec) {
     const D = window.XCD.data;
-    // Entry-level filter (Phase 12): a new coach in an ongoing dynasty is
-    // only eligible for the profession's bottom rung.
-    const rankIndex = {};
-    if (game.rankings) {
-      ['M', 'W'].forEach((g) => (game.rankings[g] || []).forEach((r) => {
-        rankIndex[r.schoolId] = Math.min(rankIndex[r.schoolId] || 999, r.rank);
-      }));
-    }
+    // A newly created coach may take ANY open program (Realism Update): the
+    // artificial "entry-level only" restriction is gone, so an incoming coach
+    // — including an elite one succeeding a legend — is eligible for every job
+    // in the world, blue bloods included. Programs are listed strongest first.
     const schools = Object.values(game.world.schools)
-      .filter((s) => entryLevelJob(s, rankIndex))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (b.prestige || 0) - (a.prestige || 0) || a.name.localeCompare(b.name));
     const oldCoach = game.getPlayerCoach();
-    // Staying home is only possible when the old program is itself entry-level.
-    let selectedId = schools.some((s) => s.id === game.playerSchoolId) ? game.playerSchoolId : null;
+    let selectedId = game.playerSchoolId || null;
     let divFilter = (game.getPlayerSchool().division || 'DI');
     if (!schools.some((s) => (s.division || 'DI') === divFilter)) {
       divFilter = (schools[0] && (schools[0].division || 'DI')) || 'DI';
@@ -459,8 +434,8 @@
     root.innerHTML = `
       <div id="menu-root">
         <div class="menu-panel" style="width:min(640px,94vw);">
-          <h1 style="font-size:22px;">Choose Your <span>First Job</span></h1>
-          <p class="tagline">${spec.startRole === 'Assistant' ? 'Assistant' : 'Head'} Coach ${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)} succeeds the retiring ${Utils.escapeHtml(oldCoach.fullName)} — and starts at the bottom of the profession. Only entry-level programs are hiring an unproven coach: small and struggling schools looking for someone hungry. Win there, build a name, and the bigger chairs will call.</p>
+          <h1 style="font-size:22px;">Choose Your <span>Program</span></h1>
+          <p class="tagline">${spec.startRole === 'Assistant' ? 'Assistant' : 'Head'} Coach ${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)} succeeds the retiring ${Utils.escapeHtml(oldCoach.fullName)}. Every program in the country is open — from a rebuilding small school to a national blue blood. Choose where the next era begins.</p>
           <div class="pill-tabs" id="div-tabs" style="margin-bottom:10px;">
             ${DIV_TABS.map(([k, label]) => `<button data-div="${k}" class="${divFilter === k ? 'active' : ''}">${label}</button>`).join('')}
           </div>

@@ -608,6 +608,41 @@
       Object.values(obj.world.recruits || {}).forEach((r) => { recruits[r.id] = new M.Recruit(r); });
       gs.world = { schools, coaches, athletes, recruits, schoolOrder: obj.world.schoolOrder, seed: obj.world.seed };
 
+      // Real hometowns (Realism Update): rewrite any procedurally-generated
+      // fictional hometown left in an older save with a real town in the SAME
+      // state, so no fictional place survives anywhere. State/region are
+      // preserved; it is deterministic and idempotent (real towns and
+      // international athletes are left untouched).
+      const townSets = {};
+      Object.entries(D.REAL_TOWNS || {}).forEach(([st, list]) => { townSets[st] = new Set(list); });
+      const realTownFor = (state, key) => {
+        const towns = (D.REAL_TOWNS && D.REAL_TOWNS[state]) || [];
+        if (!towns.length) return null;
+        let h = 0; const s = String(key || '');
+        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+        return towns[h % towns.length];
+      };
+      const fixHometown = (e) => {
+        if (!e || !e.hometownState || e.hometownState === 'INT') return;
+        const set = townSets[e.hometownState];
+        if (set && e.hometownCity && !set.has(e.hometownCity)) {
+          const t = realTownFor(e.hometownState, e.id || e.hometownCity);
+          if (t) e.hometownCity = t;
+        }
+      };
+      Object.values(athletes).forEach(fixHometown);
+      Object.values(recruits).forEach(fixHometown);
+
+      // Altitude as a real location trait (Realism Update): re-stamp each
+      // school's altitude to its true, deterministic designation so older saves
+      // gain proper high-altitude programs (Northern Arizona, Air Force, the
+      // Colorado schools) instead of the old per-save coin flip.
+      if (D.altitudeForSchool) {
+        Object.values(schools).forEach((s) => {
+          if (s.weather) s.weather.altitude = D.altitudeForSchool(s.name, s.state) || s.weather.altitude;
+        });
+      }
+
       // Defaults for saves from before the recruiting engine existed.
       gs.recruiting = obj.recruiting || {
         pointsLeft: 0, budgetLeft: 0, actionsThisWeek: {},

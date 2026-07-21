@@ -419,6 +419,10 @@
         id: Utils.generateId('sch'),
         name: '',
         state: '',
+        // Real campus city (Realism Update): the town the program calls home,
+        // shown as the host city on the schedule / race center. Resolved by
+        // worldgen from D.SCHOOL_CITY (or a real town in the state).
+        city: '',
         region: '',
         conference: '',
         conferenceTier: 3,

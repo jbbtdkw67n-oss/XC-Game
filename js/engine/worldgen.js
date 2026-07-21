@@ -15,8 +15,6 @@
     'Lafayette','Colgate','Fordham','Wake Forest','Davidson'
   ]);
 
-  const MOUNTAIN_STATES = new Set(['CO','UT','WY','MT','ID','NM','AZ']);
-
   const CLASS_DEV_FACTOR = { Freshman: 0.55, Sophomore: 0.68, Junior: 0.80, Senior: 0.92, Graduate: 0.97 };
   const CLASS_AGE_BASE = { Freshman: 18, Sophomore: 19, Junior: 20, Senior: 21, Graduate: 22 };
 
@@ -40,11 +38,15 @@
         default: return [20, 40];
       }
     }
+    // Non-seeded programs sit BELOW the elite tier: the 80+ blue-blood band is
+    // reserved for real cross country powers (PRESTIGE_SEEDS), so a football-
+    // brand school with no distance pedigree starts strong-but-not-elite rather
+    // than randomly inflated. Genuine XC powers get their standing from seeds.
     switch (tier) { // Division I
-      case 1: return [62, 92];
-      case 2: return [48, 76];
-      case 3: return [34, 64];
-      default: return [22, 54];
+      case 1: return [56, 80];
+      case 2: return [44, 72];
+      case 3: return [32, 60];
+      default: return [20, 50];
     }
   }
 
@@ -96,9 +98,10 @@
     };
 
     const weatherProfile = D.REGION_WEATHER[region] || { tempBase: 60, altitude: 'Low', humidity: 'Medium' };
-    const altitude = MOUNTAIN_STATES.has(state)
-      ? (rng.bool(0.5) ? 'High' : 'Medium')
-      : weatherProfile.altitude;
+    // Altitude is a REAL location trait (Realism Update): a program's elevation
+    // is deterministic and matches its true campus (Northern Arizona always
+    // trains high; Utah State moderate), never a per-save coin flip.
+    const altitude = D.altitudeForSchool(name, state) || weatherProfile.altitude;
 
     const historicalSuccess = {
       conferenceTitlesM: rng.bool(0.3) ? rng.int(0, Math.max(1, Math.round(tier === 1 ? 12 : 4))) : 0,
@@ -117,7 +120,7 @@
     }
 
     return new M.School({
-      name, state, region, conference, conferenceTier: tier,
+      name, state, city: D.cityForSchool({ name, state }), region, conference, conferenceTier: tier,
       division,
       prestige, heritage, academics, campusAppeal, facilities, budget,
       weather: { tempBase: weatherProfile.tempBase + rng.int(-4, 4), altitude, humidity: weatherProfile.humidity },
@@ -133,8 +136,10 @@
     }
     const statesInRegion = Object.keys(D.STATE_REGION).filter((s) => D.STATE_REGION[s] === region);
     const state = rng.choice(statesInRegion) || 'OH';
-    const city = `${rng.choice(D.TOWN_ROOTS)}${rng.choice(D.TOWN_SUFFIXES)}`;
-    return { city: Utils.capitalize(city), state, region };
+    // Real hometowns (Realism Update): athletes come from authentic towns in
+    // their state — never a procedurally-assembled place name.
+    const towns = (D.REAL_TOWNS && D.REAL_TOWNS[state]) || (D.REAL_TOWNS && D.REAL_TOWNS.OH) || ['Columbus'];
+    return { city: rng.choice(towns), state, region };
   }
 
   function buildAthlete(rng, school, gender) {
@@ -216,11 +221,22 @@
     const gender = rng.bool(0.75) ? 'M' : 'W';
     const firstName = gender === 'M' ? rng.choice(D.FIRST_NAMES_M) : rng.choice(D.FIRST_NAMES_W);
     const tierBonus = { 1: 14, 2: 6, 3: 0, 4: -6 }[school.conferenceTier];
+    // Strong programs are led by strong coaches (Realism Update): a head
+    // coach's quality tracks the PROGRAM'S prestige and heritage, so an elite
+    // historical program is never handed a poor coach — even when it sits in a
+    // weak conference (Northern Arizona in the Big Sky, Iona in the MAAC).
+    // Rebuilding programs skew toward weaker, hungrier coaches.
+    const prestigeBonus = Utils.clamp(
+      Math.round((school.prestige - 58) * 0.42) +
+      (school.heritage >= 82 ? 6 : school.heritage >= 55 ? 3 : 0), -12, 20);
+    // Heads: the better of conference pull and program prestige. Assistants
+    // track the program's resources (conference) at a junior level.
+    const strengthBonus = role === 'Assistant' ? tierBonus : Math.max(tierBonus, prestigeBonus);
     // Lower divisions employ less-established coaches on average — but the
     // division-agnostic ladder still lets the great ones climb.
     const divPenalty = { DI: 0, DII: 6, DIII: 10 }[school.division || 'DI'] || 0;
     const rolePenalty = role === 'Assistant' ? 8 : 0;
-    const statFor = () => rng.gaussianRange(56 + tierBonus - rolePenalty - divPenalty, 13, 20, 99);
+    const statFor = () => rng.gaussianRange(56 + strengthBonus - rolePenalty - divPenalty, 13, 20, 99);
 
     const archetype = rng.choice(D.COACH_ARCHETYPES);
     // Initial dynasty (Update 3): coaches span 25-75 so the world starts with
@@ -274,10 +290,14 @@
     coach.racePhilosophy = pickRacePhilosophy(rng, coach);
 
     // Reputation (Part 1): seeded from stature — most coaches start as
-    // regional names; a handful of blue-blood veterans arrive established.
+    // regional names; blue-blood veterans arrive established. A storied
+    // program's head coach carries a national name to match the program.
+    const heritageRep = role === 'Assistant' ? 0
+      : (school.heritage >= 82 ? 10 : school.heritage >= 55 ? 5 : 0);
     coach.reputation = Utils.clamp(Math.round(
-      coach.overallRating * 0.5 + tierBonus - divPenalty + coach.yearsAtSchool * 0.8 + rng.int(-8, 8) - (role === 'Assistant' ? 15 : 0)
-    ), 3, 78);
+      coach.overallRating * 0.5 + strengthBonus - divPenalty + heritageRep +
+      coach.yearsAtSchool * 0.8 + rng.int(-8, 8) - (role === 'Assistant' ? 15 : 0)
+    ), 3, 88);
 
     coach.stints = [{ schoolId: school.id, school: school.name, division: school.division || 'DI', startYear: 2026 - coach.yearsAtSchool, endYear: null }];
     return coach;
@@ -487,6 +507,10 @@
       school.state = t.state;
       school.region = D.STATE_REGION[t.state];
     }
+    // Real campus city: an explicit custom value wins; otherwise resolve a
+    // real town for the (possibly new) state/name so host cities stay authentic.
+    if (t.city) school.city = String(t.city);
+    else if (renamed || t.state) school.city = D.cityForSchool(school);
     if (t.division && D.DIVISIONS[t.division]) school.division = t.division;
     // Recompute the kit so pattern (name-seeded) and colors stay consistent.
     school.kit = D.kitFor(school.name, { colors: school.colors });

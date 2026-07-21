@@ -28,10 +28,20 @@
       developmentEmphasis: 1.0,         // training/development weight in identity
       coachSalaryTier: 3,               // relative pay band (drives coach mobility)
       expectations: 1.0,                // pressure multiplier for hot seats
+      // NCAA eligibility (accurate per-division rules): Division I runs a
+      // five-year clock with five seasons of competition available; a season
+      // in which the athlete never toes a line doesn't burn one.
+      eligibility: { seasons: 5, clockYears: 5 },
+      // NCAA Division I qualification (real structure): 9 regional meets, the
+      // top 2 teams in each region qualify automatically (18), and 13 at-large
+      // teams are selected on season merit to complete the 31-team field. The
+      // top 4 individuals in each region NOT on a qualifying team advance on
+      // their own (~36 individuals). All-America honors go to the top 40.
       championship: {
         nationalsFieldSize: 31,
         autoQualifiersPerRegional: 2,
-        individualQualifiersPerRegional: 10,
+        atLargeTeams: 13,
+        individualQualifiersPerRegional: 4,
         allAmericans: 40,
         allConference: 14,
         nationalsDistanceM: { M: 10000, W: 6000 }
@@ -51,11 +61,21 @@
       developmentEmphasis: 1.25,
       coachSalaryTier: 2,
       expectations: 0.8,
+      // DII regulations: four seasons of competition inside the ten-semester
+      // (five-year) window; redshirt and non-competition years preserve seasons.
+      eligibility: { seasons: 4, clockYears: 5 },
+      // NCAA Division II qualification (real structure): 8 regional meets, the
+      // top 2 teams in each region qualify automatically (16), and at-large
+      // selections on season merit complete the 32-team national field. The
+      // top 5 individuals per region not on a qualifying team advance. Division
+      // II awards All-America honors to the TOP 40 finishers at the national
+      // championship (matches real NCAA DII).
       championship: {
         nationalsFieldSize: 32,
-        autoQualifiersPerRegional: 3,
+        autoQualifiersPerRegional: 2,
+        atLargeTeams: 16,
         individualQualifiersPerRegional: 5,
-        allAmericans: 25,
+        allAmericans: 40,
         allConference: 10,
         nationalsDistanceM: { M: 10000, W: 6000 }
       }
@@ -74,10 +94,19 @@
       developmentEmphasis: 1.4,  // coaching and culture over recruiting rankings
       coachSalaryTier: 1,
       expectations: 0.6,
+      // DIII regulations: four seasons of participation within the athlete's
+      // first ten semesters of enrollment (modeled as a five-year window).
+      eligibility: { seasons: 4, clockYears: 5 },
+      // NCAA Division III qualification (real structure): 8 regional meets, the
+      // top 2 teams in each region qualify automatically (16), with at-large
+      // selections completing the 32-team field. The top 5 individuals per
+      // region not on a qualifying team advance. All-America honors go to the
+      // top 40. Division III men race the 8K championship distance.
       championship: {
         nationalsFieldSize: 32,
         autoQualifiersPerRegional: 2,
-        individualQualifiersPerRegional: 7,
+        atLargeTeams: 16,
+        individualQualifiersPerRegional: 5,
         allAmericans: 40,
         allConference: 7,
         nationalsDistanceM: { M: 8000, W: 6000 }
@@ -138,6 +167,12 @@
   D.awardLabel = function (key, fallback) {
     const map = D.CUSTOM && D.CUSTOM.awardNames;
     return (map && map[key]) ? String(map[key]) : fallback;
+  };
+
+  // Eligibility rules for a school/division key. Defaults to a 4-season /
+  // 5-year model when the division carries no explicit block (old saves).
+  D.eligibilityFor = function (schoolOrKey) {
+    return D.divisionFor(schoolOrKey).eligibility || { seasons: 4, clockYears: 5 };
   };
 
   // Resolve the division rules for a school (or a raw division key).

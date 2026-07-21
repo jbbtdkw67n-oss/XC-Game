@@ -77,11 +77,11 @@
     UI.showModal(`
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
       <h2 style="margin:0 0 4px;">${Utils.escapeHtml(meet.name)}</h2>
-      ${meet.courseMeta ? `<div style="color:var(--text-dim); font-size:12.5px;">
-        📍 ${Utils.escapeHtml(meet.courseMeta.city || '')}${meet.courseMeta.state ? `, ${Utils.escapeHtml((window.XCD.data.STATE_NAMES || {})[meet.courseMeta.state] || meet.courseMeta.state)}` : ''}
-        ${meet.courseMeta.course ? ` • ${Utils.escapeHtml(meet.courseMeta.course)}` : ''}
-        ${meet.courseMeta.altitudeFt !== undefined ? ` • ${meet.courseMeta.altitudeFt.toLocaleString()} ft` : ''}
-      </div>` : ''}
+      ${(() => {
+        const hostHtml = window.XCD.engine.Scheduling.meetHostHtml
+          ? window.XCD.engine.Scheduling.meetHostHtml(game, meet) : '';
+        return hostHtml ? `<div style="color:var(--text-dim); font-size:12.5px; line-height:1.5;">${hostHtml}${meet.courseMeta && meet.courseMeta.altitudeFt !== undefined ? `<div>⛰ ${meet.courseMeta.altitudeFt.toLocaleString()} ft</div>` : ''}</div>` : '';
+      })()}
       <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">
         Week ${meet.week} • ${meet.conditions.tempF}°F${meet.conditions.rain ? ' • Rain' : ''} •
         Hills ${meet.conditions.hilliness}/100 (${window.XCD.data.hillinessLabel ? window.XCD.data.hillinessLabel(meet.conditions.hilliness) : ''}) • ${meet.conditions.altitude} altitude
@@ -192,14 +192,24 @@
       const conditions = meet
         ? `${meet.conditions.tempF}°F${meet.conditions.rain ? ' 🌧' : ''} · hills ${meet.conditions.hilliness}`
         : '';
-      return { week, label, meet, done, note, status, field, conditions };
+      // Where the meet is held (Realism Update): host + real city (or, for the
+      // national championship, the authentic venue).
+      let where = '';
+      if (meet) {
+        const ci = window.XCD.engine.Scheduling.courseInfo(game, meet);
+        where = meet.type === 'national'
+          ? `📍 ${[ci.venue || ci.course, ci.location].filter(Boolean).join(' · ')}`
+          : `📍 ${[ci.hostName, ci.location].filter(Boolean).join(' · ')}`;
+      }
+      return { week, label, meet, done, note, status, field, conditions, where };
     });
 
     const rows = entries.map((e) => `
       <tr class="${e.meet && e.done ? 'clickable' : ''}" ${e.meet && e.done ? `data-meet="${e.meet.id}"` : ''}>
         <td>Wk ${e.week}</td>
         <td><strong>${e.meet ? Utils.escapeHtml(e.meet.name) : (e.note || 'No meet')}</strong>
-          <span style="color:var(--text-faint); font-size:11px;"> ${e.label}</span></td>
+          <span style="color:var(--text-faint); font-size:11px;"> ${e.label}</span>
+          ${e.where ? `<div style="color:var(--text-faint); font-size:11px;">${Utils.escapeHtml(e.where)}</div>` : ''}</td>
         <td>${e.field}</td>
         <td style="font-size:12.5px; color:var(--text-dim);">${e.conditions}</td>
         <td>${e.status}</td>
@@ -219,6 +229,7 @@
         <div class="m-head">
           <div class="m-title">${e.meet ? Utils.escapeHtml(e.meet.name) : (e.note || 'No meet')}
             <div class="m-sub">Week ${e.week} • ${importance}${e.field ? ' • ' + e.field : ''}</div>
+            ${e.where ? `<div class="m-sub">${Utils.escapeHtml(e.where)}</div>` : ''}
             ${e.conditions ? `<div class="m-sub">${e.conditions}</div>` : ''}
           </div>
           <div class="m-badge" style="font-size:12.5px;">${e.status}</div>

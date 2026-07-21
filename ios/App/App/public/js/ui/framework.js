@@ -258,10 +258,10 @@
     { id: 'recruiting', label: 'Recruiting', icon: '🎯', mobile: true, short: 'Recruit' },
     { id: 'portal', label: 'Portal', icon: '🔄' },
     { id: 'school', label: 'My Program', icon: '🏫' },
-    { id: 'shop', label: 'Shop', icon: '🛒' },
     { id: 'history', label: 'History', icon: '🏛' },
     { id: 'world', label: 'World', icon: '🌎' },
     { id: 'news', label: 'News', icon: '📰' },
+    { id: 'shop', label: 'Shop', icon: '🛒' },
     { id: 'saves', label: 'Save / Load', icon: '💾' }
   ];
 

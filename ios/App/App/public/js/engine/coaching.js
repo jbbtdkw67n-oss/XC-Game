@@ -205,6 +205,29 @@
       delta += Utils.clamp((avgDev - 2.2) * 0.24, -0.6, 0.7);
     }
 
+    // Team improvement (Update 16): a program that climbed the poll from where
+    // it opened the season reflects on the whole staff. The last season's
+    // preseason snapshot is still live at the rollover (the new season is not
+    // built until later), so compare it against the final standing.
+    const pre = gameState.season && gameState.season.preseasonRanks;
+    if (pre) {
+      const preRank = Math.min(pre.M && pre.M[school.id] || 999, pre.W && pre.W[school.id] || 999);
+      if (preRank < 999) {
+        const climb = preRank - rank; // positive = finished higher than projected
+        delta += Utils.clamp(climb / 45, -0.5, 1.0) * divW;
+      }
+    }
+
+    // Producing national-caliber athletes (Update 16): All-Americans and
+    // individual national champions coached this season are a recruiting
+    // coordinator's loudest résumé line. Credited at nationals while the
+    // roster is intact and tallied here at the rollover.
+    const honors = ((gameState.history.seasonStaffHonors || {})[year] || {})[school.id];
+    if (honors) {
+      delta += Math.min(1.6, (honors.allAmericans || 0) * 0.4) * divW;
+      delta += Math.min(2.2, (honors.indivNatChamps || 0) * 1.1) * divW;
+    }
+
     if ((coach.recruiting || 55) >= 70) delta += 0.35; // recruiting is their calling card
     if (coach.age > 55) delta -= 0.7; // long-tenured assistants who never stepped up plateau
     delta += (rng.next() - 0.5) * 0.3;
@@ -218,6 +241,30 @@
     applied += titleBump * Utils.clamp(1 - (coach.reputation || 12) / 260, 0.7, 1);
     coach.reputation = Utils.clamp(
       Math.round((coach.reputation + applied) * 10) / 10, 1, 92);
+  }
+
+  /*
+   * Assistant → head coach prestige conversion (History & Legacy update,
+   * Phase 13). An assistant's prestige is related to — but never identical
+   * to — a head coach's. On promotion the new head-coach reputation is
+   * derived from the assistant résumé (years served, recruiting ability,
+   * championships contributed to) at a meaningful discount: an elite
+   * assistant becomes a highly promising FIRST-TIME head coach, not an
+   * established legend. Experience, attributes, tendencies, and career
+   * history all carry over untouched — only the prestige converts.
+   */
+  function convertAssistantPrestige(coach) {
+    const rep = coach.reputation || 12;
+    const cr = coach.careerRecord || {};
+    let head = rep * 0.55
+      + Math.min(8, (cr.seasons || 0) * 0.4)                    // years of apprenticeship
+      + Utils.clamp(((coach.recruiting || 55) - 55) * 0.15, -4, 6) // recruiting is the calling card
+      + Math.min(5, (cr.nationalTitles || 0) * 2);              // title runs contributed to
+    // Always a real step down, and never an instant elite standing: blue
+    // blood chairs remain the culmination of a proven head-coaching career.
+    head = Math.min(head, rep - 6, 58);
+    coach.reputation = Utils.clamp(Math.round(head), 8, 58);
+    return coach.reputation;
   }
 
   /* ---------------- Rating progression ---------------- */
@@ -303,7 +350,9 @@
       if (coach.hasTendency && coach.hasTendency('aggressive')) base += 4;
       if (coach.hasTendency && coach.hasTendency('conservative')) base -= 4;
     }
-    if (gender === 'W') base -= 15; // women race 6K on lower volume
+    // Women race 6K on lower volume, and their safe ceiling sits below the
+    // men's (mileage rebalance) — no sane program plans a 105+ week for women.
+    if (gender === 'W') base = Math.min(base - 15, (D.MILEAGE.SAFE_CAP || {}).W || 105);
     return Utils.clamp(base, D.MILEAGE.MIN, D.MILEAGE.MAX);
   }
 
@@ -325,23 +374,73 @@
       (gameState.seed ^ (gameState.year * 53 + gameState.week * 7 + 0x5AFF)) >>> 0);
   }
 
+  /*
+   * Build one hiring-pool candidate of a given ORIGIN (Update 16). No more
+   * interchangeable generics: a candidate is a young up-and-comer, a seasoned
+   * veteran, a fired head coach looking for a way back, a decorated DII/DIII
+   * assistant earning a look, or a former All-American just entering the
+   * profession — each with a believable age, rating profile, and career
+   * history. `lift` is the boss's Staff-Management pull on applicant quality.
+   */
+  function buildAssistantCandidate(gameState, rng, school, type, lift) {
+    const WG = window.XCD.engine.WorldGenerator;
+    const cand = WG.buildAssistant(rng, school);
+    const cr = cand.careerRecord;
+    const bump = (extra) => ['recruiting', 'training', 'peaking', 'culture', 'talentEval']
+      .forEach((k) => { cand[k] = Utils.clamp((cand[k] || 50) + rng.int(-3, 3) + lift + extra, 20, 92); });
+
+    if (type === 'veteran') {
+      cand.age = rng.int(46, 58);
+      bump(2);
+      cr.seasons = rng.int(12, 26);
+      cr.conferenceTitles = rng.int(0, 3);
+      cand.origin = 'Veteran assistant';
+      cand.reputation = Utils.clamp(18 + cand.recruiting * 0.2 + rng.int(0, 12) + lift, 10, 60);
+    } else if (type === 'firedHC') {
+      cand.age = rng.int(44, 60);
+      bump(1);
+      cr.seasons = rng.int(8, 22);
+      cr.nationalTitles = rng.bool(0.22) ? 1 : 0;
+      cr.conferenceTitles = rng.int(0, 4);
+      cand.origin = 'Former head coach';
+      cand.reputation = Utils.clamp(20 + cr.nationalTitles * 10 + rng.int(0, 14) + lift, 12, 62);
+    } else if (type === 'lowerDiv') {
+      cand.age = rng.int(34, 50);
+      bump(0);
+      cr.seasons = rng.int(6, 18);
+      cr.conferenceTitles = rng.int(1, 5);
+      cand.origin = 'Decorated DII/DIII assistant';
+      cand.reputation = Utils.clamp(14 + cand.recruiting * 0.18 + rng.int(0, 10) + lift, 8, 50);
+    } else if (type === 'exAthlete') {
+      cand.age = rng.int(27, 36);
+      bump(-1);
+      cr.seasons = rng.int(0, 5);
+      cand.culture = Utils.clamp(cand.culture + 6, 20, 92);
+      cand.relationships = Utils.clamp((cand.relationships || 55) + 8, 20, 95);
+      cand.origin = 'Former All-American entering coaching';
+      cand.reputation = Utils.clamp(12 + rng.int(0, 10) + lift, 6, 42);
+    } else { // young up-and-comer
+      cand.age = rng.int(26, 33);
+      bump(-2);
+      cr.seasons = rng.int(0, 4);
+      cand.origin = 'Up-and-coming assistant';
+      cand.reputation = Utils.clamp(8 + cand.recruiting * 0.15 + rng.int(0, 8) + lift, 3, 40);
+    }
+    cand.schoolId = null;
+    cand.role = 'Assistant';
+    return cand;
+  }
+
   function assistantCandidates(gameState) {
     const school = gameState.getPlayerSchool();
     const coach = gameState.getPlayerCoach();
-    const WG = window.XCD.engine.WorldGenerator;
     const rng = staffRng(gameState);
     const lift = Math.round(((coach.staffManagement ?? 55) - 50) / 8); // a connected boss attracts better applicants
-    const out = [];
-    for (let i = 0; i < 3; i++) {
-      const cand = WG.buildAssistant(rng, school);
-      cand.age = rng.int(26, 52);
-      ['recruiting', 'training', 'peaking', 'culture', 'talentEval'].forEach((k) => {
-        cand[k] = Utils.clamp((cand[k] || 50) + rng.int(-3, 3) + lift, 20, 92);
-      });
-      cand.reputation = Utils.clamp(8 + cand.recruiting * 0.2 + rng.int(0, 12) + lift, 3, 60);
-      cand.schoolId = null;
-      out.push(cand);
-    }
+    // A varied shortlist every week (Update 16): always a young riser and a
+    // seasoned hand, plus a rotating wildcard — a fired head coach, a
+    // lower-division standout, or a retired athlete breaking into coaching.
+    const types = ['young', 'veteran', rng.choice(['firedHC', 'lowerDiv', 'exAthlete'])];
+    const out = types.map((t) => buildAssistantCandidate(gameState, rng, school, t, lift));
     // The unemployed pool (spec Part 2, Section 12): fired and displaced
     // coaches stay in the ecosystem — when the pool has anyone, one genuine
     // free agent (career record, stints, and all) replaces a generated
@@ -351,6 +450,7 @@
       .sort((a, b) => a.id < b.id ? -1 : 1); // stable order for determinism
     if (pool.length) {
       const veteran = pool[rng.int(0, pool.length - 1)];
+      if (!veteran.origin) veteran.origin = 'Free agent';
       out[rng.int(0, out.length - 1)] = veteran;
     }
     return out;
@@ -383,7 +483,8 @@
     const current = school.assistantId && gameState.world.coaches[school.assistantId];
     if (current && current.isPlayer) return { ok: false, message: 'You cannot replace yourself.' };
     if (current) {
-      Legacy.closeStint(gameState, current, school, gameState.year);
+      Legacy.closeStint(gameState, current, school, gameState.year, 'released');
+      Legacy.recordRetiredCoach(gameState, current, 'released'); // history keeps every career (Phase 3)
       delete gameState.world.coaches[current.id];
       gameState.logNews(`Staff change: ${school.name} lets assistant ${current.fullName} go.`);
     }
@@ -395,6 +496,7 @@
     Legacy.openStint(gameState, candidate, school, gameState.year);
     Legacy.linkStaff(gameState, school, gameState.year);
     gameState.staffHiredYear = gameState.year; // one hire per offseason
+    gameState.assistantDeparture = null; // the vacancy is resolved (Update 16)
     if (gameState.week === 1 && gameState.week1) gameState.week1.staffConfirmed = true; // checklist: staff settled
     gameState.logNews(`Staff hire: ${candidate.fullName} joins ${school.name} as assistant coach under ${coach.fullName}.`);
     return { ok: true, message: `${candidate.fullName} joins your staff.` };
@@ -404,6 +506,7 @@
     yearlyProgression,
     updateReputation,
     updateAssistantReputation,
+    convertAssistantPrestige,
     progressRatings,
     preferredMileage,
     mediaPull,

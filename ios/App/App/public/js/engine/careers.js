@@ -373,14 +373,15 @@
       const coach = gameState.getPlayerCoach();
       const rng = new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 41 + schoolId.length) >>> 0);
 
-      Legacy.closeStint(gameState, coach, oldSchool, gameState.year);
+      Legacy.closeStint(gameState, coach, oldSchool, gameState.year, 'left');
       oldSchool.coachId = null;
       oldSchool.coachChangedYear = gameState.year;
       fillVacancy(gameState, oldSchool, rng, 0);
 
       const asst = newSchool.assistantId && gameState.world.coaches[newSchool.assistantId];
       if (asst && !asst.isPlayer) {
-        Legacy.closeStint(gameState, asst, newSchool, gameState.year);
+        Legacy.closeStint(gameState, asst, newSchool, gameState.year, 'released');
+        Legacy.recordRetiredCoach(gameState, asst, 'released'); // no coach ever vanishes (Phase 3)
         delete gameState.world.coaches[asst.id];
       }
       coach.role = 'Assistant';
@@ -421,7 +422,7 @@
       const coach = gameState.getPlayerCoach();
       const rng = new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 43 + schoolId.length) >>> 0);
 
-      Legacy.closeStint(gameState, coach, oldSchool, gameState.year);
+      Legacy.closeStint(gameState, coach, oldSchool, gameState.year, 'left');
       if (oldSchool.assistantId === coach.id) oldSchool.assistantId = null;
       const fill = WG.buildAssistant(rng, oldSchool);
       fill.age = rng.int(25, 40);
@@ -432,7 +433,8 @@
 
       const displaced = newSchool.assistantId && gameState.world.coaches[newSchool.assistantId];
       if (displaced && !displaced.isPlayer) {
-        Legacy.closeStint(gameState, displaced, newSchool, gameState.year);
+        Legacy.closeStint(gameState, displaced, newSchool, gameState.year, 'released');
+        Legacy.recordRetiredCoach(gameState, displaced, 'released'); // no coach ever vanishes (Phase 3)
         delete gameState.world.coaches[displaced.id];
       }
       coach.schoolId = newSchool.id;
@@ -468,14 +470,14 @@
       const coach = gameState.getPlayerCoach();
       const rng = new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 37 + schoolId.length) >>> 0);
 
-      Legacy.closeStint(gameState, coach, oldSchool, gameState.year);
+      Legacy.closeStint(gameState, coach, oldSchool, gameState.year, 'promoted');
       if (oldSchool.assistantId === coach.id) oldSchool.assistantId = null;
       // Your old boss's coaching tree grows a branch (Update 6).
       Legacy.creditPromotion(gameState, coach, newSchool, gameState.year);
 
       const incumbent = newSchool.coachId && gameState.world.coaches[newSchool.coachId];
       if (incumbent && !incumbent.isPlayer) {
-        Legacy.closeStint(gameState, incumbent, newSchool, gameState.year);
+        Legacy.closeStint(gameState, incumbent, newSchool, gameState.year, 'fired');
         incumbent.schoolId = null;
         incumbent.hotSeat = 0;
         incumbent.hotSeatYears = 0;
@@ -483,6 +485,10 @@
       }
       coach.role = 'Head';
       gameState.playerRole = 'Head';
+      // Assistant prestige does not transfer 1:1 into a head-coaching
+      // reputation (Phase 13): the converted value reflects the résumé but
+      // is always a step down — first-time head coaches prove themselves.
+      window.XCD.engine.Coaching.convertAssistantPrestige(coach);
       newSchool.coachId = coach.id;
       coach.schoolId = newSchool.id;
       coach.yearsAtSchool = 0;
@@ -513,7 +519,7 @@
     const rng = new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 31 + schoolId.length) >>> 0);
 
     // Your departure opens a real vacancy behind you.
-    Legacy.closeStint(gameState, coach, oldSchool, gameState.year);
+    Legacy.closeStint(gameState, coach, oldSchool, gameState.year, 'left');
     oldSchool.coachId = null;
     oldSchool.coachChangedYear = gameState.year;
     fillVacancy(gameState, oldSchool, rng, 0);
@@ -521,7 +527,7 @@
     // If the new chair somehow still has a sitting coach, they hit the market.
     const incumbent = newSchool.coachId && gameState.world.coaches[newSchool.coachId];
     if (incumbent) {
-      Legacy.closeStint(gameState, incumbent, newSchool, gameState.year);
+      Legacy.closeStint(gameState, incumbent, newSchool, gameState.year, 'fired');
       incumbent.schoolId = null;
       incumbent.hotSeat = 0;
     }
@@ -617,6 +623,82 @@
       .filter((c) => !c.isPlayer && !c.schoolId && c.role === 'Head');
   }
 
+  /* ---------------- Candidate evaluation (Update 16) ---------------- *
+   * Schools rank coaching candidates on merit, and candidates decide by their
+   * own hidden ambition. The player's assistants run through this exact same
+   * machinery — no special protection: if a program judges your coordinator
+   * the best candidate, and their ambition says go, they leave.
+   */
+  function ambitionOf(coach) {
+    return window.XCD.data.coachAmbition(coach && coach.ambition) ||
+      { weightHC: 1, weightLateral: 1, prestigePull: 1, stay: 1 };
+  }
+
+  // How attractive `coach` is to a hiring `school`. Values what athletic
+  // directors actually weigh: recruiting and development ability, career
+  // success, recent team results, experience, and stature-to-job fit. Pass a
+  // prebuilt schoolId→bestRank index to skip rescanning the polls per call.
+  function candidateScore(gameState, coach, school, rankIndex) {
+    const cr = coach.careerRecord || {};
+    const rep = coach.reputation || 15;
+    const total = window.XCD.engine.Coaching.divisionSize(gameState, school.division);
+    let score = rep;
+    score += (coach.recruiting || 55) * 0.18;   // recruiting ability
+    score += (coach.training || 55) * 0.14;     // development ability
+    score += Math.min(24, (cr.nationalTitles || 0) * 8 + (cr.conferenceTitles || 0) * 2); // career success
+    score += Math.min(12, (cr.allAmericans || 0) * 0.5);   // producing national-caliber athletes
+    const recent = rankIndex                                 // recent team success
+      ? (rankIndex[coach.schoolId] && rankIndex[coach.schoolId] < 999 ? rankIndex[coach.schoolId] : null)
+      : bestRankOf(gameState, coach.schoolId);
+    if (recent !== null) {
+      if (recent <= total * 0.05) score += 12;
+      else if (recent <= total * 0.15) score += 7;
+      else if (recent <= total * 0.4) score += 3;
+    }
+    score += Math.min(10, (cr.seasons || 0) * 0.5);         // experience
+    score -= Math.abs(rep - school.prestige * 0.7) * 0.22;  // prestige fit
+    return score;
+  }
+
+  // Does a candidate accept a HEAD-coaching promotion? A head job is a rung up
+  // for almost anyone, but ambition still bends it: a Loyal coach in a good
+  // spot may pass, a Prestige/Money chaser won't run a bottom-tier program
+  // once established, and a Builder relishes a reclamation project.
+  function acceptsHeadJob(coach, fromSchool, toSchool, rng) {
+    const am = ambitionOf(coach);
+    let p = 0.8 * am.weightHC / Math.max(0.5, am.stay);
+    const step = (toSchool.prestige || 40) - (fromSchool ? (fromSchool.prestige || 40) * 0.6 : 22);
+    p += Utils.clamp(step / 120, -0.25, 0.25) * am.prestigePull;
+    if (am.prestigePull >= 1.3 && toSchool.prestige < 45 && (coach.reputation || 20) > 44) p *= 0.4;
+    if (coach.ambition === 'builder' && toSchool.prestige < 58) p += 0.15;
+    return rng.bool(Utils.clamp(p, 0.12, 0.97));
+  }
+
+  // Does a candidate accept a bigger ASSISTANT seat? More discretionary than a
+  // head job — the pull comes from ambition and how much better the program is.
+  function acceptsLateral(coach, fromSchool, toSchool, rng) {
+    const am = ambitionOf(coach);
+    let p = 0.55 * am.weightLateral / Math.max(0.5, am.stay);
+    const step = (toSchool.prestige || 40) - (fromSchool ? (fromSchool.prestige || 40) : 40);
+    p += Utils.clamp(step / 90, 0, 0.3) * am.prestigePull;
+    if (coach.ambition === 'recruiter' && toSchool.prestige >= 72) p += 0.15; // elite recruiting draw
+    return rng.bool(Utils.clamp(p, 0.1, 0.9));
+  }
+
+  // The player just lost their coordinator (Update 16): a major offseason
+  // event. Post the headline, flag it for the dashboard, and leave the seat
+  // OPEN — the player replaces them from the hiring pool.
+  function notePlayerAssistantDeparture(gameState, coach, destSchool, kind) {
+    gameState.assistantDeparture = {
+      year: gameState.year, coachName: coach.fullName,
+      school: destSchool.name, kind
+    };
+    const verb = kind === 'head'
+      ? `accepts the head coaching job at ${destSchool.name}`
+      : `leaves for a bigger assistant post at ${destSchool.name}`;
+    gameState.logNews(`📣 STAFF DEPARTURE: your assistant coach ${coach.fullName} ${verb}. Replace them from the hiring pool on My Program.`);
+  }
+
   /*
    * Fill one vacancy from the market. Chains are real: hiring a sitting
    * coach opens their old chair (depth-limited so the carousel settles).
@@ -645,7 +727,7 @@
       if (targets.length) {
         const from = targets[rng.int(0, Math.min(2, targets.length - 1))];
         const c = gameState.world.coaches[from.coachId];
-        Legacy.closeStint(gameState, c, from, gameState.year);
+        Legacy.closeStint(gameState, c, from, gameState.year, 'left');
         from.coachId = null;
         from.coachChangedYear = gameState.year;
         school.coachId = c.id;
@@ -666,27 +748,39 @@
     //      promotion); otherwise a standout assistant elsewhere earns their
     //      first head job. Their old assistant seat is refilled by the
     //      assistant carousel afterward.
-    if (depth < 2 && rng.bool(0.5)) {
+    if (depth < 2 && rng.bool(0.55)) {
       const readyBar = school.prestige * 0.5 - 8;
       const own = school.assistantId && gameState.world.coaches[school.assistantId];
-      let promo = null, fromSchool = null, internal = false;
+      // The candidate board: the program's own coordinator (a continuity edge)
+      // plus every ready assistant in the country — the player's included, on
+      // exactly equal footing (Update 16). Schools rank on merit.
+      const board = [];
       if (own && !own.isPlayer && (own.reputation || 0) >= readyBar && own.age >= 30) {
-        promo = own; fromSchool = school; internal = true;
-      } else {
-        const cands = Object.values(gameState.world.schools)
-          .filter((s) => s.id !== school.id && s.id !== gameState.playerSchoolId &&
-            s.assistantId && gameState.world.coaches[s.assistantId])
-          .map((s) => ({ s, c: gameState.world.coaches[s.assistantId] }))
-          .filter(({ c }) => !c.isPlayer && (c.reputation || 0) >= readyBar + 4 && c.age >= 30)
-          .sort((a, b) => (b.c.reputation || 0) - (a.c.reputation || 0));
-        if (cands.length && rng.bool(0.7)) { promo = cands[0].c; fromSchool = cands[0].s; }
+        board.push({ c: own, s: school, internal: true, score: candidateScore(gameState, own, school, rankIndex) + 6 });
       }
-      if (promo) {
+      Object.values(gameState.world.schools).forEach((s) => {
+        if (s.id === school.id) return;
+        const c = s.assistantId && gameState.world.coaches[s.assistantId];
+        if (!c || c.isPlayer) return;
+        if ((c.reputation || 0) < readyBar + 4 || c.age < 30) return;
+        board.push({ c, s, internal: false, score: candidateScore(gameState, c, s, rankIndex) });
+      });
+      board.sort((a, b) => b.score - a.score);
+      // Interview the shortlist; the first whose ambition says yes is hired.
+      let pick = null;
+      for (const cand of board.slice(0, 5)) {
+        if (acceptsHeadJob(cand.c, cand.s, school, rng)) { pick = cand; break; }
+      }
+      if (pick) {
+        const promo = pick.c, fromSchool = pick.s, internal = pick.internal;
+        const wasPlayerAsst = fromSchool.id === gameState.playerSchoolId && fromSchool.assistantId === promo.id;
         if (fromSchool.assistantId === promo.id) fromSchool.assistantId = null;
-        Legacy.closeStint(gameState, promo, fromSchool, gameState.year);
+        Legacy.closeStint(gameState, promo, fromSchool, gameState.year, 'promoted');
         // The boss they leave behind earns a branch on the coaching tree.
         Legacy.creditPromotion(gameState, promo, school, gameState.year);
         promo.role = 'Head'; // set before openStint so the program ledger records it
+        // Promotion converts (and reduces) assistant prestige (Phase 13).
+        window.XCD.engine.Coaching.convertAssistantPrestige(promo);
         promo.schoolId = school.id;
         promo.yearsAtSchool = 0;
         promo.hotSeat = 0;
@@ -695,6 +789,7 @@
         Legacy.openStint(gameState, promo, school, gameState.year);
         school.coachChangedYear = gameState.year;
         gameState.logNews(`${school.name} promotes ${promo.fullName} to head coach${internal ? ' from within the staff' : ' — a first big break out of ' + fromSchool.name}.`);
+        if (wasPlayerAsst) notePlayerAssistantDeparture(gameState, promo, school, 'head');
         return promo;
       }
     }
@@ -748,7 +843,7 @@
       // stopping point. Most still coach until 75+.
       const earlyRetire = coach.age >= 66 && rng.bool(Math.min(0.14, (coach.age - 65) * 0.02));
       if (coach.age >= coach.retireAge || earlyRetire) {
-        Legacy.closeStint(gameState, coach, school, gameState.year);
+        Legacy.closeStint(gameState, coach, school, gameState.year, 'retired');
         Legacy.recordRetiredCoach(gameState, coach, 'retired');
         delete gameState.world.coaches[coach.id];
         school.coachId = null;
@@ -785,23 +880,41 @@
   function runAssistantCarousel(gameState, rng) {
     const Legacy = window.XCD.engine.Legacy;
     const WG = window.XCD.engine.WorldGenerator;
+    // A single poll snapshot for candidate scoring (recent team success).
+    const rankIndex = {};
+    if (gameState.rankings) {
+      gameState.rankings.M.forEach((r) => { rankIndex[r.schoolId] = Math.min(rankIndex[r.schoolId] || 999, r.rank); });
+      gameState.rankings.W.forEach((r) => { rankIndex[r.schoolId] = Math.min(rankIndex[r.schoolId] || 999, r.rank); });
+    }
+
+    // Whether the player runs their own staff (a head coach). When they do,
+    // their coordinator is fair game for the carousel — no protection — and a
+    // departure leaves the seat OPEN for the player to fill from the pool.
+    const playerHeadSchoolId = !gameState.isAssistant() ? gameState.playerSchoolId : null;
 
     // 1) Retirements + firings.
     Object.values(gameState.world.schools).forEach((school) => {
       const asst = school.assistantId && gameState.world.coaches[school.assistantId];
       if (!asst || asst.isPlayer) return;
+      const playerAsst = school.id === playerHeadSchoolId;
 
       const earlyRetire = asst.age >= 63 && rng.bool(Math.min(0.12, (asst.age - 62) * 0.02));
       if (asst.age >= (asst.retireAge || 75) || earlyRetire) {
-        Legacy.closeStint(gameState, asst, school, gameState.year);
+        Legacy.closeStint(gameState, asst, school, gameState.year, 'retired');
         Legacy.recordRetiredCoach(gameState, asst, 'retired');
         delete gameState.world.coaches[asst.id];
         school.assistantId = null;
+        if (playerAsst) {
+          gameState.assistantDeparture = { year: gameState.year, coachName: asst.fullName, school: null, kind: 'retired' };
+          gameState.logNews(`📣 STAFF DEPARTURE: your assistant coach ${asst.fullName} retires after ${asst.careerRecord.seasons || 'many'} seasons. Hire a replacement from the pool on My Program.`);
+        }
         return;
       }
-      // Programs churn staff: a weak, stagnating assistant is occasionally let go.
-      if ((asst.reputation || 0) < 18 && asst.age >= 34 && rng.bool(0.12)) {
-        Legacy.closeStint(gameState, asst, school, gameState.year);
+      // Programs churn staff: a weak, stagnating assistant is occasionally let
+      // go. The player makes their own firing calls, so never auto-fire theirs.
+      if (!playerAsst && (asst.reputation || 0) < 18 && asst.age >= 34 && rng.bool(0.12)) {
+        Legacy.closeStint(gameState, asst, school, gameState.year, 'released');
+        Legacy.recordRetiredCoach(gameState, asst, 'released'); // history keeps every career (Phase 3)
         delete gameState.world.coaches[asst.id]; // assistants don't pool as free agents
         school.assistantId = null;
       }
@@ -809,33 +922,49 @@
 
     // 2) Upward lateral moves: a standout assistant fills an open assistant
     //    seat at a bigger program, leaving their old seat to be regenerated.
+    //    The player's coordinator is a candidate like any other (Update 16) —
+    //    if a bigger program judges them the best fit and their ambition says
+    //    go, they leave, and the player must replace them.
     Object.values(gameState.world.schools)
       .filter((s) => (!s.assistantId || !gameState.world.coaches[s.assistantId]) && s.prestige >= 55)
       .sort((a, b) => b.prestige - a.prestige)
       .forEach((school) => {
         if (school.assistantId && gameState.world.coaches[school.assistantId]) return;
-        if (school.id === gameState.playerSchoolId) return; // never move the player's staff out from under them
+        if (school.id === gameState.playerSchoolId) return; // the player fills their OWN opening manually
         if (!rng.bool(0.5)) return;
         const cands = Object.values(gameState.world.schools)
-          .filter((s) => s.id !== gameState.playerSchoolId && s.prestige < school.prestige - 8 &&
+          .filter((s) => s.prestige < school.prestige - 8 &&
             s.assistantId && gameState.world.coaches[s.assistantId])
           .map((s) => ({ s, c: gameState.world.coaches[s.assistantId] }))
           .filter(({ c }) => !c.isPlayer && (c.reputation || 0) >= school.prestige * 0.4)
-          .sort((a, b) => (b.c.reputation || 0) - (a.c.reputation || 0));
+          .map((x) => ({ ...x, score: candidateScore(gameState, x.c, school, rankIndex) }))
+          .sort((a, b) => b.score - a.score);
         if (!cands.length) return;
-        const { s: from, c } = cands[0];
+        // Court the shortlist; the first whose ambition says yes takes it.
+        let choice = null;
+        for (const cand of cands.slice(0, 4)) {
+          if (acceptsLateral(cand.c, cand.s, school, rng)) { choice = cand; break; }
+        }
+        if (!choice) return;
+        const from = choice.s, c = choice.c;
+        const wasPlayerAsst = from.id === playerHeadSchoolId;
         from.assistantId = null;
-        Legacy.closeStint(gameState, c, from, gameState.year);
+        Legacy.closeStint(gameState, c, from, gameState.year, 'left');
         c.schoolId = school.id;
         c.yearsAtSchool = 0;
         school.assistantId = c.id;
         Legacy.openStint(gameState, c, school, gameState.year);
         gameState.logNews(`${c.fullName} lands a bigger assistant job at ${school.name}, leaving ${from.name}.`);
+        if (wasPlayerAsst) notePlayerAssistantDeparture(gameState, c, school, 'lateral');
       });
 
-    // 3) Regenerate: every program must have an assistant coach.
+    // 3) Regenerate: every program must have an assistant coach — except the
+    //    player's own program when they're a head coach. A vacancy there is a
+    //    strategic decision for the player to resolve from the hiring pool, so
+    //    it stays open rather than auto-filling with a generic name (Update 16).
     Object.values(gameState.world.schools).forEach((school) => {
       if (school.assistantId && gameState.world.coaches[school.assistantId]) return;
+      if (school.id === playerHeadSchoolId) return; // the player hires their own replacement
       const asst = WG.buildAssistant(rng, school);
       asst.age = rng.int(25, 40); // new assistants enter the profession young
       asst.reputation = Utils.clamp(asst.reputation || 12, 3, 28);
@@ -884,7 +1013,7 @@
 
     // 1) The retirement: career sealed into the permanent registry, and into
     //    the dynasty's own lineage ledger (viewable forever on My Career).
-    Legacy.closeStint(gameState, old, oldSchool, year);
+    Legacy.closeStint(gameState, old, oldSchool, year, 'retired');
     Legacy.recordRetiredCoach(gameState, old, 'retired');
     const registryEntry = gameState.history.coachRegistry[gameState.history.coachRegistry.length - 1];
     gameState.history.playerCareers = gameState.history.playerCareers || [];
@@ -913,7 +1042,7 @@
     if (!isAssistant) {
       const incumbent = newSchool.coachId && gameState.world.coaches[newSchool.coachId];
       if (incumbent) {
-        Legacy.closeStint(gameState, incumbent, newSchool, year);
+        Legacy.closeStint(gameState, incumbent, newSchool, year, 'fired');
         incumbent.schoolId = null;
         incumbent.hotSeat = 0;
         incumbent.hotSeatYears = 0;
@@ -924,7 +1053,8 @@
     } else {
       const asst = newSchool.assistantId && gameState.world.coaches[newSchool.assistantId];
       if (asst && !asst.isPlayer) {
-        Legacy.closeStint(gameState, asst, newSchool, year);
+        Legacy.closeStint(gameState, asst, newSchool, year, 'released');
+        Legacy.recordRetiredCoach(gameState, asst, 'released'); // history keeps every career (Phase 3)
         delete gameState.world.coaches[asst.id];
       }
       newSchool.assistantId = null;
@@ -982,6 +1112,22 @@
       gameState.world.coaches[asst.id] = asst;
       newSchool.assistantId = asst.id;
     }
+
+    // The head-coaching carousel above can promote an assistant out of another
+    // program to fill a vacancy; make sure no school is left without a
+    // coordinator once the dust settles, so a succession never leaves the world
+    // short-staffed (the assistant carousel would otherwise backfill later).
+    Object.values(gameState.world.schools).forEach((s) => {
+      if (s.assistantId && gameState.world.coaches[s.assistantId]) return;
+      const a = WG.buildAssistant(rng, s);
+      a.age = rng.int(25, 42);
+      a.reputation = Utils.clamp(a.reputation || 12, 3, 30);
+      a.yearsAtSchool = 0;
+      if (a.careerRecord) a.careerRecord.seasons = 0;
+      a.stints = [{ schoolId: s.id, school: s.name, division: s.division || 'DI', startYear: year, endYear: null }];
+      gameState.world.coaches[a.id] = a;
+      s.assistantId = a.id;
+    });
 
     // 4) A fresh personal ledger — the dynasty's history is untouched.
     gameState.career = {

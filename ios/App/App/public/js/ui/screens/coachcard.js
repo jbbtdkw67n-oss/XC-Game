@@ -118,66 +118,84 @@
       </div>
 
       ${(() => {
-        // Career Accolades (Update 12): the coach's full trophy ledger,
-        // organized like the athlete profile — National, Regional, and
-        // Conference honors in their own sections, chronological within
-        // each. Team championships are reconstructed from history by
-        // matching the coach's stints to each season's champions (national
-        // titles match by team id; regional/conference titles match by the
+        // Organized Career Accolades (History & Legacy update, Phase 9):
+        // every accomplishment CATEGORY is grouped together with its years
+        // listed chronologically — "D1 National Championships: 2028 · 2030",
+        // "National Coach of the Year: 2026 · 2027 · 2028" — instead of one
+        // long chronological list. Team championships are reconstructed from
+        // history by matching the coach's stints to each season's champions
+        // (national titles by team id; regional/conference titles by the
         // program's name that season, realignment-safe); Coach-of-the-Year
         // awards come from the permanent coach accolade ledger.
         const H = game ? (game.history || {}) : {};
         const short = { DI: 'D1', DII: 'D2', DIII: 'D3' };
-        const groups = [
-          { label: 'National', rows: [] },
-          { label: 'Regional', rows: [] },
-          { label: 'Conference', rows: [] }
-        ];
+        // section: 0 National · 1 Regional · 2 Conference. Categories keep
+        // insertion order within their section.
+        const cats = new Map(); // key -> { section, icon, label, entries: [{year, ctx}] }
+        const add = (section, key, icon, label, year, ctx) => {
+          if (!cats.has(key)) cats.set(key, { section, icon, label, entries: [] });
+          cats.get(key).entries.push({ year, ctx: ctx || '' });
+        };
         if (game && stints.length) {
           const nowYear = game.year;
           stints.forEach((st) => {
             const end = st.endYear || nowYear;
+            const div = st.division || 'DI';
             for (let y = st.startYear; y <= end; y++) {
               const nat = (H.nationalChampions || {})[y] || {};
               ['M', 'W'].forEach((g) => {
-                const key = (st.division || 'DI') === 'DI' ? g : `${st.division}-${g}`;
+                const key = div === 'DI' ? g : `${div}-${g}`;
                 if (nat[key] && nat[key].teamId === st.schoolId) {
-                  groups[0].rows.push({ year: y, html: `🏆 ${y} NCAA ${short[st.division || 'DI'] || ''} Team National Champions (${g === 'M' ? "Men's" : "Women's"})` });
+                  add(0, `nat-${div}`, '🏆', `${short[div] || div} National Championships`, y, g);
                 }
               });
               Object.entries((H.regionalChampions || {})[y] || {}).forEach(([rkey, name]) => {
                 if (name !== st.school) return;
-                const g = rkey.endsWith('-M') ? 'M' : 'W';
-                groups[1].rows.push({ year: y, html: `🗺 ${y} ${Utils.escapeHtml(rkey.slice(0, -2))} Regional Champions (${g === 'M' ? "Men's" : "Women's"})` });
+                add(1, 'reg', '🗺', 'Regional Championships', y, `${rkey.slice(0, -2)}, ${rkey.endsWith('-M') ? 'M' : 'W'}`);
               });
               Object.entries((H.conferenceChampions || {})[y] || {}).forEach(([ckey, name]) => {
                 if (name !== st.school) return;
-                const g = ckey.endsWith('-M') ? 'M' : 'W';
-                groups[2].rows.push({ year: y, html: `🥇 ${y} ${Utils.escapeHtml(ckey.slice(0, -2))} Champions (${g === 'M' ? "Men's" : "Women's"})` });
+                add(2, 'conf', '🥇', 'Conference Championships', y, `${ckey.slice(0, -2)}, ${ckey.endsWith('-M') ? 'M' : 'W'}`);
               });
             }
           });
         }
         const Legacy = window.XCD.engine.Legacy;
         (Legacy ? Legacy.coachAccoladesFor(coach) : []).forEach((a) => {
-          const row = {
-            year: a.year,
-            html: `🏅 ${a.year} ${a.conference ? Utils.escapeHtml(a.conference) : (short[a.division] || a.division || '')} ${Utils.escapeHtml(a.label)}`
-          };
-          (a.conference ? groups[2] : groups[0]).rows.push(row);
+          if (a.type === 'natCOY') {
+            add(0, 'natCOY', '🏅', 'National Coach of the Year', a.year, short[a.division] || a.division || '');
+          } else if (a.type === 'confCOY') {
+            add(2, 'confCOY', '🏅', 'Conference Coach of the Year', a.year, a.conference || '');
+          } else {
+            add(a.conference ? 2 : 0, `x-${a.type}`, '🏅', a.label || a.type, a.year, a.conference || short[a.division] || '');
+          }
         });
-        const total = groups.reduce((s, gp) => s + gp.rows.length, 0);
+        const total = [...cats.values()].reduce((s, c) => s + c.entries.length, 0);
         if (!total) return '';
-        groups.forEach((gp) => gp.rows.sort((x, y) => x.year - y.year));
+        const sectionNames = ['National', 'Regional', 'Conference'];
+        const yearTag = (e) => e.ctx
+          ? `${e.year}&nbsp;<span style="color:var(--text-faint);">(${Utils.escapeHtml(e.ctx)})</span>`
+          : `${e.year}`;
+        const catRow = (c) => {
+          c.entries.sort((x, y) => x.year - y.year);
+          return `<div class="attr-row" style="padding:4px 0; align-items:flex-start; gap:12px;">
+            <span style="flex:0 1 auto;">${c.icon} <strong>${Utils.escapeHtml(c.label)}</strong>${c.entries.length > 1 ? ` <span style="color:var(--text-faint); font-size:11.5px;">×${c.entries.length}</span>` : ''}</span>
+            <span style="text-align:right; color:var(--text-dim); font-size:12.5px; flex:1; min-width:0; overflow-wrap:anywhere;">${c.entries.map(yearTag).join(' · ')}</span>
+          </div>`;
+        };
         return `
         <div class="card" style="padding:12px; margin-bottom:14px;">
           <h3>Career Accolades — ${total}</h3>
-          <div style="max-height:260px; overflow-y:auto;">
-            ${groups.filter((gp) => gp.rows.length).map((gp) => `
-              <div style="margin-bottom:6px;">
-                <div style="font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-faint); margin:4px 0;">${gp.label} — ${gp.rows.length}</div>
-                ${gp.rows.map((r) => `<div class="attr-row" style="padding:4px 0;"><span>${r.html}</span></div>`).join('')}
-              </div>`).join('')}
+          <div style="max-height:280px; overflow-y:auto;">
+            ${sectionNames.map((name, si) => {
+              const list = [...cats.values()].filter((c) => c.section === si);
+              if (!list.length) return '';
+              const n = list.reduce((s, c) => s + c.entries.length, 0);
+              return `<div style="margin-bottom:6px;">
+                <div style="font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-faint); margin:4px 0;">${name} — ${n}</div>
+                ${list.map(catRow).join('')}
+              </div>`;
+            }).join('')}
           </div>
         </div>`;
       })()}

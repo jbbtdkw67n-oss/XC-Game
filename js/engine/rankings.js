@@ -108,7 +108,7 @@
           ? Utils.average(results) * 60
           : strength * 0.55; // preseason: strength carries the poll
         const score = strength * 0.55 + resultScore * 0.45;
-        return { schoolId: school.id, name: school.name, conference: school.conference, region: school.region, division: school.division || 'DI', score: Math.round(score * 10) / 10 };
+        return { schoolId: school.id, name: school.name, conference: school.conference, region: school.region, ncaaRegion: window.XCD.data.ncaaRegionFor(school), division: school.division || 'DI', score: Math.round(score * 10) / 10 };
       });
 
       // Rank is WITHIN a division (Update 3): each division runs its own

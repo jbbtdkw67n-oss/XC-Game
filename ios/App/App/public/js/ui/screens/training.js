@@ -289,11 +289,17 @@
         const taper = miles <= avgChronic - 15;
         const fragile = roster.filter((a) => !a.injury && miles > TE().safeMileage(a) &&
           game.training.mileageOverrides[a.id] === undefined).length;
+        // Gendered volume bands (mileage rebalance): men typically absorb
+        // 65-90 mpw, women 50-75 — the hint's thresholds shift accordingly.
+        const women = activeGender === 'W';
+        const heavyAt = women ? 85 : 95;
+        const strongAt = women ? 66 : 78;
+        const lowAt = women ? 44 : 50;
         let msg;
         if (taper) msg = `📉 TAPER: ${miles} mi vs ~${avgChronic} mi chronic load — fatigue sheds, sharpness spikes. Time it for championships; hold it too long and fitness fades.`;
-        else if (miles >= 95) msg = `🔥 Heavy volume: maximum aerobic development, but fatigue and injury risk climb — only durable athletes survive ${miles} miles.`;
-        else if (miles >= 78) msg = `Strong aerobic block: real Stamina/Threshold gains at a manageable cost.`;
-        else if (miles <= 50) msg = `⚡ Low volume: fresh and sharp with better speed work — but endurance and long-term fitness will stagnate.`;
+        else if (miles >= heavyAt) msg = `🔥 Heavy volume: maximum aerobic development, but fatigue and injury risk climb — only ${women ? 'exceptionally durable women survive weeks this big (the ceiling sits below the men\'s)' : `durable athletes survive ${miles} miles`}.`;
+        else if (miles >= strongAt) msg = `Strong aerobic block: real Stamina/Threshold gains at a manageable cost.`;
+        else if (miles <= lowAt) msg = `⚡ Low volume: fresh and sharp with better speed work — but endurance and long-term fitness will stagnate.`;
         else msg = `Moderate volume: balanced development and recovery.`;
         if (fragile > 0) msg += ` <span style="color:var(--danger);">⚠ ${fragile} runner${fragile > 1 ? 's' : ''} above their durable limit.</span>`;
         hint.innerHTML = msg;

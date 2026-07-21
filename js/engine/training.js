@@ -526,8 +526,21 @@
     const academicStress = athlete.academics < 45 ? 0.85 : 1.0;
     const noise = 0.75 + rng.next() * 0.5;
 
+    // Altitude training (Realism Update): programs at elevation build bigger
+    // aerobic engines over a career — a small, compounding fitness edge — but
+    // incoming athletes pay a real adaptation cost their first season on
+    // campus before the thin-air gains kick in. Low-altitude programs see none
+    // of this. (Race day adds a separate live-high / race-low advantage.)
+    const alt = (school.weather && school.weather.altitude) || 'Low';
+    let altitudeFactor = 1.0;
+    if (alt === 'High' || alt === 'Medium') {
+      const firstYear = (athlete.yearsOnCampus || 1) <= 1;
+      if (firstYear) altitudeFactor = 0.95;                       // hard to adapt at first
+      else altitudeFactor = alt === 'High' ? 1.07 : 1.035;         // then the engine grows
+    }
+
     return 3.4 * planMeta.devMult * gapFactor * coachFactor * facFactor * makeupFactor *
-      moraleFactor * fatiguePenalty * ageFactor * academicStress *
+      moraleFactor * fatiguePenalty * ageFactor * academicStress * altitudeFactor *
       devProfileMult(athlete) * careerInjuryDevMult(athlete) * noise;
   }
 

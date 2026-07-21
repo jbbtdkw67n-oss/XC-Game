@@ -182,16 +182,18 @@
       // Real hometowns abroad (Update 12): a Kenyan recruit is from Iten or
       // Eldoret, a Norwegian from Bergen — not a procedural American town.
       const pool = D.namesFor(country);
-      const city = pool.cities ? rng.choice(pool.cities) : `${rng.choice(D.TOWN_ROOTS)}${rng.choice(D.TOWN_SUFFIXES)}`;
+      const city = pool.cities ? rng.choice(pool.cities)
+        : rng.choice(D.REAL_TOWNS[rng.choice(Object.keys(D.REAL_TOWNS))]);
       hometown = { city, state: 'INT', region: 'International' };
     } else {
-      const states = Object.keys(D.STATE_REGION);
-      const state = rng.choice(states);
-      hometown = {
-        city: `${rng.choice(D.TOWN_ROOTS)}${rng.choice(D.TOWN_SUFFIXES)}`,
-        state,
-        region: D.STATE_REGION[state]
-      };
+      // Real hometowns across the country (Realism Update): every recruit is
+      // from an authentic U.S. town — small towns, mid-size cities, and big
+      // metros — weighted toward more populous states so the national talent
+      // map feels real.
+      const states = Object.keys(D.REAL_TOWNS);
+      const state = rng.weightedChoice(states, (s) => (D.REAL_TOWNS[s] || []).length);
+      const towns = D.REAL_TOWNS[state] || D.REAL_TOWNS.OH;
+      hometown = { city: rng.choice(towns), state, region: D.STATE_REGION[state] };
     }
 
     // 'assigned' motivations (small-school) are never rolled randomly — they

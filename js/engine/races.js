@@ -64,20 +64,37 @@
       const div = s.division || 'DI';
       (byDivisionAll[div] = byDivisionAll[div] || []).push(id);
     });
+    // NCAA Championships are hosted only at REAL venues that have actually held
+    // the meet (Authentic Championship Venues): each division draws from the
+    // real course rotation, so a national title is always won somewhere like
+    // the Zimmer Course (Madison) or Apalachee Regional Park (Tallahassee).
+    const nationalsVenues = {};
     const nationalsHosts = {};
     Object.entries(byDivisionAll).forEach(([division, divIds]) => {
-      nationalsHosts[division] = rng.choice(divIds);
+      const venue = D.championshipVenue(gameState.year, division);
+      nationalsVenues[division] = venue;
+      // Keep a real in-division host for realistic race-day weather, preferring
+      // a program in the venue's own state; the venue itself drives the course.
+      const inState = venue ? divIds.filter((id) => gameState.getSchool(id).state === venue.state) : [];
+      nationalsHosts[division] = inState.length ? rng.choice(inState) : rng.choice(divIds);
     });
-    // The course profile for the DI Championship (hills, altitude) — mirrored
-    // by Pre-Nationals so competing teams preview the terrain.
+    const venueCourseMeta = (v) => v ? {
+      city: v.city, state: v.state, course: v.name,
+      altitudeFt: v.altitudeFt, hilliness: v.hilliness, prestige: 'Elite'
+    } : undefined;
+    // The DI Championship course profile (hills, altitude) — mirrored by
+    // Pre-Nationals so competing teams preview the real terrain.
+    const diVenue = nationalsVenues.DI;
     const diHost = gameState.getSchool(nationalsHosts.DI || byDivisionAll.DI?.[0]);
     const diCourse = diHost ? {
       hostId: diHost.id,
-      hilliness: rng.int(30, 80),
-      altitude: diHost.weather.altitude,
-      tempBase: diHost.weather.tempBase
+      hilliness: diVenue ? diVenue.hilliness : rng.int(30, 80),
+      altitude: diVenue ? D.altitudeCategory(diVenue.altitudeFt) : diHost.weather.altitude,
+      tempBase: diHost.weather.tempBase,
+      courseMeta: venueCourseMeta(diVenue)
     } : null;
     season.nationalsHosts = nationalsHosts;
+    season.nationalsVenues = nationalsVenues;
     season.diCourse = diCourse;
 
     // Groups a set of schools into ~20-team invitationals for one week.
@@ -254,17 +271,19 @@
         if (ids.includes(gameState.playerSchoolId)) season.playerMeetByWeek[CONFERENCE_WEEK] = meet.id;
       });
 
-      // Regionals
+      // Regionals (Balanced NCAA Regionals): teams group into the real NCAA
+      // championship regions for their division — 9 for DI, 8 for DII/DIII — so
+      // every regional carries a comparable, geographically-authentic field.
       const byRegion = {};
       divIds.forEach((id) => {
-        const s = gameState.getSchool(id);
-        (byRegion[s.region] = byRegion[s.region] || []).push(id);
+        const region = D.ncaaRegionFor(gameState.getSchool(id));
+        (byRegion[region] = byRegion[region] || []).push(id);
       });
       Object.entries(byRegion).forEach(([region, ids]) => {
         const host = gameState.getSchool(rng.choice(ids));
         const meet = buildMeet(gameState, rng, {
           week: REGIONAL_WEEK,
-          name: `${division !== 'DI' ? division + ' ' : ''}${region} Regional`,
+          name: `NCAA ${division !== 'DI' ? D.DIVISION_SHORT[division] + ' ' : ''}${region} Regional`,
           hostId: host.id,
           schoolIds: ids,
           type: 'regional',
@@ -279,13 +298,16 @@
       // Nationals shell (field determined after regionals). Host was
       // pre-picked so Pre-Nationals could preview the DI course.
       const natHost = gameState.getSchool(nationalsHosts[division] || rng.choice(divIds));
+      const natVenue = nationalsVenues[division];
       const natMeet = buildMeet(gameState, rng, {
         week: NATIONAL_WEEK,
         name: `NCAA ${divRules.label !== 'Division I' ? divRules.label + ' ' : ''}Championships`,
         hostId: natHost.id,
         schoolIds: [], // filled post-regionals per gender
         type: 'national',
-        division
+        division,
+        courseMeta: venueCourseMeta(natVenue), // authentic championship course
+        venue: natVenue ? natVenue.name : null
       });
       season.meets[natMeet.id] = natMeet;
       season.byWeek[NATIONAL_WEEK].push(natMeet.id);
@@ -394,6 +416,7 @@
       preNationals: true,
       distances: { M: 8000, W: 6000 }, // Pre-Nationals runs the 8K (men) / 6K (women)
       conditions,
+      courseMeta: diCourse ? diCourse.courseMeta : undefined, // the real DI championship course
       results: { M: null, W: null }
     };
     season.meets[meet.id] = meet;
@@ -1237,16 +1260,47 @@
         .filter((m) => m && (m.division || 'DI') === division);
 
       ['M', 'W'].forEach((gender) => {
+        // Automatic qualifiers: the top N teams from every regional (real NCAA
+        // structure — top 2 per region in all three divisions).
         const auto = [];
+        const regionalPlace = {};
         regionalMeets.forEach((meet) => {
           const res = meet.results[gender];
-          if (res) res.teamScores.slice(0, rules.autoQualifiersPerRegional).forEach((t) => auto.push(t.schoolId));
+          if (!res) return;
+          res.teamScores.slice(0, rules.autoQualifiersPerRegional).forEach((t) => auto.push(t.schoolId));
+          res.teamScores.forEach((t) => { regionalPlace[t.schoolId] = t.place; });
         });
-        // At-larges come from the division's own poll order.
+        const autoSet = new Set(auto);
+
+        // At-large selections: the committee weighs season performance AND
+        // championship results. Teams that missed the auto cut are ranked by
+        // their national poll standing blended with how they placed at their
+        // own regional — a strong regional finish (just missing the auto bids)
+        // is a core NCAA at-large criterion.
+        const rankIndex = {};
+        (rankings[gender] || []).forEach((r) => {
+          if (((gameState.getSchool(r.schoolId) || {}).division || 'DI') === division) {
+            rankIndex[r.schoolId] = r.rank || 999;
+          }
+        });
         const ranked = (rankings[gender] || [])
           .filter((r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DI') === division)
           .map((r) => r.schoolId);
+        const atLarge = Object.keys(regionalPlace)
+          .filter((sid) => !autoSet.has(sid))
+          .map((sid) => {
+            const pollScore = rankIndex[sid] ? Math.max(0, 100 - rankIndex[sid]) : 0;
+            const regionScore = Math.max(0, 12 - (regionalPlace[sid] || 12));
+            return { sid, score: pollScore + regionScore * 2.2 };
+          })
+          .sort((a, b) => b.score - a.score);
+
         const field = [...auto];
+        for (const c of atLarge) {
+          if (field.length >= rules.nationalsFieldSize) break;
+          if (!field.includes(c.sid)) field.push(c.sid);
+        }
+        // Safety top-off (tiny/custom divisions): fill any remainder from poll.
         for (const sid of ranked) {
           if (field.length >= rules.nationalsFieldSize) break;
           if (!field.includes(sid)) field.push(sid);

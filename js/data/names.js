@@ -35,18 +35,10 @@
     'Okafor','Kimani','Mensah','Adebayo','Kariuki','Osei','Boateng','Wanjiru','Kiprop','Cheruiyot'
   ];
 
-  // Procedural hometown generation: combine a root with a suffix to create
-  // plausible American town names, then pair with a real US state.
-  D.TOWN_ROOTS = [
-    'Spring','Oak','River','Maple','Pine','Cedar','Elm','Lake','Hill','Ash',
-    'Birch','Meadow','Stone','Green','Fair','Clear','Silver','Golden','North','South',
-    'East','West','Union','Franklin','Frank','Madison','Jefferson','Lincoln','Bristol','Chester',
-    'Auburn','Sunset','Sunny','Ridge','Valley','Willow','Cherry','Walnut','Crystal','Windsor'
-  ];
-  D.TOWN_SUFFIXES = [
-    'field','wood','ton','ville','burg','dale','port','view','haven','brook',
-    'land','side','town','ford','grove','falls','crest','park','shire','mont'
-  ];
+  // Hometowns are REAL places (Realism Update). Athlete and recruit origins
+  // are drawn from D.REAL_TOWNS (js/data/geography.js) — authentic towns for
+  // every state — so no procedurally-assembled fictional town appears anywhere
+  // in the game. The old TOWN_ROOTS/TOWN_SUFFIXES generators were removed.
 
   /* ---------------- Origin-realistic name pools (Update 12) ----------
    * International athletes carry names true to where they're from —

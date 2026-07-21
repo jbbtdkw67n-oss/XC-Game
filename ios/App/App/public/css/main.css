@@ -1231,6 +1231,35 @@ details.filter-collapse .filter-body {
   font-size: 12.5px;
 }
 
+/* =========================================================
+   History & Legacy update — Phase 1: iPhone compatibility audit.
+   Hardening for the archive-heavy screens: nothing may overflow
+   the viewport sideways, long history text wraps instead of
+   clipping, and profile/record rows stay readable at 375px.
+   ========================================================= */
+
+/* Media can never force a horizontal scroll. */
+img, canvas, video { max-width: 100%; height: auto; }
+
+/* Long names, accolade year-lists, and timeline text wrap cleanly. */
+.attr-row > span { min-width: 0; }
+.card h2, .card h3, .attr-row, .stat-tile .sub { overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  /* Profile headers (players, coaches, legends) stack instead of clipping. */
+  .player-card-header { flex-wrap: wrap; }
+  .player-card-header .who { flex: 1 1 200px; }
+
+  /* Record rows with holders wrap value under the label when cramped. */
+  .attr-row { flex-wrap: wrap; }
+
+  /* Archive tables always scroll inside their own box, with momentum. */
+  .table-wrap { -webkit-overflow-scrolling: touch; }
+
+  /* Roomy tap targets on details/summary archives (conference lists). */
+  details > summary { min-height: 32px; }
+}
+
 /* One-time tip banners (first season only) */
 .tip-banner {
   display: flex;

@@ -107,8 +107,12 @@
       let rows = R[activeGender].filter((r) => (r.division || 'DI') === playerDiv);
       let heading = `${divLabel} National Poll`;
       if (activeTab === 'region') {
-        rows = rows.filter((r) => r.region === school.region);
-        heading = `${divLabel} · ${school.region} Regional Rankings`;
+        // Regional rankings follow the real NCAA championship region (matches
+        // who you actually race at Regionals), falling back to the broad region
+        // for any poll computed before this update.
+        const myRegion = window.XCD.data.ncaaRegionFor(school);
+        rows = rows.filter((r) => (r.ncaaRegion || r.region) === myRegion);
+        heading = `${divLabel} · ${myRegion} Regional Rankings`;
       } else if (activeTab === 'conference') {
         rows = rows.filter((r) => r.conference === school.conference);
         heading = `${school.conference} Standings`;
@@ -126,7 +130,7 @@
                 <td>${arrow(r)}</td>
                 <td><strong>${Utils.escapeHtml(r.name)}</strong>${UI.isMobile() ? `<div style="font-size:11px; color:var(--text-faint); font-weight:400;">${Utils.escapeHtml(r.conference)}</div>` : ''}</td>
                 <td class="hide-mobile">${Utils.escapeHtml(r.conference)}</td>
-                <td class="hide-mobile">${Utils.escapeHtml(r.region)}</td>
+                <td class="hide-mobile">${Utils.escapeHtml(r.ncaaRegion || r.region)}</td>
                 <td class="num">${r.score}</td>
               </tr>`).join('')}
           </tbody>

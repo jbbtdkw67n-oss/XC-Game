@@ -44,24 +44,37 @@
    * from it, and the prestige engine uses `heritage` as slow-decaying gravity).
    */
   D.PRESTIGE_SEEDS = {
-    // Division I blue bloods of distance running
-    'Northern Arizona': 96, 'Oklahoma State': 92, 'BYU': 92, 'Stanford': 90,
-    'Oregon': 90, 'Colorado': 90, 'Washington': 86, 'Wisconsin': 85,
-    'Arkansas': 86, 'Notre Dame': 84, 'Syracuse': 83, 'Iowa State': 83,
-    'New Mexico': 82, 'Providence': 81, 'Michigan': 82, 'Georgetown': 81,
-    'Portland': 80, 'Villanova': 82, 'North Carolina State': 80, 'NC State': 80,
-    'Alabama': 80, 'Texas': 79, 'Ole Miss': 80, 'Furman': 78,
-    // Division II powers
-    'Adams State': 63, 'Colorado Mines': 62, 'Grand Valley State': 62,
+    // ---- Division I ----
+    // Elite blue bloods of distance running (top of the sport).
+    'Northern Arizona': 96, 'BYU': 92, 'Oklahoma State': 91, 'Stanford': 90,
+    'Oregon': 90, 'Arkansas': 90, 'Colorado': 89,
+    // Strong national programs (perennial contenders / recent podiums).
+    'Wisconsin': 87, 'Iowa State': 86, 'Washington': 85, 'Syracuse': 84,
+    'Notre Dame': 84, 'NC State': 84, 'North Carolina State': 84,
+    'New Mexico': 83, 'Villanova': 83, 'Michigan': 83, 'Iona': 82,
+    'Providence': 82, 'Georgetown': 82, 'Portland': 81, 'Alabama': 81,
+    'Ole Miss': 80, 'Texas': 80, 'Furman': 80,
+    // Solid, established programs (regular NCAA qualifiers).
+    'Florida State': 78, 'Colorado State': 77, 'Michigan State': 77,
+    'Minnesota': 76, 'Air Force': 76, 'Tulsa': 76, 'Butler': 75, 'Princeton': 75,
+    'Indiana': 74, 'Harvard': 74, 'Cornell': 74, 'Tennessee': 74, 'Texas A&M': 74,
+    'Wake Forest': 73, 'Boston College': 73, 'Columbia': 73, 'Boise State': 73,
+    'Montana State': 73, 'Eastern Kentucky': 73, 'California': 73, 'Duke': 72,
+    'Oklahoma': 72, 'Utah State': 72, 'Weber State': 72, 'Southern Utah': 72,
+    'Northern Colorado': 72, 'Gonzaga': 71, 'Yale': 71, 'Penn': 71, 'Dartmouth': 71,
+    'Mississippi State': 71, 'Wyoming': 70, 'Utah': 74, 'Arizona': 72, 'Arizona State': 73,
+    // ---- Division II powers ----
+    'Adams State': 64, 'Colorado Mines': 62, 'Grand Valley State': 62,
     'Western Colorado': 58, 'Chico State': 57, 'Augustana (SD)': 56,
-    'Colorado Christian': 55, 'Simon Fraser': 55, 'U-Mary': 55,
-    'Grand Canyon': 54, 'Cal Poly Pomona': 53,
-    // Division III powers
-    'North Central (IL)': 53, 'UW-La Crosse': 52, 'UW-Oshkosh': 51,
+    'Western Washington': 56, 'Colorado Christian': 55, 'Simon Fraser': 55,
+    'U-Mary': 55, 'Grand Canyon': 54, 'Cal Poly Pomona': 53, 'Pittsburg State': 52,
+    'Minnesota State': 52, 'Western Oregon': 51, 'Alaska Anchorage': 51,
+    // ---- Division III powers ----
+    'North Central (IL)': 54, 'UW-La Crosse': 53, 'UW-Oshkosh': 51,
     'Williams': 51, 'MIT': 50, 'Carleton': 50, 'Johns Hopkins': 50,
     'Washington U. (MO)': 50, 'Middlebury': 49, 'Wheaton (IL)': 49,
     'Calvin': 49, 'St. Olaf': 48, 'Amherst': 48, 'Pomona': 48,
-    'Haverford': 47, 'RPI': 46
+    'Haverford': 47, 'RPI': 46, 'Wartburg': 50, 'Nebraska Wesleyan': 46
   };
 
   D.CLASS_YEARS = ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate'];
@@ -78,6 +91,30 @@
     { key: 'Tactician',     rating: 'peaking',    icon: '🎯', desc: 'Built for November. Starts with bonus Peaking — athletes hit championship fitness at Conference, Regionals, and Nationals.' },
     { key: 'Players Coach', rating: 'culture',    icon: '🤝', desc: 'Runs the best locker room in the country. Starts with bonus Culture — happier athletes, better chemistry, fewer transfers.' }
   ];
+
+  /*
+   * Coach ambitions (Update 16) — a coach's HIDDEN career motivation, seeded
+   * at birth and carried for life. Separate from the public archetype, it
+   * shapes when and where a coach moves on the carousel: a Career Builder
+   * jumps at the first head job, a Loyal grinder stays put, a Prestige Chaser
+   * holds out for a blue blood. It governs the player's own hired assistants
+   * exactly as it does every CPU coach, so losing a Career Builder to a head
+   * job (and keeping a Loyal one for a decade) both feel earned.
+   *
+   *  weightHC      — pull toward accepting a HEAD-coaching promotion (1 = base)
+   *  weightLateral — pull toward a bigger ASSISTANT seat (1 = base)
+   *  prestigePull  — how much destination prestige sways the decision
+   *  stay          — inertia: how strongly they resist leaving at all
+   */
+  D.COACH_AMBITIONS = [
+    { key: 'careerBuilder', label: 'Career Builder', icon: '🚀', hint: 'Chases head-coaching jobs the moment they come.', weightHC: 1.7, weightLateral: 1.15, prestigePull: 0.6, stay: 0.7 },
+    { key: 'loyal',         label: 'Loyal',          icon: '🤝', hint: 'Values stability — slow to leave a good situation.',   weightHC: 0.6, weightLateral: 0.55, prestigePull: 0.5, stay: 1.8 },
+    { key: 'recruiter',     label: 'Recruiter',      icon: '📣', hint: 'Drawn to programs that recruit at the highest level.', weightHC: 1.0, weightLateral: 1.4,  prestigePull: 1.1, stay: 0.95 },
+    { key: 'builder',       label: 'Builder',        icon: '🏗', hint: 'Relishes a rebuild — will take on a struggling job.',    weightHC: 1.4, weightLateral: 0.85, prestigePull: 0.3, stay: 0.9 },
+    { key: 'prestigeChaser',label: 'Prestige Chaser',icon: '👑', hint: 'Holds out for blue-blood programs.',                    weightHC: 1.1, weightLateral: 1.2,  prestigePull: 1.6, stay: 1.0 },
+    { key: 'moneyFocused',  label: 'Money Focused',  icon: '💰', hint: 'Follows the biggest budgets and best resources.',       weightHC: 1.2, weightLateral: 1.25, prestigePull: 1.3, stay: 0.85 }
+  ];
+  D.coachAmbition = (key) => D.COACH_AMBITIONS.find((a) => a.key === key) || null;
 
   // Expanded for the Update 6 creation wizard: hair, facial hair, skin tones,
   // ages, and accessories — enough variety that successive coaches in a
@@ -327,15 +364,15 @@
                      tip: 'A night with the team after a campus visit — strong all-around gains.' },
     meetTeam:      { label: 'Invite to Meet Team',  points: 2, cost: 200,  relationship: 5,  interest: 4, scout: 2,  reveal: 0.08,
                      tip: 'Introduce the squad — solid, affordable interest builder.' },
-    // Sway (Update 13, Phase 4; buffed Update 15): a focused push to swing a
-    // recruit's momentum your way. NOT a Flip — it only nudges a recruit who
-    // is already genuinely considering you (modest interest AND >~10%
-    // commitment chance). This is the PLAYER'S closing weapon: the human
-    // coach's pitch succeeds ~80-92% of the time (CPU staffs stay modest),
-    // swings real interest, and banks lasting commit-math momentum. Base
-    // interest/relationship are 0 here — the engine resolves the swing.
+    // Sway (rebuilt): a genuine FLIP attempt on a recruit who has verbally
+    // committed to ANOTHER school. Only available when your program holds a
+    // real (10%+) commitment chance with them. Each attempt lands ~35% of
+    // the time — a success flips the commitment to you on the spot, a miss
+    // leaves them committed where they were. Recruiting rating, the
+    // assistant's recruiting craft, and the relationship all nudge the odds,
+    // and repeat attempts get harder — a flip is never guaranteed.
     sway:          { label: 'Sway',                 points: 3, cost: 5000, relationship: 0,  interest: 0, scout: 1,  reveal: 0.06, requires: 'sway',
-                     tip: 'YOUR closing move — swings an interested recruit\'s momentum toward you and stacks lasting commit odds. Needs 20 interest and a real (10%+) commit chance.' },
+                     tip: 'Try to flip a recruit committed elsewhere (~35% chance). Needs a real (10%+) commit chance with them. Success flips the commitment immediately.' },
     offer:         { label: 'Offer Scholarship',    points: 2, cost: 0,    relationship: 6,  interest: 10, scout: 0, reveal: 0,
                      tip: 'Put the offer on the table — required before a recruit can ever commit to you.' }
   };
@@ -477,22 +514,60 @@
   };
 
   /*
-   * Prestigious regular-season invitationals (Part 7). Elite programs get
-   * the call; everyone else runs regional invitationals the same weekend.
-   * `size` = teams invited (by prestige, with a few lottery mid-majors),
-   * `weight` = extra poll credit for racing (and beating) the best.
+   * The famous-invitational database (Meet Database Expansion). Every named
+   * meet carries its real-world identity: location, course, altitude (feet),
+   * a hilliness profile, and a prestige tier. Elite programs get the call;
+   * everyone else runs regional invitationals the same weekend.
+   *   `size`   — teams invited (dealt across the week's elite meets so the
+   *              national contenders SPREAD OUT instead of piling into one)
+   *   `weight` — extra poll credit for racing (and beating) the best; also
+   *              drives the prestige requirement to earn an invitation
+   *   `altitudeFt` / `hilliness` — the course profile the race engine uses
+   *   `divisions` — restriction list when a meet isn't open to everyone
    */
   D.ELITE_MEETS = [
-    { week: 6,  name: 'Joe Piane Invitational',  size: 28, weight: 1.2 },
-    { week: 6,  name: 'Roy Griak Invitational',  size: 28, weight: 1.15 },
-    { week: 8,  name: 'Nuttycombe Invitational', size: 34, weight: 1.3 },
-    { week: 8,  name: 'Wisconsin Invitational',  size: 34, weight: 1.2 },
+    // Week 4 — season-opening classics
+    { week: 4,  name: 'Cowboy Jamboree',                size: 24, weight: 1.1,
+      city: 'Stillwater', state: 'OK', course: 'Greiner Family OSU Cross Country Course',
+      altitudeFt: 988, hilliness: 55, prestige: 'High' },
+    { week: 4,  name: 'Crimson Classic',                size: 22, weight: 1.0,
+      city: 'Tuscaloosa', state: 'AL', course: 'Harry Pritchett Running Park',
+      altitudeFt: 226, hilliness: 22, prestige: 'Medium' },
+    { week: 4,  name: 'Panorama Farms Invitational',    size: 22, weight: 1.0,
+      city: 'Earlysville', state: 'VA', course: 'Panorama Farms',
+      altitudeFt: 465, hilliness: 68, prestige: 'Medium' },
+    // Week 6 — the September marquees
+    { week: 6,  name: 'Joe Piane Invitational',         size: 26, weight: 1.2,
+      city: 'Notre Dame', state: 'IN', course: 'Burke Golf Course',
+      altitudeFt: 725, hilliness: 20, prestige: 'High' },
+    { week: 6,  name: 'Roy Griak Invitational',         size: 26, weight: 1.15,
+      city: 'Falcon Heights', state: 'MN', course: 'Les Bolstad Golf Course',
+      altitudeFt: 942, hilliness: 62, prestige: 'High' },
+    { week: 6,  name: 'Paul Short Run',                 size: 28, weight: 1.1,
+      city: 'Bethlehem', state: 'PA', course: 'Goodman Campus Cross Country Course',
+      altitudeFt: 400, hilliness: 45, prestige: 'High' },
+    // Week 8 — the October showdowns
+    { week: 8,  name: 'Nuttycombe Wisconsin Invitational', size: 30, weight: 1.3,
+      city: 'Madison', state: 'WI', course: 'Thomas Zimmer Championship Course',
+      altitudeFt: 900, hilliness: 48, prestige: 'Elite' },
+    { week: 8,  name: 'Gans Creek Invitational',        size: 28, weight: 1.2,
+      city: 'Columbia', state: 'MO', course: 'Gans Creek Cross Country Course',
+      altitudeFt: 738, hilliness: 42, prestige: 'High' },
+    { week: 8,  name: 'Chile Pepper Festival',          size: 26, weight: 1.1,
+      city: 'Fayetteville', state: 'AR', course: 'Agri Park Cross Country Course',
+      altitudeFt: 1400, hilliness: 25, prestige: 'High' },
     // Pre-Nationals (Update 3): a Division I-only elite invitational late in
     // the regular season, contested on the NCAA DI Championship course. Built
     // specially by the race engine (invite/decline, course familiarity) — not
     // through the generic prestige-field path, so it carries no `size` here.
-    { week: 10, name: 'Pre-Nationals', preNationals: true, weight: 1.45 }
+    { week: 10, name: 'Pre-Nationals', preNationals: true, weight: 1.45,
+      prestige: 'Elite', divisions: ['DI'] }
   ];
+
+  // Hilliness label for a 0-100 course profile (course information display).
+  D.hillinessLabel = (h) => h >= 55 ? 'Hilly' : h >= 30 ? 'Rolling' : 'Flat';
+  // Altitude category from feet (matches the Low/Medium/High weather model).
+  D.altitudeCategory = (ft) => ft >= 5500 ? 'High' : ft >= 3000 ? 'Medium' : 'Low';
 
   /*
    * Pre-Nationals Invitational (Update 3). Division I only. Racing it earns a
@@ -559,6 +634,11 @@
   D.MILEAGE = {
     MIN: 30,
     MAX: 120,
+    // Gendered absolute ceilings on what a body can safely absorb (mileage
+    // rebalance): even the most durable women top out below the most durable
+    // men — elite women still handle genuinely high volume (up to ~105), but
+    // the 110-120 mpw stratosphere belongs to exceptionally durable men.
+    SAFE_CAP: { M: 120, W: 105 },
     // Mileage scaling (Update 13, Phase 7): women race 6K and generally train
     // on less volume than men, who race 8K/10K — men average ~75 mpw, women
     // ~60 mpw across the world (tendencies still shift individual programs).

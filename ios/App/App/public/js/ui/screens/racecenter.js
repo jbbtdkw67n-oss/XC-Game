@@ -56,6 +56,13 @@
             <button class="btn" id="btn-skip">⏭ Final</button>` : ''}
         </div>
       </div>
+      ${(() => {
+        const hostHtml = window.XCD.engine.Scheduling.meetHostHtml
+          ? window.XCD.engine.Scheduling.meetHostHtml(game, meet) : '';
+        return hostHtml
+          ? `<div style="color:var(--text-dim); font-size:13px; margin-bottom:8px; line-height:1.5;">${hostHtml}</div>`
+          : '';
+      })()}
       <div style="color:var(--text-dim); font-size:13px; margin-bottom:14px;">
         ${gDist(meet, activeGender)} • ${meet.conditions.tempF}°F${meet.conditions.rain ? ' • Rain' : ''} •
         Hills ${meet.conditions.hilliness}/100 • ${meet.conditions.altitude} altitude • Week ${meet.week}, ${game.season.year}

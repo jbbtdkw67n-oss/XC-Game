@@ -26,6 +26,9 @@
       allAmericans: 0, allConference: 0,
       // Season ledgers (Update 12): stamped once a year at awards week.
       seasonsPlayed: 0, top25Finishes: 0, ncaaStreak: 0, ncaaStreakBest: 0,
+      // Program Statistics ledgers (History & Legacy update, Phase 7).
+      top5Finishes: 0, top10Finishes: 0, confRunnerUp: 0,
+      indivNcaaQualifiers: 0, natCoyAwards: 0, confCoyAwards: 0,
       topClasses: [],  // { year, rank }
       coaches: []      // { coachId, name, startYear, endYear }
     };
@@ -39,7 +42,7 @@
     }
     const p = H.programs[schoolId];
     // Old ledgers created before a field existed pick it up here.
-    if (p.allConference === undefined) Object.assign(p, { ...blankProgram(gameState.getSchool(schoolId)), ...p });
+    if (p.natCoyAwards === undefined) Object.assign(p, { ...blankProgram(gameState.getSchool(schoolId)), ...p });
     return p;
   };
 
@@ -94,7 +97,15 @@
       x.year === acc.year && x.type === acc.type &&
       (x.division || null) === (acc.division || null) &&
       (x.conference || null) === conf);
-    if (!dup) athlete.accolades.push({ ...acc, conference: conf });
+    // Every honor is stamped with the program it was earned AT (History &
+    // Legacy update, Phase 8), so program pages can show only the
+    // accomplishments earned while representing that school.
+    if (!dup) {
+      athlete.accolades.push({
+        ...acc, conference: conf,
+        schoolId: acc.schoolId !== undefined ? acc.schoolId : (athlete.schoolId || null)
+      });
+    }
   };
 
   // Ordered accolade list for display (newest year first, best honor first).
@@ -201,16 +212,8 @@
       stats: rec.stats,
       seasons: rec.overallHistory.length || 4
     }) : 0;
-    // The ledger is permanent but bounded: keep the most significant 600 —
-    // champions and legends stay forever; marginal careers fade (Phase 7).
-    if (gameState.history.alumni.length > 600) {
-      gameState.history.alumni.sort((a, b) =>
-        (b.legacyScore ?? (b.badges.length * 10 + b.stats.wins)) -
-        (a.legacyScore ?? (a.badges.length * 10 + a.stats.wins)));
-      gameState.history.alumni.length = 600;
-      // Chronological reading order survives the cut.
-      gameState.history.alumni.sort((a, b) => (a.gradYear || 0) - (b.gradYear || 0));
-    }
+    // The ledger is permanent and unbounded (History & Legacy update):
+    // every recorded career stays forever — nothing is ever trimmed away.
   };
 
   /* ---------------- Coach accolades (Update 4, Part 6) ---------------- */
@@ -278,14 +281,25 @@
 
   /* ---------------- Coach history (Part 9) ---------------- */
   // Close the coach's open stint and note it on the program ledger.
-  Legacy.closeStint = function (gameState, coach, school, endYear) {
+  // `reason` (Coach Timeline fix) stamps WHY the tenure ended — retired,
+  // fired, left for another job, released — and the prestige the program
+  // stood at when they walked out the door. Both are permanent.
+  Legacy.closeStint = function (gameState, coach, school, endYear, reason) {
     coach.stints = coach.stints || [];
     const open = coach.stints.find((s) => !s.endYear);
-    if (open) open.endYear = endYear;
+    if (open) {
+      open.endYear = endYear;
+      if (reason && !open.reason) open.reason = reason;
+      if (school && open.prestigeEnd === undefined) open.prestigeEnd = school.prestige;
+    }
     if (school) {
       const prog = Legacy.program(gameState, school.id);
       const entry = prog.coaches.find((c) => c.coachId === coach.id && !c.endYear);
-      if (entry) entry.endYear = endYear;
+      if (entry) {
+        entry.endYear = endYear;
+        if (reason && !entry.reason) entry.reason = reason;
+        if (entry.prestigeEnd === undefined) entry.prestigeEnd = school.prestige;
+      }
     }
   };
 
@@ -294,20 +308,67 @@
     const role = coach.role || 'Head';
     coach.stints.push({
       schoolId: school.id, school: school.name,
-      division: school.division || 'DI', startYear, endYear: null, role
+      division: school.division || 'DI', startYear, endYear: null, role,
+      prestigeStart: school.prestige
     });
     // Only head coaches appear on the program's head-coaching ledger; an
     // assistant's stint lives on their own timeline (Update 5).
     if (role === 'Head') {
       const prog = Legacy.program(gameState, school.id);
-      prog.coaches.push({ coachId: coach.id, name: coach.fullName, startYear, endYear: null });
+      prog.coaches.push({ coachId: coach.id, name: coach.fullName, startYear, endYear: null, prestigeStart: school.prestige });
     }
+  };
+
+  /*
+   * Who coached this program in a given year (Championship History fix):
+   * resolved from the permanent head-coaching ledger, so every historical
+   * championship entry can name the coach responsible — even in saves from
+   * before coach names were stamped onto the championship records.
+   */
+  Legacy.coachForSchoolYear = function (gameState, schoolId, year) {
+    if (!schoolId) return '';
+    const prog = (gameState.history.programs || {})[schoolId];
+    if (!prog || !prog.coaches) return '';
+    const y = Number(year);
+    const hit = prog.coaches.slice().reverse().find((c) =>
+      y >= c.startYear && y <= (c.endYear || gameState.year));
+    return hit ? hit.name : '';
+  };
+
+  /*
+   * Why (and in what shape) a head-coaching tenure ended, for the Coach
+   * Timeline. Uses the stamped reason when present, then falls back to the
+   * registry (retired/released careers) and the coach's own later stints
+   * (left for another program), so old saves still read correctly.
+   */
+  Legacy.departureInfo = function (gameState, entry, schoolId) {
+    if (!entry.endYear) return { label: 'Current head coach', current: true };
+    if (entry.reason) {
+      const map = {
+        fired: 'Fired', retired: 'Retired', released: 'Let go',
+        left: 'Left for another program', promoted: 'Promoted away', faded: 'Left the profession'
+      };
+      return { label: map[entry.reason] || entry.reason };
+    }
+    // Registry: a career that ended entirely.
+    const reg = (gameState.history.coachRegistry || []).slice().reverse().find((r) =>
+      (entry.coachId && r.coachId === entry.coachId) || r.name === entry.name);
+    if (reg && Math.abs((reg.year || 0) - entry.endYear) <= 1) {
+      return { label: reg.reason === 'retired' ? 'Retired' : reg.reason === 'faded' ? 'Left the profession' : 'Let go' };
+    }
+    // A later stint elsewhere: they left for another job.
+    const live = entry.coachId && gameState.getCoach && gameState.getCoach(entry.coachId);
+    const stints = (live && live.stints) || (reg && reg.stints) || [];
+    const next = stints.find((s) => s.startYear >= entry.endYear && s.schoolId !== schoolId);
+    if (next) return { label: `Left for ${next.school}` };
+    return { label: 'Moved on' };
   };
 
   // Retired (or permanently departed) coaches stay searchable forever.
   Legacy.recordRetiredCoach = function (gameState, coach, reason) {
     gameState.history.coachRegistry = gameState.history.coachRegistry || [];
     gameState.history.coachRegistry.push({
+      coachId: coach.id || null,
       name: coach.fullName,
       portrait: coach.portrait,
       gender: coach.gender || null,
@@ -381,11 +442,11 @@
     });
   };
 
-  /* ---------------- Notable-people pruning (Update 12, Phase 7) ------- *
-   * History remembers the significant, not everyone. The coach registry
-   * keeps only careers with genuine weight — champions, award winners,
-   * long tenures, exceptional winners — while brief, unremarkable careers
-   * fade a few years after they end. Player careers are never pruned.
+  /* ---------------- Permanent coach registry ------------------------- *
+   * History & Legacy update (Phases 3 & 4): every coach exists forever.
+   * The registry is never pruned — no career fades, no profile is ever
+   * lost, no matter how many decades a dynasty runs. `coachNotable` is
+   * kept as a helper for highlighting historically significant careers.
    */
   Legacy.coachNotable = function (rec) {
     const cr = rec.careerRecord || {};
@@ -404,28 +465,154 @@
       ((cr.seasons || 0) >= 8 && winPct >= 62));
   };
 
-  Legacy.pruneCoachRegistry = function (gameState) {
-    const H = gameState.history;
-    if (!H.coachRegistry || !H.coachRegistry.length) return 0;
-    const before = H.coachRegistry.length;
-    // A grace window: every retirement stays visible for a few years, then
-    // only the historically relevant remain in the permanent registry.
-    H.coachRegistry = H.coachRegistry.filter((rec) =>
-      Legacy.coachNotable(rec) || (gameState.year - (rec.year || gameState.year)) < 4);
-    // Hard bound for century saves: keep the most decorated if still huge.
-    if (H.coachRegistry.length > 400) {
-      const weight = (rec) => {
-        const cr = rec.careerRecord || {};
-        return (cr.nationalTitles || 0) * 100 + (cr.natCOY || 0) * 30 +
-          (cr.conferenceTitles || 0) * 10 + (cr.regionalTitles || 0) * 8 +
-          (cr.seasons || 0) + (rec.isPlayer ? 10000 : 0);
-      };
-      H.coachRegistry.sort((a, b) => weight(b) - weight(a));
-      H.coachRegistry.length = 400;
-      // Restore chronological order (oldest first) after the cut.
-      H.coachRegistry.sort((a, b) => (a.year || 0) - (b.year || 0));
+  // Kept for API compatibility: pruning is permanently disabled — the
+  // registry preserves every coach forever.
+  Legacy.pruneCoachRegistry = function () { return 0; };
+
+  /* ---------------- Per-school coach record (Phases 3, 6 & 8) --------- *
+   * A coach's accomplishments AT a specific school, reconstructed from the
+   * permanent history ledgers: dual record and NCAA trips from the stint
+   * ledger (tracked going forward), championships matched season by season
+   * against the school's title history, and Coach-of-the-Year awards
+   * matched to the years of their stints there. Works identically for live
+   * coaches and registry records.
+   */
+  Legacy.coachSchoolRecord = function (gameState, coach, schoolId) {
+    const H = gameState.history || {};
+    const school = gameState.getSchool ? gameState.getSchool(schoolId) : null;
+    const schoolName = school ? school.name : null;
+    const out = {
+      wins: 0, losses: 0, seasons: 0, natTitles: 0, natRunnerUp: 0,
+      confTitles: 0, regTitles: 0, natApps: 0, natCOY: 0, confCOY: 0,
+      startYear: null, endYear: null, current: false
+    };
+    const stints = (coach.stints || []).filter((s) =>
+      s.schoolId === schoolId || (schoolName && s.school === schoolName));
+    if (!stints.length) return out;
+    const nowYear = gameState.year;
+    const inStint = (y) => stints.some((s) => y >= s.startYear && y <= (s.endYear || nowYear));
+
+    stints.forEach((s) => {
+      out.wins += s.wins || 0;
+      out.losses += s.losses || 0;
+      out.natApps += s.ncaaApps || 0;
+      const end = s.endYear || nowYear;
+      out.seasons += Math.max(1, end - s.startYear + (s.endYear ? 1 : 0));
+      if (out.startYear === null || s.startYear < out.startYear) out.startYear = s.startYear;
+      if (!s.endYear) out.current = true;
+      if (s.endYear && (out.endYear === null || s.endYear > out.endYear)) out.endYear = s.endYear;
+
+      // Head-coach stints collect the school's hardware from those years.
+      if ((s.role || 'Head') !== 'Head') return;
+      const division = s.division || 'DI';
+      for (let y = s.startYear; y <= end; y++) {
+        const nat = (H.nationalChampions || {})[y] || {};
+        ['M', 'W'].forEach((g) => {
+          const key = division === 'DI' ? g : `${division}-${g}`;
+          if (nat[key] && (nat[key].teamId === schoolId || nat[key].team === s.school)) out.natTitles += 1;
+        });
+        Object.entries((H.conferenceChampions || {})[y] || {}).forEach(([, name]) => {
+          if (name === s.school) out.confTitles += 1;
+        });
+        Object.entries((H.regionalChampions || {})[y] || {}).forEach(([, name]) => {
+          if (name === s.school) out.regTitles += 1;
+        });
+      }
+    });
+
+    (coach.coachAccolades || []).forEach((a) => {
+      if (!inStint(a.year)) return;
+      if (a.type === 'natCOY') out.natCOY += 1;
+      else if (a.type === 'confCOY') out.confCOY += 1;
+    });
+
+    const games = out.wins + out.losses;
+    out.winPct = games ? Math.round((out.wins / games) * 1000) / 10 : 0;
+    return out;
+  };
+
+  /* ---------------- Living program history (Phase 11) ----------------- *
+   * Every program page carries an automatically generated timeline of its
+   * defining moments, reconstructed from the permanent history ledgers so
+   * it works for any save and keeps growing forever: championships, coach
+   * hires and departures, individual national champions, Hall of Fame
+   * inductions, and program milestones stamped as they happen.
+   */
+  Legacy.recordProgramMilestone = function (gameState, schoolId, text) {
+    const prog = Legacy.program(gameState, schoolId);
+    prog.milestones = prog.milestones || [];
+    if (!prog.milestones.some((m) => m.year === gameState.year && m.text === text)) {
+      prog.milestones.push({ year: gameState.year, text });
     }
-    return before - H.coachRegistry.length;
+  };
+
+  Legacy.programMilestones = function (gameState, school) {
+    const H = gameState.history || {};
+    const sid = school.id;
+    const name = school.name;
+    const events = []; // { year, icon, text }
+    const push = (year, icon, text) => events.push({ year: Number(year), icon, text });
+
+    // Coaching timeline: every hire and departure the program ever made.
+    const prog = Legacy.program(gameState, sid);
+    (prog.coaches || []).forEach((c) => {
+      push(c.startYear, '🧢', `${c.name} became head coach.`);
+      if (c.endYear) push(c.endYear, '👋', `${c.name}'s tenure ended after ${Math.max(1, c.endYear - c.startYear)} season${c.endYear - c.startYear === 1 ? '' : 's'}.`);
+    });
+
+    // Championships, counted so firsts read as the landmarks they are.
+    let natCount = 0;
+    Object.keys(H.nationalChampions || {}).sort((a, b) => a - b).forEach((year) => {
+      const slate = H.nationalChampions[year];
+      Object.keys(slate).forEach((key) => {
+        const rec = slate[key];
+        const g = key.endsWith('W') ? "women's" : "men's";
+        if (rec.teamId === sid || rec.team === name) {
+          natCount += 1;
+          push(year, '🏆', natCount === 1
+            ? `Won the program's first National Championship (${g}).`
+            : `Won the ${g} National Championship — title #${natCount}.`);
+        }
+        if (rec.individualSchoolId === sid || rec.individualSchool === name) {
+          push(year, '🥇', `${rec.individual} won the ${g} individual national title.`);
+        }
+      });
+    });
+
+    let confCount = 0;
+    Object.keys(H.conferenceChampions || {}).sort((a, b) => a - b).forEach((year) => {
+      const slate = H.conferenceChampions[year];
+      Object.keys(slate).forEach((key) => {
+        if (slate[key] !== name) return;
+        confCount += 1;
+        const conf = key.slice(0, key.lastIndexOf('-'));
+        const g = key.endsWith('-W') ? "women's" : "men's";
+        push(year, '🏅', confCount === 1
+          ? `Won the program's first conference championship (${conf}, ${g}).`
+          : `Won the ${conf} ${g} title — conference championship #${confCount}.`);
+      });
+    });
+
+    Object.keys(H.regionalChampions || {}).sort((a, b) => a - b).forEach((year) => {
+      const slate = H.regionalChampions[year];
+      Object.keys(slate).forEach((key) => {
+        if (slate[key] !== name) return;
+        const g = key.endsWith('-W') ? "women's" : "men's";
+        push(year, '🗺', `Won the ${key.slice(0, key.lastIndexOf('-'))} ${g} regional championship.`);
+      });
+    });
+
+    // Hall of Fame inductions are program moments too.
+    (H.hallOfFame || []).forEach((h) => {
+      if (h.schoolId !== sid) return;
+      push(h.inducted, '🏛', `${h.name} entered the Hall of Fame.`);
+    });
+
+    // Milestones stamped as they happened (win thresholds, first NCAA trip…).
+    (prog.milestones || []).forEach((m) => push(m.year, '📌', m.text));
+
+    events.sort((a, b) => a.year - b.year);
+    return events;
   };
 
   /* Signing-day hook: remember every program's best classes (Part 8). */

@@ -44,24 +44,37 @@
    * from it, and the prestige engine uses `heritage` as slow-decaying gravity).
    */
   D.PRESTIGE_SEEDS = {
-    // Division I blue bloods of distance running
-    'Northern Arizona': 96, 'Oklahoma State': 92, 'BYU': 92, 'Stanford': 90,
-    'Oregon': 90, 'Colorado': 90, 'Washington': 86, 'Wisconsin': 85,
-    'Arkansas': 86, 'Notre Dame': 84, 'Syracuse': 83, 'Iowa State': 83,
-    'New Mexico': 82, 'Providence': 81, 'Michigan': 82, 'Georgetown': 81,
-    'Portland': 80, 'Villanova': 82, 'North Carolina State': 80, 'NC State': 80,
-    'Alabama': 80, 'Texas': 79, 'Ole Miss': 80, 'Furman': 78,
-    // Division II powers
-    'Adams State': 63, 'Colorado Mines': 62, 'Grand Valley State': 62,
+    // ---- Division I ----
+    // Elite blue bloods of distance running (top of the sport).
+    'Northern Arizona': 96, 'BYU': 92, 'Oklahoma State': 91, 'Stanford': 90,
+    'Oregon': 90, 'Arkansas': 90, 'Colorado': 89,
+    // Strong national programs (perennial contenders / recent podiums).
+    'Wisconsin': 87, 'Iowa State': 86, 'Washington': 85, 'Syracuse': 84,
+    'Notre Dame': 84, 'NC State': 84, 'North Carolina State': 84,
+    'New Mexico': 83, 'Villanova': 83, 'Michigan': 83, 'Iona': 82,
+    'Providence': 82, 'Georgetown': 82, 'Portland': 81, 'Alabama': 81,
+    'Ole Miss': 80, 'Texas': 80, 'Furman': 80,
+    // Solid, established programs (regular NCAA qualifiers).
+    'Florida State': 78, 'Colorado State': 77, 'Michigan State': 77,
+    'Minnesota': 76, 'Air Force': 76, 'Tulsa': 76, 'Butler': 75, 'Princeton': 75,
+    'Indiana': 74, 'Harvard': 74, 'Cornell': 74, 'Tennessee': 74, 'Texas A&M': 74,
+    'Wake Forest': 73, 'Boston College': 73, 'Columbia': 73, 'Boise State': 73,
+    'Montana State': 73, 'Eastern Kentucky': 73, 'California': 73, 'Duke': 72,
+    'Oklahoma': 72, 'Utah State': 72, 'Weber State': 72, 'Southern Utah': 72,
+    'Northern Colorado': 72, 'Gonzaga': 71, 'Yale': 71, 'Penn': 71, 'Dartmouth': 71,
+    'Mississippi State': 71, 'Wyoming': 70, 'Utah': 74, 'Arizona': 72, 'Arizona State': 73,
+    // ---- Division II powers ----
+    'Adams State': 64, 'Colorado Mines': 62, 'Grand Valley State': 62,
     'Western Colorado': 58, 'Chico State': 57, 'Augustana (SD)': 56,
-    'Colorado Christian': 55, 'Simon Fraser': 55, 'U-Mary': 55,
-    'Grand Canyon': 54, 'Cal Poly Pomona': 53,
-    // Division III powers
-    'North Central (IL)': 53, 'UW-La Crosse': 52, 'UW-Oshkosh': 51,
+    'Western Washington': 56, 'Colorado Christian': 55, 'Simon Fraser': 55,
+    'U-Mary': 55, 'Grand Canyon': 54, 'Cal Poly Pomona': 53, 'Pittsburg State': 52,
+    'Minnesota State': 52, 'Western Oregon': 51, 'Alaska Anchorage': 51,
+    // ---- Division III powers ----
+    'North Central (IL)': 54, 'UW-La Crosse': 53, 'UW-Oshkosh': 51,
     'Williams': 51, 'MIT': 50, 'Carleton': 50, 'Johns Hopkins': 50,
     'Washington U. (MO)': 50, 'Middlebury': 49, 'Wheaton (IL)': 49,
     'Calvin': 49, 'St. Olaf': 48, 'Amherst': 48, 'Pomona': 48,
-    'Haverford': 47, 'RPI': 46
+    'Haverford': 47, 'RPI': 46, 'Wartburg': 50, 'Nebraska Wesleyan': 46
   };
 
   D.CLASS_YEARS = ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate'];

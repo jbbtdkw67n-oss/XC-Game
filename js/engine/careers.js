@@ -1113,6 +1113,22 @@
       newSchool.assistantId = asst.id;
     }
 
+    // The head-coaching carousel above can promote an assistant out of another
+    // program to fill a vacancy; make sure no school is left without a
+    // coordinator once the dust settles, so a succession never leaves the world
+    // short-staffed (the assistant carousel would otherwise backfill later).
+    Object.values(gameState.world.schools).forEach((s) => {
+      if (s.assistantId && gameState.world.coaches[s.assistantId]) return;
+      const a = WG.buildAssistant(rng, s);
+      a.age = rng.int(25, 42);
+      a.reputation = Utils.clamp(a.reputation || 12, 3, 30);
+      a.yearsAtSchool = 0;
+      if (a.careerRecord) a.careerRecord.seasons = 0;
+      a.stints = [{ schoolId: s.id, school: s.name, division: s.division || 'DI', startYear: year, endYear: null }];
+      gameState.world.coaches[a.id] = a;
+      s.assistantId = a.id;
+    });
+
     // 4) A fresh personal ledger — the dynasty's history is untouched.
     gameState.career = {
       seasons: 0, conferenceTitles: 0, nationalTitles: 0,

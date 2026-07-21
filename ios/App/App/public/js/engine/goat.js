@@ -134,6 +134,36 @@
     return rows;
   }
 
+  /*
+   * Program-scoped athlete rows (History & Legacy update, Phase 8): only the
+   * accomplishments earned while representing THIS school count. Accolades
+   * are stamped with the school they were earned at (transfers keep separate
+   * ledgers per program); un-stamped honors from older saves attribute to
+   * the athlete's recorded school.
+   */
+  function athletesForProgram(gameState, schoolId) {
+    return athletes(gameState).map((r) => {
+      const scoped = (r.accolades || []).filter((acc) =>
+        (acc.schoolId !== undefined && acc.schoolId !== null)
+          ? acc.schoolId === schoolId
+          : r.schoolId === schoolId);
+      if (r.schoolId !== schoolId && !scoped.length) return null;
+      const count = (t) => scoped.filter((x) => x.type === t).length;
+      return {
+        ...r,
+        accolades: scoped,
+        score: athleteScore({ accolades: scoped, stats: r.stats, seasons: r.seasons }),
+        natTitles: count('natChampIndiv'),
+        aoyAwards: count('runnerOfYear'),
+        allAmerican: count('allAmerican'),
+        confChamps: count('confChamp'),
+        regChamps: count('regChamp'),
+        allConference: count('allConference'),
+        natRunnerUp: count('natRunnerUp')
+      };
+    }).filter(Boolean).sort((a, b) => b.score - a.score);
+  }
+
   /* ---------------- Coach legacy score ---------------- */
   function coachScore(cr, winPct, division) {
     // The accomplishment core is weighted by the division the career was
@@ -298,7 +328,7 @@
 
   window.XCD.engine.GOAT = {
     athleteScore, coachScore, programScore, teamScore,
-    athletes, coaches, programs, teams,
+    athletes, athletesForProgram, coaches, programs, teams,
     recalculate, get, LIST_SIZE
   };
 })();

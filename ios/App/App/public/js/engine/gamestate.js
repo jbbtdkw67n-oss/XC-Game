@@ -110,6 +110,8 @@
       // Team culture: player-selected captains per squad
       this.culture = { captains: { M: [], W: [] } };
       this.jobOffers = null; // outside interest after strong seasons
+      // A pending coordinator vacancy after an assistant leaves (Update 16).
+      this.assistantDeparture = null;
 
       // First-season tutorial (Update 15): set at dynasty creation for the
       // FIRST coach only ({ pending, tipsYear, seen }); cleared forever when
@@ -386,45 +388,52 @@
       const transferCount = window.XCD.engine.Portal.applyTransfers(this, rng);
       if (transferCount) this.logNews(`Transfer portal closes: ${transferCount} athletes changed schools this cycle.`);
 
-      // 1) Age everyone; redshirt years preserve eligibility and class;
-      //    graduates leave (Hall of Fame careers get enshrined).
+      // 1) Age everyone under the division's real NCAA eligibility rules
+      //    (DI: five seasons of competition on a five-year clock; DII/DIII:
+      //    four seasons in five years). Redshirt years — and seasons in
+      //    which the athlete never raced — preserve seasons of competition,
+      //    but the clock always ticks. Graduates leave (Hall of Fame careers
+      //    get enshrined).
       Object.values(this.world.schools).forEach((school) => {
+        const elig = D.eligibilityFor ? D.eligibilityFor(school) : { seasons: 4, clockYears: 5 };
         ['rosterM', 'rosterW'].forEach((rosterKey) => {
           const survivors = [];
           school[rosterKey].forEach((athId) => {
             const athlete = this.world.athletes[athId];
             if (!athlete) return;
             athlete.age += 1;
+            const raced = (athlete.seasonRaces || 0) > 0;
             athlete.yearsOnCampus = (athlete.yearsOnCampus || 1) + 1;
             athlete.seasonRaces = 0;
 
-            const redshirted = athlete.redshirt === 'True' || athlete.redshirt === 'Medical';
-            if (redshirted) {
-              // The season didn't burn eligibility; athletic class holds.
-              athlete.redshirt = 'Used';
-              if (athlete.yearsOnCampus > 5) { // five-year clock still expires
-                window.XCD.engine.Awards.considerHallOfFame(this, athlete);
-                window.XCD.engine.Legacy.recordAlumni(this, athlete);
-                athlete.schoolId = null;
-                athlete.health = 'Graduated';
-                delete this.world.athletes[athId];
-                return;
-              }
-              survivors.push(athId);
-              return;
-            }
-
-            if (athlete.eligibilityRemaining <= 1 || athlete.yearsOnCampus > 5 ||
-                athlete.classYear === 'Graduate') {
+            const graduate = () => {
               window.XCD.engine.Awards.considerHallOfFame(this, athlete);
               window.XCD.engine.Legacy.recordAlumni(this, athlete);
               athlete.schoolId = null;
               athlete.health = 'Graduated';
               delete this.world.athletes[athId];
+            };
+
+            const redshirted = athlete.redshirt === 'True' || athlete.redshirt === 'Medical';
+            if (redshirted || !raced) {
+              // The season didn't burn a season of competition; the athletic
+              // class holds — but the eligibility clock keeps running.
+              if (redshirted) athlete.redshirt = 'Used';
+              if (athlete.yearsOnCampus > elig.clockYears) { graduate(); return; }
+              survivors.push(athId);
+              return;
+            }
+
+            if (athlete.eligibilityRemaining <= 1 ||
+                athlete.yearsOnCampus > elig.clockYears ||
+                athlete.classYear === 'Graduate') {
+              graduate();
               return;
             }
             const idx = D_ORDER.indexOf(athlete.classYear);
-            athlete.classYear = D_ORDER[Math.min(idx + 1, 3)];
+            // DI's fifth season of competition is a Graduate year; DII/DIII
+            // careers top out at Senior under the four-season rule.
+            athlete.classYear = D_ORDER[Math.min(idx + 1, elig.seasons >= 5 ? 4 : 3)];
             athlete.eligibilityRemaining = Math.max(0, athlete.eligibilityRemaining - 1);
             survivors.push(athId);
           });
@@ -570,6 +579,9 @@
         weeklyFlow: this.weeklyFlow,
         offseasonReport: this.offseasonReport || null,
         staffHiredYear: this.staffHiredYear || null,
+        // The player's coordinator left this offseason (Update 16): a pending
+        // vacancy the player resolves from the hiring pool.
+        assistantDeparture: this.assistantDeparture || null,
         week1: this.week1,
         // First-season tutorial state (Update 15).
         tutorial: this.tutorial || null,
@@ -595,6 +607,41 @@
       const recruits = {};
       Object.values(obj.world.recruits || {}).forEach((r) => { recruits[r.id] = new M.Recruit(r); });
       gs.world = { schools, coaches, athletes, recruits, schoolOrder: obj.world.schoolOrder, seed: obj.world.seed };
+
+      // Real hometowns (Realism Update): rewrite any procedurally-generated
+      // fictional hometown left in an older save with a real town in the SAME
+      // state, so no fictional place survives anywhere. State/region are
+      // preserved; it is deterministic and idempotent (real towns and
+      // international athletes are left untouched).
+      const townSets = {};
+      Object.entries(D.REAL_TOWNS || {}).forEach(([st, list]) => { townSets[st] = new Set(list); });
+      const realTownFor = (state, key) => {
+        const towns = (D.REAL_TOWNS && D.REAL_TOWNS[state]) || [];
+        if (!towns.length) return null;
+        let h = 0; const s = String(key || '');
+        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+        return towns[h % towns.length];
+      };
+      const fixHometown = (e) => {
+        if (!e || !e.hometownState || e.hometownState === 'INT') return;
+        const set = townSets[e.hometownState];
+        if (set && e.hometownCity && !set.has(e.hometownCity)) {
+          const t = realTownFor(e.hometownState, e.id || e.hometownCity);
+          if (t) e.hometownCity = t;
+        }
+      };
+      Object.values(athletes).forEach(fixHometown);
+      Object.values(recruits).forEach(fixHometown);
+
+      // Altitude as a real location trait (Realism Update): re-stamp each
+      // school's altitude to its true, deterministic designation so older saves
+      // gain proper high-altitude programs (Northern Arizona, Air Force, the
+      // Colorado schools) instead of the old per-save coin flip.
+      if (D.altitudeForSchool) {
+        Object.values(schools).forEach((s) => {
+          if (s.weather) s.weather.altitude = D.altitudeForSchool(s.name, s.state) || s.weather.altitude;
+        });
+      }
 
       // Defaults for saves from before the recruiting engine existed.
       gs.recruiting = obj.recruiting || {
@@ -627,6 +674,7 @@
       gs.weeklyFlow = obj.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
       gs.offseasonReport = obj.offseasonReport || null;
       gs.staffHiredYear = obj.staffHiredYear || null;
+      gs.assistantDeparture = obj.assistantDeparture || null;
       // Tutorial state (Update 15): null for older saves — never shown to them.
       gs.tutorial = obj.tutorial || null;
       // Saves from before the Week 1 administrative phase are grandfathered:

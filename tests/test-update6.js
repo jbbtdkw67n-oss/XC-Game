@@ -228,22 +228,28 @@ async function run() {
   await page.click('#btn-next');
   await page.waitForSelector('.wizard-summary-box');
   await page.click('#btn-next');
-  // Program select — History & Legacy update (Phase 12): a brand-new coach
-  // only sees entry-level chairs, so pick the first eligible program.
+  // Program select — Realism Update: the artificial entry-level restriction
+  // is removed, so a new coach may take ANY open program, blue bloods
+  // included. The list is sorted strongest-first, so the first pick is the
+  // division's top program.
   await page.waitForSelector('.school-pick');
-  const entryLevel = await page.evaluate(() => {
+  const openMarket = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
-    const caps = { DI: 42, DII: 50, DIII: 55 };
+    const div = g.getPlayerSchool().division || 'DI';
     const listed = [...document.querySelectorAll('.school-pick')]
       .map((el) => g.world.schools[el.dataset.id]).filter(Boolean);
+    const divTop = Object.values(g.world.schools)
+      .filter((s) => (s.division || 'DI') === div)
+      .sort((a, b) => b.prestige - a.prestige)[0];
     return {
       count: listed.length,
-      allLow: listed.every((s) => s.prestige <= (caps[s.division || 'DI'] || 42))
+      divTopPrestige: divTop ? divTop.prestige : 0,
+      includesElite: listed.some((s) => divTop && s.id === divTop.id)
     };
   });
-  console.log('entry-level chairs:', JSON.stringify(entryLevel));
-  ok(entryLevel.count > 0, 'a new coach must have entry-level chairs to choose from');
-  ok(entryLevel.allLow, 'a new coach must only see low-prestige programs (Phase 12)');
+  console.log('open chairs:', JSON.stringify(openMarket));
+  ok(openMarket.count > 0, 'a new coach must have programs to choose from');
+  ok(openMarket.includesElite, 'a new coach may now choose ANY program, the division\'s best included (Realism Update)');
   await page.click('.school-pick');
   await page.click('#btn-start');
   await page.waitForSelector('#sidebar');
@@ -265,7 +271,7 @@ async function run() {
   });
   console.log('succession:', JSON.stringify(post));
   ok(post.coach === 'Nova Reyes', 'successor not installed');
-  ok(post.prestige <= 55, 'a brand-new coach must start at an entry-level program (Phase 12)');
+  ok(post.prestige === openMarket.divTopPrestige, 'a new coach can now start at the division\'s top program — restriction removed (Realism Update)');
   ok(post.seasons === 0, 'successor must start a fresh career ledger');
   ok(post.lineage.includes(pre.coach), 'lineage must remember the retired coach');
   ok(post.registryHasPlayer, 'retired player coach missing from the registry');

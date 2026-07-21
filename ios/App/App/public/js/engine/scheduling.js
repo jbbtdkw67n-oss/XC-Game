@@ -18,9 +18,81 @@
 
   // Prestige a program needs to earn an invite to a given elite meet. Bigger,
   // more prestigious fields demand more; all scale off the meet's poll weight.
+  // Eased (Elite Invitational Qualification): the bar sits a notch lower so
+  // emerging top-25-caliber programs can get into the big fields sooner —
+  // blue bloods still walk in automatically.
   function eliteRequirement(meet) {
     const w = meet.elite || 1;
-    return Math.round(58 + (w - 1) * 45); // ~64 (weight 1.15) → ~78 (weight 1.45)
+    return Math.round(52 + (w - 1) * 40); // ~54 (weight 1.05) → ~70 (weight 1.45)
+  }
+
+  /*
+   * Does this program qualify for an elite invitational? Prestige is the
+   * classic route — but a rapidly improving program ranked inside the top 25
+   * of its poll has EARNED an invitation regardless of its brand (Elite
+   * Invitational Qualification), so hot teams break into the big meets years
+   * before their prestige catches up.
+   */
+  function qualifiesForElite(gameState, school, meet) {
+    if (school.prestige >= eliteRequirement(meet)) return true;
+    const r = gameState.rankings;
+    if (!r) return false;
+    const best = Math.min(
+      (r.M.find((x) => x.schoolId === school.id) || {}).rank || 999,
+      (r.W.find((x) => x.schoolId === school.id) || {}).rank || 999);
+    return best <= 25;
+  }
+
+  // Course information for a meet (Course Information display): location,
+  // course name, hilliness profile, altitude, and prestige tier.
+  function courseInfo(gameState, meet) {
+    const D_ = window.XCD.data;
+    const cm = meet.courseMeta || {};
+    const host = gameState.getSchool(meet.hostId);
+    const hilliness = (meet.conditions && meet.conditions.hilliness) ?? cm.hilliness ?? 50;
+    const altitude = (meet.conditions && meet.conditions.altitude) ||
+      (cm.altitudeFt !== undefined ? D_.altitudeCategory(cm.altitudeFt) : (host && host.weather.altitude)) || 'Low';
+    const stateName = (D_.STATE_NAMES || {})[cm.state || (host && host.state)] || cm.state || (host && host.state) || '';
+    // The host city is a REAL town (Realism Update): the venue's own city for a
+    // famous course, otherwise the host program's real campus city.
+    const hostCity = cm.city || (host ? D_.cityForSchool(host) : '');
+    return {
+      hostName: host ? host.name : '',
+      venue: meet.venue || cm.course || '',
+      city: hostCity,
+      state: stateName,
+      location: hostCity ? `${hostCity}, ${stateName}` : (host ? `${host.name} campus` : ''),
+      course: cm.course || (host ? `${host.name} Cross Country Course` : ''),
+      altitudeFt: cm.altitudeFt,
+      altitude,
+      hilliness,
+      hillinessLabel: D_.hillinessLabel ? D_.hillinessLabel(hilliness) : '',
+      prestige: cm.prestige || (meet.elite ? (meet.elite >= 1.25 ? 'Elite' : 'High') : 'Standard')
+    };
+  }
+
+  /*
+   * Host information for a meet, ready to drop into any screen (Race Center,
+   * Schedule): who hosts it and where. Invitationals, conference meets, and
+   * regionals read "Hosted by {school}"; the national championship reads
+   * "Hosted at {venue}" — always with the real city and course.
+   */
+  function meetHostHtml(gameState, meet) {
+    if (!meet) return '';
+    const esc = window.XCD.core.Utils.escapeHtml;
+    const ci = courseInfo(gameState, meet);
+    const cm = meet.courseMeta || {};
+    const namedCourse = meet.venue || cm.course || '';
+    const rows = [];
+    if (meet.type === 'national') {
+      if (namedCourse) rows.push(`<span style="color:var(--text-faint);">Hosted at</span> <strong>${esc(namedCourse)}</strong>`);
+      if (ci.location) rows.push(`📍 ${esc(ci.location)}`);
+    } else {
+      if (ci.hostName) rows.push(`<span style="color:var(--text-faint);">Hosted by</span> <strong>${esc(ci.hostName)}</strong>`);
+      const locBits = [ci.location, namedCourse].filter(Boolean).join(' • ');
+      if (locBits) rows.push(`📍 ${esc(locBits)}`);
+    }
+    return rows.length ? rows.map((r) => `<div>${r}</div>`).join('') : '';
   }
 
   function playerMeetsThisWeek(gameState, week) {
@@ -49,14 +121,16 @@
       const options = [];
       const seen = new Set();
 
-      // Elite invitationals that week (gated by prestige).
+      // Elite invitationals that week (gated by prestige OR a top-25 poll
+      // ranking — hot programs earn their way into the big fields).
       meetsThisWeek.filter((m) => m.elite).forEach((m) => {
         const req = eliteRequirement(m);
         options.push({
           meetId: m.id, label: m.name, tier: 'Elite',
-          prestigeReq: req, eligible: prestige >= req,
+          prestigeReq: req, eligible: qualifiesForElite(gameState, school, m),
           field: (m.schoolIds || []).length,
-          host: (gameState.getSchool(m.hostId) || {}).name || ''
+          host: (gameState.getSchool(m.hostId) || {}).name || '',
+          course: courseInfo(gameState, m)
         });
         seen.add(m.id);
       });
@@ -71,7 +145,8 @@
         options.push({
           meetId: regional.id, label: regional.name, tier: 'Regional',
           prestigeReq: 0, eligible: true, field: (regional.schoolIds || []).length,
-          host: (gameState.getSchool(regional.hostId) || {}).name || ''
+          host: (gameState.getSchool(regional.hostId) || {}).name || '',
+          course: courseInfo(gameState, regional)
         });
         seen.add(regional.id);
       }
@@ -89,7 +164,8 @@
           options.push({
             meetId: m.id, label: m.name, tier: req ? 'Premier' : 'Invitational',
             prestigeReq: req, eligible: prestige >= req, field: (m.schoolIds || []).length,
-            host: (gameState.getSchool(m.hostId) || {}).name || ''
+            host: (gameState.getSchool(m.hostId) || {}).name || '',
+            course: courseInfo(gameState, m)
           });
           seen.add(m.id);
         });
@@ -140,8 +216,8 @@
     if (meetId) {
       target = season.meets[meetId];
       if (!target) return { ok: false, message: 'That meet is not on the calendar.' };
-      if (target.elite && school.prestige < eliteRequirement(target)) {
-        return { ok: false, message: `${target.name} only invites programs with prestige ${eliteRequirement(target)}+. Build your program's standing first.` };
+      if (target.elite && !qualifiesForElite(gameState, school, target)) {
+        return { ok: false, message: `${target.name} only invites programs with prestige ${eliteRequirement(target)}+ (or a top-25 ranking). Build your program's standing first.` };
       }
     }
 
@@ -163,5 +239,5 @@
     };
   }
 
-  window.XCD.engine.Scheduling = { buildOptions, select, eliteRequirement };
+  window.XCD.engine.Scheduling = { buildOptions, select, eliteRequirement, qualifiesForElite, courseInfo, meetHostHtml };
 })();

@@ -55,10 +55,9 @@
       : [];
     const stateKeys = Object.keys(D.STATE_NAMES || {});
     const randomHometown = () => {
-      const root_ = D.TOWN_ROOTS[Math.floor(Math.random() * D.TOWN_ROOTS.length)];
-      const suf = D.TOWN_SUFFIXES[Math.floor(Math.random() * D.TOWN_SUFFIXES.length)];
       const st = stateKeys[Math.floor(Math.random() * stateKeys.length)] || 'OR';
-      return `${root_}${suf}, ${st}`;
+      const towns = (D.REAL_TOWNS && D.REAL_TOWNS[st]) || ['Portland'];
+      return `${towns[Math.floor(Math.random() * towns.length)]}, ${st}`;
     };
     const randomAlma = () => schoolNames.length
       ? schoolNames[Math.floor(Math.random() * schoolNames.length)]
@@ -415,10 +414,18 @@
 
   function renderSuccessionSchoolPick(root, game, spec) {
     const D = window.XCD.data;
-    const schools = Object.values(game.world.schools).sort((a, b) => a.name.localeCompare(b.name));
+    // A newly created coach may take ANY open program (Realism Update): the
+    // artificial "entry-level only" restriction is gone, so an incoming coach
+    // — including an elite one succeeding a legend — is eligible for every job
+    // in the world, blue bloods included. Programs are listed strongest first.
+    const schools = Object.values(game.world.schools)
+      .sort((a, b) => (b.prestige || 0) - (a.prestige || 0) || a.name.localeCompare(b.name));
     const oldCoach = game.getPlayerCoach();
-    let selectedId = game.playerSchoolId; // staying home is the natural default
+    let selectedId = game.playerSchoolId || null;
     let divFilter = (game.getPlayerSchool().division || 'DI');
+    if (!schools.some((s) => (s.division || 'DI') === divFilter)) {
+      divFilter = (schools[0] && (schools[0].division || 'DI')) || 'DI';
+    }
 
     const DIV_TABS = ['DI', 'DII', 'DIII']
       .filter((k) => D.divisionFor(k).active)
@@ -428,7 +435,7 @@
       <div id="menu-root">
         <div class="menu-panel" style="width:min(640px,94vw);">
           <h1 style="font-size:22px;">Choose Your <span>Program</span></h1>
-          <p class="tagline">${spec.startRole === 'Assistant' ? 'Assistant' : 'Head'} Coach ${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)} succeeds the retiring ${Utils.escapeHtml(oldCoach.fullName)}. Stay home, or start the next era anywhere in the country.</p>
+          <p class="tagline">${spec.startRole === 'Assistant' ? 'Assistant' : 'Head'} Coach ${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)} succeeds the retiring ${Utils.escapeHtml(oldCoach.fullName)}. Every program in the country is open — from a rebuilding small school to a national blue blood. Choose where the next era begins.</p>
           <div class="pill-tabs" id="div-tabs" style="margin-bottom:10px;">
             ${DIV_TABS.map(([k, label]) => `<button data-div="${k}" class="${divFilter === k ? 'active' : ''}">${label}</button>`).join('')}
           </div>
