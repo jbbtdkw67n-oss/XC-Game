@@ -320,6 +320,35 @@
   };
 
   /*
+   * Seed every program's head-coaching ledger with its CURRENT head coach
+   * (Profiles & Records fix). Worldgen gives each CPU coach a stint but never
+   * an entry on the program ledger, so before this ran a CPU program had an
+   * empty coaching history: its coach couldn't hold or break program records,
+   * their departure was never stamped, and their profile came up blank from
+   * the champions page. Seeding the ledger from each coach's own open stint
+   * makes CPU coaches first-class — they accumulate records at their school,
+   * show up on the program tab, and hand the record on when the next coach
+   * breaks it. Idempotent, so it also backfills existing saves on load.
+   */
+  Legacy.seedInitialCoaches = function (gameState) {
+    Object.values(gameState.world.schools).forEach((school) => {
+      const coach = gameState.getCoach(school.coachId);
+      if (!coach) return;
+      const prog = Legacy.program(gameState, school.id);
+      prog.coaches = prog.coaches || [];
+      if (prog.coaches.some((c) => c.coachId === coach.id)) return;
+      // Match the coach's own seeded open stint so the program ledger and the
+      // coach's personal timeline agree on when the tenure began.
+      const stint = (coach.stints || []).find((s) => !s.endYear && s.schoolId === school.id && (s.role || 'Head') === 'Head');
+      const startYear = stint ? stint.startYear : (gameState.year || 2026);
+      prog.coaches.push({
+        coachId: coach.id, name: coach.fullName,
+        startYear, endYear: null, prestigeStart: school.prestige
+      });
+    });
+  };
+
+  /*
    * Who coached this program in a given year (Championship History fix):
    * resolved from the permanent head-coaching ledger, so every historical
    * championship entry can name the coach responsible — even in saves from

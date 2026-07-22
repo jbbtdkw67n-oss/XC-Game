@@ -461,8 +461,11 @@
     });
   };
 
-  // Universal coach opener: live coach, or the permanent registry. Every
-  // coaching career opens forever — nothing ever "fades" (Phase 4).
+  // Universal coach opener: live coach (by id, then by name for active CPU
+  // coaches), then the permanent registry. Every coaching career opens
+  // forever — nothing ever "fades" (Phase 4) — and an ACTIVE coach always
+  // resolves to their real, live profile rather than a blank fallback, no
+  // matter where the click came from (champions, records, timelines).
   UI.openCoach = function (game, coachId, fallbackName) {
     if (coachId) {
       const live = game.getCoach(coachId);
@@ -471,6 +474,11 @@
       if (regById) { UI.showCoachCard(regById, game, { retired: true }); return true; }
     }
     if (fallbackName) {
+      // A currently-active coach (the player or any CPU coach) — their live
+      // record is richer and more current than any archived copy, so it wins.
+      const liveByName = Object.values(game.world.coaches || {})
+        .find((c) => (c.fullName || `${c.firstName || ''} ${c.lastName || ''}`.trim()) === fallbackName);
+      if (liveByName) { UI.showCoachCard(liveByName, game); return true; }
       const reg = (game.history.coachRegistry || []).slice().reverse().find((r) => r.name === fallbackName);
       if (reg) { UI.showCoachCard(reg, game, { retired: true }); return true; }
       const past = (game.history.playerCareers || []).slice().reverse().find((r) => r.name === fallbackName);

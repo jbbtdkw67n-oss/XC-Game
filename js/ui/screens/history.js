@@ -612,8 +612,8 @@
       const sid = schoolId || (Object.values(game.world.schools).find((s) => s.name === schoolName) || {}).id;
       return sid ? Legacy.coachForSchoolYear(game, sid, year) : '';
     };
-    const coachTag = (name) => name
-      ? ` <span style="color:var(--text-faint); font-size:11.5px;">🧢 <span class="clickable" data-coach="" data-coach-name="${Utils.escapeHtml(name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(name)}</span></span>`
+    const coachTag = (name, coachId) => name
+      ? ` <span style="color:var(--text-faint); font-size:11.5px;">🧢 <span class="clickable" data-coach="${coachId || ''}" data-coach-name="${Utils.escapeHtml(name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(name)}</span></span>`
       : '';
     let years = [...new Set([...Object.keys(natl), ...Object.keys(conf), ...Object.keys(regional)])].sort((a, b) => b - a);
     if (champYear) years = years.filter((y) => String(y).includes(champYear));
@@ -639,7 +639,7 @@
           return `
             <div class="attr-row">
               <span>🏆 ${g === 'M' ? "Men's" : "Women's"} National Champions:
-                <strong class="clickable-school" data-school="${rec.teamId || ''}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(rec.team)}</strong>${coachTag(teamCoach)}</span>
+                <strong class="clickable-school" data-school="${rec.teamId || ''}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(rec.team)}</strong>${coachTag(teamCoach, rec.coachId)}</span>
               <span style="color:var(--text-dim);">🥇 <span class="${rec.individualId ? 'clickable' : ''}" ${rec.individualId ? `data-ath="${rec.individualId}" data-ath-name="${Utils.escapeHtml(rec.individual)}" style="cursor:pointer; color:var(--accent-hover);"` : ''}>${Utils.escapeHtml(rec.individual)}</span> (<span class="${rec.individualSchoolId ? 'clickable' : ''}" ${rec.individualSchoolId ? `data-school="${rec.individualSchoolId}" style="cursor:pointer;"` : ''}>${Utils.escapeHtml(rec.individualSchool)}</span>)${rec.individualTime ? ' — ' + ft(rec.individualTime) : ''}${coachTag(indivCoach)}</span>
             </div>`;
         }).join('');
@@ -669,7 +669,7 @@
                   if (!champName) return '';
                   if (!m && (schoolDiv[champName] || 'DI') !== champDiv) return '';
                   const coach = coachFor(champName, year, m && m.coach, m && m.schoolId);
-                  return `<div style="font-size:12.5px;">${g}: <strong>${Utils.escapeHtml(champName)}</strong>${coachTag(coach)}</div>`;
+                  return `<div style="font-size:12.5px;">${g}: <strong>${Utils.escapeHtml(champName)}</strong>${coachTag(coach, m && m.coachId)}</div>`;
                 };
                 const indivLine = (g) => {
                   const rec = ri[`${rg}-${g}`];
@@ -703,7 +703,7 @@
                   if (!champName) return '';
                   const m = cm[`${name}-${g}`];
                   const coach = coachFor(champName, year, m && m.coach, m && m.schoolId);
-                  return `${g === 'W' ? ' · ' : ''}${g}: ${Utils.escapeHtml(champName)}${coachTag(coach)}`;
+                  return `${g === 'W' ? ' · ' : ''}${g}: ${Utils.escapeHtml(champName)}${coachTag(coach, m && m.coachId)}`;
                 };
                 const indivLine = (g) => {
                   const rec = ci[`${name}-${g}`];

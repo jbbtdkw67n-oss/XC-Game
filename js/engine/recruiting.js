@@ -702,13 +702,14 @@
   }
 
   /*
-   * Rank-based signing odds (recruiting rankings overhaul): a recruit's
-   * decision is driven primarily by where each school sits in their top-9
-   * interest ranking. The leader signs them 40% of the time, the runner-up
-   * 25%, and it falls away steeply from there — finishing 1st on a recruit's
-   * board finally matters the way it should.
+   * Rank-based signing odds (recruiting balance): a recruit's decision is
+   * driven primarily by where each school sits in their top-9 interest
+   * ranking. Finishing FIRST on a recruit's board is a 50% likelihood, second
+   * is 25%, and it scales down steeply from there. The weights sum to 100, so
+   * against a full field the share IS the percentage (leader 50%, #2 25%,
+   * #3 12%, then 6/3/2/1/0.5/0.5) — finishing first genuinely wins the race.
    */
-  const RANK_ODDS = [40, 25, 15, 10, 5, 3, 1, 0.5, 0.5];
+  const RANK_ODDS = [50, 25, 12, 6, 3, 2, 1, 0.5, 0.5];
   const rankWeight = (idx) => RANK_ODDS[idx] ?? 0.5;
 
   /*
@@ -1478,7 +1479,7 @@
         const p = Utils.clamp(0.08 + urgency * 0.35 + (best.appeal - 52) / 150, 0, 0.75);
         if (rng.bool(p)) {
           // The decision runs on the recruit's top-9 ranking: the leader wins
-          // 40% of these, #2 25%, #3 15% — finishing first genuinely pays.
+          // 50% of these, #2 25%, #3 12% — finishing first genuinely pays.
           const pool = ranked.slice(0, 9).map((o, i) => ({ ...o, rank: i }));
           const choice = rng.weightedChoice(pool, (o) => rankWeight(o.rank));
           rec.committedTo = choice.sid;
@@ -1547,7 +1548,7 @@
           rec.interests[sid].offered && gameState.getSchool(sid));
         if (offers.length) {
           // Signing probability runs on the final top-9 ranking: 1st signs
-          // them 40% of the time, 2nd 25%, 3rd 15%, then 10/5/3/1/0.5/0.5 —
+          // them 50% of the time, 2nd 25%, 3rd 12%, then 6/3/2/1/0.5/0.5 —
           // the school that finishes first on the board wins far more often.
           const ranked = offers
             .map((sid) => ({ sid, appeal: appeal(gameState, gameState.getSchool(sid), rec, ctx) }))

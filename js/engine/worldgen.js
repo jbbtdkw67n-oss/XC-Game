@@ -66,8 +66,13 @@
     }
     const divRules = D.divisionFor(division);
 
+    // Consume the same RNG draws as before (world determinism is preserved),
+    // then let the real-world academic seed win when the school has one so a
+    // program's Academics rating matches its true academic standing.
     let academics = rng.int(35, 78) + (tier === 1 ? 6 : 0);
     if (ELITE_ACADEMICS.has(name)) academics += rng.int(12, 20);
+    const acadSeed = D.ACADEMIC_SEEDS && D.ACADEMIC_SEEDS[name];
+    if (acadSeed !== undefined) academics = acadSeed;
     academics = Utils.clamp(academics, 30, 99);
 
     const campusAppeal = Utils.clamp(Math.round(prestige * 0.5 + rng.int(15, 45)), 20, 99);

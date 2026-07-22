@@ -77,6 +77,175 @@
     'Haverford': 47, 'RPI': 46, 'Wartburg': 50, 'Nebraska Wesleyan': 46
   };
 
+  /*
+   * Real-world academic reputation (Balance & Realism update). Each program's
+   * in-game Academics rating (0–99) is anchored to its actual academic
+   * standing so that a genuinely strong academic school reads as one in the
+   * game — a recruit who values academics feels the difference between an Ivy
+   * and a low-major. Worldgen seeds Academics from this value (with a tiny
+   * ± wobble) when a school is listed; unlisted programs fall back to a
+   * conference-tier baseline. Aliases (e.g. "NC State"/"North Carolina State")
+   * are both listed so whichever name the world uses resolves.
+   */
+  D.ACADEMIC_SEEDS = {
+    // ================= Division I =================
+    // ---- ACC ----
+    'Boston College': 89, 'California': 96, 'Clemson': 78, 'Duke': 98,
+    'Florida State': 79, 'Georgia Tech': 93, 'Louisville': 68, 'Miami': 81,
+    'NC State': 80, 'North Carolina State': 80, 'North Carolina': 90,
+    'Notre Dame': 96, 'Pittsburgh': 84, 'SMU': 82, 'Stanford': 99,
+    'Syracuse': 80, 'Virginia': 94, 'Virginia Tech': 79, 'Wake Forest': 90,
+    // ---- Big Ten ----
+    'Illinois': 87, 'Indiana': 77, 'Iowa': 79, 'Maryland': 85, 'Michigan': 94,
+    'Michigan State': 77, 'Minnesota': 83, 'Nebraska': 70, 'Northwestern': 97,
+    'Ohio State': 83, 'Oregon': 73, 'Penn State': 83, 'Purdue': 84,
+    'Rutgers': 81, 'UCLA': 95, 'USC': 90, 'Washington': 86, 'Wisconsin': 89,
+    // ---- Big 12 ----
+    'Arizona': 76, 'Arizona State': 72, 'Baylor': 78, 'BYU': 76,
+    'Cincinnati': 68, 'Colorado': 78, 'Houston': 66, 'Iowa State': 74,
+    'Kansas': 73, 'Kansas State': 66, 'Oklahoma State': 66, 'TCU': 78,
+    'Texas Tech': 66, 'UCF': 66, 'Utah': 78, 'West Virginia': 63,
+    // ---- SEC ----
+    'Alabama': 71, 'Arkansas': 66, 'Auburn': 71, 'Florida': 87, 'Georgia': 83,
+    'Kentucky': 68, 'LSU': 68, 'Mississippi State': 62, 'Missouri': 70,
+    'Ole Miss': 64, 'Oklahoma': 70, 'South Carolina': 68, 'Tennessee': 75,
+    'Texas': 88, 'Texas A&M': 81, 'Vanderbilt': 97,
+    // ---- American ----
+    'Charlotte': 57, 'East Carolina': 56, 'Florida Atlantic': 55, 'Memphis': 57,
+    'North Texas': 57, 'Rice': 96, 'South Florida': 66, 'Temple': 70,
+    'Tulane': 87, 'Tulsa': 68, 'UAB': 62, 'UTSA': 55, 'Wichita State': 60,
+    // ---- Mountain West ----
+    'Air Force': 85, 'Boise State': 60, 'Colorado State': 69, 'Fresno State': 55,
+    'Nevada': 58, 'New Mexico': 58, 'San Diego State': 66, 'San Jose State': 58,
+    'UNLV': 55, 'Utah State': 62, 'Wyoming': 60,
+    // ---- Sun Belt ----
+    'Appalachian State': 63, 'Arkansas State': 49, 'Coastal Carolina': 50,
+    'Georgia Southern': 54, 'Georgia State': 54, 'James Madison': 71,
+    'Louisiana': 50, 'Louisiana Monroe': 46, 'Marshall': 52, 'Old Dominion': 54,
+    'South Alabama': 48, 'Southern Miss': 52, 'Texas State': 54, 'Troy': 48,
+    // ---- Conference USA ----
+    'FIU': 56, 'Jacksonville State': 46, 'Kennesaw State': 52, 'Liberty': 55,
+    'Louisiana Tech': 56, 'Middle Tennessee': 50, 'New Mexico State': 48,
+    'Sam Houston': 46, 'UTEP': 52, 'Western Kentucky': 50,
+    // ---- MAC ----
+    'Akron': 52, 'Ball State': 56, 'Bowling Green': 56, 'Buffalo': 67,
+    'Central Michigan': 54, 'Eastern Michigan': 50, 'Kent State': 54,
+    'Miami (Ohio)': 74, 'Northern Illinois': 52, 'Ohio University': 61,
+    'Toledo': 54, 'Western Michigan': 56,
+    // ---- Big East ----
+    'Butler': 72, 'Creighton': 74, 'DePaul': 66, 'Georgetown': 93,
+    'Marquette': 75, 'Providence': 68, 'Seton Hall': 66, 'St. John\'s': 62,
+    'Villanova': 88, 'Xavier': 68, 'UConn': 80,
+    // ---- Ivy League ----
+    'Brown': 97, 'Columbia': 98, 'Cornell': 96, 'Dartmouth': 97, 'Harvard': 99,
+    'Penn': 98, 'Princeton': 99, 'Yale': 99,
+    // ---- Patriot League ----
+    'American University': 76, 'Army': 86, 'Boston University': 88,
+    'Bucknell': 87, 'Colgate': 88, 'Holy Cross': 82, 'Lafayette': 86,
+    'Lehigh': 87, 'Loyola Maryland': 70, 'Navy': 87,
+    // ---- Atlantic 10 ----
+    'Davidson': 90, 'Dayton': 68, 'Duquesne': 60, 'Fordham': 82,
+    'George Mason': 66, 'George Washington': 82, 'La Salle': 58,
+    'Loyola Chicago': 68, 'Rhode Island': 58, 'Richmond': 88,
+    'Saint Joseph\'s': 66, 'Saint Louis': 74, 'St. Bonaventure': 54,
+    'UMass': 76, 'VCU': 62,
+    // ---- CAA ----
+    'Campbell': 52, 'Charleston': 60, 'Delaware': 66, 'Drexel': 72, 'Elon': 69,
+    'Hampton': 54, 'Hofstra': 62, 'Monmouth': 54, 'North Carolina A&T': 52,
+    'Northeastern': 85, 'Stony Brook': 77, 'Towson': 58, 'UNC Wilmington': 61,
+    'William & Mary': 91,
+    // ---- Southern ----
+    'Chattanooga': 52, 'The Citadel': 66, 'East Tennessee State': 50,
+    'Furman': 81, 'Mercer': 67, 'Samford': 66, 'VMI': 74, 'Western Carolina': 48,
+    'Wofford': 75,
+    // ---- West Coast ----
+    'Gonzaga': 73, 'Loyola Marymount': 72, 'Pacific': 66, 'Pepperdine': 77,
+    'Portland': 68, 'San Diego': 73, 'San Francisco': 66, 'Santa Clara': 83,
+    'Saint Mary\'s': 70,
+    // ---- Big Sky ----
+    'Eastern Washington': 50, 'Idaho': 52, 'Idaho State': 48, 'Montana': 56,
+    'Montana State': 58, 'Northern Arizona': 56, 'Northern Colorado': 50,
+    'Portland State': 52, 'Sacramento State': 52, 'Weber State': 48,
+    // ---- WAC ----
+    'Abilene Christian': 54, 'California Baptist': 50, 'Grand Canyon': 52,
+    'Southern Utah': 48, 'Tarleton State': 46, 'UT Rio Grande Valley': 48,
+    'Utah Tech': 46, 'Utah Valley': 48, 'Seattle University': 66,
+    // ---- Big South ----
+    'Charleston Southern': 44, 'Gardner-Webb': 46, 'High Point': 58,
+    'Longwood': 48, 'Presbyterian': 54, 'Radford': 48, 'UNC Asheville': 58,
+    'USC Upstate': 46, 'Winthrop': 52,
+    // ---- ASUN ----
+    'Austin Peay': 46, 'Bellarmine': 56, 'Central Arkansas': 46,
+    'Eastern Kentucky': 48, 'Florida Gulf Coast': 50, 'Jacksonville': 54,
+    'Lipscomb': 58, 'North Alabama': 46, 'North Florida': 54,
+    'Queens University': 52, 'Stetson': 62, 'West Georgia': 44,
+    // ---- Southland ----
+    'East Texas A&M': 46, 'Houston Christian': 50, 'Incarnate Word': 50,
+    'Lamar': 46, 'McNeese': 44, 'Nicholls': 44, 'Northwestern State': 44,
+    'Southeastern Louisiana': 46, 'Stephen F. Austin': 46,
+    'Texas A&M-Corpus Christi': 46, 'New Orleans': 50,
+    // ---- MEAC ----
+    'Coppin State': 42, 'Delaware State': 44, 'Howard': 74,
+    'Maryland Eastern Shore': 42, 'Morgan State': 48, 'Norfolk State': 44,
+    'NC Central': 48, 'South Carolina State': 42,
+    // ---- SWAC ----
+    'Alabama A&M': 42, 'Alabama State': 42, 'Alcorn State': 42,
+    'Arkansas-Pine Bluff': 40, 'Bethune-Cookman': 44, 'Florida A&M': 54,
+    'Grambling State': 44, 'Jackson State': 46, 'Mississippi Valley State': 40,
+    'Prairie View A&M': 44, 'Southern University': 44, 'Texas Southern': 42,
+    // ---- Horizon ----
+    'Cleveland State': 54, 'Green Bay': 52, 'IU Indianapolis': 58,
+    'Milwaukee': 54, 'Northern Kentucky': 52, 'Oakland': 54,
+    'Purdue Fort Wayne': 52, 'Robert Morris': 52, 'Wright State': 52,
+    'Youngstown State': 50,
+    // ---- Missouri Valley ----
+    'Belmont': 62, 'Bradley': 62, 'Drake': 68, 'Evansville': 60,
+    'Illinois State': 56, 'Indiana State': 48, 'Missouri State': 54,
+    'Murray State': 50, 'Northern Iowa': 58, 'Southern Illinois': 52,
+    'UIC': 62, 'Valparaiso': 62,
+    // ---- Summit League ----
+    'Denver': 74, 'Kansas City': 54, 'North Dakota': 54, 'North Dakota State': 56,
+    'Omaha': 52, 'Oral Roberts': 50, 'South Dakota': 54, 'South Dakota State': 56,
+    'St. Thomas': 66,
+    // ---- America East ----
+    'Albany': 58, 'Binghamton': 78, 'Bryant': 60, 'Maine': 56, 'NJIT': 66,
+    'UMBC': 71, 'UMass Lowell': 62, 'New Hampshire': 63, 'Vermont': 69,
+    // ---- MAAC ----
+    'Canisius': 56, 'Fairfield': 68, 'Iona': 54, 'Manhattan': 56, 'Marist': 64,
+    'Mount St. Mary\'s': 54, 'Niagara': 52, 'Quinnipiac': 64, 'Rider': 56,
+    'Sacred Heart': 56, 'Siena': 58,
+    // ---- NEC ----
+    'Central Connecticut': 48, 'Chicago State': 40, 'Fairleigh Dickinson': 52,
+    'LIU': 50, 'Merrimack': 54, 'Saint Francis': 50, 'Stonehill': 56, 'Wagner': 50,
+    // ---- OVC ----
+    'Eastern Illinois': 48, 'Lindenwood': 48, 'Little Rock': 50,
+    'Morehead State': 48, 'SIU Edwardsville': 52, 'Southeast Missouri State': 48,
+    'Tennessee State': 46, 'Tennessee Tech': 52, 'UT Martin': 48,
+    // ---- Big West ----
+    'Cal Poly': 74, 'Cal State Bakersfield': 50, 'Cal State Fullerton': 58,
+    'Cal State Northridge': 54, 'Hawaii': 60, 'Long Beach State': 60,
+    'UC Davis': 83, 'UC Irvine': 82, 'UC Riverside': 68, 'UC San Diego': 88,
+    'UC Santa Barbara': 84,
+
+    // ================= Division II / III (notable) =================
+    'Adams State': 46, 'Colorado Mines': 85, 'Grand Valley State': 60,
+    'Western Colorado': 50, 'Chico State': 56, 'Augustana (SD)': 58,
+    'Western Washington': 62, 'Colorado Christian': 50, 'Simon Fraser': 66,
+    'U-Mary': 50, 'Cal Poly Pomona': 66, 'Pittsburg State': 50,
+    'Minnesota State': 52, 'Western Oregon': 50, 'Alaska Anchorage': 48,
+    'MIT': 99, 'Williams': 97, 'Amherst': 97, 'Middlebury': 92, 'Tufts': 93,
+    'Bowdoin': 94, 'Bates': 88, 'Colby': 88, 'Wesleyan': 92, 'Pomona': 97,
+    'Carleton': 94, 'Johns Hopkins': 98, 'Washington U. (MO)': 96,
+    'Chicago': 98, 'Emory': 92, 'Carnegie Mellon': 94, 'Case Western Reserve': 90,
+    'NYU': 92, 'Rochester (NY)': 88, 'Brandeis': 90, 'Swarthmore': 98,
+    'Haverford': 93, 'Colorado College': 84, 'Trinity (TX)': 80, 'Kenyon': 84,
+    'Denison': 82, 'Oberlin': 86, 'Grinnell': 88, 'St. Olaf': 80, 'Calvin': 68,
+    'DePauw': 76, 'Wabash': 72, 'Hope': 66, 'North Central (IL)': 60,
+    'UW-La Crosse': 58, 'RPI': 88, 'WPI': 86, 'Dickinson': 82, 'Gettysburg': 80,
+    'Franklin & Marshall': 82, 'Vassar': 90, 'Skidmore': 80, 'Union': 82,
+    'Macalester': 88, 'Grand Valley': 60
+  };
+
   D.CLASS_YEARS = ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate'];
 
   D.GENDERS = ['M', 'W'];

@@ -149,7 +149,7 @@
             <button data-stab="history" class="${activeTab === 'history' ? 'active' : ''}">History</button>
           </div>
           <span style="color:var(--text-dim); font-size:13px;">
-            ${window.XCD.data.divisionFor(school).label} • ${Utils.escapeHtml(school.conference)} • ${school.region} • ${window.XCD.data.STATE_NAMES[school.state] || school.state}
+            ${window.XCD.data.divisionFor(school).label} • ${Utils.escapeHtml(school.conference)} • ${school.region} • ${Utils.escapeHtml(window.XCD.data.cityForSchool(school))}, ${window.XCD.data.STATE_NAMES[school.state] || school.state}
           </span>
         </div>
       </div>
@@ -204,7 +204,7 @@
     const h = programHistory(game, school);
     const gTag = (g) => g === 'M' ? "Men's" : "Women's";
     const athLink = (name, id) => `<span class="clickable" data-ath="${id || ''}" data-ath-name="${Utils.escapeHtml(name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(name)}</span>`;
-    const coachLink = (name) => name ? `<span class="clickable" data-coach="" data-coach-name="${Utils.escapeHtml(name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(name)}</span>` : '—';
+    const coachLink = (name, coachId) => name ? `<span class="clickable" data-coach="${coachId || ''}" data-coach-name="${Utils.escapeHtml(name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(name)}</span>` : '—';
     const sectionTable = (title, headers, rows, empty) => `
       <div class="card" style="margin-bottom:16px;">
         <h2>${title}</h2>
@@ -275,7 +275,7 @@
             const depart = window.XCD.engine.Legacy.departureInfo(game, c, school.id);
             const prestigeReached = c.endYear ? (c.prestigeEnd ?? '—') : school.prestige;
             return `<tr>
-              <td>${coachLink(c.name)}</td>
+              <td>${coachLink(c.name, c.coachId)}</td>
               <td style="color:var(--text-dim);">${c.startYear}–${c.endYear || 'present'}</td>
               <td class="num">${wl}</td>
               <td class="num">${(sr.wins || sr.losses) ? sr.winPct + '%' : '—'}</td>

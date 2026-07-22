@@ -189,6 +189,10 @@
         school.coachId = playerCoach.id;
       }
       window.XCD.engine.Legacy.openStint(gs, playerCoach, school, gs.year);
+      // Every OTHER program's current head coach joins its permanent coaching
+      // ledger too, so CPU coaches hold and break program records, appear on
+      // program pages, and open a real profile from anywhere (Profiles fix).
+      window.XCD.engine.Legacy.seedInitialCoaches(gs);
       // Coaching tree (Update 6): link whoever now leads this staff with
       // whoever assists them — the first boss becomes the mentor.
       window.XCD.engine.Legacy.linkStaff(gs, school, gs.year);
@@ -650,6 +654,11 @@
       };
       if (gs.recruiting.auto === undefined) gs.recruiting.auto = false;
       gs.history = obj.history || { recruitingClasses: {} };
+      // Profiles & Records backfill: older saves never seeded CPU head coaches
+      // onto their program ledgers, so those programs showed an empty coaching
+      // history and a blank profile from the champions page. Seed any missing
+      // current head coach now — idempotent, so it only fills the gaps.
+      try { window.XCD.engine.Legacy.seedInitialCoaches(gs); } catch (e) { /* non-fatal */ }
       // Day-planner training; saves from the old primary/secondary system
       // fall back to the default balanced week.
       const savedTraining = obj.training || {};
