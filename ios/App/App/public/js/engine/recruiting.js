@@ -383,18 +383,54 @@
         pick.perceivedPotential = pick.potential; // what every scout believes
         pick.potential = Utils.clamp(pick.potential + rng.int(12, 32), 72, 96);
         pick.peakOverall = pick.potential;
+        // Enhanced mental makeup: the intangibles behind the hidden ceiling —
+        // relentless work ethic, coachability, steadiness, toughness, and the
+        // discipline to keep grinding when nobody is ranking them (Update 17).
         pick.workEthic = Math.max(pick.workEthic, rng.int(82, 99));
         pick.coachability = Math.max(pick.coachability, rng.int(78, 97));
         pick.consistency = Math.max(pick.consistency, rng.int(66, 92));
+        pick.mentalToughness = Math.max(pick.mentalToughness ?? 55, rng.int(72, 94));
+        pick.discipline = Math.max(pick.discipline ?? 60, rng.int(70, 92));
         pick.devProfile = rng.bool(0.6) ? 'late' : 'normal'; // late physical growth
         pick.scoutNotes = rng.shuffle(D.HIDDEN_GEMS.HINTS.slice()).slice(0, 2);
       }
-      // The tells are noisy on purpose: plenty of ordinary grinders earn the
-      // same scouting lines, so a note never outs a gem by itself.
+
+      // Busts (Update 17): the mirror image of a hidden gem. About 8% of the
+      // genuinely high-level prospects are overrated — the ranking, stars, and
+      // displayed potential (perceivedPotential) stay elite, but the REAL
+      // ceiling is well short of the hype, and a poor mental makeup (shaky work
+      // ethic, low consistency, questionable coachability, thin mental
+      // toughness) is why they never reach it. They enter college looking the
+      // part and then stall. Discoverable only through the same noisy scouting
+      // tells as gems — never proof on their own.
+      const bustCandidates = pool.filter((r) =>
+        !r.generational && !r.hiddenGem && r.potential >= D.BUSTS.MIN_POT);
+      const bustCount = Math.round(bustCandidates.length * D.BUSTS.SHARE);
+      for (let bi = 0; bi < bustCount && bustCandidates.length; bi++) {
+        const pick = bustCandidates.splice(rng.int(0, bustCandidates.length - 1), 1)[0];
+        pick.bust = true;
+        pick.perceivedPotential = pick.potential; // the hype every scout believes
+        pick.potential = Utils.clamp(pick.potential - rng.int(18, 34), 48, 74); // the real, lower ceiling
+        pick.peakOverall = pick.potential;
+        // Poor mental makeup — the tell and the cause of the flameout.
+        pick.workEthic = Math.min(pick.workEthic, rng.int(28, 50));
+        pick.consistency = Math.min(pick.consistency, rng.int(30, 52));
+        pick.coachability = Math.min(pick.coachability, rng.int(30, 55));
+        pick.mentalToughness = Math.min(pick.mentalToughness ?? 55, rng.int(30, 55));
+        pick.devProfile = 'bust';        // never quite gets there (0.45× development)
+        pick.scoutNotes = rng.shuffle(D.BUSTS.HINTS.slice()).slice(0, 2);
+      }
+
+      // The tells are noisy on purpose: plenty of ordinary prospects earn the
+      // same lines, so a note never outs a gem OR a bust by itself. Positive
+      // tells drift toward hard workers; cautionary tells toward highly-ranked
+      // kids with shakier makeup — but both land on unremarkable prospects too.
       pool.forEach((r) => {
         if (r.scoutNotes || r.generational) return;
         if ((r.workEthic >= 84 && rng.bool(0.5)) || rng.bool(0.04)) {
           r.scoutNotes = [rng.choice(D.HIDDEN_GEMS.HINTS)];
+        } else if (r.potential >= 78 && ((r.workEthic <= 52 && rng.bool(0.5)) || rng.bool(0.05))) {
+          r.scoutNotes = [rng.choice(D.BUSTS.HINTS)];
         }
       });
 

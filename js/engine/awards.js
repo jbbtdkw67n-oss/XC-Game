@@ -516,6 +516,15 @@
         school.coachId = null;   // the chair sits open until the carousel
         school.coachChangedYear = gameState.year;
         gameState.logNews(`FIRED: ${school.name} lets ${coach.fullName} go after three seasons on the Hot Seat. The search for a successor begins.`);
+        // If this is the player's own program and they're the sitting assistant
+        // (Update 17), hold the chair open and offer THEM the promotion rather
+        // than running an outside search.
+        if (gameState.isAssistant && gameState.isAssistant() && school.id === gameState.playerSchoolId) {
+          gameState.headCoachDeparture = {
+            year: gameState.year, coachName: coach.fullName, kind: 'fired', schoolId: school.id
+          };
+          gameState.logNews(`📣 HEAD JOB OPEN AT ${school.name}: with the dismissal, the program offers YOU the promotion to head coach. Accept or step aside on My Program.`);
+        }
       }
     });
   }

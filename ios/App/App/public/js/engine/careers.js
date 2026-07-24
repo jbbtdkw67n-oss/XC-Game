@@ -355,6 +355,8 @@
   function closeJobSearch(gameState) {
     gameState.jobOffers = null;
     gameState.jobSearchClosedYear = gameState.year;
+    // Taking any outside job makes a pending internal promotion moot (Update 17).
+    gameState.headCoachDeparture = null;
   }
 
   function acceptOffer(gameState, schoolId) {
@@ -699,25 +701,84 @@
     gameState.logNews(`📣 STAFF DEPARTURE: your assistant coach ${coach.fullName} ${verb}. Replace them from the hiring pool on My Program.`);
   }
 
+  // Hold the player's head chair open for their own promotion decision when
+  // they are the sitting assistant and the head coach departs (Update 17):
+  // rather than hire over them, the program offers the associate the top job.
+  // Returns true when the seat is claimed for the player (the caller must NOT
+  // fill it — it stays open until the player accepts or declines).
+  function offerPlayerHeadPromotion(gameState, school, departingCoach, kind) {
+    if (!gameState.isAssistant() || school.id !== gameState.playerSchoolId) return false;
+    gameState.headCoachDeparture = {
+      year: gameState.year,
+      coachName: departingCoach ? departingCoach.fullName : 'The head coach',
+      kind, schoolId: school.id
+    };
+    gameState.logNews(`📣 HEAD JOB OPEN AT ${school.name}: with the chair vacant, the program offers YOU the promotion to head coach. Accept or step aside on My Program.`);
+    return true;
+  }
+
   /*
    * Fill one vacancy from the market. Chains are real: hiring a sitting
    * coach opens their old chair (depth-limited so the carousel settles).
    */
   function fillVacancy(gameState, school, rng, depth) {
     const Legacy = window.XCD.engine.Legacy;
+
+    // The player is the sitting assistant at a program whose head chair just
+    // opened (Update 17): never hire over them. The seat is held for their
+    // promotion decision, flagged at the departure site — leave it open.
+    if (gameState.isAssistant() && school.id === gameState.playerSchoolId &&
+        gameState.headCoachDeparture && gameState.headCoachDeparture.schoolId === school.id) {
+      return null;
+    }
+
     const rankIndex = {};
     if (gameState.rankings) {
       gameState.rankings.M.forEach((r) => { rankIndex[r.schoolId] = Math.min(rankIndex[r.schoolId] || 999, r.rank); });
       gameState.rankings.W.forEach((r) => { rankIndex[r.schoolId] = Math.min(rankIndex[r.schoolId] || 999, r.rank); });
     }
 
+    // 0) Internal promotion (Update 17): the program's own associate coach is
+    //    frequently the natural successor when a head chair opens — continuity,
+    //    a staff already in place, and a coordinator who knows the roster. A
+    //    ready assistant gets first refusal before the program looks outside.
+    //    Weak programs promote from within readily; blue bloods demand a proven
+    //    coordinator (a higher reputation bar) and more often shop outside. The
+    //    player's own case is intercepted above; a player-run staff's assistant
+    //    (when the player is a head coach elsewhere) is exempted below.
+    if (depth < 2) {
+      const own = school.assistantId && gameState.world.coaches[school.assistantId];
+      const readyBar = school.prestige * 0.48 - 8;
+      if (own && !own.isPlayer && own.age >= 30 && (own.reputation || 0) >= readyBar &&
+          rng.bool(0.4) && acceptsHeadJob(own, school, school, rng)) {
+        school.assistantId = null;
+        Legacy.closeStint(gameState, own, school, gameState.year, 'promoted');
+        Legacy.creditPromotion(gameState, own, school, gameState.year);
+        own.role = 'Head';
+        window.XCD.engine.Coaching.convertAssistantPrestige(own);
+        own.schoolId = school.id;
+        own.yearsAtSchool = 0;
+        own.hotSeat = 0;
+        own.hotSeatYears = 0;
+        school.coachId = own.id;
+        Legacy.openStint(gameState, own, school, gameState.year);
+        school.coachChangedYear = gameState.year;
+        gameState.logNews(`${school.name} promotes assistant ${own.fullName} to head coach — the natural successor steps up from within.`);
+        return own;
+      }
+    }
+
     // 1) Poach a sitting coach whose reputation outgrew their program —
     //    the natural ladder: DIII champion → DII → low-major → power
-    //    conference → blue blood (division-agnostic by design).
+    //    conference → blue blood (division-agnostic by design). The player's
+    //    own program is shielded while they run it; but when the player is an
+    //    ASSISTANT, the head coach they serve is fair game — losing that boss
+    //    to a bigger job is exactly what opens the door to their promotion.
     if (depth < 2 && school.prestige >= 45 && rng.bool(0.6)) {
       const targets = Object.values(gameState.world.schools)
         .filter((s) => {
-          if (s.id === school.id || s.id === gameState.playerSchoolId) return false;
+          if (s.id === school.id) return false;
+          if (s.id === gameState.playerSchoolId && !gameState.isAssistant()) return false;
           if (s.prestige > school.prestige - 10) return false;
           const c = s.coachId && gameState.world.coaches[s.coachId];
           if (!c || c.isPlayer) return false;
@@ -738,6 +799,9 @@
         Legacy.openStint(gameState, c, school, gameState.year);
         school.coachChangedYear = gameState.year;
         gameState.logNews(`POACHED: ${school.name} hires ${c.fullName} away from ${from.name} (${(c.reputationLevel || {}).label || 'rising name'}).`);
+        // If we just poached the player's own head coach, hold that chair for
+        // the player's promotion decision instead of backfilling it.
+        if (offerPlayerHeadPromotion(gameState, from, c, 'left')) return c;
         fillVacancy(gameState, from, rng, depth + 1);
         return c;
       }
@@ -825,9 +889,39 @@
     return replacement;
   }
 
+  // Did this coach's program win a national title in the just-ended season?
+  // (Titles are recorded under the season's calendar year, which is now
+  // gameState.year - 1 because the rollover already advanced the year.)
+  function wonNationalTitleLastSeason(gameState, school) {
+    const year = gameState.year - 1;
+    const nat = (gameState.history.nationalChampions || {})[year] || {};
+    return ['M', 'W'].some((g) => {
+      const key = (school.division || 'DI') === 'DI' ? g : `${school.division}-${g}`;
+      return nat[key] && nat[key].teamId === school.id;
+    });
+  }
+
+  /*
+   * One coach's retirement decision for the offseason carousel (Update 17).
+   * Retirements cluster around the coach's personal clock (~age 70, SD ~5),
+   * with two extra paths: a small age-scaled EARLY exit from the early 60s on
+   * (burnout, health, the right stopping point), and "going out on top" — a
+   * veteran who just won it all sometimes walks away a champion rather than
+   * chase the encore, and the older they are the more tempting that mic-drop
+   * exit. Pure decision, no side effects, so it is unit-testable in isolation.
+   */
+  function coachRetirementDecision(gameState, coach, school, rng) {
+    const wonTitle = wonNationalTitleLastSeason(gameState, school);
+    const onTopChance = coach.age >= 72 ? 0.6 : coach.age >= 68 ? 0.42 : coach.age >= 64 ? 0.18 : 0.05;
+    const goOutOnTop = wonTitle && rng.bool(onTopChance);
+    const earlyRetire = coach.age >= 62 && rng.bool(Math.min(0.16, (coach.age - 61) * 0.022));
+    const retires = coach.age >= coach.retireAge || earlyRetire || goOutOnTop;
+    return { retires, goOutOnTop, wonTitle };
+  }
+
   /*
    * The offseason carousel, run at the year rollover (after coach aging).
-   *  - Retirements: random, always 75+.
+   *  - Retirements: clustered around age 70 (SD ~5), plus "out on top" exits.
    *  - Vacancies (from firings + retirements + moves) get filled.
    *  - Free agents nobody calls eventually retire quietly.
    */
@@ -838,23 +932,32 @@
     Object.values(gameState.world.schools).forEach((school) => {
       const coach = school.coachId && gameState.world.coaches[school.coachId];
       if (!coach || coach.isPlayer) return;
-      // Some coaches retire earlier than their clock (Update 3): a small,
-      // age-scaled chance from the late 60s on — burnout, health, a good
-      // stopping point. Most still coach until 75+.
-      const earlyRetire = coach.age >= 66 && rng.bool(Math.min(0.14, (coach.age - 65) * 0.02));
-      if (coach.age >= coach.retireAge || earlyRetire) {
+      const { retires, goOutOnTop } = coachRetirementDecision(gameState, coach, school, rng);
+      if (retires) {
         Legacy.closeStint(gameState, coach, school, gameState.year, 'retired');
         Legacy.recordRetiredCoach(gameState, coach, 'retired');
         delete gameState.world.coaches[coach.id];
         school.coachId = null;
         school.coachChangedYear = gameState.year;
-        gameState.logNews(`RETIREMENT: ${coach.fullName} steps away at ${coach.age} after ${coach.careerRecord.seasons || 'many'} seasons (${coach.careerRecord.nationalTitles} national titles).`);
+        const cr = coach.careerRecord;
+        if (goOutOnTop) {
+          const her = coach.gender === 'W' ? 'she' : 'he';
+          gameState.logNews(`🏆 OUT ON TOP: ${coach.fullName} retires at ${coach.age} as a reigning national champion — ${cr.nationalTitles} career title${cr.nationalTitles === 1 ? '' : 's'} — walking away the very season ${her} reached the summit.`);
+        } else {
+          gameState.logNews(`RETIREMENT: ${coach.fullName} steps away at ${coach.age} after ${cr.seasons || 'many'} seasons (${cr.nationalTitles} national titles).`);
+        }
+        // If the coach who just retired was the player's own head coach (the
+        // player is the sitting assistant), hold the chair for their promotion.
+        offerPlayerHeadPromotion(gameState, school, coach, goOutOnTop ? 'onTop' : 'retired');
       }
     });
 
-    // Fill every open chair, biggest jobs first (so the ladder cascades).
+    // Fill every open chair, biggest jobs first (so the ladder cascades) —
+    // except the player's own program when the head seat is being held for
+    // their promotion decision (Update 17); that one stays open until they act.
     Object.values(gameState.world.schools)
       .filter((s) => !s.coachId || !gameState.world.coaches[s.coachId])
+      .filter((s) => !(gameState.headCoachDeparture && s.id === gameState.headCoachDeparture.schoolId))
       .sort((a, b) => b.prestige - a.prestige)
       .forEach((school) => { fillVacancy(gameState, school, rng, 0); });
 
@@ -898,8 +1001,8 @@
       if (!asst || asst.isPlayer) return;
       const playerAsst = school.id === playerHeadSchoolId;
 
-      const earlyRetire = asst.age >= 63 && rng.bool(Math.min(0.12, (asst.age - 62) * 0.02));
-      if (asst.age >= (asst.retireAge || 75) || earlyRetire) {
+      const earlyRetire = asst.age >= 61 && rng.bool(Math.min(0.14, (asst.age - 60) * 0.022));
+      if (asst.age >= (asst.retireAge || 70) || earlyRetire) {
         Legacy.closeStint(gameState, asst, school, gameState.year, 'retired');
         Legacy.recordRetiredCoach(gameState, asst, 'retired');
         delete gameState.world.coaches[asst.id];
@@ -1146,6 +1249,7 @@
     gameState.recruiting.budgetLeft = Math.round(newSchool.budget.recruiting * 0.5);
     gameState.lastPlayerMeetId = null;
     gameState.jobOffers = null;
+    gameState.headCoachDeparture = null; // a fresh successor career clears any pending promotion
     gameState.weeklyFlow.trainingConfirmed = !gameState.controlsTraining();
 
     // Coaching-tree bookkeeping for both staffs touched by the succession.
@@ -1154,6 +1258,105 @@
 
     gameState.logNews(`🌅 A NEW ERA: ${successor.fullName} ${isAssistant ? `joins ${newSchool.name} as recruiting coordinator` : `takes over as head coach at ${newSchool.name}`}. The dynasty continues.`);
     return { ok: true, retired: old.fullName, successor: successor.fullName };
+  }
+
+  /* ---------------- Internal promotion (Update 17) ----------------- *
+   * When the player's head coach departs (retires — sometimes on top —, is
+   * let go, or leaves for another job) while the player is the sitting
+   * assistant, the program offers the associate the top job. It is the classic
+   * internal promotion, and the choice is the player's: step up, or step aside
+   * and let the program run its search.
+   */
+  function hasHeadPromotion(gameState) {
+    const dep = gameState.headCoachDeparture;
+    return !!(dep && gameState.isAssistant() && dep.schoolId === gameState.playerSchoolId);
+  }
+
+  /*
+   * The player (an assistant) steps up to head coach at their own program. The
+   * seat was held for exactly this decision, so there is no incumbent to
+   * displace. Experience, attributes, and career history carry over; assistant
+   * prestige converts to a first-time head-coaching reputation, and the player
+   * now controls training, scheduling, and race strategy.
+   */
+  function acceptHeadPromotion(gameState) {
+    const dep = gameState.headCoachDeparture;
+    if (!dep) return { ok: false, message: 'There is no head-coaching vacancy to step into.' };
+    if (!gameState.isAssistant()) return { ok: false, message: 'You already run a program.' };
+    const Legacy = window.XCD.engine.Legacy;
+    const WG = window.XCD.engine.WorldGenerator;
+    const D = window.XCD.data;
+    const school = gameState.getSchool(dep.schoolId);
+    const coach = gameState.getPlayerCoach();
+    if (!school || !coach) return { ok: false, message: 'Promotion failed: missing school or coach.' };
+    const year = gameState.year;
+    const rng = new window.XCD.core.SeededRNG((gameState.seed + year * 47 + (school.id.length || 3)) >>> 0);
+
+    // Vacate the assistant seat and take the head chair at the same school.
+    Legacy.closeStint(gameState, coach, school, year, 'promoted');
+    if (school.assistantId === coach.id) school.assistantId = null;
+    // The boss they served under earns a branch on the coaching tree — the
+    // lineage keeps growing even when that boss has retired (Update 6 tree).
+    Legacy.creditPromotion(gameState, coach, school, year);
+    coach.role = 'Head';
+    gameState.playerRole = 'Head';
+    // A first-time head coach proves themselves: assistant prestige converts
+    // DOWN into a head-coaching reputation (Phase 13), never 1:1.
+    window.XCD.engine.Coaching.convertAssistantPrestige(coach);
+    coach.schoolId = school.id;
+    coach.yearsAtSchool = 0;
+    coach.hotSeat = 0;
+    coach.hotSeatYears = 0;
+    school.coachId = coach.id;
+    school.coachChangedYear = year;
+    Legacy.openStint(gameState, coach, school, year);
+
+    // The staff stays full: a fresh coordinator is hired under the new head
+    // coach (the player can replace them from the pool later, as any head coach).
+    const asst = WG.buildAssistant(rng, school);
+    asst.age = rng.int(28, 46);
+    asst.reputation = Utils.clamp(asst.reputation || 12, 3, 30);
+    asst.yearsAtSchool = 0;
+    if (asst.careerRecord) asst.careerRecord.seasons = 0;
+    gameState.world.coaches[asst.id] = asst;
+    school.assistantId = asst.id;
+    Legacy.linkStaff(gameState, school, year);
+
+    // Now a head coach: the player plans training and scheduling again.
+    gameState.training.M = (gameState.training.M && gameState.training.M.length) ? gameState.training.M : D.DEFAULT_WEEK_PLAN.slice();
+    gameState.training.W = (gameState.training.W && gameState.training.W.length) ? gameState.training.W : D.DEFAULT_WEEK_PLAN.slice();
+    gameState.training.overrides = gameState.training.overrides || {};
+    gameState.weeklyFlow.trainingConfirmed = false;
+    gameState.headCoachDeparture = null;
+    // Committing to take over closes the coaching market for the cycle — a
+    // freshly-promoted head coach isn't job-hunting the same offseason.
+    gameState.jobOffers = null;
+    gameState.jobSearchClosedYear = gameState.year;
+
+    gameState.career.stops = gameState.career.stops || [];
+    gameState.career.stops.push({ school: school.name, startYear: year, role: 'Head' });
+
+    const how = dep.kind === 'fired' ? 'was let go'
+      : dep.kind === 'left' ? 'moved on to another program'
+      : 'retired';
+    gameState.logNews(`🎉 PROMOTED FROM WITHIN: You take over as head coach at ${school.name} after ${dep.coachName} ${how}. The program is yours to run — training, scheduling, and race strategy included.`);
+    return { ok: true, message: `You're the head coach at ${school.name}!` };
+  }
+
+  // The player passes on the promotion (Update 17): they remain an assistant
+  // and the program hires a head coach from the open market as usual.
+  function declinePlayerHeadPromotion(gameState) {
+    const dep = gameState.headCoachDeparture;
+    if (!dep) return { ok: false, message: 'No promotion is pending.' };
+    const school = gameState.getSchool(dep.schoolId);
+    gameState.headCoachDeparture = null; // cleared first so fillVacancy won't hold the seat
+    if (school && (!school.coachId || !gameState.world.coaches[school.coachId])) {
+      const rng = new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 59 + (school.id.length || 3)) >>> 0);
+      fillVacancy(gameState, school, rng, 0);
+      const hired = school.coachId && gameState.world.coaches[school.coachId];
+      gameState.logNews(`You stay on as assistant at ${school.name}${hired ? `; ${hired.fullName} is hired to run the program.` : '.'}`);
+    }
+    return { ok: true, message: `You remain an assistant at ${school ? school.name : 'your program'}.` };
   }
 
   /* ---------------- Coach rankings ---------------- */
@@ -1191,6 +1394,8 @@
   window.XCD.engine.Careers = {
     generateOffers, generateAssistantOffers, acceptOffer, applyForJob, applicationRoll,
     declineOffers, expireOffers, evolveJobMarket, runCarousel, runAssistantCarousel,
-    fillVacancy, coachRankings, canRetire, retireAndSucceed
+    fillVacancy, coachRankings, canRetire, retireAndSucceed,
+    hasHeadPromotion, acceptHeadPromotion, declinePlayerHeadPromotion,
+    coachRetirementDecision, wonNationalTitleLastSeason
   };
 })();

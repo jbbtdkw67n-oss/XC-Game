@@ -2,6 +2,19 @@
   const M = window.XCD.models;
   const Utils = window.XCD.core.Utils;
 
+  // Retirement clock (Update 17): coaches now generally retire around age 70
+  // with a standard deviation of ~5 years — a fair share hang it up in their
+  // early-to-mid 60s, and only a few grind into their late 70s. Modeled as an
+  // approximately normal draw (the sum of three uniforms is a cheap, decent
+  // Gaussian) so the spread is realistic rather than flat. This is the default
+  // for successors and any coach built without an explicit clock; worldgen and
+  // the carousel set their own seeded clock for determinism.
+  function retirementClock() {
+    const g = (Math.random() + Math.random() + Math.random() - 1.5) * 10; // ≈ N(0, 5)
+    return Math.round(Utils.clamp(70 + g, 58, 82));
+  }
+  M.retirementClock = retirementClock;
+
   /* ---------------------------------------------------------------- *
    * Athlete
    * ---------------------------------------------------------------- */
@@ -277,7 +290,7 @@
         },
         // Career timeline (Part 9): every stop, forever.
         stints: [], // { schoolId, school, division, startYear, endYear }
-        retireAge: 75 + Math.round(Math.random() * 8), // retirement is random, 75+
+        retireAge: retirementClock(), // retire around 70 (SD ~5) — Update 17
 
         ...data
       });
@@ -356,9 +369,11 @@
           this.overallRating * 0.45 + cr.nationalTitles * 12 + cr.conferenceTitles * 3 +
           Math.min(20, this.yearsAtSchool)), 5, 90);
       }
-      if (data.retireAge !== undefined && data.retireAge < 75) {
-        this.retireAge = 75 + (data.retireAge % 9); // deterministic-ish remap to the 75+ rule
-      }
+      // Retirement rebalance (Update 17): the retirement norm moved from 75+
+      // down to ~70 (SD ~5). Old-save clocks are remapped ONCE in the versioned
+      // save migration (v5→v6) — not here, because this constructor also runs
+      // on every reload and on legitimately-generated new clocks, which must be
+      // left untouched.
       if (data.talentEval === undefined) {
         const near = (base, spread) => Utils.clamp(Math.round(base + (Math.random() - 0.5) * spread), 20, 99);
         this.talentEval = near(this.recruiting, 20);

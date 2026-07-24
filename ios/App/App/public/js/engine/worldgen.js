@@ -246,11 +246,12 @@
     const archetype = rng.choice(D.COACH_ARCHETYPES);
     // Initial dynasty (Update 3): coaches span 25-75 so the world starts with
     // a realistic age spread; future generated coaches start younger.
+    const age = role === 'Assistant' ? rng.int(25, 52) : rng.int(25, 75);
     const coach = new M.Coach({
       firstName,
       lastName: rng.choice(D.LAST_NAMES),
       gender,
-      age: role === 'Assistant' ? rng.int(25, 52) : rng.int(25, 75),
+      age,
       role,
       archetype: archetype.key,
       portrait: rng.choice(D.COACH_PORTRAITS),
@@ -258,7 +259,10 @@
       talentEval: statFor(), motivation: statFor(), transferRecruiting: statFor(),
       internationalRecruiting: Utils.clamp(statFor() - 10, 15, 95),
       media: statFor(), staffManagement: statFor(), relationships: statFor(),
-      retireAge: 75 + rng.int(0, 8), // retirement is random, always 75+
+      // Retire around 70 (SD ~5) — Update 17 — floored just past the coach's
+      // current age so a freshly generated veteran is never already past due
+      // (which would empty a chair on the very first rollover).
+      retireAge: Math.max(rng.gaussianRange(70, 5, 58, 82), age + rng.int(1, 4)),
       schoolId: school.id,
       isPlayer,
       yearsAtSchool: 0

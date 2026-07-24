@@ -385,6 +385,34 @@
       </div>
 
       ${(() => {
+        // Head-coach promotion (Update 17): the player is an assistant and the
+        // head chair at their own program just opened. The program offers them
+        // the top job — step up, or step aside and let the search run.
+        const Careers = window.XCD.engine.Careers;
+        if (!Careers.hasHeadPromotion || !Careers.hasHeadPromotion(game)) return '';
+        const dep = game.headCoachDeparture;
+        const sch = game.getPlayerSchool();
+        const how = dep.kind === 'fired' ? `${Utils.escapeHtml(dep.coachName)} was let go`
+          : dep.kind === 'left' ? `${Utils.escapeHtml(dep.coachName)} left for another program`
+          : dep.kind === 'onTop' ? `${Utils.escapeHtml(dep.coachName)} retired a national champion`
+          : `${Utils.escapeHtml(dep.coachName)} retired`;
+        return `
+        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--gold, #d4af37);">
+          <h2 style="margin:0 0 4px;">🎉 The Head Job Is Yours to Take</h2>
+          <div style="color:var(--text-dim); font-size:13px; line-height:1.5;">
+            ${how}, and ${sch ? Utils.escapeHtml(sch.name) : 'your program'} wants to promote YOU from
+            within. Step up and you take full control — training, scheduling, and race strategy — with a
+            first-time head coach's reputation and a fresh coordinator on staff. Pass, and the program hires
+            from outside while you stay on as an assistant. Decide before the season opens.
+          </div>
+          <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn small primary" id="btn-accept-head-promo">Accept — Become Head Coach</button>
+            <button class="btn small" id="btn-decline-head-promo">Step Aside — Stay Assistant</button>
+          </div>
+        </div>`;
+      })()}
+
+      ${(() => {
         // Assistant departure (Update 16): the player's coordinator left for a
         // job of their own. A major offseason event — the seat is open until
         // the player hires a replacement from the pool on My Program.
@@ -542,6 +570,37 @@
 
     const hireAsstBtn = container.querySelector('#btn-go-hire-asst');
     if (hireAsstBtn) hireAsstBtn.addEventListener('click', () => UI.navigate('school'));
+
+    // Head-coach promotion (Update 17): accept to step up, decline to stay put.
+    const acceptPromo = container.querySelector('#btn-accept-head-promo');
+    if (acceptPromo) acceptPromo.addEventListener('click', () => {
+      const sch = game.getPlayerSchool();
+      UI.showModal(`
+        <h2>Take over as head coach at ${Utils.escapeHtml(sch ? sch.name : 'your program')}?</h2>
+        <p style="color:var(--text-dim); margin-bottom:16px;">
+          You'll step up from assistant to head coach immediately, taking full control of training,
+          scheduling, and race strategy. A fresh coordinator joins your staff, and your career record and
+          history carry over. First-time head coaches start with a modest reputation and prove themselves.
+        </p>
+        <div style="display:flex; gap:10px;">
+          <button class="btn primary" id="confirm-promo">Accept the Promotion</button>
+          <button class="btn" data-modal-close>Cancel</button>
+        </div>
+      `, (modal) => {
+        modal.querySelector('#confirm-promo').addEventListener('click', () => {
+          const result = window.XCD.engine.Careers.acceptHeadPromotion(game);
+          UI.closeModal();
+          UI.toast(result.message, result.ok ? 'success' : 'error');
+          if (result.ok) UI.renderShell();
+        });
+      });
+    });
+    const declinePromo = container.querySelector('#btn-decline-head-promo');
+    if (declinePromo) declinePromo.addEventListener('click', () => {
+      const result = window.XCD.engine.Careers.declinePlayerHeadPromotion(game);
+      UI.toast(result.message || 'You stay on as an assistant.', 'info');
+      render(container);
+    });
 
     // Week 1 checklist wiring (Section 15).
     const w1 = (id, fn) => { const el = container.querySelector(id); if (el) el.addEventListener('click', fn); };

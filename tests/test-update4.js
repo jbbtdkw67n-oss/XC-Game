@@ -196,17 +196,18 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   if (bail('STABILITY')) { await browser.close(); process.exit(1); }
   console.log('stability sweep: ok');
 
-  // ---- 10) Save migration to v5 + roundtrip ----
+  // ---- 10) Save migration + roundtrip (save version tracks the latest) ----
   const save = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     const json = JSON.parse(JSON.stringify(g.toJSON()));
     const restored = window.XCD.engine.GameState.fromJSON(json);
     const c = restored.getPlayerCoach();
-    return { saveVersion: json.saveVersion, hasTP: !!c.trainingPhilosophy, hasRP: !!c.racePhilosophy,
+    return { saveVersion: json.saveVersion, expected: window.XCD.engine.GameState.SAVE_VERSION,
+      hasTP: !!c.trainingPhilosophy, hasRP: !!c.racePhilosophy,
       accoladesKept: Object.values(restored.world.athletes).some((a) => (a.accolades || []).length),
       heritageKept: Object.values(restored.world.schools).some((s) => (s.heritage || 0) > 0) };
   });
-  if (save.saveVersion !== 5) fail('save version not 5: ' + save.saveVersion);
+  if (save.saveVersion !== save.expected) fail('save version mismatch: ' + save.saveVersion + ' vs ' + save.expected);
   if (!save.hasTP || !save.hasRP) fail('philosophies lost on save/load');
   if (!save.accoladesKept) fail('accolades lost on save/load');
   if (!save.heritageKept) fail('heritage lost on save/load');

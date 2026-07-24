@@ -112,6 +112,10 @@
       this.jobOffers = null; // outside interest after strong seasons
       // A pending coordinator vacancy after an assistant leaves (Update 16).
       this.assistantDeparture = null;
+      // The player's head coach departed while they were an assistant (Update
+      // 17): the head chair is held open for the player's promotion decision.
+      // { year, coachName, kind: retired|onTop|fired|left, schoolId }.
+      this.headCoachDeparture = null;
 
       // First-season tutorial (Update 15): set at dynasty creation for the
       // FIRST coach only ({ pending, tipsYear, seen }); cleared forever when
@@ -325,6 +329,15 @@
     advanceWeek() {
       // Deterministic per-week RNG so simulated worlds are reproducible.
       const rng = new window.XCD.core.SeededRNG((this.seed + this.year * 53 + this.week * 7919) >>> 0);
+
+      // Safety (Update 17): an unresolved head-coach promotion auto-declines
+      // once the competitive season is underway, so a program is never run
+      // headless into a race. The player has all of summer (and any offseason
+      // lead-up) to decide whether to step up.
+      if (this.headCoachDeparture &&
+          this.week >= D.CALENDAR.REGULAR_SEASON_START && this.week <= D.CALENDAR.NATIONAL_WEEK) {
+        window.XCD.engine.Careers.declinePlayerHeadPromotion(this);
+      }
 
       // Recruiting: AI schools work their boards, recruits decide.
       window.XCD.engine.Recruiting.processWeek(this, rng);
@@ -586,6 +599,9 @@
         // The player's coordinator left this offseason (Update 16): a pending
         // vacancy the player resolves from the hiring pool.
         assistantDeparture: this.assistantDeparture || null,
+        // The player's head coach departed while they assisted (Update 17): a
+        // pending internal-promotion decision.
+        headCoachDeparture: this.headCoachDeparture || null,
         week1: this.week1,
         // First-season tutorial state (Update 15).
         tutorial: this.tutorial || null,
@@ -684,6 +700,7 @@
       gs.offseasonReport = obj.offseasonReport || null;
       gs.staffHiredYear = obj.staffHiredYear || null;
       gs.assistantDeparture = obj.assistantDeparture || null;
+      gs.headCoachDeparture = obj.headCoachDeparture || null; // Update 17
       // Tutorial state (Update 15): null for older saves — never shown to them.
       gs.tutorial = obj.tutorial || null;
       // Saves from before the Week 1 administrative phase are grandfathered:
@@ -745,6 +762,7 @@
      *              4-rating coaches, no mileage/divisions)
      *   3        — Update 2 (21-week calendar, divisions, mileage,
      *              reputation, program history)
+     *   6        — Update 17 (coach retirement rebalanced to ~age 70)
      * Model constructors handle per-entity field defaults; this handles
      * cross-cutting shape changes.
      */
@@ -800,12 +818,28 @@
         });
       }
 
+      // v5 -> v6 (Update 17): coaches now retire around age 70 (SD ~5), not
+      // 75+. Every coach in an old save carries an old-rule 75+ clock; remap
+      // them ONCE into the new distribution — deterministically from the id,
+      // but never below the coach's current age, so loading a save never
+      // force-retires anyone on the spot. Runs exactly once (guarded by the
+      // save version), so legitimately-generated new clocks are never touched.
+      if (from < 6) {
+        Object.values((obj.world && obj.world.coaches) || {}).forEach((c) => {
+          if (typeof c.retireAge === 'number' && c.retireAge >= 74) {
+            const idc = c.id || 'coach';
+            const seed = (idc.charCodeAt(idc.length - 1) || 7);
+            c.retireAge = Math.max(66 + (seed % 9), (c.age || 40) + 1); // 66–74, ≥ age+1
+          }
+        });
+      }
+
       obj.saveVersion = GameState.SAVE_VERSION;
       return obj;
     }
   }
 
-  GameState.SAVE_VERSION = 5;
+  GameState.SAVE_VERSION = 6;
 
   // A collision-resistant id for a brand-new dynasty (Phase 5).
   GameState.newDynastyId = function () {

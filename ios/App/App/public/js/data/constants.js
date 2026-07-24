@@ -796,6 +796,31 @@
     ]
   };
 
+  /*
+   * Busts (Update 17) — the inverse of a hidden gem. A slice of the genuinely
+   * highly-touted prospects are overrated: the ranking, stars, and displayed
+   * potential all read elite (the scouting consensus, perceivedPotential), but
+   * the REAL ceiling falls well short of the hype, and a poor mental makeup
+   * (shaky work ethic, low consistency, questionable coachability) is why they
+   * never get there. Like gems, a bust surfaces soft cautionary tells in the
+   * scout's notebook — and, like gems, those tells are deliberately noisy, so a
+   * note is never proof: plenty of solid prospects earn the same lines.
+   */
+  D.BUSTS = {
+    SHARE: 0.08,     // ~8% of high-level prospects never pan out
+    MIN_POT: 80,     // only genuinely highly-touted recruits (4-5★ range) can bust
+    HINTS: [
+      'Motor runs hot and cold.',
+      'Lives on natural talent.',
+      'Questions about the work ethic.',
+      'Coaches wonder about the drive.',
+      'Hype may be ahead of the substance.',
+      'Struggles in the biggest moments.',
+      'Plateaued as a senior.',
+      'More flash than grind.'
+    ]
+  };
+
   /* ------------------------------------------------------------------ *
    * Mileage (Part 6). Weekly volume is its own training variable,
    * independent of the day-by-day workout plan.

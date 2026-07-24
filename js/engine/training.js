@@ -1129,6 +1129,89 @@
     }
   }
 
+  /*
+   * Mental makeup development (Update 17). A runner's HEAD matures over a
+   * career, and the program's culture is the biggest lever. A coach who builds
+   * a strong culture (high Culture rating, backed by Motivation) instills work
+   * ethic and drive: athletes grow more motivated, disciplined, and tougher
+   * year over year, and lead better as they mature. A weak or indifferent
+   * program lets those same intangibles slide. Everything can improve AND
+   * regress, and it ties into features already in the game — culture,
+   * motivation, the coach relationship, race experience, morale, class year,
+   * and the hidden development profiles (gems keep grinding; busts back-slide).
+   * The gains are deliberately gentle, so a program's habits are built (or
+   * eroded) over seasons, never overnight. Nothing here touches physical
+   * ratings — currentOverall is unchanged — but work ethic and consistency
+   * feed straight back into how fast the athlete develops, closing the loop:
+   * culture → work ethic → development → results → morale/prestige → culture.
+   */
+  function mentalDevelopment(a, coach, rng, school) {
+    const culture = coach ? (coach.culture ?? 55) : 45;        // no coach → a rudderless program
+    const motivation = coach ? (coach.motivation ?? 55) : 50;
+    const nudge = (key, target, rate, min = 15, max = 99) => {
+      const cur = a[key] ?? 55;
+      a[key] = Utils.clamp(Math.round(cur + (target - cur) * rate), min, max);
+    };
+    // Asymmetric drift for the drive traits: a strong culture RAISES them
+    // meaningfully, but an ordinary or weak program only gently erodes a
+    // self-motivated athlete — personal drive is sticky, so a naturally hard
+    // worker (a hidden gem) keeps most of their edge in a lax room.
+    const nudgeDrive = (key, target, min = 15, max = 99) => {
+      const cur = a[key] ?? 55;
+      const rate = target >= cur ? 0.12 : 0.05;
+      a[key] = Utils.clamp(Math.round(cur + (target - cur) * rate), min, max);
+    };
+
+    // Work ethic and discipline follow the culture the coach builds, strongly:
+    // a demanding, well-run locker room raises the floor for everyone. But a
+    // bust resists buying in — that's their defining flaw — so a strong culture
+    // only lifts them partway and never to an elite work ethic; a great coach
+    // can partially redeem a bust, never fully.
+    let cultureTarget = Utils.clamp(44 + culture * 0.40 + motivation * 0.10, 25, 95);
+    if (a.devProfile === 'bust') cultureTarget = Math.min(cultureTarget, 40 + culture * 0.20);
+    nudgeDrive('workEthic', cultureTarget);
+    nudgeDrive('discipline', cultureTarget - 2);
+
+    // Hidden dev-profile bias: gems (and generational talents) keep grinding —
+    // that drive is their edge; busts let it slip, which is why they stall.
+    if (a.devProfile === 'bust') {
+      if (rng.bool(0.5)) a.workEthic = Utils.clamp(a.workEthic - rng.int(1, 2), 15, 99);
+      if (rng.bool(0.35)) a.consistency = Utils.clamp(a.consistency - 1, 15, 99);
+    } else if (a.hiddenGem || a.generational) {
+      if (rng.bool(0.4)) a.workEthic = Utils.clamp(a.workEthic + 1, 15, 99);
+    }
+
+    // Leadership grows as athletes mature into upperclassmen, faster in a
+    // strong culture; a checked-out, low-morale runner can lose the room.
+    if (['Junior', 'Senior', 'Graduate'].includes(a.classYear)) {
+      const leadTarget = Utils.clamp(46 + culture * 0.24 + (a.confidence ?? 60) * 0.15, 25, 92);
+      nudge('leadership', leadTarget, 0.10);
+    } else if (a.morale < 45 && rng.bool(0.2)) {
+      a.leadership = Utils.clamp((a.leadership ?? 50) - 1, 15, 99);
+    }
+
+    // Mental toughness tempers through real racing and a demanding culture, and
+    // erodes on a low-morale, low-culture team.
+    const mtTarget = Utils.clamp(44 + culture * 0.22 + Math.min(20, (a.careerStats.races || 0) * 0.8), 25, 92);
+    nudge('mentalToughness', mtTarget, 0.08);
+
+    // Coachability drifts toward the bond with the staff (Update 5 relationship
+    // model): an athlete who trusts a strong-culture coach buys in more.
+    if (a.coachRelationship !== undefined) {
+      const coachTarget = Utils.clamp(45 + a.coachRelationship * 0.40 + culture * 0.12, 25, 95);
+      nudge('coachability', coachTarget, 0.08);
+    }
+
+    // Academics drift toward a target set by the athlete's own discipline and
+    // the program's academic support: a disciplined athlete at a strong
+    // academic school gains in the classroom, a struggling one slips — which
+    // in turn feeds academic stress (a drag on development) and eligibility.
+    if (school) {
+      const acadTarget = Utils.clamp(30 + (a.discipline ?? 60) * 0.45 + (school.academics ?? 55) * 0.25, 20, 95);
+      nudge('academics', acadTarget, 0.07, 20, 99);
+    }
+  }
+
   /* ================================================================ *
    * Offseason development (Part 12)
    * ================================================================ */
@@ -1209,6 +1292,11 @@
           if (a.consistency < 92 && rng.bool(0.10 + a.discipline / 400)) a.consistency += 1;
           if ((a.careerStats.races || 0) > 0 && a.raceIQ < 90 && rng.bool(0.30)) a.raceIQ += 1;
 
+          // Mental makeup development (Update 17): the head matures too, and the
+          // program's CULTURE is the biggest lever — every mental ability can
+          // improve AND regress, driven by features already in the game.
+          mentalDevelopment(a, coach, rng, school);
+
           const before = a.currentOverall;
           a.recalculateOverall();
           const delta = a.currentOverall - before;
@@ -1286,6 +1374,7 @@
     MAJOR_INJURY_WEEKS,
     philosophyEffect,
     coachCraft,
+    mentalDevelopment,
     MEET_WEEKS
   };
 })();

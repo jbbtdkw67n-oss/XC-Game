@@ -926,7 +926,12 @@
 
     const result = {
       distanceM,
-      finishers: detailed ? finishers : finishers.slice(0, 15),
+      // Regionals feed the individual-qualifier selection (top finishers not on
+      // a qualifying team), which can reach well past the top 15 when the front
+      // of the race is packed with qualifying teams — so keep a deeper field for
+      // regionals. Ordinary invitationals only ever surface their top 15.
+      finishers: detailed ? finishers
+        : finishers.slice(0, meet.type === 'regional' ? 45 : 15),
       finisherCount: finishers.length,
       teamScores
     };
@@ -1307,15 +1312,27 @@
         }
         champ.fieldIds[gender] = field;
 
-        // Individuals: division's top regional finishers not on a qualifying team.
+        // Individual qualifiers — the real NCAA rule. In each regional, the top
+        // N finishers whose team did NOT qualify (auto or at-large) advance on
+        // their own: N = 4 in Division I, 5 in DII/DIII. Walk the finish order,
+        // SKIP every runner already going with a qualified team, and take the
+        // first N who remain. (The old code sliced the top N finishers overall
+        // and then dropped qualified-team runners, which produced far too few —
+        // frequently zero — individuals, because the front of a regional is
+        // dominated by the very teams that qualify. That was the bug where
+        // individual qualifiers "didn't work.")
         const fieldSet = new Set(field);
         const individuals = [];
         regionalMeets.forEach((meet) => {
           const res = meet.results[gender];
           if (!res) return;
-          res.finishers.slice(0, rules.individualQualifiersPerRegional).forEach((f) => {
-            if (!fieldSet.has(f.schoolId)) individuals.push(f.athleteId);
-          });
+          let picked = 0;
+          for (const f of res.finishers) {
+            if (picked >= rules.individualQualifiersPerRegional) break;
+            if (fieldSet.has(f.schoolId)) continue; // already in the field with a qualified team
+            individuals.push(f.athleteId);
+            picked++;
+          }
         });
         champ.individualQualifiers[gender] = individuals;
 
