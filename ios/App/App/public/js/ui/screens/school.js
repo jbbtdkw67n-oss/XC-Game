@@ -773,12 +773,23 @@
             // as an assistant, or your recruiting coordinator as a head coach.
             const partnerId = coach.role === 'Assistant' ? school.coachId : school.assistantId;
             const partner = partnerId && partnerId !== coach.id ? game.getCoach(partnerId) : null;
-            if (!partner) return '';
+            const isHead = coach.role !== 'Assistant';
+            // Assistant-coach vacancy fix: a head coach must ALWAYS be able to
+            // reach the staff panel — even when the seat is empty — so a
+            // departed coordinator can never leave the program permanently
+            // stuck without an assistant (which would block the season).
+            if (!partner) {
+              if (!isHead) return '';
+              return `<div style="font-size:12.5px; margin:0 0 10px; color:var(--warning);">
+                ⚠️ Assistant Coach: <strong>Vacant</strong>
+                <button class="btn small primary" id="btn-manage-staff" style="margin-left:6px;" title="Hire an assistant from the candidate pool">Hire Assistant</button>
+              </div>`;
+            }
             const partnerRole = partner.role === 'Assistant' ? 'Assistant Coach' : 'Head Coach';
             return `<div style="font-size:12.5px; margin:0 0 10px;">
               ${partnerRole}: <span class="clickable" id="btn-partner-coach" style="cursor:pointer; color:var(--accent-hover);">${UI.avatar(partner, { size: 22, outfit: 'suit' })} ${Utils.escapeHtml(partner.fullName)}</span>
-              <span style="color:var(--text-faint);"> • ${Utils.escapeHtml(partner.archetype || '')} • Overall ${partner.overallRating}</span>
-              ${coach.role !== 'Assistant' ? ' <button class="btn small" id="btn-manage-staff" style="margin-left:6px;" title="Compare assistant candidates and reshape your staff">Manage Staff</button>' : ''}
+              <span style="color:var(--text-faint);"> • ${Utils.escapeHtml(partner.archetype || '')} • Overall ${partner.overallRating}${partner.interim ? ' • <span style="color:var(--warning);">interim</span>' : ''}</span>
+              ${isHead ? ' <button class="btn small" id="btn-manage-staff" style="margin-left:6px;" title="Compare assistant candidates and reshape your staff">Manage Staff</button>' : ''}
             </div>`;
           })()}
           <div style="font-size:12.5px; margin-bottom:12px;">

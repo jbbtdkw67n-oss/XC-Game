@@ -475,11 +475,15 @@
         <div class="grid cols-2">
           <div>
             <h3>Upcoming Meets</h3>
-            ${upcoming.length ? upcoming.slice(0, 4).map((m) => `
+            ${upcoming.length ? upcoming.slice(0, 4).map((m) => {
+              const S = window.XCD.engine.Scheduling;
+              const divShort = (window.XCD.data.DIVISION_SHORT || {})[S ? S.meetDivision(game, m) : (m.division || 'DI')] || 'D1';
+              return `
               <div class="attr-row" style="cursor:pointer;" data-meet-nav="1">
-                <span><strong>Wk ${m.week}</strong> ${Utils.escapeHtml(m.name)}${m.week === game.week ? ' <span style="color:var(--warning); font-size:11px;">THIS WEEK</span>' : ''}</span>
-                <span style="color:var(--text-faint); font-size:12px;">${m.conditions.tempF}°F${m.conditions.rain ? ' · rain' : ''} · hills ${m.conditions.hilliness}</span>
-              </div>`).join('') : '<div style="color:var(--text-dim); font-size:13px;">No meets remaining — the regular season is done.</div>'}
+                <span><span style="background:var(--accent-soft); border-radius:4px; padding:0 5px; font-size:10px; font-weight:700;">${divShort}</span> <strong>Wk ${m.week}</strong> ${Utils.escapeHtml(m.name)}${m.week === game.week ? ' <span style="color:var(--warning); font-size:11px;">THIS WEEK</span>' : ''}</span>
+                <span style="color:var(--text-faint); font-size:12px;">M ${window.XCD.engine.Races.distKey(m.distances.M)}/W ${window.XCD.engine.Races.distKey(m.distances.W)} · ${window.XCD.data.altitudeClass(m.conditions)} alt</span>
+              </div>`;
+            }).join('') : '<div style="color:var(--text-dim); font-size:13px;">No meets remaining — the regular season is done.</div>'}
           </div>
           <div>
             <h3>Recent Results</h3>

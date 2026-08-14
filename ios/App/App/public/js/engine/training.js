@@ -512,11 +512,67 @@
    * Weekly development points for one athlete. A point converts into +1 on
    * a plan-weighted attribute via the fractional devProgress accumulator.
    */
-  function devPoints(athlete, coach, school, planMeta, rng) {
-    const gap = athlete.potential - athlete.currentOverall;
-    const gapFactor = Utils.clamp(gap / 22, 0.06, 1.25);   // stars plateau near their ceiling
+  /*
+   * Development ENVIRONMENT quality (0..1). How much of an athlete's true
+   * potential they actually realize is diversified by their surroundings:
+   * the coach's development rating and how well training is executed dominate,
+   * with facilities and the athlete's own makeup contributing. A 45-rated coach
+   * running sloppy, phase-mismatched training leaves real ability on the table;
+   * a master developer executing textbook, well-periodized training unlocks it.
+   * `devExecAvg` is the athlete's rolling training-execution quality (updated
+   * weekly in processAthlete) so the ceiling reflects a career of coaching, not
+   * a single week.
+   */
+  function devEnvQuality(athlete, coach, school) {
     const coachSkill = coach ? (coach.training ?? coach.development ?? 55) : 50;
-    const coachFactor = 0.55 + coachSkill / 110;
+    const execAvg = athlete.devExecAvg ?? 1.0;
+    const coachQ = Utils.clamp((coachSkill - 35) / 55, 0, 1);   // 35→0 … 90→1
+    const execQ = Utils.clamp((execAvg - 0.72) / 0.5, 0, 1);    // sloppy→0 … textbook→1
+    const facQ = Utils.clamp(((school.facilities.trainingCenter ?? 50) - 35) / 55, 0, 1);
+    const makeupQ = Utils.clamp(((athlete.workEthic ?? 60) + (athlete.coachability ?? 60) - 100) / 80, 0, 1);
+    return coachQ * 0.40 + execQ * 0.30 + facQ * 0.15 + makeupQ * 0.15;
+  }
+
+  /*
+   * The overall an athlete will actually PLATEAU at, given their environment —
+   * a fraction of their true potential. Poor environments realize ~84%; an
+   * excellent one realizes 100%. Only a near-perfect environment on a near-max
+   * potential nudges past it toward 99, so a genuine 99-overall runner requires
+   * everything to line up and is extraordinarily rare.
+   */
+  function effectiveCeiling(athlete, env) {
+    const pot = athlete.potential;
+    // A well-run program realizes ~95%+ of an athlete's potential; a poor one
+    // plateaus them meaningfully short (~86-88%). The slope keeps the top near
+    // full attainment (so elite depth and championship calibration hold) while
+    // the bottom falls away — a genuinely diversified spread.
+    let ceil = pot * (0.83 + 0.19 * env);
+    if (env >= 0.88 && pot >= 96) ceil += (env - 0.88) * (pot - 95) * 3.4; // perfect-storm overshoot toward 99
+    return Utils.clamp(ceil, 20, 99);
+  }
+
+  function devPoints(athlete, coach, school, planMeta, rng) {
+    const coachSkill = coach ? (coach.training ?? coach.development ?? 55) : 50;
+    // Environment quality sets the athlete's EFFECTIVE ceiling — how much of
+    // their potential the program actually unlocks (diversified attainment).
+    const env = devEnvQuality(athlete, coach, school);
+    const ceil = effectiveCeiling(athlete, env);
+    athlete._devCeiling = ceil; // consumed by applyDevelopment's rating cap
+    // Development slows to a crawl as the athlete nears their effective ceiling.
+    const gap = ceil - athlete.currentOverall;
+    const gapFactor = Utils.clamp(gap / 24, 0.02, 1.25);
+    // Perfect-storm finishing kick: only a near-max potential unlocked by a
+    // near-perfect program (effective ceiling ~98-99) gets a boost on the final,
+    // otherwise glacial climb — enough that a genuine 99 overall is reachable
+    // within a career. It requires everything to align (elite potential + elite
+    // coach + textbook execution + top facilities + elite makeup), so a 99 is
+    // extraordinarily rare. Ordinary athletes (ceiling < 97) never see it.
+    const eliteFinish = ceil >= 97 ? 1 + (ceil - 97) * 0.9 : 1;
+    // Coach development quality also drives the SPEED of progression: an average
+    // coach (~55) is neutral, an elite developer accelerates growth, a poor one
+    // (~25) is a real drag — compounding with the lower ceiling above so a weak
+    // program develops athletes both slower AND less far.
+    const coachFactor = 0.45 + coachSkill / 100;
     // Facilities matter: training center + sports science drive development.
     const facFactor = 0.50 + school.facilities.trainingCenter / 145;
     const makeupFactor = 0.55 + (athlete.workEthic + athlete.coachability) / 320;
@@ -539,21 +595,35 @@
       else altitudeFactor = alt === 'High' ? 1.07 : 1.035;         // then the engine grows
     }
 
-    return 3.4 * planMeta.devMult * gapFactor * coachFactor * facFactor * makeupFactor *
+    return 3.4 * planMeta.devMult * gapFactor * eliteFinish * coachFactor * facFactor * makeupFactor *
       moraleFactor * fatiguePenalty * ageFactor * academicStress * altitudeFactor *
       devProfileMult(athlete) * careerInjuryDevMult(athlete) * noise;
   }
 
   // Spend accumulated development on attributes weighted by the plan.
-  // Injury Resistance is never in attrWeights — it's essentially innate.
+  // Injury Resistance is essentially innate — it only inches up (rarely) for an
+  // athlete who has already maxed everything else at a truly elite program,
+  // which is the last piece needed to reach a 99 overall.
   function applyDevelopment(athlete, attrWeights, rng) {
     const keys = Object.keys(attrWeights);
     if (!keys.length) return;
+    // Individual ratings can climb toward 99, but only as far as the athlete's
+    // environment-driven effective ceiling allows (plus a small headroom so the
+    // weighted overall can actually reach that ceiling). A 99 overall therefore
+    // needs a near-max effective ceiling — i.e. a near-max potential unlocked by
+    // a near-perfect program — making it extraordinarily rare.
+    const ceil = athlete._devCeiling ?? athlete.potential;
+    const cap = Utils.clamp(Math.round(ceil) + 4, 20, 99);
     while (athlete.devProgress >= 1) {
       athlete.devProgress -= 1;
       const key = rng.weightedChoice(keys, (k) => attrWeights[k]);
-      const cap = Math.min(97, athlete.potential + 8);
       if (athlete[key] < cap) athlete[key] += 1;
+      // Final polish toward 99: once an elite athlete at an elite program has
+      // driven their developed ratings to the top, the innate Injury Resistance
+      // very occasionally inches up too — the only path to a true 99 overall.
+      else if (ceil >= 97 && (athlete.injuryResistance ?? 55) < cap && rng.next() < 0.12) {
+        athlete.injuryResistance = Math.min(99, (athlete.injuryResistance ?? 55) + 1);
+      }
     }
   }
 
@@ -858,6 +928,14 @@
 
     // Development — chemistry lifts everyone; strong captains mentor freshmen;
     // a confident team (high morale) responds more positively to training.
+    // Rolling training-execution quality: how well this program executes its
+    // training week to week (plan quality, phase fit, and the philosophy run to
+    // the coach's skill), smoothed over the athlete's time on campus. Feeds the
+    // effective development ceiling so well-executed programs realize more of an
+    // athlete's potential and sloppy ones realize less.
+    const execWk = Utils.clamp((planMeta.devMult ?? 1) * (planMeta.phaseFit ? 1.05 : 1) * (philo.devMult ?? 1), 0.3, 1.6);
+    athlete.devExecAvg = (athlete.devExecAvg == null) ? execWk : (athlete.devExecAvg * 0.9 + execWk * 0.1);
+
     let dev = devPoints(athlete, coach, school, planMeta, rng) * mMeta.devMult;
     if (culture) {
       dev *= 0.88 + culture.chemistry / 450; // 0.88–1.10

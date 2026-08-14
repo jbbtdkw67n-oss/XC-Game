@@ -485,6 +485,16 @@
     const distances = (base.week >= CONFERENCE_WEEK || base.elite)
       ? { M: 8000, W: 6000 }
       : { M: 8000, W: 5000 };
+    // Week 4 men's distance variety (early-season 6K option): a real slice of
+    // early/mid-season invitationals race the men at 6K rather than 8K. Applied
+    // to ~45% of Week 4 non-championship meets (deterministic per meet via the
+    // season-build RNG), so 8K stays the norm and both distances appear, clearly
+    // labeled. Women's distances are unchanged. The time model scales the 6K
+    // correctly (baseTime distance scaling), and scoring is distance-agnostic.
+    if (base.week === 4 && base.type !== 'conference' && base.type !== 'regional' &&
+        base.type !== 'national' && rng.bool(0.45)) {
+      distances.M = 6000;
+    }
     if (base.type === 'regional') {
       // Bug fix: NCAA regionals race the full championship 10K for men in
       // Division I and II (Division III regionals stay at 8K, matching their
@@ -540,11 +550,29 @@
   }
 
   // Rating -> total seconds for gender/distance, before conditions/noise.
+  //
+  // Race-time realism rebalance: the ability→pace mapping is anchored to a
+  // broad sample of modern collegiate cross country, NOT one unusually fast
+  // championship. Winning times land in real ranges only AFTER conditions and
+  // form apply (a well-tapered elite on a fast course runs a minute-plus
+  // quicker than the same runner grinding a hilly regular-season meet), so
+  // this base is deliberately conservative — the model, not a flat percentage,
+  // creates the variation. Calibrated so an elite (race-rating ~90) championship
+  // winner runs roughly: M 10K ~29:1x–29:4x, M 8K ~23:2x, W 6K ~19:2x–19:4x,
+  // with D2/D3 naturally slower because their fields peak at lower ratings.
   function baseTime(rating, gender, distanceM) {
     const km = distanceM / 1000;
-    const perKm = gender === 'M'
-      ? (1800 - 4.6 * rating) / 8    // anchored at 8K (~23:00 elite)
-      : (1500 - 3.2 * rating) / 6;   // anchored at 6K (~19:45 elite)
+    // Per-km pace (s/km) as a linear function of race rating. Intercept/slope
+    // set so realistic collegiate ratings yield realistic per-km pace across
+    // the whole field, from champions down to the back of the pack.
+    let perKm = gender === 'M'
+      ? 240 - 0.62 * rating
+      : 264 - 0.62 * rating;
+    // Distance scaling: longer races cost a little more per km, shorter races
+    // a little less (fresher legs, faster ground). Referenced to the men's 8K
+    // / women's 6K championship distance.
+    const refKm = gender === 'M' ? 8 : 6;
+    perKm *= 1 + (km - refKm) * 0.006;
     return perKm * km;
   }
 

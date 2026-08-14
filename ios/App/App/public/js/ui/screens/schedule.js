@@ -7,6 +7,100 @@
   const Utils = window.XCD.core.Utils;
   const Races = () => window.XCD.engine.Races;
 
+  // "In the Field" browser state (Meet preview overhaul): the division/gender
+  // filter the user picks. `ifDiv === null` means "default to my division".
+  let ifDiv = null;   // null | 'all' | 'DI' | 'DII' | 'DIII'
+  let ifGender = 'M'; // 'M' | 'W'
+
+  // Division badge markup (D1/D2/D3), consistent across every meet card.
+  function divBadge(div) {
+    const short = (window.XCD.data.DIVISION_SHORT || {})[div] || 'D1';
+    const bg = div === 'DI' ? 'var(--accent-soft)' : div === 'DII' ? 'rgba(180,140,60,0.18)' : 'rgba(80,150,110,0.18)';
+    return `<span style="background:${bg}; border-radius:4px; padding:1px 6px; font-size:10.5px; font-weight:700; letter-spacing:.3px;">${short}</span>`;
+  }
+
+  /*
+   * The "In the Field" panel: upcoming meets across ALL divisions, clearly
+   * labeled D1/D2/D3 and Men/Women, filterable, each with an informed
+   * projection (projected team finish + individual leader). The projection is
+   * NOT the result — the race is simulated independently, so upsets happen.
+   */
+  function inTheFieldHtml(game) {
+    const S = window.XCD.engine.Scheduling;
+    const D = window.XCD.data;
+    if (!S || !S.upcomingMeets) return '';
+    const school = game.getPlayerSchool();
+    const myDiv = (school && school.division) || 'DI';
+    const div = ifDiv === null ? myDiv : ifDiv;
+    const gender = ifGender;
+
+    let meets = S.upcomingMeets(game, { maxWeeks: 3 });
+    if (div !== 'all') meets = meets.filter((m) => S.meetDivision(game, m) === div);
+    meets = meets.filter((m) => S.meetHasGender(m, gender));
+
+    // Rank what to show: the player's own meets first, then elite/championship
+    // fields, then the rest — capped so predictions stay cheap and the list
+    // stays scannable.
+    const notability = (m) => {
+      let n = 0;
+      if ((m.schoolIds || []).includes(game.playerSchoolId)) n += 100;
+      if (m.type === 'national') n += 40; else if (m.type === 'regional') n += 22;
+      else if (m.type === 'conference') n += 18; else if (m.elite) n += 10 + m.elite * 4;
+      return n - m.week * 0.1;
+    };
+    meets = meets.sort((a, b) => notability(b) - notability(a)).slice(0, 10);
+
+    const divBtn = (key, label) => `<button class="btn small ${((ifDiv === null ? myDiv : ifDiv) === key) ? 'primary' : ''}" data-if-div="${key}">${label}</button>`;
+    const genBtn = (key, label) => `<button class="btn small ${ifGender === key ? 'primary' : ''}" data-if-gender="${key}">${label}</button>`;
+
+    const cards = meets.map((m) => {
+      const mdiv = S.meetDivision(game, m);
+      const proj = S.projectMeet(game, m, gender);
+      const ci = S.courseInfo(game, m);
+      const dist = Races().distKey(m.distances[gender]);
+      const isMine = (m.schoolIds || []).includes(game.playerSchoolId);
+      const top = proj.teams.slice(0, 4).map((t, i) =>
+        `<div class="attr-row clickable" data-school="${t.schoolId}" style="padding:2px 0; cursor:pointer;">
+           <span>${i + 1}. ${Utils.escapeHtml(t.name)}${t.schoolId === game.playerSchoolId ? ' <span style="color:var(--accent);">(You)</span>' : ''}${t.complete ? '' : ' <span style="color:var(--text-faint); font-size:10px;">(short squad)</span>'}</span>
+         </div>`).join('');
+      const leader = proj.individuals[0];
+      return `
+        <div class="card" style="margin:0 0 10px; ${isMine ? 'border-left:3px solid var(--accent);' : ''}">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+            <h3 style="margin:0;">${divBadge(mdiv)} ${Utils.escapeHtml(m.name)} <span style="color:var(--text-faint); font-weight:400; font-size:12px;">Wk ${m.week} · ${gender === 'M' ? "Men's" : "Women's"} ${dist}</span></h3>
+            <span style="color:var(--text-faint); font-size:11.5px;">${Utils.escapeHtml(ci.location || '')} · ${ci.hillinessLabel} · ${window.XCD.data.altitudeClass(ci)} alt</span>
+          </div>
+          <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:6px;">
+            <div style="flex:1; min-width:180px;">
+              <div style="font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.4px; margin-bottom:2px;">Projected Team Finish</div>
+              ${top || '<div style="color:var(--text-faint); font-size:12px;">Field forming…</div>'}
+            </div>
+            <div style="min-width:150px;">
+              <div style="font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.4px; margin-bottom:2px;">Projected Leader</div>
+              ${leader ? `<div class="clickable" data-ath="${leader.athleteId}" style="cursor:pointer;">${Utils.escapeHtml(leader.name)}<div style="color:var(--text-dim); font-size:11.5px;">${Utils.escapeHtml(leader.school)}</div></div>` : '<div style="color:var(--text-faint); font-size:12px;">—</div>'}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="card" style="margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+          <h2 style="margin:0;">🔭 In the Field — Upcoming Meets</h2>
+        </div>
+        <div style="color:var(--text-faint); font-size:11.5px; margin:2px 0 8px;">
+          Projections are informed forecasts from current form — not results. The races are simulated independently, so favorites can lose and underdogs can break through.
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+          <span style="font-size:11px; color:var(--text-faint);">Division</span>
+          ${divBtn('all', 'All')}${divBtn('DI', 'D1')}${divBtn('DII', 'D2')}${divBtn('DIII', 'D3')}
+          <span style="font-size:11px; color:var(--text-faint); margin-left:8px;">Gender</span>
+          ${genBtn('M', 'Men')}${genBtn('W', 'Women')}
+        </div>
+        ${cards || '<div style="color:var(--text-dim); font-size:13px;">No upcoming meets match this filter.</div>'}
+      </div>`;
+  }
+
   // Meet results with Men/Women tabs (Update 13, Phase 9): both squads' full
   // results are viewable from the Schedule screen, not just the men's.
   function meetResultModal(game, meet, gender) {
@@ -80,7 +174,8 @@
       ${(() => {
         const hostHtml = window.XCD.engine.Scheduling.meetHostHtml
           ? window.XCD.engine.Scheduling.meetHostHtml(game, meet) : '';
-        return hostHtml ? `<div style="color:var(--text-dim); font-size:12.5px; line-height:1.5;">${hostHtml}${meet.courseMeta && meet.courseMeta.altitudeFt !== undefined ? `<div>⛰ ${meet.courseMeta.altitudeFt.toLocaleString()} ft</div>` : ''}</div>` : '';
+        const altClass = window.XCD.data.altitudeClass(meet.courseMeta || meet.conditions);
+        return hostHtml ? `<div style="color:var(--text-dim); font-size:12.5px; line-height:1.5;">${hostHtml}<div>⛰ ${altClass} altitude</div></div>` : '';
       })()}
       <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">
         Week ${meet.week} • ${meet.conditions.tempF}°F${meet.conditions.rain ? ' • Rain' : ''} •
@@ -126,7 +221,7 @@
     return [
       ci.location, ci.course,
       ci.hillinessLabel ? `${ci.hillinessLabel} (${ci.hilliness}/100)` : '',
-      ci.altitudeFt !== undefined ? `${ci.altitudeFt} ft` : `${ci.altitude} altitude`,
+      `${window.XCD.data.altitudeClass(ci)} altitude`,
       ci.prestige ? `Prestige: ${ci.prestige}` : ''
     ].filter(Boolean).join(' · ');
   }
@@ -241,42 +336,9 @@
     const rankM = Rk.teamRank(game, school.id, 'M');
     const rankW = Rk.teamRank(game, school.id, 'W');
 
-    // Upcoming meet field preview
-    let previewHtml = '';
-    const nextRaceWeek = weeks.map((w) => w.week).find((w) => w >= game.week && season.playerMeetByWeek[w]);
-    if (nextRaceWeek) {
-      const meet = season.meets[season.playerMeetByWeek[nextRaceWeek]];
-      if (meet && !meet.results.M) {
-        const fieldTeams = meet.schoolIds
-          .map((id) => ({ school: game.getSchool(id), rank: Rk.teamRank(game, id, 'M') }))
-          .filter((t) => t.school)
-          .sort((a, b) => (a.rank || 999) - (b.rank || 999))
-          .slice(0, 10);
-        const nextCourse = window.XCD.engine.Scheduling
-          ? window.XCD.engine.Scheduling.courseInfo(game, meet) : null;
-        previewHtml = `
-          <div class="card" style="margin-top:16px;">
-            <h2>Next Up: ${Utils.escapeHtml(meet.name)} (Week ${meet.week})</h2>
-            ${nextCourse ? `<div style="color:var(--text-dim); font-size:12.5px; margin-bottom:4px;">
-              📍 ${Utils.escapeHtml(nextCourse.location || '')}${nextCourse.course ? ` · ${Utils.escapeHtml(nextCourse.course)}` : ''}
-              · Hilliness: <strong>${nextCourse.hillinessLabel}</strong>
-              · Altitude: <strong>${nextCourse.altitudeFt !== undefined ? nextCourse.altitudeFt.toLocaleString() + ' ft' : nextCourse.altitude}</strong>
-              · Prestige: <strong>${Utils.escapeHtml(nextCourse.prestige)}</strong>
-            </div>` : ''}
-            <div style="color:var(--text-dim); font-size:13px; margin-bottom:10px;">
-              ${meet.conditions.tempF}°F${meet.conditions.rain ? ', rain likely' : ''} ·
-              hills ${meet.conditions.hilliness}/100 · ${meet.conditions.altitude} altitude ·
-              M ${Races().distKey(meet.distances.M)} / W ${Races().distKey(meet.distances.W)}
-            </div>
-            <h3>Field to Watch (men's poll)</h3>
-            ${fieldTeams.map((t) => `
-              <div class="attr-row clickable" data-school="${t.school.id}" style="cursor:pointer;">
-                <span>${t.rank ? '#' + t.rank + ' ' : ''}${Utils.escapeHtml(t.school.name)}${t.school.id === game.playerSchoolId ? ' <span style="color:var(--accent);">(You)</span>' : ''}</span>
-                <span style="color:var(--text-dim); font-size:12px;">${Utils.escapeHtml(t.school.conference)}</span>
-              </div>`).join('')}
-          </div>`;
-      }
-    }
+    // Upcoming meet field preview → the filterable "In the Field" browser with
+    // division/gender labels and pre-meet projections (Meet preview overhaul).
+    const previewHtml = inTheFieldHtml(game);
 
     // Week 1 Administrative Phase (spec Part 2, Section 15): the schedule —
     // including the Pre-Nationals answer — is set during Week 1 and then
@@ -351,7 +413,7 @@
                   return `<div style="font-size:11.5px; color:var(--text-faint); margin-top:4px;">
                     📍 ${Utils.escapeHtml(ci.location || '')}${ci.course ? ` · ${Utils.escapeHtml(ci.course)}` : ''}
                     · Hilliness: <strong>${ci.hillinessLabel}</strong> (${ci.hilliness}/100)
-                    · Altitude: <strong>${ci.altitudeFt !== undefined ? ci.altitudeFt.toLocaleString() + ' ft' : ci.altitude}</strong>
+                    · Altitude: <strong>${window.XCD.data.altitudeClass(ci)}</strong>
                     · Prestige: <strong>${Utils.escapeHtml(ci.prestige)}</strong>
                   </div>`;
                 })()}
@@ -413,6 +475,16 @@
         const s = game.getSchool(el.dataset.school);
         if (s && UI.showSchoolCard) UI.showSchoolCard(s, game);
       });
+    });
+    // "In the Field" projected-leader clicks + division/gender filter buttons.
+    container.querySelectorAll('[data-ath]').forEach((el) => {
+      el.addEventListener('click', () => { if (UI.openAthlete) UI.openAthlete(game, el.dataset.ath); });
+    });
+    container.querySelectorAll('[data-if-div]').forEach((btn) => {
+      btn.addEventListener('click', () => { ifDiv = btn.dataset.ifDiv; render(container); });
+    });
+    container.querySelectorAll('[data-if-gender]').forEach((btn) => {
+      btn.addEventListener('click', () => { ifGender = btn.dataset.ifGender; render(container); });
     });
 
     const rcBtn = container.querySelector('#btn-race-center');

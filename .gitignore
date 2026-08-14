@@ -8,3 +8,6 @@ android/
 
 # Scratch/diagnostic probes (temporary, not part of the suite)
 tests/_*.js
+
+# Local, machine-specific Claude Code settings
+.claude/settings.local.json

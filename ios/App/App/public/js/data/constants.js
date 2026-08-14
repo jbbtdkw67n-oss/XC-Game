@@ -733,10 +733,45 @@
       prestige: 'Elite', divisions: ['DI'] }
   ];
 
+  /*
+   * Seeded all-time record baselines (Records realism). The record book opens
+   * anchored to genuinely elite modern collegiate marks — faster than a typical
+   * national champion — so early records already read as historic and only an
+   * exceptional performance on a fast day breaks one. They are NOT hard caps:
+   * as development progresses across decades, a generational talent can lower
+   * them, but rarely. Keyed `${gender}-${distanceK}` to match the race engine.
+   * Seconds are elite course-record territory for each distance.
+   */
+  D.SEED_RECORDS = {
+    'M-10K': 1718, // 28:38 — near the fastest realistic collegiate 10K
+    'M-8K':  1388, // 23:08
+    'M-6K':  1018, // 16:58
+    'M-5K':  844,  // 14:04
+    'W-6K':  1158, // 19:18
+    'W-5K':  950   // 15:50
+  };
+
   // Hilliness label for a 0-100 course profile (course information display).
   D.hillinessLabel = (h) => h >= 55 ? 'Hilly' : h >= 30 ? 'Rolling' : 'Flat';
   // Altitude category from feet (matches the Low/Medium/High weather model).
+  // Thresholds reflect real racing effect: only genuinely high-altitude venues
+  // (~5,500 ft+, e.g. Flagstaff, the Colorado front range) read "High"; the
+  // 3,000–5,500 band is "Medium"; everything below — the vast majority of the
+  // country, including near-sea-level and merely-elevated courses — is "Low".
   D.altitudeCategory = (ft) => ft >= 5500 ? 'High' : ft >= 3000 ? 'Medium' : 'Low';
+
+  // Standardized meet-altitude class (Altitude standardization). EVERY meet —
+  // every division, every round — surfaces only Low / Medium / High; exact
+  // elevation is never shown in normal meet information. Accepts a course/meta
+  // object (real `altitudeFt` preferred), a conditions object, or a bare
+  // category string, and always resolves to one of the three tiers.
+  D.altitudeClass = function (src) {
+    if (src == null) return 'Low';
+    if (typeof src === 'string') return src;
+    if (typeof src.altitudeFt === 'number') return D.altitudeCategory(src.altitudeFt);
+    if (src.altitude) return src.altitude;
+    return 'Low';
+  };
 
   /*
    * Pre-Nationals Invitational (Update 3). Division I only. Racing it earns a

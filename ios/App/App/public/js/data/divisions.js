@@ -61,9 +61,13 @@
       developmentEmphasis: 1.25,
       coachSalaryTier: 2,
       expectations: 0.8,
-      // DII regulations: four seasons of competition inside the ten-semester
-      // (five-year) window; redshirt and non-competition years preserve seasons.
-      eligibility: { seasons: 4, clockYears: 5 },
+      // Eligibility unification: for gameplay consistency, D2 uses the SAME
+      // collegiate eligibility rules as D1 — five seasons of competition on a
+      // five-year clock, with redshirt and non-competition years preserving
+      // seasons. This keeps progression, redshirts, and remaining eligibility
+      // identical across divisions, so a transfer never gains or loses
+      // eligibility simply by changing divisions.
+      eligibility: { seasons: 5, clockYears: 5 },
       // NCAA Division II qualification (real structure): 8 regional meets, the
       // top 2 teams in each region qualify automatically (16), and at-large
       // selections on season merit complete the 32-team national field. The
@@ -94,9 +98,11 @@
       developmentEmphasis: 1.4,  // coaching and culture over recruiting rankings
       coachSalaryTier: 1,
       expectations: 0.6,
-      // DIII regulations: four seasons of participation within the athlete's
-      // first ten semesters of enrollment (modeled as a five-year window).
-      eligibility: { seasons: 4, clockYears: 5 },
+      // Eligibility unification: D3 uses the SAME collegiate eligibility rules
+      // as D1 (five seasons on a five-year clock), so years of eligibility,
+      // seasons competed, redshirts, progression, and remaining eligibility are
+      // consistent across every division and transfers carry eligibility intact.
+      eligibility: { seasons: 5, clockYears: 5 },
       // NCAA Division III qualification (real structure): 8 regional meets, the
       // top 2 teams in each region qualify automatically (16), with at-large
       // selections completing the 32-team field. The top 5 individuals per
@@ -172,7 +178,9 @@
   // Eligibility rules for a school/division key. Defaults to a 4-season /
   // 5-year model when the division carries no explicit block (old saves).
   D.eligibilityFor = function (schoolOrKey) {
-    return D.divisionFor(schoolOrKey).eligibility || { seasons: 4, clockYears: 5 };
+    // Unified collegiate eligibility across all divisions (5 seasons / 5-year
+    // clock); the fallback matches so any edge case stays consistent.
+    return D.divisionFor(schoolOrKey).eligibility || { seasons: 5, clockYears: 5 };
   };
 
   // Resolve the division rules for a school (or a raw division key).

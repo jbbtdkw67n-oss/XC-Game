@@ -8,6 +8,10 @@
 
   let activeTab = 'national';
   let activeGender = 'M';
+  // Division filter (Rankings division filter): view D1 / D2 / D3 rankings.
+  // null = default to the player's own division. Ranking pools are NEVER
+  // combined across divisions — exactly one division is shown at a time.
+  let activeDiv = null; // null | 'DI' | 'DII' | 'DIII'
 
   function arrow(r) {
     if (!r.prevRank) return '<span style="color:var(--text-faint);">·</span>';
@@ -21,6 +25,10 @@
     const game = UI.state.game;
     const R = game.rankings;
     const school = game.getPlayerSchool();
+    const playerDiv = school.division || 'DI';
+    // The division currently being viewed (defaults to the player's).
+    const viewDiv = activeDiv || playerDiv;
+    const isCoaches = activeTab === 'coaches';
 
     container.innerHTML = `
       <div class="screen-header">
@@ -34,6 +42,11 @@
             <button data-tab="freshman" class="${activeTab === 'freshman' ? 'active' : ''}">Freshmen</button>
             <button data-tab="coaches" class="${activeTab === 'coaches' ? 'active' : ''}">Coaches</button>
           </div>
+          ${isCoaches ? '' : `<div class="pill-tabs">
+            <button data-div="DI" class="${viewDiv === 'DI' ? 'active' : ''}">D1</button>
+            <button data-div="DII" class="${viewDiv === 'DII' ? 'active' : ''}">D2</button>
+            <button data-div="DIII" class="${viewDiv === 'DIII' ? 'active' : ''}">D3</button>
+          </div>`}
           <div class="pill-tabs">
             <button id="g-m" class="${activeGender === 'M' ? 'active' : ''}">Men</button>
             <button id="g-w" class="${activeGender === 'W' ? 'active' : ''}">Women</button>
@@ -68,10 +81,9 @@
           </tbody>
         </table></div>`;
     } else if (activeTab === 'individual' || activeTab === 'freshman') {
-      const playerDiv = school.division || 'DI';
       const raw = activeTab === 'individual' ? R.individuals[activeGender] : R.freshmen[activeGender];
-      // Scope to the player's division (per-division rankings, Update 3).
-      let list = raw.filter((r) => (r.division || 'DI') === playerDiv);
+      // Scope to the SELECTED division (never combine divisions).
+      let list = raw.filter((r) => (r.division || 'DI') === viewDiv);
       // Preseason fallback (Update 4, Part 9): before any results exist, show
       // the projected favorites driven by returning ability + development.
       let preseason = false;
@@ -101,23 +113,27 @@
         </table></div>`
         : '<div style="color:var(--text-dim);">No race results yet this season — rankings publish after the first meets.</div>';
     } else {
-      const playerDiv = school.division || 'DI';
-      const divLabel = window.XCD.data.divisionFor(playerDiv).label;
-      // Every poll is scoped to the player's division (Update 3).
-      let rows = R[activeGender].filter((r) => (r.division || 'DI') === playerDiv);
+      const divLabel = window.XCD.data.divisionFor(viewDiv).label;
+      // Every poll is scoped to the SELECTED division (never combined).
+      let rows = R[activeGender].filter((r) => (r.division || 'DI') === viewDiv);
       let heading = `${divLabel} National Poll`;
-      if (activeTab === 'region') {
-        // Regional rankings follow the real NCAA championship region (matches
-        // who you actually race at Regionals), falling back to the broad region
-        // for any poll computed before this update.
+      // Region/Conference tabs are inherently the PLAYER's own region/conference;
+      // they only make sense within the player's division, so when the user is
+      // browsing another division those tabs fall back to that division's
+      // national poll (rankings pools are never mixed across divisions).
+      const relative = viewDiv === playerDiv;
+      if (activeTab === 'region' && relative) {
         const myRegion = window.XCD.data.ncaaRegionFor(school);
         rows = rows.filter((r) => (r.ncaaRegion || r.region) === myRegion);
         heading = `${divLabel} · ${myRegion} Regional Rankings`;
-      } else if (activeTab === 'conference') {
+      } else if (activeTab === 'conference' && relative) {
         rows = rows.filter((r) => r.conference === school.conference);
         heading = `${school.conference} Standings`;
       } else {
         rows = rows.slice(0, 40);
+        if (!relative && (activeTab === 'region' || activeTab === 'conference')) {
+          heading = `${divLabel} National Poll`;
+        }
       }
       body.innerHTML = `
         <h2>${heading} — Week ${R.computedWeek}</h2>
@@ -157,6 +173,9 @@
 
     container.querySelectorAll('[data-tab]').forEach((btn) => {
       btn.addEventListener('click', () => { activeTab = btn.dataset.tab; render(container); });
+    });
+    container.querySelectorAll('[data-div]').forEach((btn) => {
+      btn.addEventListener('click', () => { activeDiv = btn.dataset.div; render(container); });
     });
     container.querySelector('#g-m').addEventListener('click', () => { activeGender = 'M'; render(container); });
     container.querySelector('#g-w').addEventListener('click', () => { activeGender = 'W'; render(container); });

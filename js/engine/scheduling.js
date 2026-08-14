@@ -239,5 +239,108 @@
     };
   }
 
-  window.XCD.engine.Scheduling = { buildOptions, select, eliteRequirement, qualifiesForElite, courseInfo, meetHostHtml };
+  /* ================================================================ *
+   * Upcoming meets, division labeling & pre-meet predictions
+   * (Meet preview overhaul).
+   * ================================================================ */
+
+  // The division a meet belongs to. Championship meets carry it explicitly;
+  // for invitationals it is the majority division of the entered field, so a
+  // meet is never mislabeled and the user never has to guess from the teams.
+  function meetDivision(gameState, meet) {
+    if (meet.division) return meet.division;
+    const ids = meet.type === 'national'
+      ? (meet.fieldByGender && (meet.fieldByGender.M || meet.fieldByGender.W)) || meet.schoolIds
+      : meet.schoolIds;
+    const tally = {};
+    (ids || []).forEach((id) => {
+      const s = gameState.getSchool(id);
+      if (!s) return;
+      const d = s.division || 'DI';
+      tally[d] = (tally[d] || 0) + 1;
+    });
+    let best = 'DI', bestN = -1;
+    Object.keys(tally).forEach((d) => { if (tally[d] > bestN) { bestN = tally[d]; best = d; } });
+    return best;
+  }
+
+  // Does this meet field a race for the given gender? (Every meet fields both,
+  // but nationals track a per-gender field, so honor that when present.)
+  function meetHasGender(meet, gender) {
+    if (meet.type === 'national' && meet.fieldByGender) {
+      return !!(meet.fieldByGender[gender] && meet.fieldByGender[gender].length);
+    }
+    return true;
+  }
+
+  // Every upcoming meet in the world (all divisions), for the next race weeks.
+  // Used by the "In the Field" browser so the user can scan and filter meets
+  // across D1/D2/D3 and both genders — not just their own program's.
+  function upcomingMeets(gameState, { fromWeek, maxWeeks = 3 } = {}) {
+    const s = gameState.season;
+    if (!s) return [];
+    const start = fromWeek || gameState.week;
+    const out = [];
+    const weeks = Object.keys(s.byWeek).map(Number).filter((w) => w >= start).sort((a, b) => a - b);
+    let used = 0;
+    for (const w of weeks) {
+      const ids = s.byWeek[w] || [];
+      const live = ids.map((id) => s.meets[id]).filter((m) => m && !(m.results && (m.results.M || m.results.W)));
+      if (!live.length) continue;
+      live.forEach((m) => out.push(m));
+      if (++used >= maxWeeks) break;
+    }
+    return out;
+  }
+
+  // A pre-meet projection for ONE gender's race (Meet predictions). This is an
+  // INFORMED forecast from current team & athlete strength — NOT a script: the
+  // real race is simulated independently (conditions, tactics, form, and day-to-
+  // day variance all apply), so the projected winner can lose and a projected
+  // 4th-place team can win. Returns projected team finish + individual leaders.
+  function projectMeet(gameState, meet, gender) {
+    const R = window.XCD.engine.Races;
+    const dist = (meet.distances && meet.distances[gender]) || (gender === 'M' ? 8000 : 6000);
+    const fieldIds = (meet.type === 'national' && meet.fieldByGender && meet.fieldByGender[gender])
+      ? meet.fieldByGender[gender] : meet.schoolIds;
+    const runners = [];
+    (fieldIds || []).forEach((sid) => {
+      const school = gameState.getSchool(sid);
+      if (!school) return;
+      const roster = gameState.getRoster(sid, gender).filter((a) =>
+        a.isEligible && a.isEligible() && a.health !== 'Injured' &&
+        a.redshirt !== 'True' && a.redshirt !== 'Medical');
+      roster.forEach((a) => {
+        // Projected strength: race rating (ability for this distance) plus a
+        // light read on current fitness and race sharpness/form.
+        const strength = R.raceRating(a, dist) +
+          ((a.fitness ?? 50) - 50) * 0.06 + ((a.sharpness ?? 55) - 55) * 0.04;
+        runners.push({ a, sid, school, strength });
+      });
+    });
+    runners.sort((x, y) => y.strength - x.strength);
+    runners.forEach((r, i) => { r.place = i + 1; });
+    // Team scoring mirrors real XC: sum the projected places of a team's top 5.
+    const byTeam = {};
+    runners.forEach((r) => { (byTeam[r.sid] = byTeam[r.sid] || []).push(r.place); });
+    const teams = Object.keys(byTeam).map((sid) => {
+      const places = byTeam[sid].sort((a, b) => a - b);
+      const scoring = places.slice(0, 5);
+      const complete = scoring.length >= 5;
+      const score = complete ? scoring.reduce((s, p) => s + p, 0)
+        : 100000 + places.reduce((s, p) => s + p, 0); // incomplete teams sort last
+      return { schoolId: sid, name: gameState.getSchool(sid).name, score, complete, depth: places.length };
+    }).sort((a, b) => a.score - b.score);
+    teams.forEach((t, i) => { t.projRank = i + 1; });
+    const individuals = runners.slice(0, 6).map((r) => ({
+      athleteId: r.a.id, name: r.a.fullName, school: r.school.name,
+      schoolId: r.sid, rating: Math.round(r.strength)
+    }));
+    return { teams, individuals, fieldSize: (fieldIds || []).length };
+  }
+
+  window.XCD.engine.Scheduling = {
+    buildOptions, select, eliteRequirement, qualifiesForElite, courseInfo, meetHostHtml,
+    meetDivision, meetHasGender, upcomingMeets, projectMeet
+  };
 })();

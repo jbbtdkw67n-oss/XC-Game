@@ -143,6 +143,17 @@
       gs.week = 1;
       gs.createdAt = Date.now();
 
+      // Records realism: open the all-time record book anchored to elite modern
+      // collegiate marks so records read as historic from day one and are only
+      // broken by exceptional future performances (not by the first race run).
+      gs.history.records = gs.history.records || {};
+      Object.keys(D.SEED_RECORDS || {}).forEach((k) => {
+        gs.history.records[k] = {
+          time: D.SEED_RECORDS[k], name: 'NCAA All-Time Best', athleteId: null,
+          school: '—', schoolId: null, year: gs.year - 1, seeded: true
+        };
+      });
+
       const school = gs.world.schools[schoolId];
       const arch = (D.COACH_ARCHETYPES || []).find((a) => a.key === archetype) || { key: 'Developer', rating: 'training' };
       const isAssistant = gs.playerRole === 'Assistant';
@@ -325,6 +336,18 @@
     advanceWeek() {
       // Deterministic per-week RNG so simulated worlds are reproducible.
       const rng = new window.XCD.core.SeededRNG((this.seed + this.year * 53 + this.week * 7919) >>> 0);
+
+      // Assistant-coach vacancy safety net: a head coach's program must always
+      // have a valid assistant slot. If the seat is somehow vacant once live
+      // play has resumed (past the Week-1 / offseason hiring windows), drop in
+      // an interim coordinator so nothing that reads the assistant — and no
+      // season advance — can ever be blocked by an empty seat.
+      const Coaching = window.XCD.engine.Coaching;
+      if (Coaching && Coaching.assistantSeatVacant && !this.isAssistant() &&
+          this.week !== 1 && this.seasonPhase !== 'Offseason' &&
+          Coaching.assistantSeatVacant(this)) {
+        Coaching.installInterimAssistant(this);
+      }
 
       // Recruiting: AI schools work their boards, recruits decide.
       window.XCD.engine.Recruiting.processWeek(this, rng);

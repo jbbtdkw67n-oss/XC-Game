@@ -456,6 +456,15 @@
     return out;
   }
 
+  // Is the player's own assistant seat genuinely empty? A vacancy is never
+  // subject to the offseason window or the one-hire cap — filling it is a
+  // mandatory correction, not a discretionary upgrade, so the program can
+  // never be stranded without an assistant (which would block the season).
+  function assistantSeatVacant(gameState) {
+    const school = gameState.getPlayerSchool();
+    return !!(school && !(school.assistantId && gameState.world.coaches[school.assistantId]));
+  }
+
   // The staffing window (spec Part 2, Section 12): staff changes are an
   // OFFSEASON activity, and a program makes at most one hire per cycle.
   function canHireAssistant(gameState) {
@@ -463,6 +472,10 @@
     if (!coach || coach.role === 'Assistant') {
       return { ok: false, why: 'Only a head coach hires the staff.' };
     }
+    // A genuine vacancy can ALWAYS be filled, in any phase, ignoring the
+    // one-hire cap — a departed coordinator must never leave the program
+    // permanently stuck (assistant-coach vacancy fix).
+    if (assistantSeatVacant(gameState)) return { ok: true, vacancy: true };
     // The hiring window: the offseason proper, plus the Week 1
     // administrative phase (spec Part 2, Section 15).
     if (gameState.seasonPhase !== 'Offseason' && gameState.week !== 1) {
@@ -480,6 +493,7 @@
     const coach = gameState.getPlayerCoach();
     const gate = canHireAssistant(gameState);
     if (!gate.ok) return { ok: false, message: gate.why };
+    const wasVacancy = !!gate.vacancy;
     const current = school.assistantId && gameState.world.coaches[school.assistantId];
     if (current && current.isPlayer) return { ok: false, message: 'You cannot replace yourself.' };
     if (current) {
@@ -495,15 +509,54 @@
     school.assistantId = candidate.id;
     Legacy.openStint(gameState, candidate, school, gameState.year);
     Legacy.linkStaff(gameState, school, gameState.year);
-    gameState.staffHiredYear = gameState.year; // one hire per offseason
+    // Filling a forced vacancy does NOT burn the program's discretionary
+    // one-hire-per-offseason move — losing your coordinator shouldn't also
+    // cost you your ordinary staff decision.
+    if (!wasVacancy) gameState.staffHiredYear = gameState.year;
     gameState.assistantDeparture = null; // the vacancy is resolved (Update 16)
     if (gameState.week === 1 && gameState.week1) gameState.week1.staffConfirmed = true; // checklist: staff settled
     gameState.logNews(`Staff hire: ${candidate.fullName} joins ${school.name} as assistant coach under ${coach.fullName}.`);
     return { ok: true, message: `${candidate.fullName} joins your staff.` };
   }
 
+  /*
+   * Interim placeholder assistant (assistant-coach vacancy fix). The absolute
+   * safety net: if the player's program is ever without a valid assistant when
+   * one is required to proceed, install a modest interim coordinator so the
+   * program ALWAYS has a valid assistant slot and the season can never be
+   * blocked. The player is nudged to hire a permanent replacement, and the
+   * interim is freely replaceable through the normal (always-open) vacancy
+   * hire without spending the discretionary one-hire-per-offseason move.
+   */
+  function installInterimAssistant(gameState) {
+    const school = gameState.getPlayerSchool();
+    if (!school) return null;
+    if (school.assistantId && gameState.world.coaches[school.assistantId]) return null;
+    const rng = staffRng(gameState);
+    const WG = window.XCD.engine.WorldGenerator;
+    const asst = WG.buildAssistant(rng, school);
+    asst.age = rng.int(28, 44);
+    asst.reputation = Utils.clamp(asst.reputation || 10, 3, 24);
+    asst.origin = 'Interim assistant';
+    asst.interim = true; // flagged so the UI shows it as temporary
+    asst.schoolId = school.id;
+    asst.role = 'Assistant';
+    asst.yearsAtSchool = 0;
+    asst.careerRecord.seasons = 0;
+    asst.stints = [{ schoolId: school.id, school: school.name, division: school.division || 'DI', startYear: gameState.year, endYear: null }];
+    gameState.world.coaches[asst.id] = asst;
+    school.assistantId = asst.id;
+    if (window.XCD.engine.Legacy && window.XCD.engine.Legacy.linkStaff) {
+      window.XCD.engine.Legacy.linkStaff(gameState, school, gameState.year);
+    }
+    gameState.logNews(`${asst.fullName} steps in as interim assistant at ${school.name} until a permanent hire is made.`);
+    return asst;
+  }
+
   window.XCD.engine.Coaching = {
     yearlyProgression,
+    installInterimAssistant,
+    assistantSeatVacant,
     updateReputation,
     updateAssistantReputation,
     convertAssistantPrestige,

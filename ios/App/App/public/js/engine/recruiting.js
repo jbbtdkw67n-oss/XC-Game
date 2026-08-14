@@ -170,12 +170,29 @@
     const international = source === 'International';
     const country = international ? rng.choice(D.INTERNATIONAL_COUNTRIES) : 'USA';
 
-    // Wide national talent distribution — the elite tail is tiny.
-    const potential = Utils.clamp(Math.round(rng.gaussian(58, 15)), 25, 99);
-    // HS seniors are raw; JUCO transfers arrive more developed.
-    const devFactor = source === 'JUCO' ? rng.float(0.62, 0.75) : rng.float(0.42, 0.58);
-    const statMean = Utils.clamp(potential * devFactor, 15, 90);
-    const statFor = () => rng.gaussianRange(statMean, 8, 8, 95);
+    // Recruiting realism (star vs potential): a recruit's CURRENT ability and
+    // their long-term CEILING are drawn SEPARATELY, so the star rating (set
+    // later from current ability) never dictates the ceiling. Incoming ability
+    // is right-skewed — the top ~1% (future 5-stars) land ~70-80 OVR and are
+    // legitimate contributors immediately, while the median recruit is a modest
+    // project. JUCO transfers arrive older and more developed.
+    const abilityMean = Utils.clamp(Math.round(rng.gaussian(34, 15)), 16, 82);
+    const statMean = source === 'JUCO'
+      ? Utils.clamp(abilityMean + rng.int(5, 11), 20, 86)
+      : abilityMean;
+    const statFor = () => rng.gaussianRange(statMean, 7, 8, 92);
+
+    // Potential ceiling = current ability + development room. Development room
+    // SHRINKS as starting ability rises: a polished recruit is already near
+    // their physical ceiling (good immediately, likely to plateau — the classic
+    // "high star, low potential" bust), while a raw recruit has room to grow
+    // into a star (the late bloomer / diamond in the rough). Higher-rated
+    // recruits still carry a higher AVERAGE ceiling, but the overlap is genuine:
+    // some raw 3-stars out-develop polished 5-stars. The separate hidden-gem,
+    // blue-chip, and generational passes then layer real elite ceilings on top.
+    const roomMean = Utils.clamp(31 - statMean * 0.36, 3, 28);
+    const growthRoom = Math.max(1, Math.round(rng.gaussian(roomMean, 10) * (source === 'JUCO' ? 0.55 : 1)));
+    const potential = Utils.clamp(statMean + growthRoom, statMean + 1, 99);
 
     let hometown;
     if (international) {
@@ -344,7 +361,11 @@
       // replenished and the average Division I runner stays as strong in
       // Year 20 as in Year 1. If the natural roll produced too few genuine
       // blue-chippers, elevate the best near-misses into that tier.
-      const BLUE_CHIP_FLOOR = 8;   // guaranteed elite prospects per gender
+      // A soft floor of guaranteed elite prospects keeps genuine top-end talent
+      // in every class WITHOUT flooding the world — set low enough that natural
+      // roll variance still produces genuinely strong and genuinely weak classes
+      // year to year (some classes far exceed it, some barely clear it).
+      const BLUE_CHIP_FLOOR = 6;   // guaranteed elite prospects per gender
       const BLUE_CHIP_POT = 88;    // the potential that defines "blue chip"
       let eliteCount = pool.filter((r) => r.potential >= BLUE_CHIP_POT).length;
       if (eliteCount < BLUE_CHIP_FLOOR) {
@@ -451,11 +472,15 @@
     return r.perceivedPotential ?? r.potential;
   }
 
-  // Composite value drives stars & rankings: mostly ceiling, some floor.
-  // Built on the PERCEIVED ceiling so hidden gems rank like the modest
-  // prospects everyone believes they are.
+  // Composite value drives stars & rankings (recruiting realism): star rating
+  // is primarily the scouting consensus of CURRENT ability and immediate
+  // impact, with only a lighter read on the perceived ceiling — so a polished
+  // recruit who may plateau still rates highly, and a raw prospect with a big
+  // (perceived) ceiling does not automatically become a 5-star. The true
+  // ceiling stays hidden; hidden gems rank like the modest prospects everyone
+  // believes they are because this reads the PERCEIVED potential.
   function recruitComposite(r) {
-    return perceivedPotential(r) * 0.62 + r.currentOverall * 0.38;
+    return r.currentOverall * 0.68 + perceivedPotential(r) * 0.32;
   }
 
   /*
