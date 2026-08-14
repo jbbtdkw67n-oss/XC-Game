@@ -14,6 +14,72 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 14.0 — Update 18: Racing, Coaching, Transfer Portal & Competitive Balance
+
+A competitive-ecosystem overhaul. Races run at real collegiate speeds with a
+clear performance hierarchy, elite coaches develop and peak athletes better,
+program fit drives recruiting, CPU programs fight the player for elite talent,
+and rare DNFs add genuine race variance — all wired together so coaching feeds
+development, development feeds performance, performance feeds roster roles, and
+roster roles feed the transfer portal.
+
+- **Faster times, clearer hierarchy.** The race model was recalibrated faster
+  so athletes run performances consistent with high-level collegiate cross
+  country — a peaked elite wins the NCAA 10K around 28:4x–29:2x, the 8K around
+  22:5x–23:3x, the women's 6K around 19:2x–19:4x. A steeper ability-to-pace
+  slope plus a performance floor (taper and peaking can no longer stack into
+  impossible times) widen the separation between average, good, very good,
+  elite, and generational runners — without turning races into a lottery.
+- **Race-day variance scales with quality.** Elite, consistent, mentally tough
+  athletes race close to their ceiling nearly every time; average and
+  developing runners swing far more. Elite talent is reliable — which is why
+  it's valuable — but a good athlete can still catch an elite race on a great
+  day, and an elite can occasionally have an off one.
+- **Championship racing matters more.** A tactician's peaking swings times more
+  at conference, regionals, and nationals than at a regular-season meet: a
+  mediocre September team with good coaching can surge in November, and a team
+  peaked too early can fade.
+- **Rare, meaningful DNFs.** Athletes can now fail to finish. A healthy,
+  well-rested, durable runner almost never does; a heavily fatigued, injured,
+  over-raced, or poorly-prepared athlete on a brutal course is at real risk.
+  DNFs earn no place and no time, are handled correctly in team scoring (a team
+  can be knocked out of the standings if it loses too many bodies), show
+  clearly in the results, and notable ones make the news.
+- **Program fit drives recruiting.** In the transfer portal, program fit —
+  opportunity to compete, coaching and development environment, a genuine title
+  shot, location, academics — now outweighs raw prestige. A great-fit,
+  lower-prestige program can out-recruit a bigger name that doesn't fit,
+  naturally distributing talent so the same few programs can't hoard everyone.
+- **A living portal battle.** CPU programs recognize rising competition for an
+  athlete and dynamically increase their investment as the fight develops.
+  Elite programs are aggressive on athletes who'd immediately raise their
+  championship ceiling, pursue several targets at once, and compete directly
+  with the player. The player keeps a slight edge (full information, manual
+  control, no escalation cap), so an elite-CPU + elite-fit battle is extremely
+  difficult but never unwinnable.
+- **D2/D3 portals are no longer a shortcut.** Lower-division programs work the
+  portal harder and fight over the same cuts and transfers, so building an
+  elite DII/DIII roster now takes real recruiting strategy — you can't simply
+  collect every available body.
+- **Buried upperclassmen seek opportunity.** A talented junior, senior, or
+  fifth-year who isn't getting meaningful competition grows frustrated — the
+  older they are and the longer it drags on, the louder it gets. It isn't
+  purely rating-based: an athlete with a legitimate reason to sit (genuinely
+  behind better runners, still developing, or with a role opening up as
+  starters graduate) is far more patient.
+- **Coaching quality, graded.** CPU coaches move through every periodization
+  phase — base, build, specific, peak, championship taper, recovery, track
+  prep — and their mistakes follow a probability that scales continuously with
+  craft: an elite coach rarely slips (and never botches the championship peak),
+  while a novice regularly peaks too early, carries fatigue into championships,
+  or overtrains. Better coaches visibly develop athletes more, progressively
+  across the whole season rather than in an end-of-year lump.
+- **D2 and D3 Pre-Nationals.** Divisions II and III now contest their own
+  Pre-Nationals invitationals on their own championship courses — smaller,
+  division-appropriate fields (not DI copies) that let strong programs test
+  themselves, shape the national picture, and earn a small course-familiarity
+  edge at Nationals.
+
 ## Version 13.0 — Update 17: Recruiting, Eligibility, Race Simulation, Prestige & UI Overhaul
 
 Realism across the board: mileage, eligibility, recruiting strategy, famous

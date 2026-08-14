@@ -216,9 +216,12 @@
     }).length;
   }
 
-  // Each matched preference is worth 7% more effective recruiting pull.
+  // Each matched preference is worth 12% more effective recruiting pull
+  // (Update 18: fit weighted more heavily) — a program that matches all three
+  // of an athlete's preferences recruits them ~36% harder, and locks them for
+  // meaningfully fewer points, than one that fits none.
   function prefMultiplier(gameState, athlete, entry, school) {
-    return 1 + 0.07 * prefMatchCount(gameState, athlete, entry, school);
+    return 1 + 0.12 * prefMatchCount(gameState, athlete, entry, school);
   }
 
   /*
@@ -237,23 +240,117 @@
     const reach = quality - levelMark;
     if (reach > 6) cost *= Math.min(2.2, 1 + (reach - 6) * 0.045);
     cost /= prefMultiplier(gameState, athlete, entry, school);
+    // Competition drives the price up (Update 18): the more — and the stronger
+    // — the rival programs already chasing this athlete, the more it costs to
+    // lock them. This is the recruiting battle from the player's side — as
+    // elite CPUs pile in and escalate, an early bargain becomes a war. The
+    // player gets a slight edge (they see it developing and react smarter), so
+    // the surcharge is gentle and capped: a determined coach can always win a
+    // battle, but not win them all.
+    if (entry && entry.offers && entry.offers.length) {
+      const rivals = entry.offers.filter((sid) => sid !== gameState.playerSchoolId);
+      if (rivals.length) {
+        const rivalPts = rivals.reduce((s, sid) =>
+          s + ((entry.cpuPoints && entry.cpuPoints[sid]) || 45), 0);
+        // Gentle and capped — the player's edge is that they never pay the full
+        // freight a CPU would in the same war (item 3: a slight advantage). A
+        // hotly-contested star costs ~20% more to lock; the field is still
+        // winnable, just not cheap.
+        cost *= Utils.clamp(1 + rivalPts / 1500, 1, 1.22);
+      }
+    }
     return Math.max(35, Math.round(cost));
   }
 
   /*
-   * A CPU suitor's effective points in the race for this athlete — the same
-   * currency the player spends, derived from the pursuing program's level,
-   * its staff's recruiting craft, and how well it matches the athlete's
-   * preferences. Assigned once when the offer lands so the market is stable
-   * week to week.
+   * A CPU suitor's OPENING effective points in the race for this athlete — the
+   * same currency the player spends. Resources (prestige + the staff's
+   * recruiting craft) set the ceiling of what a program can throw at a
+   * transfer, but PROGRAM FIT is the dominant multiplier (Update 18): a great
+   * fit invests hard, a poor fit barely bothers — so a lower-prestige program
+   * that genuinely fits an athlete can out-recruit a bigger name that doesn't.
+   * Elite programs escalate hardest on athletes who'd immediately raise their
+   * championship ceiling. Assigned when the offer lands; escalateCpuPursuits
+   * then adjusts it as the battle develops.
    */
   function cpuTransferPoints(gameState, school, athlete, entry, rng) {
     const coach = gameState.getCoach(school.coachId);
-    const base = (30 + (school.prestige || 50) * 0.55) * 0.85 +
-      ((coach && coach.recruiting) || 55) * 0.30 +
-      ((coach && coach.transferRecruiting) || 55) * 0.25;
-    const noise = 0.85 + (rng ? rng.next() : Math.random()) * 0.3;
-    return Math.max(20, Math.round(base * prefMultiplier(gameState, athlete, entry, school) * noise));
+    const Coaching = window.XCD.engine.Coaching;
+    const fromSchool = entry && gameState.getSchool(entry.fromSchoolId);
+    const fit = portalAppeal(gameState, school, athlete, fromSchool); // 0-100, fit-heavy
+    const craft = ((coach && coach.recruiting) || 55) * 0.5 +
+      ((coach && coach.transferRecruiting) || 55) * 0.5;
+    // Resources ceiling: prestige + staff craft.
+    const resource = 24 + (school.prestige || 50) * 0.42 + (craft - 55) * 0.35;
+    // Fit is the dominant multiplier: fit 50 → ~1.16x, fit 80 → ~1.59x,
+    // fit 35 → ~0.95x. Program fit, not prestige alone, decides most races.
+    const fitMult = Utils.clamp(0.45 + fit / 70, 0.45, 1.9);
+    let pts = resource * fitMult;
+    // Elite / contending programs are aggressive on athletes who would
+    // immediately raise their championship ceiling (item 2).
+    const bestRank = (Coaching && Coaching.bestRank) ? Coaching.bestRank(gameState, school.id) : 999;
+    const contender = (school.prestige || 50) >= 75 || bestRank <= 15;
+    const quality = transferQuality(athlete);
+    if (contender && quality >= 66 && fit >= 55) pts *= 1.22;
+    const noise = 0.9 + (rng ? rng.next() : Math.random()) * 0.24;
+    return Math.max(18, Math.round(pts * noise));
+  }
+
+  /*
+   * Dynamic portal reallocation (Update 18, item 3). Each week a window is open,
+   * CPU programs that are genuinely pursuing a contested athlete recognize the
+   * rising competition and increase their investment to stay in the race —
+   * turning a one-and-done decision into an actual bidding war. Only programs
+   * that value the fit escalate (nobody overspends on a poor fit), and elite /
+   * aggressive-recruiting programs push hardest and furthest. Escalation is
+   * imperfect (probabilistic, capped) so the player — who reacts with full
+   * information and no cap — keeps a slight, not overwhelming, edge.
+   */
+  function escalateCpuPursuits(gameState, rng) {
+    const portal = gameState.portal;
+    if (!portal || !portal.open) return;
+    const playerId = gameState.playerSchoolId;
+    portal.entries.forEach((entry) => {
+      if (entry.destination || !entry.offers || entry.offers.length < 2) return;
+      const a = gameState.getAthlete(entry.athleteId);
+      if (!a) return;
+      entry.cpuPoints = entry.cpuPoints || {};
+      const fromSchool = gameState.getSchool(entry.fromSchoolId);
+
+      // How hot is the market? More rivals — and a heavily-invested player —
+      // both raise the pressure to escalate.
+      const rivalCount = entry.offers.filter((sid) => sid !== playerId).length;
+      let playerPressure = 0;
+      if (entry.offers.includes(playerId) && portal.player) {
+        const alloc = (portal.player.allocations || {})[a.id] || 0;
+        const lock = pointsToLock(gameState, a, gameState.getPlayerSchool(), entry);
+        playerPressure = Math.min(1, alloc / Math.max(1, lock));
+      }
+      const heat = Utils.clamp(rivalCount / 6 + playerPressure * 0.8, 0, 1.5);
+      if (heat < 0.4) return; // a quiet race doesn't trigger a bidding war
+
+      entry.offers.forEach((sid) => {
+        if (sid === playerId) return;
+        const school = gameState.getSchool(sid);
+        if (!school) return;
+        const coach = gameState.getCoach(school.coachId);
+        const fit = portalAppeal(gameState, school, a, fromSchool);
+        if (fit < 52) return; // nobody escalates on a poor fit
+        if (entry.cpuPoints[sid] === undefined) {
+          entry.cpuPoints[sid] = cpuTransferPoints(gameState, school, a, entry, rng);
+        }
+        // A great fit at a well-resourced program can roughly double its opening
+        // bid; a marginal fit barely moves. Elite programs and portal
+        // specialists push the ceiling higher.
+        const aggression = ((school.prestige || 50) >= 78 ? 1.25 : (school.prestige || 50) >= 62 ? 1.1 : 1.0) *
+          (coach && (coach.transferRecruiting || 55) >= 70 ? 1.1 : 1);
+        const ceiling = entry.cpuPoints[sid] * (1 + Math.min(1.0, (fit - 50) / 45) * aggression);
+        if (entry.cpuPoints[sid] < ceiling && rng.bool(0.55)) {
+          const step = (ceiling - entry.cpuPoints[sid]) * (0.25 + heat * 0.2);
+          entry.cpuPoints[sid] = Math.round(entry.cpuPoints[sid] + step);
+        }
+      });
+    });
   }
 
   /*
@@ -446,15 +543,53 @@
 
     const coach = gameState.getCoach(school.coachId);
 
-    // Racing opportunities: good runners who never toe the line leave —
-    // and elite ones who rarely race become MORE likely to go each year.
+    // Racing opportunities & role (Update 18, item 6). Talented upperclassmen
+    // who aren't getting meaningful competition become significantly more likely
+    // to seek it elsewhere — and the older they are, and the longer it drags on,
+    // the more frustrated they get. This is deliberately NOT purely rating-based:
+    // an athlete with a legitimate reason to sit (genuinely behind better
+    // runners, still developing, or with a clear role opening up as starters
+    // graduate ahead of them) is far more patient than a proven runner buried on
+    // the depth chart with nowhere to go.
     const roster = gameState.getRoster(school.id, a.gender).sort((x, y) => y.currentOverall - x.currentOverall);
     const rank = roster.findIndex((x) => x.id === a.id) + 1;
-    const buried = rank > 7 && a.currentOverall > 45;
-    if ((a.seasonRaces || 0) === 0 && !isRedshirted(a) && a.currentOverall > 50) {
-      add(a.currentOverall > 70 ? 30 : 18, R.racing);
-    } else if (buried) {
-      add(20, R.racing);
+    const seasonRaces = a.seasonRaces || 0;
+    const classIdx = Math.max(0, D.CLASS_YEARS.indexOf(a.classYear)); // Fr0 So1 Jr2 Sr3 Gr4
+    const upper = classIdx >= 2; // Junior and older
+    const fifth = roster[4] ? roster[4].currentOverall : 40;
+    // Scoring-caliber somewhere — they'd contribute at another program.
+    const couldScoreElsewhere = a.currentOverall >= fifth - 4;
+    // Expected future role: if most of the runners ahead are graduating soon,
+    // the athlete's lane is about to open — a legitimate reason to be patient.
+    const aheadGraduating = roster.slice(0, Math.max(0, rank - 1))
+      .filter((x) => (x.eligibilityRemaining || 5) <= 1).length;
+    const roleOpening = rank > 7 && aheadGraduating >= Math.max(1, Math.floor((rank - 7) * 0.6));
+
+    if (!isRedshirted(a) && a.currentOverall > 45) {
+      if (seasonRaces === 0 && a.currentOverall > 50) {
+        // Never toed the line — the loudest signal, louder with ability and age.
+        let w = a.currentOverall > 70 ? 30 : a.currentOverall > 58 ? 22 : 16;
+        if (upper) w += (classIdx - 1) * 6;      // Jr +6, Sr +12, 5th-yr +18
+        if (couldScoreElsewhere) w += 5;
+        if (roleOpening) w *= 0.6;               // patience: their turn is coming
+        add(Math.round(w), R.racing);
+      } else if (rank > 7 && upper) {
+        // Buried on the depth chart as an upperclassman with few opportunities.
+        let w = 14 + (classIdx - 1) * 5;
+        if (seasonRaces <= 1) w += 6;            // barely raced
+        if (couldScoreElsewhere) w += 6;
+        if (roleOpening) w *= 0.6;
+        add(Math.round(w), R.racing);
+      } else if (rank > 7) {
+        add(20, R.racing);                        // underclassman buried (baseline)
+      }
+      // Chronic frustration: an upperclassman who has raced very little across
+      // their whole career (few races per year on campus) is the classic portal
+      // candidate looking for a fresh start where they'll actually compete.
+      const careerRaces = (a.careerStats && a.careerStats.races) || 0;
+      if (upper && couldScoreElsewhere && careerRaces < (a.yearsOnCampus || 1) * 2 && !roleOpening) {
+        add((classIdx - 1) * 5, R.racing);       // years of sitting compound
+      }
     }
 
     // Coach left this year — loyalty walks out the door with them.
@@ -725,6 +860,16 @@
     const nilScore = division.nil ? Utils.clamp(school.budget.nil / 1200, 5, 100) : 5;
     const academicsFit = a.academics > 75 ? school.academics : 50;
 
+    // Development environment (Update 18): the coach's training craft, athlete
+    // development history (their reputation for improving runners), and the
+    // training center. A program that visibly makes runners better is a genuine
+    // draw — especially for an athlete with real headroom left to unlock.
+    const devEnv = coach
+      ? (coach.training || 55) * 0.55 + (school.facilities.trainingCenter ?? 55) * 0.45
+      : 50;
+    const headroom = (a.potential || 60) - (a.currentOverall || 50);
+    const developmentFit = Utils.clamp(devEnv + (headroom >= 10 ? (devEnv - 55) * 0.4 : 0), 0, 100);
+
     // Championship opportunity (Update 3): a genuine shot at contending —
     // making nationals and finishing high — pulls transfers across divisions
     // in both directions (a buried DI runner drops to DII/DIII to race and
@@ -741,19 +886,26 @@
     // DIII athletes weigh academics/campus fit far more (division identity).
     const academicWeight = division.academicEmphasis >= 1.4 ? 0.10 : 0.05;
 
+    // Program fit is heavily weighted (Update 18): prestige matters, but it no
+    // longer dominates. Opportunity to compete (playing time), the coaching
+    // (reputation + craft + development environment), and a real title shot
+    // carry the pitch — so a slightly lower-prestige program that genuinely
+    // fits an athlete beats a bigger name that doesn't. This is the engine of
+    // balanced dynasties.
     return Utils.clamp(
-      school.prestige * 0.20 +
-      playingTime * 0.19 +
-      rep * 0.11 +
-      craft * 0.09 +
+      school.prestige * 0.14 +
+      playingTime * 0.20 +
+      rep * 0.10 +
+      craft * 0.08 +
+      developmentFit * 0.08 +
       champOpp * 0.10 +
-      Utils.clamp(100 - dist / 18, 0, 100) * 0.08 +
-      school.facilitiesOverall * 0.06 +
+      Utils.clamp(100 - dist / 18, 0, 100) * 0.07 +
+      school.facilitiesOverall * 0.05 +
       trainingFit * 0.05 +
       academicsFit * academicWeight +
       nilScore * 0.03 +
-      (school.conferenceTier === 1 ? 5 : 0) +
-      (school.prestige > (fromSchool ? fromSchool.prestige : 50) ? 4 : 0) +
+      (school.conferenceTier === 1 ? 4 : 0) +
+      (school.prestige > (fromSchool ? fromSchool.prestige : 50) ? 3 : 0) +
       // Coaching stability (Update 11): a staff that just turned over is a
       // gamble no transfer needs to take.
       (school.coachChangedYear === gameState.year ? -4 : 0),
@@ -936,6 +1088,20 @@
 
     // Recruiting budget: deep pockets can afford to chase more targets.
     score += Math.min(8, school.budget.recruiting / 15000);
+
+    // Anti-monopoly / balanced dynasties (Update 18, item 5): a program that has
+    // already reeled in multiple transfers this cycle has largely filled its
+    // needs and eases off the gas, so talent spreads across programs rather than
+    // piling up at a single super-team.
+    if ((need.pending || 0) >= 2) score -= (need.pending - 1) * 6;
+
+    // D2/D3 portal is a genuine battle now (Update 18, item 10): lower-division
+    // programs work the portal harder — and their successful programs pursue
+    // aggressively — so a player can't quietly hoard every available body.
+    if ((school.division || 'DI') !== 'DI') {
+      score += 5;
+      if (school.prestige >= 55 || prof.bestRank <= 10) score += 5;
+    }
 
     // The market has noise — no two searches shake out the same.
     score += rng.next() * 16;
@@ -1508,6 +1674,7 @@
     if (gameState.portal && gameState.portal.summer) {
       if (week <= SUMMER_FINAL_WEEK) {
         aiPortalOffers(gameState, rng);
+        escalateCpuPursuits(gameState, rng); // the battle develops (Update 18)
         resolveSummerDecisions(gameState, rng, week === SUMMER_FINAL_WEEK);
       } else {
         closeSummerWindow(gameState, rng); // safety net — never lose an athlete
@@ -1518,6 +1685,9 @@
     if (week === ENTRY_WEEK) openPortal(gameState, rng);
     if (week > ENTRY_WEEK && week < DECISION_WEEK) {
       aiPortalOffers(gameState, rng);
+      // Dynamic reallocation (Update 18): CPU suitors adjust their investment as
+      // the competition for each athlete develops.
+      escalateCpuPursuits(gameState, rng);
       // Mid-window portal narrative: who's the prize, and who's fighting over
       // whom (logged twice across the window, not every single week).
       if (week === ENTRY_WEEK + 2 || week === DECISION_WEEK - 1) portalStorylines(gameState);
@@ -1525,6 +1695,7 @@
     }
     if (week === DECISION_WEEK) {
       aiPortalOffers(gameState, rng);
+      escalateCpuPursuits(gameState, rng);
       resolveDecisions(gameState, rng, true);
     }
   }
@@ -1551,6 +1722,8 @@
     prefMatchCount,
     winProbabilities,
     transferQuality,
+    cpuTransferPoints,
+    escalateCpuPursuits,
     suitorTarget,
     portalStorylines,
     ENTRY_WEEK,

@@ -82,20 +82,29 @@
       city: v.city, state: v.state, course: v.name,
       altitudeFt: v.altitudeFt, hilliness: v.hilliness, prestige: 'Elite'
     } : undefined;
-    // The DI Championship course profile (hills, altitude) — mirrored by
-    // Pre-Nationals so competing teams preview the real terrain.
-    const diVenue = nationalsVenues.DI;
-    const diHost = gameState.getSchool(nationalsHosts.DI || byDivisionAll.DI?.[0]);
-    const diCourse = diHost ? {
-      hostId: diHost.id,
-      hilliness: diVenue ? diVenue.hilliness : rng.int(30, 80),
-      altitude: diVenue ? D.altitudeCategory(diVenue.altitudeFt) : diHost.weather.altitude,
-      tempBase: diHost.weather.tempBase,
-      courseMeta: venueCourseMeta(diVenue)
-    } : null;
+    // Each division's Championship course profile (hills, altitude) — mirrored
+    // by that division's Pre-Nationals so competing teams preview the real
+    // terrain (Update 18: all three divisions, not just DI).
+    const courseForDivision = (division) => {
+      const venue = nationalsVenues[division];
+      const host = gameState.getSchool(nationalsHosts[division] || (byDivisionAll[division] || [])[0]);
+      if (!host) return null;
+      return {
+        hostId: host.id,
+        hilliness: venue ? venue.hilliness : rng.int(30, 80),
+        altitude: venue ? D.altitudeCategory(venue.altitudeFt) : host.weather.altitude,
+        tempBase: host.weather.tempBase,
+        courseMeta: venueCourseMeta(venue)
+      };
+    };
+    const divCourses = {};
+    Object.keys(byDivisionAll).forEach((division) => { divCourses[division] = courseForDivision(division); });
+    const diCourse = divCourses.DI || null;
     season.nationalsHosts = nationalsHosts;
     season.nationalsVenues = nationalsVenues;
     season.diCourse = diCourse;
+    season.divCourses = divCourses;
+    season.preNationalsByDiv = {};
 
     // Groups a set of schools into ~20-team invitationals for one week.
     function scheduleInvitationals(week, ids, regionalize) {
@@ -178,10 +187,17 @@
       season.byWeek[week] = season.byWeek[week] || [];
       const invited = new Set();
 
-      // Pre-Nationals is built specially (DI-only, nationals course,
-      // invite/decline) before the generic elite fields on the same week.
+      // Pre-Nationals is built specially (nationals course, invite/decline)
+      // before the generic elite fields on the same week. DI is triggered by
+      // its ELITE_MEETS entry; DII and DIII get their own division-appropriate
+      // Pre-Nationals on the same week (Update 18) so every division has one.
       eliteMeets.filter((em) => em.preNationals).forEach((em) => {
-        buildPreNationals(gameState, rng, week, season, diCourse, invited);
+        buildPreNationals(gameState, rng, week, season, diCourse, invited, 'DI');
+        ['DII', 'DIII'].forEach((division) => {
+          if (divCourses[division] && (byDivisionAll[division] || []).length) {
+            buildPreNationals(gameState, rng, week, season, divCourses[division], invited, division);
+          }
+        });
       });
 
       const weekElite = eliteMeets.filter((em) => !em.preNationals);
@@ -335,18 +351,20 @@
    * mid-majors — never every DI school. Coaches accept or decline by
    * philosophy; racing it earns a small familiarity edge at Nationals.
    */
-  function buildPreNationals(gameState, rng, week, season, diCourse, invitedSet) {
-    const cfg = D.PRE_NATIONALS;
-    const diIds = gameState.world.schoolOrder.filter((id) => (gameState.getSchool(id).division || 'DI') === 'DI');
-    if (!diIds.length) return;
+  function buildPreNationals(gameState, rng, week, season, course, invitedSet, division) {
+    division = division || 'DI';
+    const cfg = D.preNationalsFor(division);
+    const divIds = gameState.world.schoolOrder.filter((id) => (gameState.getSchool(id).division || 'DI') === division);
+    if (!divIds.length) return;
+    const playerDivision = (gameState.getPlayerSchool() && gameState.getPlayerSchool().division) || 'DI';
 
     // Standing that earns an invite: last year's poll (defending qualifiers /
     // top-25) blended with prestige (traditional powers). First season has no
-    // prior poll, so prestige carries it.
+    // prior poll, so prestige carries it. All ranks are within-division.
     const prevRank = {};
     if (gameState.rankings) {
       ['M', 'W'].forEach((g) => (gameState.rankings[g] || []).forEach((r) => {
-        if ((gameState.getSchool(r.schoolId) || {}).division === 'DI') {
+        if ((gameState.getSchool(r.schoolId) || {}).division === division) {
           prevRank[r.schoolId] = Math.min(prevRank[r.schoolId] || 999, r.rank);
         }
       }));
@@ -357,20 +375,35 @@
       return s.prestige * 0.7 + rankScore * 0.8;
     };
 
-    const host = gameState.getSchool(diCourse ? diCourse.hostId : diIds[0]);
-    const ranked = diIds.slice().sort((a, b) => merit(b) - merit(a));
+    const host = gameState.getSchool(course ? course.hostId : divIds[0]);
+    const ranked = divIds.slice().sort((a, b) => merit(b) - merit(a));
+    // Intelligent field (Update 18): the strongest programs are the most likely
+    // to be there, but the merit slots aren't a hard cutoff — a weighted draw
+    // from the top of the ladder lets the field breathe, so it isn't the same
+    // rigid top-N every year and a rising program can crash the party.
     const meritSlots = Math.max(0, cfg.fieldSize - cfg.atLargeSlots);
     const invited = [];
     const seen = new Set();
     // Host always gets a spot.
     if (host) { invited.push(host.id); seen.add(host.id); }
+    // The clear elite (top ~60% of merit slots) are locked in; the remaining
+    // merit slots are a weighted lottery among the next tier so the field varies.
+    const lockN = Math.round(meritSlots * 0.6);
     for (const id of ranked) {
-      if (invited.length >= meritSlots) break;
+      if (invited.length >= lockN) break;
       if (!seen.has(id)) { invited.push(id); seen.add(id); }
     }
-    // At-large: rising mid-majors having exceptional seasons (mid prestige,
+    const contenders = ranked.filter((id) => !seen.has(id));
+    while (invited.length < meritSlots && contenders.length) {
+      // Weight the draw toward higher merit, but give the whole next tier a shot.
+      const pick = rng.weightedChoice(contenders.slice(0, Math.max(4, meritSlots)),
+        (id) => Math.max(1, merit(id)));
+      contenders.splice(contenders.indexOf(pick), 1);
+      if (!seen.has(pick)) { invited.push(pick); seen.add(pick); }
+    }
+    // At-large: rising programs having exceptional seasons (mid prestige,
     // decent recent poll) sneak onto the list.
-    const atLargePool = ranked.filter((id) => !seen.has(id) && gameState.getSchool(id).prestige >= 45);
+    const atLargePool = ranked.filter((id) => !seen.has(id) && gameState.getSchool(id).prestige >= cfg.atLargePrestige);
     for (let i = 0; i < cfg.atLargeSlots && atLargePool.length; i++) {
       const pick = atLargePool.splice(rng.int(0, Math.min(atLargePool.length - 1, 40)), 1)[0];
       invited.push(pick); seen.add(pick);
@@ -398,10 +431,13 @@
       (rng.bool(Utils.clamp(accept, 0.15, 0.97)) ? accepted : declined).push(id);
     });
 
+    // Men's Pre-Nationals distance: DIII races its championship 8K; DI/DII
+    // preview at 8K (their Nationals is a 10K, so this is a genuine tune-up).
+    const menDist = 8000;
     const conditions = {
-      tempF: Math.round((diCourse ? diCourse.tempBase : host.weather.tempBase) + rng.int(-8, 8) - (week - 5) * 1.1),
-      hilliness: diCourse ? diCourse.hilliness : rng.int(30, 80),
-      altitude: diCourse ? diCourse.altitude : host.weather.altitude,
+      tempF: Math.round((course ? course.tempBase : host.weather.tempBase) + rng.int(-8, 8) - (week - 5) * 1.1),
+      hilliness: course ? course.hilliness : rng.int(30, 80),
+      altitude: course ? course.altitude : host.weather.altitude,
       rain: rng.bool(0.18)
     };
     const meet = {
@@ -411,12 +447,12 @@
       hostId: host.id,
       schoolIds: accepted,
       type: 'invite',
-      division: 'DI',
+      division,
       elite: cfg.pollWeight,
       preNationals: true,
-      distances: { M: 8000, W: 6000 }, // Pre-Nationals runs the 8K (men) / 6K (women)
+      distances: { M: menDist, W: 6000 },
       conditions,
-      courseMeta: diCourse ? diCourse.courseMeta : undefined, // the real DI championship course
+      courseMeta: course ? course.courseMeta : undefined, // the real championship course
       results: { M: null, W: null }
     };
     season.meets[meet.id] = meet;
@@ -424,26 +460,39 @@
     season.byWeek[week].push(meet.id);
     if (accepted.includes(gameState.playerSchoolId)) season.playerMeetByWeek[week] = meet.id;
 
-    season.preNationals = {
+    const meta = {
       meetId: meet.id,
       week,
+      division,
       hostId: host.id,
-      diNationalsHostId: diCourse ? diCourse.hostId : null,
+      // Kept as diNationalsHostId for backward compatibility with existing
+      // saves/UI — it is this division's Nationals host either way.
+      diNationalsHostId: course ? course.hostId : null,
+      familiarityBonus: cfg.familiarityBonus,
       invited,
       accepted: accepted.slice(),
       declined,
       playerInvited: invited.includes(gameState.playerSchoolId),
       playerAccepted: accepted.includes(gameState.playerSchoolId)
     };
+    season.preNationalsByDiv = season.preNationalsByDiv || {};
+    season.preNationalsByDiv[division] = meta;
+    // The player's single-view Pre-Nationals is their own division's (UI /
+    // accept-decline flow read season.preNationals).
+    if (division === playerDivision) season.preNationals = meta;
 
-    if (invited.includes(gameState.playerSchoolId)) {
-      gameState.logNews(`✉️ PRE-NATIONALS INVITE: your program is invited to the Pre-Nationals Invitational (Week ${week}) on the NCAA Championship course — an honor. Accept to preview the course, or rest and decline (Schedule screen).`);
+    if (meta.playerInvited) {
+      gameState.logNews(`✉️ PRE-NATIONALS INVITE: your program is invited to the ${cfg.name} (Week ${week}) on the NCAA ${division === 'DI' ? '' : D.DIVISION_SHORT[division] + ' '}Championship course — an honor. Accept to preview the course, or rest and decline (Schedule screen).`);
     }
   }
 
-  // Did a school race Pre-Nationals this season (course familiarity)?
+  // Did a school race its division's Pre-Nationals this season (familiarity)?
   function racedPreNationals(gameState, schoolId) {
-    const pn = gameState.season && gameState.season.preNationals;
+    const season = gameState.season;
+    if (!season) return false;
+    const school = gameState.getSchool(schoolId);
+    const div = (school && school.division) || 'DI';
+    const pn = (season.preNationalsByDiv && season.preNationalsByDiv[div]) || season.preNationals;
     return !!(pn && pn.accepted && pn.accepted.includes(schoolId));
   }
 
@@ -551,29 +600,103 @@
 
   // Rating -> total seconds for gender/distance, before conditions/noise.
   //
-  // Race-time realism rebalance: the ability→pace mapping is anchored to a
-  // broad sample of modern collegiate cross country, NOT one unusually fast
-  // championship. Winning times land in real ranges only AFTER conditions and
-  // form apply (a well-tapered elite on a fast course runs a minute-plus
-  // quicker than the same runner grinding a hilly regular-season meet), so
-  // this base is deliberately conservative — the model, not a flat percentage,
-  // creates the variation. Calibrated so an elite (race-rating ~90) championship
-  // winner runs roughly: M 10K ~29:1x–29:4x, M 8K ~23:2x, W 6K ~19:2x–19:4x,
-  // with D2/D3 naturally slower because their fields peak at lower ratings.
+  // Race-time recalibration (Update 18). The previous adjustment ran the whole
+  // field too slow; times are pulled faster here so athletes run performances
+  // consistent with high-level collegiate cross country. Crucially this is NOT
+  // a flat speed-up: a CONVEX ability curve widens the gap between good, very
+  // good, and elite runners at the top, so an elite athlete pulls meaningfully
+  // clear of a merely good one rather than winning by a few seconds of
+  // variance. Winning times land in real modern ranges only AFTER conditions,
+  // taper, and peaking apply (a peaked elite on a fast course runs well under
+  // this base; a runner grinding a hilly regular-season meet runs over it).
+  // Calibrated so an elite (race-rating ~90) championship winner runs roughly:
+  // M 10K ~28:5x–29:2x, M 8K ~22:5x–23:3x, W 6K ~19:2x–19:4x, with D2/D3
+  // naturally slower because their fields peak at lower ratings.
   function baseTime(rating, gender, distanceM) {
     const km = distanceM / 1000;
-    // Per-km pace (s/km) as a linear function of race rating. Intercept/slope
-    // set so realistic collegiate ratings yield realistic per-km pace across
-    // the whole field, from champions down to the back of the pack.
+    // Per-km pace (s/km), linear in race rating. Recalibrated ~6 s/km faster
+    // than the prior model (Update 18) with a slightly steeper slope, so the
+    // whole field runs quicker AND the ability spread grows. The base is the
+    // near-neutral (regular-season, decent taper) time; peaking and a fast
+    // course pull it faster, a hilly grind pushes it slower.
     let perKm = gender === 'M'
-      ? 240 - 0.62 * rating
-      : 264 - 0.62 * rating;
+      ? 235 - 0.637 * rating
+      : 262 - 0.66 * rating;
     // Distance scaling: longer races cost a little more per km, shorter races
     // a little less (fresher legs, faster ground). Referenced to the men's 8K
     // / women's 6K championship distance.
     const refKm = gender === 'M' ? 8 : 6;
     perKm *= 1 + (km - refKm) * 0.006;
     return perKm * km;
+  }
+
+  // The most a perfect taper, peak, morale wave, and day can pull a runner
+  // under their base fitness (Update 18). Without this floor the many small
+  // championship speed-ups stack multiplicatively into physically impossible
+  // times; with it, a peaked elite runs realistically fast and the all-time
+  // records fall only to genuinely generational performances.
+  const PERF_FLOOR = 0.965;
+
+  /*
+   * Race-day variability by athlete quality (Update 18). Elite, consistent,
+   * mentally tough athletes race close to their true ability nearly every time;
+   * average and developing runners swing far more. Returns a multiplier applied
+   * to a runner's day-form and segment noise — roughly 0.62 (rock-steady elite)
+   * up to ~1.55 (volatile developing runner / walk-on). This is WHY elite
+   * talent is valuable: it performs reliably near its ceiling. It also keeps
+   * racing honest — a good athlete can still catch an elite race on a great
+   * day, and an average runner occasionally over- or under-performs by a lot —
+   * without turning every result into a lottery.
+   */
+  function raceVariability(a) {
+    const q = (a.consistency ?? 60) * 0.55 + (a.currentOverall ?? 55) * 0.30 +
+      (a.mentalToughness ?? 60) * 0.15;
+    return Utils.clamp(2.25 - q / 52, 0.62, 1.6);
+  }
+
+  /*
+   * DNF probability for one athlete in one race (Update 18). A healthy,
+   * well-rested, durable runner on a sane workload has an extremely low chance
+   * of failing to finish; a heavily fatigued, injury-prone, over-raced, or
+   * poorly-prepared athlete on a brutal course has a meaningfully higher one.
+   * It is always rare — capped well below certainty — so a DNF reads as
+   * genuine race variance, not a random punishment. Factors: fatigue (the
+   * dominant driver), durability & injury history, chronic training load,
+   * recent race pounding, fitness/readiness relative to the race, distance,
+   * heat/hills/altitude/rain, and morale/confidence.
+   */
+  function dnfChance(gameState, a, meet, gender, distanceM) {
+    const c = meet.conditions || {};
+    const TE = window.XCD.engine.Training;
+    const ready = TE && TE.readiness ? TE.readiness(a) : 60;
+    let p = 0.0013; // ~0.13% baseline for a healthy, ready runner
+
+    // Fatigue is the dominant driver, escalating steeply once deep in the red.
+    p *= 1 + Math.max(0, (a.fatigue || 0) - 55) / 22 + Math.max(0, (a.fatigue || 0) - 80) / 12;
+    // Durability: fragile bodies break down far sooner than iron-legged ones.
+    p *= 1.6 - (a.injuryResistance ?? 55) / 100;               // ~0.6 (iron) → ~1.5 (glass)
+    // Carrying an injury back to racing (the Recovering window) is a real risk.
+    if ((a.recentInjuryWeeks || 0) > 0 || a.health === 'Recovering') p *= 2.0;
+    // Being pushed beyond a sustainable workload, and the pounding of recent
+    // hard races, both leave the body vulnerable.
+    p *= 1 + Math.min(1.2, (a.highLoadWeeks || 0) * 0.12);
+    p *= 1 + (a.raceLoad || 0) / 100 * 0.5;
+    // Fitness relative to the race: an unfit / unsharp runner asked to race is
+    // at genuine risk; a fit, sharp one is not.
+    p *= 1 + Math.max(0, 55 - ready) / 45;
+    // Distance: the longer the race, the more can go wrong.
+    p *= distanceM >= 10000 ? 1.35 : distanceM >= 8000 ? 1.1 : 0.9;
+    // Weather & terrain difficulty.
+    if (c.tempF > 72) p *= 1 + (c.tempF - 72) * 0.012;
+    if (c.hilliness > 60) p *= 1 + (c.hilliness - 60) * 0.006;
+    if (c.altitude === 'High') p *= 1.25; else if (c.altitude === 'Medium') p *= 1.08;
+    if (c.rain) p *= 1.08;
+    // Morale / confidence: a demoralized runner is likelier to step off.
+    p *= 1 + Math.max(0, 45 - (a.morale ?? 65)) / 90 + Math.max(0, 45 - (a.confidence ?? 60)) / 120;
+    // A championship is dug deeper — a slightly higher chance the body cracks,
+    // though good coaches peak athletes precisely to avoid it.
+    if (meet.type === 'national') p *= 1.15;
+    return Utils.clamp(p, 0, 0.14);
   }
 
   // How well an athlete handles hilly courses (hidden hill adaptation from
@@ -652,17 +775,26 @@
       let peaking = coach ? (coach.peaking ?? coach.raceStrategy ?? 55) : 55;
       const asst = school && school.assistantId && gameState.world.coaches[school.assistantId];
       if (asst && (!coach || asst.id !== coach.id)) peaking += ((asst.peaking ?? 55) - 55) * 0.25;
-      mult -= (peaking - 50) * 0.00016; // ±0.8% swing at the extremes
+      // Championship racing matters more (Update 18): a tactician gets athletes
+      // flying in November while a poor peaker leaves fitness on the table.
+      // The swing grows toward Nationals — this is where coaching separates.
+      const champScale = meet.type === 'national' ? 0.00030
+        : meet.type === 'regional' ? 0.00024 : 0.00020; // ±~1.5% / 1.2% / 1.0%
+      mult -= (peaking - 50) * champScale;
     }
 
-    // Pre-Nationals course familiarity (Update 3): teams that raced
-    // Pre-Nationals know this DI Championship course — a small, non-decisive
-    // edge (~0.6% faster). Rewards participation without deciding the race.
-    if (meet.type === 'national' && (meet.division || 'DI') === 'DI') {
-      const pn = gameState.season && gameState.season.preNationals;
+    // Pre-Nationals course familiarity (Update 3; all divisions in Update 18):
+    // teams that raced their division's Pre-Nationals know this Championship
+    // course — a small, non-decisive edge. Rewards participation without
+    // deciding the race.
+    if (meet.type === 'national') {
+      const div = meet.division || 'DI';
+      const byDiv = gameState.season && gameState.season.preNationalsByDiv;
+      const pn = (byDiv && byDiv[div]) ||
+        (gameState.season && gameState.season.preNationals);
       if (pn && meet.hostId === pn.diNationalsHostId && pn.accepted &&
           pn.accepted.includes(a.schoolId)) {
-        mult -= D.PRE_NATIONALS.familiarityBonus;
+        mult -= (pn.familiarityBonus || D.PRE_NATIONALS.familiarityBonus);
       }
     }
 
@@ -735,15 +867,25 @@
     // --- Per-runner race state -----------------------------------------
     const runners = entries.map(({ athlete: a, schoolId, individual }) => {
       const rating = raceRating(a, distanceM);
-      let total = baseTime(rating, gender, distanceM) * conditionsMultiplier(gameState, a, meet, gender);
-      if (teamForm[schoolId]) total *= 1 + teamForm[schoolId];
+      const base = baseTime(rating, gender, distanceM);
+      // Deterministic performance multiplier: conditions, taper/peaking, team
+      // form, and chemistry. Floored (Update 18) so the stacked championship
+      // speed-ups can't produce impossible times.
+      let perf = conditionsMultiplier(gameState, a, meet, gender);
+      if (teamForm[schoolId]) perf *= 1 + teamForm[schoolId];
       const chem = gameState.getSchool(schoolId)?.chemistry?.[gender];
-      if (chem !== undefined) total *= 1 + (55 - chem) * 0.0002;
+      if (chem !== undefined) perf *= 1 + (55 - chem) * 0.0002;
+      perf = Math.max(perf, PERF_FLOOR);
       const tactic = tacticFor(schoolId);
-      // Day form: consistent runners have narrower swings. Even-pace and
-      // pack-running staffs damp the swing further (steadier team scoring).
+      // Day form: variability scales with athlete QUALITY (Update 18), not just
+      // consistency — elite runners hold near their ceiling, average and
+      // developing runners swing widely. Even-pace and pack-running staffs damp
+      // the swing further (steadier team scoring). Applied AFTER the floor so
+      // the top of the field still spreads out on the day.
+      const variability = raceVariability(a);
       const evennessDamp = tactic.evenness ? 0.72 : tactic.teamPack ? 0.82 : 1;
-      total *= 1 + rng.gaussian(0, 0.015 * (1.45 - a.consistency / 100) * evennessDamp);
+      let total = base * perf;
+      total *= 1 + rng.gaussian(0, 0.013 * variability * evennessDamp);
 
       // The energy tank: Stamina + current fitness + freshness. A 12-segment
       // race costs ~66-78 depending on Lactate Threshold, so tired or
@@ -763,6 +905,7 @@
         aggression: a.confidence * 0.5 + a.raceIQ * 0.5,
         hill: hillAbility(a),
         kicked: false,
+        variability,
         tactic
       };
     });
@@ -900,8 +1043,10 @@
           }
         }
 
-        // Segment-level noise: races breathe.
-        t *= 1 + rng.gaussian(0, 0.008 * (1.45 - a.consistency / 100));
+        // Segment-level noise: races breathe. Scaled by athlete quality
+        // (Update 18) so elite runners hold form segment to segment while
+        // volatile runners lurch around within the race.
+        t *= 1 + rng.gaussian(0, 0.007 * r.variability);
 
         r.segTimes.push(t);
       });
@@ -937,8 +1082,35 @@
       }
     }
 
-    // Finish order
-    const finishers = runners
+    // DNFs (Update 18): decide who fails to finish, correlated with a genuine
+    // blow-up — a runner who emptied the tank far into the red is the one who
+    // steps off. Rare by construction; a whole team can even be knocked out of
+    // team scoring if it loses too many bodies (handled by scoreRace).
+    const dnfs = [];
+    const finished = [];
+    runners.forEach((r) => {
+      let chance = dnfChance(gameState, r.athlete, meet, gender, distanceM);
+      if (r.reserve < -15) chance *= 1 + Math.min(1.6, (-r.reserve - 15) / 28); // catastrophic fade
+      if (rng.bool(Utils.clamp(chance, 0, 0.18))) {
+        dnfs.push({
+          athleteId: r.athlete.id,
+          name: r.athlete.fullName,
+          schoolId: r.schoolId,
+          classYear: r.athlete.classYear,
+          individual: r.individual,
+          // Where on the course they dropped (flavor for the broadcast/recap).
+          seg: Math.min(SEGMENTS - 1, Math.max(3, Math.round(SEGMENTS * (0.45 + rng.next() * 0.5))))
+        });
+        if (detailed) {
+          events.push({ seg: dnfs[dnfs.length - 1].seg, type: 'dnf', athleteId: r.athlete.id, name: r.athlete.fullName, schoolId: r.schoolId });
+        }
+      } else {
+        finished.push(r);
+      }
+    });
+
+    // Finish order (DNFs excluded — no finishing time, no place).
+    const finishers = finished
       .map((r) => ({
         athleteId: r.athlete.id,
         name: r.athlete.fullName,
@@ -956,16 +1128,17 @@
       distanceM,
       finishers: detailed ? finishers : finishers.slice(0, 15),
       finisherCount: finishers.length,
+      dnfs,
       teamScores
     };
     if (detailed) {
       result.splits = {};
-      runners.forEach((r) => { result.splits[r.athlete.id] = r.cum; });
+      finished.forEach((r) => { result.splits[r.athlete.id] = r.cum; });
       result.events = events.slice(0, 60);
     }
 
     // Post-race bookkeeping: stats, PRs, records, fatigue, morale.
-    applyRaceEffects(gameState, meet, gender, finishers, teamScores, distanceM);
+    applyRaceEffects(gameState, meet, gender, finishers, teamScores, distanceM, dnfs);
 
     return result;
   }
@@ -1016,7 +1189,7 @@
     return `${m}:${s.padStart(4, '0')}`;
   }
 
-  function applyRaceEffects(gameState, meet, gender, finishers, teamScores, distanceM) {
+  function applyRaceEffects(gameState, meet, gender, finishers, teamScores, distanceM, dnfs) {
     const key = distKey(distanceM);
     const isChampionship = meet.type !== 'invite';
 
@@ -1100,6 +1273,28 @@
           schoolId: f.schoolId, year: gameState.year
         };
         if (nrec) gameState.logNews(`NATIONAL RECORD: ${f.name} (${gameState.getSchool(f.schoolId)?.name}) runs ${formatTime(f.time)} for ${key}!`);
+      }
+    });
+
+    // DNF bookkeeping (Update 18): a runner who fails to finish still started
+    // and toed the line — it counts as a race — but earns no place, no time,
+    // and no PR. The disappointment dents morale and confidence, and the effort
+    // (however far they got) still taxes the body.
+    (dnfs || []).forEach((d) => {
+      const a = gameState.world.athletes[d.athleteId];
+      if (!a) return;
+      a.careerStats.races += 1;
+      a.careerStats.dnfs = (a.careerStats.dnfs || 0) + 1;
+      a.seasonRaces = (a.seasonRaces || 0) + 1;
+      a.raceLog = a.raceLog || [];
+      a.raceLog.unshift({ y: gameState.year, w: meet.week, m: meet.name, dnf: true, d: key });
+      if (a.raceLog.length > 8) a.raceLog.length = 8;
+      a.fatigue = Utils.clamp(a.fatigue + 6, 0, 100);
+      a.raceLoad = Math.max(a.raceLoad || 0, meet.type === 'invite' ? 45 : 70);
+      a.morale = Utils.clamp(a.morale - (isChampionship ? 6 : 4), 0, 100);
+      a.confidence = Utils.clamp((a.confidence ?? 60) - (isChampionship ? 4 : 2.5), 10, 99);
+      if (a.schoolId === gameState.playerSchoolId) {
+        gameState.logNews(`DNF: ${a.fullName} did not finish the ${meet.name} — a rare, deflating day.`);
       }
     });
 
@@ -1598,6 +1793,12 @@
       // is the post-race national storyline that shapes the championship
       // narrative — winners, statement performances, and title predictions.
       if (meet.preNationals) {
+        const pnDiv = meet.division || 'DI';
+        const divTag = pnDiv === 'DI' ? '' : D.DIVISION_SHORT[pnDiv] + ' ';
+        // Only the player's division gets the full title-picture treatment; the
+        // other divisions get one concise national-storyline line so the news
+        // isn't flooded with three recaps a week.
+        const isPlayerDiv = pnDiv === ((gameState.getPlayerSchool() && gameState.getPlayerSchool().division) || 'DI');
         ['M', 'W'].forEach((gender) => {
           const res = meet.results[gender];
           if (!res || !res.teamScores.length) return;
@@ -1605,16 +1806,23 @@
           const winner = gameState.getSchool(res.teamScores[0].schoolId);
           const runnerUp = res.teamScores[1] && gameState.getSchool(res.teamScores[1].schoolId);
           const champ = res.finishers[0];
-          gameState.logNews(`📰 PRE-NATIONALS (${label}): ${winner.name} makes a statement on the Championship course${runnerUp ? `, edging ${runnerUp.name}` : ''}. ${champ ? `${champ.name} wins the individual title.` : ''} A genuine NCAA title contender emerges.`);
-          if (res.teamScores.find((t) => t.schoolId === gameState.playerSchoolId && t.place <= 5)) {
-            gameState.logNews(`🌟 Your ${label} squad's strong Pre-Nationals run vaults you up the national rankings and onto every title-contender list.`);
+          if (isPlayerDiv) {
+            gameState.logNews(`📰 ${divTag}PRE-NATIONALS (${label}): ${winner.name} makes a statement on the Championship course${runnerUp ? `, edging ${runnerUp.name}` : ''}. ${champ ? `${champ.name} wins the individual title.` : ''} A genuine NCAA title contender emerges.`);
+            if (res.teamScores.find((t) => t.schoolId === gameState.playerSchoolId && t.place <= 5)) {
+              gameState.logNews(`🌟 Your ${label} squad's strong Pre-Nationals run vaults you up the national rankings and onto every title-contender list.`);
+            }
+          } else if (gender === 'M') {
+            gameState.logNews(`📰 ${divTag}Pre-Nationals: ${winner.name} tops a championship-caliber ${D.divisionFor(pnDiv).label} field, staking an early national-title claim.`);
           }
         });
-        const declinedElite = ((gameState.season.preNationals || {}).declined || [])
+        const pnMeta = (gameState.season.preNationalsByDiv && gameState.season.preNationalsByDiv[pnDiv]) ||
+          gameState.season.preNationals || {};
+        const eliteFloor = pnDiv === 'DI' ? 80 : pnDiv === 'DII' ? 58 : 50;
+        const declinedElite = (pnMeta.declined || [])
           .map((id) => gameState.getSchool(id))
-          .filter((s) => s && s.prestige >= 80);
-        if (declinedElite.length) {
-          gameState.logNews(`Notable absence: ${declinedElite.slice(0, 2).map((s) => s.name).join(', ')} chose to rest and skip Pre-Nationals, banking on their championship training block.`);
+          .filter((s) => s && s.prestige >= eliteFloor);
+        if (declinedElite.length && isPlayerDiv) {
+          gameState.logNews(`Notable absence: ${declinedElite.slice(0, 2).map((s) => s.name).join(', ')} chose to rest and skip ${divTag}Pre-Nationals, banking on their championship training block.`);
         }
       }
 
@@ -1676,6 +1884,9 @@
     simulateRace,
     scoreRace,
     raceRating,
+    raceVariability,
+    dnfChance,
+    baseTime,
     formatTime,
     distKey,
     isRaceWeek,

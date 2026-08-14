@@ -774,16 +774,46 @@
   };
 
   /*
-   * Pre-Nationals Invitational (Update 3). Division I only. Racing it earns a
-   * small, non-decisive familiarity edge on the same course at NCAA Nationals.
+   * Pre-Nationals Invitational (Update 3; Update 18 adds DII & DIII). Each
+   * division contests its OWN Pre-Nationals on its OWN national-championship
+   * course — a mid/late-season, championship-caliber invitational that lets
+   * strong programs test themselves and shapes the national title picture
+   * without deciding it. Racing it earns a small, non-decisive course-
+   * familiarity edge at that division's Nationals. The three events are NOT
+   * copies of one another: field size, at-large room, prestige (poll weight),
+   * and the course each scale to the division's competitive level. Top-level
+   * DII/DIII fields are smaller and a notch less nationally hyped than DI's,
+   * but they matter just as much within their division.
+   *   fieldSize      — invited programs before declines
+   *   atLargeSlots   — rising programs having exceptional seasons
+   *   atLargePrestige— prestige floor to be considered for an at-large look
+   *   familiarityBonus — fraction faster at that division's Nationals
+   *   pollWeight     — poll credit for racing (and beating) the best
    */
   D.PRE_NATIONALS = {
     name: 'Pre-Nationals Invitational',
     week: 10,                 // 3 weeks before conference (wk 13)
-    fieldSize: 40,            // invited DI programs (before declines)
-    atLargeSlots: 6,          // rising mid-majors having exceptional seasons
-    familiarityBonus: 0.004,  // ~0.4% faster at Nationals on the same course
-    pollWeight: 1.45          // one of the most influential regular-season meets
+    // Division I defaults (kept flat for backward compatibility).
+    fieldSize: 40,
+    atLargeSlots: 6,
+    familiarityBonus: 0.004,
+    pollWeight: 1.45,
+    byDivision: {
+      DI:  { name: 'Pre-Nationals Invitational',            fieldSize: 40, atLargeSlots: 6, atLargePrestige: 45, familiarityBonus: 0.004,  pollWeight: 1.45 },
+      DII: { name: 'NCAA Division II Pre-National Invitational',  fieldSize: 26, atLargeSlots: 4, atLargePrestige: 40, familiarityBonus: 0.004,  pollWeight: 1.30 },
+      DIII:{ name: 'NCAA Division III Pre-National Invitational', fieldSize: 26, atLargeSlots: 4, atLargePrestige: 38, familiarityBonus: 0.0035, pollWeight: 1.25 }
+    }
+  };
+
+  // Pre-Nationals config for a division (falls back to the DI-shaped defaults).
+  D.preNationalsFor = function (division) {
+    const cfg = D.PRE_NATIONALS.byDivision && D.PRE_NATIONALS.byDivision[division || 'DI'];
+    if (cfg) return cfg;
+    return {
+      name: D.PRE_NATIONALS.name, fieldSize: D.PRE_NATIONALS.fieldSize,
+      atLargeSlots: D.PRE_NATIONALS.atLargeSlots, atLargePrestige: 45,
+      familiarityBonus: D.PRE_NATIONALS.familiarityBonus, pollWeight: D.PRE_NATIONALS.pollWeight
+    };
   };
 
   // Recruiting calendar (within the 21-week year)

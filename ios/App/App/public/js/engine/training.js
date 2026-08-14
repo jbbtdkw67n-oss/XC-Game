@@ -102,6 +102,20 @@
     return ((coach.training ?? 50) + (coach.peaking ?? 50)) / 2;
   }
 
+  /*
+   * Coaching mistake probability (Update 18, item 9). Coaching quality is NOT
+   * binary: a coach's craft (training + peaking) maps continuously to how often
+   * they misjudge the training calendar. And when an elite coach does slip, it
+   * is rarely on the decisions that matter most (the per-decision `scale`
+   * dampens the highest-stakes calls — the championship taper — for everyone).
+   * Baseline per-decision rates: elite (craft ~88) ~5%, good (~72) ~13%,
+   * average (~55) ~25%, novice (~35) ~39%.
+   */
+  function mistakeChance(coach) {
+    const craft = coachCraft(coach);
+    return Utils.clamp(0.62 - craft * 0.0065, 0.03, 0.55);
+  }
+
   function coachRoll(coach, week, salt) {
     // Cheap deterministic hash → [0, 1). Stable for a coach-week.
     let h = (salt || 0) + week * 2654435761;
@@ -120,63 +134,94 @@
   function aiPlan(gameState, coach, avgFatigue = 0) {
     const week = gameState.week;
     const craft = coachCraft(coach);
+    const philoKey = coach && coach.trainingPhilosophy;
+    // A phase-appropriate mistake, graded by coach quality (Update 18). `scale`
+    // dampens the highest-stakes decisions (the championship taper) so even
+    // average staffs usually get the biggest weeks right, while novices still
+    // slip; elite staffs almost never do.
+    const mistake = (salt, scale) => coachRoll(coach, week, salt) < mistakeChance(coach) * (scale == null ? 1 : scale);
 
-    // Championship weeks: a genuine taper with rest days built in. Poor
-    // staffs still botch the peak sometimes — just far less often than the
-    // old chronic overtraining (Update X buff).
+    // --- Peak / Championship phase (wk 13-15): a genuine taper -------------
+    // The most important weeks of the year, and the one call an elite staff
+    // never botches — they peak athletes for the championship. Poor staffs, by
+    // contrast, regularly carry too much fatigue into the biggest meets. The
+    // overtrain risk therefore scales steeply with craft: ~0 for elite/good
+    // staffs, climbing to ~50% for a true novice (item 8 / item 9).
     if (week >= CAL.CONFERENCE_WEEK && week <= CAL.NATIONAL_WEEK) {
-      if (craft < 45 && coachRoll(coach, week, 11) < 0.25) return AI_TEMPLATES.build.slice(); // overtrains into the biggest meets
+      const champBotch = Utils.clamp((58 - craft) * 0.018, 0, 0.55);
+      if (coachRoll(coach, week, 11) < champBotch) return AI_TEMPLATES.build.slice(); // carried fatigue into champs
       // Peaking for nationals after conference: a squad still carrying real
-      // fatigue gets a genuine recovery week between the rounds.
+      // fatigue gets a genuine recovery week between the rounds (competent
+      // staffs schedule recovery intelligently).
       if (avgFatigue >= 62 && craft >= 45) return AI_TEMPLATES.recovery.slice();
       return AI_TEMPLATES.taper.slice();
     }
+
+    // --- Regular-season meet weeks: taper into the race -------------------
     if (MEET_WEEKS.has(week)) {
+      if (mistake(13, 0.55)) return AI_TEMPLATES.build.slice(); // trains through the meet
       // Conservative / development-minded staffs rest more before meets.
       const restful = coach && (coach.archetype === 'Developer' ||
         (coach.hasTendency && coach.hasTendency('conservative')));
-      if (craft < 45 && coachRoll(coach, week, 13) < 0.2) return AI_TEMPLATES.build.slice(); // trains through races
       return (restful ? AI_TEMPLATES.taper : AI_TEMPLATES.race).slice();
     }
-    // Postseason recovery (Update 13, Phase 8): the week immediately after
-    // Nationals is a mandatory complete recovery week. Any competent staff
-    // takes it; a poor staff sometimes skips it and pays the price (stalled
-    // development, eroded durability — enforced in processAthlete).
+
+    // --- Postseason recovery / transition (wk 16): mandatory down week ----
+    // Skipping the down week (failing to recover athletes) is a common novice
+    // mistake with real costs (enforced in processAthlete).
     if (week === CAL.OFFSEASON_START) {
-      if (craft >= 45 || coachRoll(coach, week, 41) < 0.7) return AI_TEMPLATES.recovery.slice();
+      if (mistake(41, 0.9)) return AI_TEMPLATES.base.slice(); // skipped the recovery week
+      return AI_TEMPLATES.recovery.slice();
+    }
+
+    // --- Base / general preparation (summer wk 1-3, track prep 17+) -------
+    // Build fitness aerobically. A novice mistake here is too much quality too
+    // early (progressing too fast) instead of banking aerobic volume.
+    if (week > CAL.OFFSEASON_START || week <= CAL.SUMMER_WEEKS) {
+      if (mistake(43, 0.7)) return AI_TEMPLATES.sharpen.slice(); // peaks / sharpens far too early
       return AI_TEMPLATES.base.slice();
     }
-    // Track prep (weeks 17+) and the summer base block: aerobic base with a
-    // little quality — after the mandated down week, 2-3 quality days are fine.
-    if (week > CAL.OFFSEASON_START || week <= CAL.SUMMER_WEEKS) return AI_TEMPLATES.base.slice();
-    // Double Threshold (Update 13, Phase 8): elite threshold-minded staffs work
-    // a controlled double day through the build/specific phases — big lactate-
-    // threshold gains their advanced athletes can absorb. Norwegian staffs, who
-    // handle the load best, reach for it a little more often. Lesser staffs
-    // leave it alone (they don't understand when to use it).
-    const philoKey = coach && coach.trainingPhilosophy;
+
+    // Double Threshold (Update 13): elite threshold-minded staffs work a
+    // controlled double day through the build/specific phases — big lactate-
+    // threshold gains their advanced athletes can absorb. Lesser staffs leave
+    // it alone (they don't understand when to use it).
     if (craft >= 68 && (philoKey === 'norwegian' || philoKey === 'threshold') &&
         week < CAL.CONFERENCE_WEEK - 2 &&
         coachRoll(coach, week, 37) < (philoKey === 'norwegian' ? 0.40 : 0.26)) {
       return AI_TEMPLATES.double.slice();
     }
-    // Fatigue-responsive recovery (Update X): a tired squad gets an easy
-    // week to absorb the work. Better staffs notice at a lower threshold.
+
+    // Fatigue-responsive recovery (Update X): a tired squad gets an easy week to
+    // absorb the work. Better staffs notice at a lower threshold — poor staffs
+    // let a room grind deeper before backing off.
     const recoveryTrigger = craft >= 65 ? 60 : craft >= 45 ? 66 : 76;
     if (avgFatigue >= recoveryTrigger) return AI_TEMPLATES.recovery.slice();
+
+    // --- Specific preparation (~2 weeks before conference) ----------------
+    // Race-specific quality: intervals, speed, championship simulation. Elite
+    // staffs rehearse the championship; a mistiming here (peaking too early, or
+    // never introducing specificity) is a real coaching error.
     if (week >= CAL.MEET_WEEKS[Math.max(0, CAL.MEET_WEEKS.length - 2)] - 1) {
-      if (craft < 45) return (coachRoll(coach, week, 29) < 0.5 ? AI_TEMPLATES.sharpen : AI_TEMPLATES.build).slice();
-      if (craft >= 65) return AI_TEMPLATES.sharpsim.slice();         // rehearses the championship
+      if (mistake(19, 0.9)) {
+        // Either peak far too early with hard sharpening, or fail to introduce
+        // specificity and keep grinding a base/build block.
+        return (coachRoll(coach, week, 20) < 0.5 ? AI_TEMPLATES.sharpen : AI_TEMPLATES.build).slice();
+      }
+      if (craft >= 65) return AI_TEMPLATES.sharpsim.slice(); // rehearses the championship
       return AI_TEMPLATES.sharpen.slice();
     }
-    // Elite staffs bank a genuine recovery week mid-season to absorb work.
+
+    // --- Build / strength-development phase -------------------------------
+    // Elite staffs bank a genuine recovery week mid-block to absorb work.
     if (craft >= 65 && week > CAL.SUMMER_WEEKS + 2 && coachRoll(coach, week, 17) < 0.18) {
       return AI_TEMPLATES.recovery.slice();
     }
-    // Poor staffs peak too early: quality sharpening long before it matters.
-    if (craft < 45 && coachRoll(coach, week, 19) < 0.3) return AI_TEMPLATES.sharpen.slice();
-    // Average staffs make the occasional odd call.
-    if (craft < 65 && coachRoll(coach, week, 23) < 0.08) return AI_TEMPLATES.strength.slice();
+    if (mistake(23, 0.8)) {
+      // Build-phase mistakes: peak too early, or an ineffective, mistimed block
+      // (keeping athletes in a phase that isn't developing them).
+      return (coachRoll(coach, week, 24) < 0.6 ? AI_TEMPLATES.sharpen : AI_TEMPLATES.strength).slice();
+    }
     const t = coach && (coach.archetype === 'Developer') ? AI_TEMPLATES.strength : AI_TEMPLATES.build;
     return t.slice();
   }
@@ -194,9 +239,14 @@
     const craft = coachCraft(coach);
     if (week >= CAL.OFFSEASON_START) m = Math.round(m * 0.8);        // offseason maintenance
     else if (week <= CAL.SUMMER_WEEKS) m += 8;                       // summer volume block
-    // Championship taper: poor staffs still under-taper, but no longer march
-    // into nationals at ~full volume (Update X CPU fitness buff).
-    else if (week >= CAL.CONFERENCE_WEEK) m = Math.round(m * (craft < 45 ? 0.78 : 0.62));
+    // Championship taper (Update 18): taper DEPTH scales continuously with coach
+    // quality — an elite staff sheds real volume to peak (~60%), while a novice
+    // under-tapers and marches in carrying too much (~80%). "Reduce unnecessary
+    // training volume near major championships" is a craft that separates coaches.
+    else if (week >= CAL.CONFERENCE_WEEK) {
+      const taperFrac = Utils.clamp(0.80 - (craft - 45) * 0.0045, 0.60, 0.82);
+      m = Math.round(m * taperFrac);
+    }
     else if (MEET_WEEKS.has(week)) m = Math.round(m * 0.85);         // race-week trim
     return Utils.clamp(m, D.MILEAGE.MIN, D.MILEAGE.MAX);
   }
@@ -1364,6 +1414,7 @@
     MAJOR_INJURY_WEEKS,
     philosophyEffect,
     coachCraft,
+    mistakeChance,
     MEET_WEEKS
   };
 })();

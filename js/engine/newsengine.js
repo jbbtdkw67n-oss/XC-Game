@@ -11,8 +11,45 @@
     if (!season) return;
 
     raceStories(gameState, justRaced, rng);
+    dnfStories(gameState, justRaced);
     pollStories(gameState);
     previewStories(gameState);
+  }
+
+  /*
+   * Notable DNFs (Update 18): a highly-rated athlete or a title contender
+   * failing to finish is national news — the kind of race variance that
+   * genuinely reshapes a championship. Logged sparingly (championship rounds,
+   * Pre-Nationals, and the biggest invitationals), capped so it never spams.
+   */
+  function dnfStories(gameState, week) {
+    const season = gameState.season;
+    const meetIds = season.byWeek[week];
+    if (!meetIds || !meetIds.length) return;
+    let told = 0;
+    for (const meetId of meetIds) {
+      if (told >= 2) break;
+      const meet = season.meets[meetId];
+      if (!meet) continue;
+      const marquee = meet.type === 'national' || meet.type === 'regional' ||
+        meet.type === 'conference' || meet.preNationals || (meet.elite || 0) >= 1.2;
+      if (!marquee) continue;
+      ['M', 'W'].forEach((gender) => {
+        if (told >= 2) return;
+        const res = meet.results[gender];
+        if (!res || !res.dnfs || !res.dnfs.length) return;
+        // The most accomplished name to step off the course.
+        const notable = res.dnfs
+          .map((d) => gameState.world.athletes[d.athleteId])
+          .filter((a) => a && a.schoolId !== gameState.playerSchoolId && a.currentOverall >= 72)
+          .sort((a, b) => b.currentOverall - a.currentOverall)[0];
+        if (!notable) return;
+        const school = gameState.getSchool(notable.schoolId);
+        const champ = notable.honors && notable.honors.natChamp ? 'defending national champion ' : '';
+        gameState.logNews(`💥 STUNNER at the ${meet.name}: ${champ}${notable.fullName} (${school ? school.name : '?'}) fails to finish the ${gender === 'M' ? "men's" : "women's"} race — a major blow to their ${gender === 'M' ? 'team' : 'team'}'s day.`);
+        told++;
+      });
+    }
   }
 
   function raceStories(gameState, week, rng) {

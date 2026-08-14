@@ -127,7 +127,8 @@
     surge: (e) => `⚡ ${e.name} throws in a surge!`,
     fade: (e) => `🥵 ${e.name} is tying up — the tank is empty.`,
     kick: (e) => `🚀 ${e.name} unleashes a huge finishing kick!`,
-    lead: (e) => `🔥 ${e.name} takes the lead!`
+    lead: (e) => `🔥 ${e.name} takes the lead!`,
+    dnf: (e) => `💥 ${e.name} steps off the course — DNF!`
   };
 
   function startReplay(game, meet, container) {
@@ -374,9 +375,19 @@
                 <td class="num">${ft(f.time)}</td>
               </tr>`;
             }).join('')}
+            ${(res.dnfs || []).map((d) => {
+              const mine = d.schoolId === game.playerSchoolId;
+              return `
+              <tr ${mine ? 'style="background:var(--accent-soft);"' : ''} style="opacity:0.72;${mine ? 'background:var(--accent-soft);' : ''}">
+                <td style="color:var(--danger); font-weight:700;">DNF</td>
+                <td class="clickable" data-ath="${d.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${UI.avatar(game.getAthlete(d.athleteId) || { name: d.name, gender: activeGender }, { size: 20 })} ${Utils.escapeHtml(d.name)}</td>
+                <td class="clickable" data-school="${d.schoolId}" style="font-size:12px; cursor:pointer;">${Utils.escapeHtml(game.getSchool(d.schoolId)?.name || '?')}</td>
+                <td class="num" style="color:var(--danger);">DNF</td>
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
-      </div>`;
+      </div>${(res.dnfs || []).length ? `<div style="margin-top:6px; font-size:11.5px; color:var(--text-faint);">${res.dnfs.length} did not finish (DNF).</div>` : ''}`;
 
     board.innerHTML = `<h3>Final Team Scores</h3>` + res.teamScores.slice(0, 15).map((t) => `
       <div class="attr-row clickable" data-school="${t.schoolId}" style="padding:3px 0; cursor:pointer;">
