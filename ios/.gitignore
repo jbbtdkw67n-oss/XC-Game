@@ -1,0 +1,13 @@
+App/build
+App/Pods
+App/output
+DerivedData
+xcuserdata
+
+# Cordova plugins for Capacitor
+capacitor-cordova-ios-plugins
+
+# NOTE: App/App/public and the generated config files are committed on purpose
+# (against the Capacitor default) so this repo can be opened in Xcode and built
+# without first running `npm install && npx cap sync ios`. Refresh them with
+# `npm run ios:sync` after changing the game.
