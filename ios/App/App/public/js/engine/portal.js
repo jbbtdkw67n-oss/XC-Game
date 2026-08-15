@@ -248,15 +248,15 @@
     // the surcharge is gentle and capped: a determined coach can always win a
     // battle, but not win them all.
     if (entry && entry.offers && entry.offers.length) {
-      const rivals = entry.offers.filter((sid) => sid !== gameState.playerSchoolId);
-      if (rivals.length) {
-        const rivalPts = rivals.reduce((s, sid) =>
-          s + ((entry.cpuPoints && entry.cpuPoints[sid]) || 45), 0);
-        // Gentle and capped — the player's edge is that they never pay the full
-        // freight a CPU would in the same war (item 3: a slight advantage). A
-        // hotly-contested star costs ~20% more to lock; the field is still
-        // winnable, just not cheap.
-        cost *= Utils.clamp(1 + rivalPts / 1500, 1, 1.22);
+      const rivalCount = entry.offers.filter((sid) => sid !== gameState.playerSchoolId).length;
+      if (rivalCount) {
+        // The price scales with HOW MANY programs are chasing, not with how hard
+        // they later escalate (Update 18). This keeps the player's committed
+        // commit-chance stable — the Update 15 contract — while still making a
+        // crowded field expensive. It also rewards moving early: lock a target
+        // before the suitors pile in and you pay less. Gentle and capped, so a
+        // determined coach can win a bidding war, just not win them all.
+        cost *= Utils.clamp(1 + rivalCount * 0.03, 1, 1.22);
       }
     }
     return Math.max(35, Math.round(cost));

@@ -36,7 +36,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       r.perceivedPotential == null || r.potential <= r.perceivedPotential || r.workEthic < 80);
     // recruitComposite must read the PERCEIVED ceiling, never the real one.
     const leakyComposite = gems.filter((r) =>
-      Math.abs(RE.recruitComposite(r) - (r.perceivedPotential * 0.62 + r.currentOverall * 0.38)) > 1e-9);
+      Math.abs(RE.recruitComposite(r) - (r.currentOverall * 0.68 + r.perceivedPotential * 0.32)) > 1e-9);
     const notedNonGems = recs.filter((r) => !r.hiddenGem && r.scoutNotes && r.scoutNotes.length).length;
     const prefs = recs.filter((r) => r.divisionPreference);
     const prefStars = {};
@@ -262,10 +262,15 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   const grace = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     const P = window.XCD.engine.Portal;
-    const a = Object.values(g.world.athletes).find((x) => x.schoolId && !x.isRecruit && x.eligibilityRemaining >= 2);
+    // Pick a returning athlete NOT already in their arrival-grace season — the
+    // summer window leaves many just-transferred runners carrying grace (which
+    // correctly zeroes risk), and we need a clean baseline to test against.
+    const a = Object.values(g.world.athletes).find((x) => x.schoolId && !x.isRecruit &&
+      x.eligibilityRemaining >= 2 && x.transferGraceYear !== g.year);
     // Manufacture the exact bug: a runner who'd read Very High risk.
     a.morale = 1; a.coachRelationship = 10; a.teamRelationship = 10;
     a.seasonRaces = 0; a.currentOverall = 80;
+    a.transferGraceYear = null; // ensure no lingering grace on the baseline read
     const before = P.transferRisk(g, a);
     a.transferGraceYear = g.year; // ...but they just transferred in
     const after = P.transferRisk(g, a);
