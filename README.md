@@ -14,6 +14,42 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 13.1 — Update 18: DNF Races, Scouting Economy, Coaching Loyalty & Realistic Prep Times
+
+A realism-and-quality pass across race day, recruiting, and the coaching
+carousel.
+
+- **Runners can DNF.** A small, conditions-driven slice of the field now fails
+  to finish — a fall or rolled ankle, sudden illness, or a catastrophic bonk
+  deep in the red. DNFs are rare on a temperate day and climb sharply in
+  dangerous heat, hit the beaten-up and fragile hardest, and are listed at the
+  bottom of every result with no place and no time. A DNF scores nothing and
+  does **not** count toward a team's five — so losing a runner mid-race can
+  knock a squad out of the team standings entirely. A physical mishap can leave
+  a short injury; the athlete's race log keeps the DNF forever.
+- **Watch Race is scouting legwork, not a budget line.** The scouting trip now
+  costs **2 recruiting points and no money** (was 3 points and $500). Its big
+  fog-lifting scouting reveal is unchanged — it's simply no longer a drain on
+  the recruiting budget.
+- **Coaching loyalty: once you leave, the door closes.** A coach who leaves a
+  program — for a bigger job, a promotion, or because they were let go — is
+  **never re-hired by that same institution**. Assistants only move when a real
+  opportunity opens elsewhere, and a program that loses its coordinator can no
+  longer see them turn up on next season's hiring board (a per-program
+  former-staff ledger enforces it for the player's staff pool and the whole AI
+  carousel alike). The player's own dynasty is exempt — returning to an old
+  program is always the coach's choice to make.
+- **Realistic high-school 5K times.** The prep PB curve produced far too many
+  record-territory marks — dozens of sub-14:15 boys / sub-16:15 girls per
+  class. Elite times are now compressed toward realistic recent national-leader
+  marks (fastest ≈ 14:1x boys / 16:2x girls), so blazing times stay as rare as
+  they are in real high-school seasons, while the broad middle and
+  development-project back of the pool are unchanged.
+- **Race-day conditions advisory.** The dashboard's Next Meet card now flags a
+  hot forecast (elevated fade and DNF risk — bring fresh legs), plus lighter
+  heads-up notes for frigid, very hilly, and high-altitude races, so the
+  weather that's baked into the schedule is something you can plan around.
+
 ## Version 13.0 — Update 17: Recruiting, Eligibility, Race Simulation, Prestige & UI Overhaul
 
 Realism across the board: mileage, eligibility, recruiting strategy, famous

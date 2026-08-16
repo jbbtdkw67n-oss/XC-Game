@@ -358,7 +358,7 @@
       ${honor ? `<div style="margin:0 0 10px; padding:8px 12px; border:1px solid var(--border); border-radius:8px; color:var(--text-dim); font-size:12.5px;">
         ${honor.icon} Championship race — the top ${honor.count} finishers earn <strong>${honor.label}</strong> honors, marked ${honor.icon} below.
       </div>` : ''}
-      <h3 style="margin-bottom:6px;">Full Results — ${res.finishers.length} finishers</h3>
+      <h3 style="margin-bottom:6px;">Full Results — ${res.finishers.length} finishers${res.dnfs && res.dnfs.length ? ` • ${res.dnfs.length} DNF` : ''}</h3>
       <div class="table-wrap" style="max-height:420px; overflow-y:auto;">
         <table class="data">
           <thead><tr><th>Pl</th><th>Runner</th><th>School</th><th class="num">Time</th></tr></thead>
@@ -372,6 +372,16 @@
                 <td class="clickable" data-ath="${f.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: activeGender }, { size: 20 })} ${Utils.escapeHtml(f.name)}${honored ? ` <span title="${honor.label}">${honor.icon}</span>` : ''}</td>
                 <td class="clickable" data-school="${f.schoolId}" style="font-size:12px; cursor:pointer;">${Utils.escapeHtml(game.getSchool(f.schoolId)?.name || '?')}</td>
                 <td class="num">${ft(f.time)}</td>
+              </tr>`;
+            }).join('')}
+            ${(res.dnfs || []).map((d) => {
+              const mine = d.schoolId === game.playerSchoolId;
+              return `
+              <tr ${mine ? 'style="background:var(--accent-soft); color:var(--text-faint);"' : 'style="color:var(--text-faint);"'}>
+                <td title="Did Not Finish">DNF</td>
+                <td class="clickable" data-ath="${d.athleteId}" style="cursor:pointer;">${UI.avatar(game.getAthlete(d.athleteId) || { name: d.name, gender: activeGender }, { size: 20 })} ${Utils.escapeHtml(d.name)}</td>
+                <td class="clickable" data-school="${d.schoolId}" style="font-size:12px; cursor:pointer;">${Utils.escapeHtml(game.getSchool(d.schoolId)?.name || '?')}</td>
+                <td class="num" title="${d.reason === 'bonk' ? 'Ran out of energy' : 'Injury or mishap'}">DNF</td>
               </tr>`;
             }).join('')}
           </tbody>

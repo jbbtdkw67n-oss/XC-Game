@@ -140,6 +140,17 @@
           <td>${Utils.escapeHtml(school ? school.name : '?')}</td>
           <td class="num">${ft(f.time)}</td>
         </tr>`;
+      }).join('') +
+      // DNF runners (Update 18): listed at the bottom, no place, no time.
+      (res.dnfs || []).map((d) => {
+        const school = game.getSchool(d.schoolId);
+        const mine = d.schoolId === game.playerSchoolId;
+        return `<tr class="clickable" data-ath="${d.athleteId}" ${mine ? 'style="background:var(--accent-soft);"' : ''} style="color:var(--text-faint);">
+          <td title="Did Not Finish">DNF</td>
+          <td>${UI.avatar(game.getAthlete(d.athleteId) || { name: d.name, gender: g }, { size: 20 })} ${Utils.escapeHtml(d.name)} <span style="color:var(--text-faint); font-size:11px;">${d.classYear || ''}</span></td>
+          <td>${Utils.escapeHtml(school ? school.name : '?')}</td>
+          <td class="num" title="${d.reason === 'bonk' ? 'Ran out of energy' : 'Injury or mishap'}">DNF</td>
+        </tr>`;
       }).join('');
 
       return `
@@ -156,7 +167,7 @@
             </div>
           </div>
           <div class="card" style="padding:12px;">
-            <h3>Individuals — ${res.finishers.length}${res.finisherCount > res.finishers.length ? ` of ${res.finisherCount} recorded` : ' finishers'}</h3>
+            <h3>Individuals — ${res.finishers.length}${res.finisherCount > res.finishers.length ? ` of ${res.finisherCount} recorded` : ' finishers'}${res.dnfs && res.dnfs.length ? ` • ${res.dnfs.length} DNF` : ''}</h3>
             <div class="table-wrap" style="max-height:340px; overflow-y:auto;">
               <table class="data"><thead><tr><th>Pl</th><th>Runner</th><th>School</th><th class="num">Time</th></tr></thead>
               <tbody>${indivRows}</tbody></table>

@@ -721,6 +721,7 @@
           if (s.prestige > school.prestige - 10) return false;
           const c = s.coachId && gameState.world.coaches[s.coachId];
           if (!c || c.isPlayer) return false;
+          if (Legacy.hasLeftSchool(school, c.id)) return false; // never re-hire a coach who left (Update 18)
           return (c.reputation || 0) >= school.prestige * 0.65 - 5 || (rankIndex[s.id] || 999) <= 35;
         })
         .sort((a, b) => (gameState.world.coaches[b.coachId].reputation || 0) - (gameState.world.coaches[a.coachId].reputation || 0));
@@ -763,6 +764,7 @@
         const c = s.assistantId && gameState.world.coaches[s.assistantId];
         if (!c || c.isPlayer) return;
         if ((c.reputation || 0) < readyBar + 4 || c.age < 30) return;
+        if (Legacy.hasLeftSchool(school, c.id)) return; // a program that lost them won't promote them back (Update 18)
         board.push({ c, s, internal: false, score: candidateScore(gameState, c, s, rankIndex) });
       });
       board.sort((a, b) => b.score - a.score);
@@ -794,9 +796,11 @@
       }
     }
 
-    // 2) The free-agent pool: fired coaches wait for the phone to ring.
+    // 2) The free-agent pool: fired coaches wait for the phone to ring — but
+    //    never from the program that just let them go (Update 18). A "second
+    //    act" is always somewhere new.
     const pool = freeAgents(gameState)
-      .filter((c) => (c.reputation || 0) >= school.prestige * 0.45 - 10)
+      .filter((c) => (c.reputation || 0) >= school.prestige * 0.45 - 10 && !Legacy.hasLeftSchool(school, c.id))
       .sort((a, b) => (b.reputation || 0) - (a.reputation || 0));
     if (pool.length && rng.bool(0.7)) {
       const c = pool[rng.int(0, Math.min(1, pool.length - 1))];
@@ -936,7 +940,8 @@
           .filter((s) => s.prestige < school.prestige - 8 &&
             s.assistantId && gameState.world.coaches[s.assistantId])
           .map((s) => ({ s, c: gameState.world.coaches[s.assistantId] }))
-          .filter(({ c }) => !c.isPlayer && (c.reputation || 0) >= school.prestige * 0.4)
+          .filter(({ c }) => !c.isPlayer && (c.reputation || 0) >= school.prestige * 0.4 &&
+            !Legacy.hasLeftSchool(school, c.id)) // no returns to a program they left (Update 18)
           .map((x) => ({ ...x, score: candidateScore(gameState, x.c, school, rankIndex) }))
           .sort((a, b) => b.score - a.score);
         if (!cands.length) return;
@@ -981,6 +986,9 @@
     Object.values(gameState.world.schools).forEach((school) => {
       Legacy.linkStaff(gameState, school, gameState.year);
     });
+
+    // Trim dead ids out of the per-program former-staff ledgers (Update 18).
+    Legacy.pruneFormerStaff(gameState);
   }
 
   /* ---------------- Legacy Dynasty Mode (Update 6, Section 1) -------- *

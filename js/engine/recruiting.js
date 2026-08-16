@@ -546,11 +546,22 @@
     const m = engine * 0.72 + (perceivedPotential(r) || 60) * 0.28;
     const base = r.gender === 'M' ? 1233 - m * 5.33 : 1440 - m * 6.5;
     const noise = rng.gaussian(0, 14);
-    // Realistic bounds: national-record realm at the front (~14:03 boys /
-    // ~16:03 girls), development-project times at the back.
-    const floor = (r.gender === 'M' ? 843 : 963) + rng.int(0, 12);
+    let t = base + noise;
+    // Elite-tail realism (Update 18). The raw curve produced far too many
+    // record-territory times — dozens of sub-14:15 boys / sub-16:15 girls per
+    // class, when in real recent high-school seasons only a small handful of
+    // athletes nationwide touch those marks. Times below the elite band are
+    // compressed toward it, so the very fastest prospects sit at realistic
+    // national-leader times (~14:1x boys / ~16:2x girls) and truly blazing
+    // marks stay rare. The broad middle and the development-project back of
+    // the pack are deliberately left untouched.
+    const eliteBand = r.gender === 'M' ? 887 : 1010; // 14:47 boys / 16:50 girls
+    if (t < eliteBand) t = eliteBand - (eliteBand - t) * 0.42;
+    // Bounds: realistic national-leader realm at the front, development-project
+    // times at the back.
+    const floor = (r.gender === 'M' ? 852 : 975) + rng.int(0, 10); // ~14:12 / ~16:15
     const ceil = r.gender === 'M' ? 1155 : 1320;
-    return Math.round(Utils.clamp(base + noise, floor, ceil));
+    return Math.round(Utils.clamp(t, floor, ceil));
   }
 
   /*
