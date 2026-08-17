@@ -80,6 +80,28 @@
         realistic historical marks and then evolve as your dynasty writes its own history. A course record
         is a genuinely rare accomplishment.
       </div>
+      ${(() => {
+        // Season history: the most recent course records set across the dynasty
+        // (spec — a course record fires a season-history entry). Each opens the
+        // course record book; the athlete opens their profile.
+        const log = (game.history.courseRecordLog || []).slice(0, 10);
+        if (!log.length) return '';
+        return `<div class="card" style="margin-bottom:14px;">
+          <h2 style="margin:0 0 8px;">🏆 Recent Course Records</h2>
+          <div class="table-wrap" style="max-height:230px; overflow-y:auto;"><table class="data">
+            <thead><tr><th>Year</th><th>Course</th><th></th><th>Athlete</th><th>School</th><th class="num">Time</th></tr></thead>
+            <tbody>${log.map((e) => `
+              <tr>
+                <td>${e.year}</td>
+                <td><span class="clickable" data-cr-log-course="${e.courseKey}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(e.courseName)}</span></td>
+                <td>${e.gender} ${e.distanceKey}</td>
+                <td><span class="clickable" data-cr-log-ath="${e.athleteId || ''}" data-cr-log-ath-name="${Utils.escapeHtml(e.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(e.name)}</span></td>
+                <td style="color:var(--text-dim); font-size:12px;">${Utils.escapeHtml(e.school)}</td>
+                <td class="num"><strong>${ft(e.time)}</strong></td>
+              </tr>`).join('')}
+            </tbody></table></div>
+        </div>`;
+      })()}
       <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px;">
         <input type="text" id="cr-search" class="search-input" placeholder="Search courses, cities…" value="${Utils.escapeHtml(filters.query)}" style="max-width:200px;">
         <select id="cr-div" class="search-input" style="padding:6px 10px;">
@@ -188,6 +210,14 @@
       });
     }
     apply();
+
+    // Recent-records panel: courses open the record book, athletes their profile.
+    container.querySelectorAll('[data-cr-log-course]').forEach((el) => {
+      el.addEventListener('click', () => UI.showCourseCard(game, el.dataset.crLogCourse));
+    });
+    container.querySelectorAll('[data-cr-log-ath]').forEach((el) => {
+      el.addEventListener('click', () => { if (el.dataset.crLogAth || el.dataset.crLogAthName) UI.openAthlete(game, el.dataset.crLogAth, el.dataset.crLogAthName); });
+    });
 
     const bind = (id, ev, fn) => { const el = container.querySelector(id); if (el) el.addEventListener(ev, fn); };
     bind('#cr-search', 'input', (e) => { filters.query = e.target.value; apply(); });
