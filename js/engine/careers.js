@@ -41,8 +41,74 @@
 
   function generateOffers(gameState, rng) {
     if (searchClosed(gameState)) return;
+    ensureMarketInventory(gameState, rng);
     generateHeadCoachOffers(gameState, rng);
     maybeEliteAssistantOffer(gameState, rng);
+  }
+
+  /*
+   * A living coaching carousel needs a real, active job market every offseason.
+   * Retirements and firings alone leave the awards-week board thin — especially
+   * early in a dynasty, when nobody has been on the hot seat long enough to be
+   * let go — so few or no chairs are open when the player would want to look.
+   *
+   * This tops the market up to a realistic FLOOR of open head-coaching chairs
+   * (the real NCAA sees a genuinely active carousel every year): a handful of
+   * additional programs part ways with their coach or see a veteran step down.
+   * The choices are earned, not random — weighted toward hot/warm seats, weaker
+   * programs, and older coaches — and never touch the player's own program.
+   * Displaced coaches enter the free-agent pool (or retire into the record
+   * books), and every open chair is filled by the offseason carousel, so the
+   * world stays fully staffed. It only ever tops UP to the floor, so a busy
+   * natural year adds nothing and the churn never compounds.
+   */
+  function ensureMarketInventory(gameState, rng) {
+    const Legacy = window.XCD.engine.Legacy;
+    const schools = Object.values(gameState.world.schools);
+    const occupied = (s) => s.coachId && gameState.world.coaches[s.coachId];
+    let vacant = schools.filter((s) => s.id !== gameState.playerSchoolId && !occupied(s)).length;
+    // A realistic active market scales to the size of the world.
+    const floor = Utils.clamp(Math.round(schools.length * 0.02), 10, 16);
+    if (vacant >= floor) return;
+
+    const pool = schools.filter((s) => s.id !== gameState.playerSchoolId && occupied(s) &&
+      !gameState.world.coaches[s.coachId].isPlayer);
+    const weightOf = (s) => {
+      const c = gameState.world.coaches[s.coachId];
+      let w = 0.5;
+      w += (c.hotSeat || 0) / 18;                       // pressure — the obvious moves
+      w += Math.max(0, (c.age || 45) - 60) * 0.18;      // veterans eyeing the exit
+      w += Math.max(0, 55 - (s.prestige || 50)) / 26;   // weaker programs churn more
+      w += Math.max(0, 6 - (c.yearsAtSchool || 0)) * 0.04; // early tenures wobble
+      return Math.max(0.05, w);
+    };
+
+    let need = floor - vacant;
+    let opened = 0;
+    while (need > 0 && pool.length) {
+      const s = rng.weightedChoice(pool, weightOf);
+      pool.splice(pool.indexOf(s), 1);
+      const c = gameState.world.coaches[s.coachId];
+      const retiring = (c.age || 45) >= 62 && rng.bool(0.45);
+      Legacy.closeStint(gameState, c, s, gameState.year, retiring ? 'retired' : 'left');
+      if (retiring) {
+        Legacy.recordRetiredCoach(gameState, c, 'retired');
+        delete gameState.world.coaches[c.id];
+        gameState.logNews(`RETIREMENT: ${c.fullName} steps down at ${s.name} after ${c.careerRecord.seasons || 'several'} seasons.`);
+      } else {
+        // Mutual parting / a move elsewhere — the coach hits the open market.
+        c.schoolId = null;
+        c.hotSeat = 0;
+        c.hotSeatYears = 0;
+        c.poolYears = 0;
+        gameState.logNews(`COACHING CHANGE: ${s.name} and ${c.fullName} part ways; the program opens a head-coaching search.`);
+      }
+      s.coachId = null;
+      s.coachChangedYear = gameState.year;
+      need--;
+      opened++;
+    }
+    if (opened) gameState.logNews(`📋 The coaching carousel heats up: ${opened} more program${opened === 1 ? '' : 's'} open head-coaching searches this offseason.`);
   }
 
   function generateHeadCoachOffers(gameState, rng) {
@@ -272,6 +338,9 @@
    */
   function generateAssistantOffers(gameState, rng) {
     if (searchClosed(gameState)) return;
+    // A fuller head-coaching market also means more genuine promotion chances
+    // for an assistant chasing their first head job.
+    ensureMarketInventory(gameState, rng);
     const coach = gameState.getPlayerCoach();
     const home = gameState.getPlayerSchool();
     const rep = coach.reputation || 12;

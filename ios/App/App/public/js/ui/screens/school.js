@@ -450,6 +450,14 @@
           ${rec('All-Conference Athletes', prog.allConference || 0)}
           ${rec('Highest Ranked Finish', prog.highestRank ? `#${prog.highestRank}` : '—')}
           ${rec('Top-25 Final Polls', prog.top25Finishes || 0)}
+          ${(() => {
+            // Course Records held (Course Records system): total set, currently
+            // held, and the most held at any one time — another program legacy.
+            const CR = window.XCD.engine.Courses;
+            if (!CR) return '';
+            const cs = CR.programStats(game, school.id);
+            return rec('Course Records Held', cs.everSet, `${cs.current} current • peak ${cs.peak} at once`);
+          })()}
         </div>
       </div>
 

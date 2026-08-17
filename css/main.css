@@ -472,6 +472,22 @@ table.data td.num, table.data th.num { text-align: right; }
 .rating.r-avg   { background: rgba(232, 179, 57, 0.14); color: var(--warning); }
 .rating.r-poor  { background: rgba(229, 83, 75, 0.14); color: var(--danger); }
 
+/* Course-record marks in race results: CR (equals the record) and the
+   brighter NCR (a new course record set in this race). */
+.cr-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+  background: rgba(61, 139, 253, 0.16);
+  color: var(--accent-hover);
+}
+.cr-badge.ncr { background: rgba(212, 160, 23, 0.22); color: #f0c34e; }
+.course-record-line:hover { color: var(--text); }
+
 /* ---------- Meters ---------- */
 .meter { height: 7px; background: var(--bg-hover); border-radius: 4px; overflow: hidden; }
 .meter > span { display: block; height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.4s ease; }

@@ -14,6 +14,48 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 14.0 — Update 18: The Course Records System
+
+Cross country is run on named courses, not tracks — and no two are alike. A
+brutal, hilly farmland course and a flat, fast championship course produce
+completely different times, so this update gives **every course its own record
+book**, tracked independently within each dynasty.
+
+- **Every course has a record.** Each course keeps separate men's and women's
+  records — by distance — with the holder, school, division, season, meet, and
+  the conditions the record was set in (wind, temperature, dry/wet, terrain,
+  altitude). Records are **never** compared across courses by raw time; a 23:30
+  on one course is not "better" than a 24:00 on another. Each stands alone.
+- **A living, dynasty-specific record book.** New dynasties open with realistic
+  historical baselines on the real NCAA championship venues and famous
+  invitational courses; every program's home course seeds its own baseline the
+  first time it hosts. From there each save writes its own history — a record
+  holds until an athlete actually runs faster on that same course.
+- **Breaking a record is rare and notable.** After every race the field is
+  compared to the course record. Performance is shaped by ability, fitness,
+  fatigue, weather, terrain, altitude, race tactics, and development — so a
+  very strong athlete only occasionally threatens a record, and breaking one is
+  a genuine accomplishment. A new record fires a **🏆 NEW COURSE RECORD**
+  notification, joins the athlete's résumé and the school's history, and is
+  stamped with the season and meet.
+- **Course Records page.** A dedicated screen to browse every course, filterable
+  by division, men/women, state, terrain, conference, championship vs regular
+  season, and current-records-only. Every course opens a profile: location,
+  terrain, altitude, the men's/women's records with their conditions, and the
+  full **record history** — every time the record has fallen, newest to oldest,
+  preserved forever.
+- **Records everywhere.** Race results mark record runs with **CR** (course
+  record) and **NCR** (new course record). Course profiles across the game show
+  their records; clicking a record opens the athlete. Athlete profiles show a
+  **🏆 Course Record Holder** accolade listing every course record held; program
+  histories track course records held, currently held, and the most held at one
+  time. Course records contribute to a résumé — but national and major
+  championships remain the true measure of all-time greatness.
+- **A livelier coaching carousel.** The offseason job market now maintains a
+  realistic floor of open head-coaching chairs every year (weighted toward
+  struggling programs and veterans stepping down), so there are always genuine
+  moves to consider — and more first head-coach chances for a rising assistant.
+
 ## Version 13.0 — Update 17: Recruiting, Eligibility, Race Simulation, Prestige & UI Overhaul
 
 Realism across the board: mileage, eligibility, recruiting strategy, famous
