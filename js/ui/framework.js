@@ -103,6 +103,51 @@
     return null;
   };
 
+  /*
+   * Course-record marks for a race result (Course Records): NCR = a new course
+   * record set in this race, CR = a run that equals the standing course record.
+   * The mark rides on the finisher object (set by the race engine) so it shows
+   * anywhere results are displayed — the race center and every results modal.
+   */
+  UI.crTag = function (f) {
+    if (!f || !f.cr) return '';
+    const isNew = f.cr === 'NCR';
+    return ` <span class="cr-badge${isNew ? ' ncr' : ''}" title="${isNew ? 'New Course Record' : 'Course Record'}">${f.cr}</span>`;
+  };
+
+  // A compact, clickable line of the current course records for a meet's
+  // course (the record for each raced distance), for meet/course profiles.
+  UI.meetCourseRecordLine = function (game, meet) {
+    const Courses = window.XCD.engine.Courses;
+    if (!Courses || !meet || !meet.distances) return '';
+    const info = Courses.entryForMeet(game, meet);
+    if (!info || !info.desc) return '';
+    const key = info.desc.key;
+    const ft = window.XCD.engine.Races.formatTime;
+    const parts = [];
+    ['M', 'W'].forEach((g) => {
+      if (!meet.distances[g]) return;
+      const rec = Courses.recordFor(game, key, g, meet.distances[g]);
+      if (rec) {
+        const who = rec.seeded ? '' : ` <span style="color:var(--text-faint);">${Utils.escapeHtml(rec.name)}</span>`;
+        parts.push(`${g === 'M' ? "M" : "W"} ${rec.distanceKey}: <strong>${ft(rec.time)}</strong>${who}`);
+      }
+    });
+    if (!parts.length) return '';
+    return `<div class="course-record-line" data-course-key="${key}" title="Open the course record book" style="cursor:pointer; color:var(--text-dim); font-size:12.5px; margin-bottom:10px;">
+      🏁 <strong style="color:var(--text);">Course Records</strong> — ${parts.join(' · ')} <span style="color:var(--accent-hover); font-size:11px;">▸ record book</span></div>`;
+  };
+
+  // Wire any rendered course-record lines to open the course profile.
+  UI.wireCourseRecordLines = function (root, game) {
+    root.querySelectorAll('[data-course-key]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (UI.showCourseCard) UI.showCourseCard(game, el.dataset.courseKey);
+      });
+    });
+  };
+
   /* ---------------- Sortable table ----------------
    * config: {
    *   columns: [{ key, label, numeric?, render?(row) -> html, sortValue?(row) }],
@@ -259,6 +304,7 @@
     { id: 'portal', label: 'Portal', icon: '🔄' },
     { id: 'school', label: 'My Program', icon: '🏫' },
     { id: 'history', label: 'History', icon: '🏛' },
+    { id: 'courses', label: 'Course Records', icon: '🏁' },
     { id: 'world', label: 'World', icon: '🌎' },
     { id: 'news', label: 'News', icon: '📰' },
     { id: 'shop', label: 'Shop', icon: '🛒' },

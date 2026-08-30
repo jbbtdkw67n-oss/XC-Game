@@ -400,6 +400,7 @@
 
     const conditions = {
       tempF: Math.round((diCourse ? diCourse.tempBase : host.weather.tempBase) + rng.int(-8, 8) - (week - 5) * 1.1),
+      windMph: Utils.clamp(Math.round(Math.abs(rng.gaussian(5, 4))), 0, 24),
       hilliness: diCourse ? diCourse.hilliness : rng.int(30, 80),
       altitude: diCourse ? diCourse.altitude : host.weather.altitude,
       rain: rng.bool(0.18)
@@ -511,7 +512,14 @@
     // Famous meets race on their REAL course (Meet Database Expansion): the
     // stored hilliness/altitude profile drives conditions instead of random
     // host-derived terrain, so Gans Creek is always rolling at 738 ft and a
-    // mountain host's invitational is always thin-air racing.
+    // mountain host's invitational is always thin-air racing. Every OTHER meet
+    // races the host program's deterministic HOME COURSE (Course Records), so
+    // its terrain is stable season to season and it keeps its own course
+    // record — an invitational, a conference meet, or a regional all race on
+    // a real, identifiable course rather than random one-off terrain.
+    if (!base.courseMeta && window.XCD.engine.Courses) {
+      base.courseMeta = window.XCD.engine.Courses.homeCourseMeta(host);
+    }
     const cm = base.courseMeta;
     return {
       id: Utils.generateId('meet'),
@@ -519,6 +527,9 @@
       distances,
       conditions: {
         tempF: Math.round(host.weather.tempBase + rng.int(-10, 12) - (base.week - 5) * 1.1),
+        // Race-day wind, stamped alongside the record so the conditions a
+        // course record was set in are part of the record book.
+        windMph: Utils.clamp(Math.round(Math.abs(rng.gaussian(5, 4))), 0, 24),
         hilliness: cm && cm.hilliness !== undefined
           ? Utils.clamp(cm.hilliness + rng.int(-4, 4), 5, 95)
           : rng.int(10, 85),
@@ -1102,6 +1113,16 @@
         if (nrec) gameState.logNews(`NATIONAL RECORD: ${f.name} (${gameState.getSchool(f.schoolId)?.name}) runs ${formatTime(f.time)} for ${key}!`);
       }
     });
+
+    // Course records (Course Records system): every course keeps its own
+    // men's/women's record. Compare the field against this course's standing
+    // record — a break is a genuinely rare, notable accomplishment that stamps
+    // the athlete's résumé, the school's history, the course history, and the
+    // news feed, and marks the record-setting finisher (CR/NCR) in the results.
+    if (window.XCD.engine.Courses) {
+      try { window.XCD.engine.Courses.considerRace(gameState, meet, gender, finishers, distanceM); }
+      catch (e) { /* course records must never break a race */ }
+    }
 
     // Team morale for meet winners
     if (teamScores[0]) {
