@@ -182,17 +182,23 @@
       : abilityMean;
     const statFor = () => rng.gaussianRange(statMean, 7, 8, 92);
 
-    // Potential ceiling = current ability + development room. Development room
-    // SHRINKS as starting ability rises: a polished recruit is already near
-    // their physical ceiling (good immediately, likely to plateau — the classic
-    // "high star, low potential" bust), while a raw recruit has room to grow
-    // into a star (the late bloomer / diamond in the rough). Higher-rated
-    // recruits still carry a higher AVERAGE ceiling, but the overlap is genuine:
-    // some raw 3-stars out-develop polished 5-stars. The separate hidden-gem,
-    // blue-chip, and generational passes then layer real elite ceilings on top.
-    const roomMean = Utils.clamp(31 - statMean * 0.36, 3, 28);
-    const growthRoom = Math.max(1, Math.round(rng.gaussian(roomMean, 10) * (source === 'JUCO' ? 0.55 : 1)));
-    const potential = Utils.clamp(statMean + growthRoom, statMean + 1, 99);
+    // Potential ceiling = current ability + development "room" — but the two
+    // are genuinely DECOUPLED so stars never dictate a ceiling (recruiting
+    // realism overhaul). The average room shrinks as starting ability rises (a
+    // polished recruit is already near their physical peak), yet the SPREAD is
+    // wide, so the tails overlap hard in both directions:
+    //   • a fast, high-current recruit can draw almost no room and plateau —
+    //     the classic high-school hero who never gets better (a genuine bust,
+    //     ceiling floored at today's ability below); and
+    //   • a raw, low-current recruit can draw a huge ceiling — the diamond in
+    //     the rough who develops into a star.
+    // Higher-rated recruits still carry a higher AVERAGE ceiling (their higher
+    // floor plus room), so a five-star is far MORE LIKELY to be elite — never
+    // guaranteed. The separate hidden-gem, blue-chip, and generational passes
+    // then layer additional elite ceilings on top.
+    const roomMean = Utils.clamp(28 - statMean * 0.30, 1, 26);
+    const growthRoom = Math.round(rng.gaussian(roomMean, 17) * (source === 'JUCO' ? 0.5 : 1));
+    let potential = Utils.clamp(statMean + growthRoom, 20, 99);
 
     let hometown;
     if (international) {
@@ -297,6 +303,12 @@
       breakout: rng.bool(0.05)
     });
     recruit.recalculateOverall();
+    // A ceiling never sits below today's ability: the deepest bust simply
+    // plateaus at their current level (no growth), never regresses on paper.
+    if (recruit.potential < recruit.currentOverall) {
+      recruit.potential = recruit.currentOverall;
+      recruit.peakOverall = recruit.potential;
+    }
     return recruit;
   }
 
@@ -480,7 +492,7 @@
   // ceiling stays hidden; hidden gems rank like the modest prospects everyone
   // believes they are because this reads the PERCEIVED potential.
   function recruitComposite(r) {
-    return r.currentOverall * 0.68 + perceivedPotential(r) * 0.32;
+    return r.currentOverall * 0.82 + perceivedPotential(r) * 0.18;
   }
 
   /*
@@ -537,19 +549,43 @@
    * hide an elite ceiling and a fast one can be nearly finished growing.
    */
   function generateHsPB(rng, r) {
-    // Current engine: what the athlete can actually run today.
+    // Current engine: what the athlete can actually run TODAY. The PB tracks
+    // present ability, not the hidden ceiling — only a whisper of perceived
+    // upside leaks in — so a slow kid can hide an elite ceiling and a fast one
+    // can be a nearly finished product (a bust). Times in seconds.
     const engine = r.currentOverall * 0.5 +
       ((r.stamina || 55) + (r.lactateThreshold || 55)) / 2 * 0.3 + (r.vo2Max || 55) * 0.2;
-    // Blend in a share of upside — the nation's top-ranked preps ARE fast —
-    // but keep it minor and noisy, so slow kids can hide elite ceilings and
-    // fast ones can be nearly finished products.
-    const m = engine * 0.72 + (perceivedPotential(r) || 60) * 0.28;
-    const base = r.gender === 'M' ? 1233 - m * 5.33 : 1440 - m * 6.5;
-    const noise = rng.gaussian(0, 14);
-    // Realistic bounds: national-record realm at the front (~14:03 boys /
-    // ~16:03 girls), development-project times at the back.
-    const floor = (r.gender === 'M' ? 843 : 963) + rng.int(0, 12);
-    const ceil = r.gender === 'M' ? 1155 : 1320;
+    const m = engine * 0.9 + (perceivedPotential(r) || 60) * 0.1;
+    const male = r.gender === 'M';
+
+    // Race-day variance keeps the field from being a clean ladder, and makes
+    // where the barriers fall genuinely swing year to year — some classes push
+    // several kids under the marks, others barely reach them.
+    const noise = rng.gaussian(0, 8);
+
+    // Generational talents alone live in the national-record realm: right
+    // around ~14:03 boys / ~16:03 girls, and (rarely) under 14:00 / 16:00.
+    // Everyone else is floored well clear of the record.
+    if (r.generational) {
+      const genBase = male ? 846 : 962;
+      const lo = male ? 836 : 955;   // ~13:56 / ~15:55 — record-breaking is rare
+      const hi = male ? 864 : 982;
+      return Math.round(Utils.clamp(genBase - (m - 88) * 1.5 + noise * 0.75, lo, hi));
+    }
+
+    // Concave map from current-ability engine `m` (≈0-92) to 5K time. It
+    // COMPRESSES the elite tail: it takes a truly exceptional engine to
+    // approach the front, so only a handful of preps a year break the marks
+    // (~40 boys under 15:00, ~40 girls under 17:00 in a typical class) while
+    // the great mass sits at honest development-project times. A non-
+    // generational recruit is floored above the record realm — 14:03 / 16:03
+    // stay the exclusive property of generational talent.
+    const F = male ? 858 : 969;   // asymptotic fast end for a maxed non-gen engine
+    const S = male ? 328 : 352;   // spread down to the slow tail
+    const P = male ? 1.46 : 1.36; // curvature — higher = thinner fast tail
+    const floor = male ? 853 : 968; // hard floor, safely clear of the record realm
+    const ceil = male ? 1145 : 1305;
+    const base = F + S * Math.pow(Math.max(0, 1 - m / 92), P);
     return Math.round(Utils.clamp(base + noise, floor, ceil));
   }
 

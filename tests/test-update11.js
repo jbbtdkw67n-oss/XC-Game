@@ -36,7 +36,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
       r.perceivedPotential == null || r.potential <= r.perceivedPotential || r.workEthic < 80);
     // recruitComposite must read the PERCEIVED ceiling, never the real one.
     const leakyComposite = gems.filter((r) =>
-      Math.abs(RE.recruitComposite(r) - (r.perceivedPotential * 0.62 + r.currentOverall * 0.38)) > 1e-9);
+      Math.abs(RE.recruitComposite(r) - (r.currentOverall * 0.82 + r.perceivedPotential * 0.18)) > 1e-9);
     const notedNonGems = recs.filter((r) => !r.hiddenGem && r.scoutNotes && r.scoutNotes.length).length;
     const prefs = recs.filter((r) => r.divisionPreference);
     const prefStars = {};
