@@ -140,6 +140,17 @@
           ${row('All-Americans', prog.allAmericans || 0)}
           ${row('All-Time Record', `${prog.wins || 0}-${prog.losses || 0}`)}
           ${row('Program Titles (M/W)', `${(hs.nationalTitlesM || 0) + (hs.conferenceTitlesM || 0)} / ${(hs.nationalTitlesW || 0) + (hs.conferenceTitlesW || 0)}`)}
+          ${(() => {
+            // Course Records (Program History): total set, currently held, and
+            // the most held at any one time — another achievement to build.
+            const CR = window.XCD.engine.Courses;
+            if (!CR) return '';
+            const cs = CR.programStats(game, school.id);
+            if (!cs.everSet && !cs.current) return '';
+            return row('Course Records Held', cs.everSet) +
+              row('Current Course Records', cs.current) +
+              row('Most Held at One Time', cs.peak);
+          })()}
         </div>
       </div>
     `, (modal) => {

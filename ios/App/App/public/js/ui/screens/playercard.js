@@ -21,7 +21,8 @@
     natChampTeam: '🏆', natChampIndiv: '🥇', natRunnerUp: '🥈', runnerOfYear: '🏅',
     allAmerican: '🇺🇸', freshmanOfYear: '🌱', regChamp: '🗺', confChamp: '🥇',
     confRunnerOfYear: '🏅', confFreshmanOfYear: '🌱',
-    allConference: '🏅', academicAllAmerican: '📚', nxnChampion: '👟', nxnAllAmerican: '🎽'
+    allConference: '🏅', academicAllAmerican: '📚', nxnChampion: '👟', nxnAllAmerican: '🎽',
+    courseRecord: '🏁'
   };
 
   // Accolades grouped logically (Update 13, Phase 5): National, Regional,
@@ -33,6 +34,7 @@
     { label: 'Regional', types: ['regChamp'] },
     { label: 'Conference', types: ['confChamp', 'confRunnerOfYear', 'confFreshmanOfYear', 'allConference'] },
     { label: 'Academic', types: ['academicAllAmerican'] },
+    { label: 'Course Records', types: ['courseRecord'] },
     { label: 'High School', types: ['nxnChampion', 'nxnAllAmerican'] }
   ];
 
@@ -119,6 +121,19 @@
     const accolades = Legacy ? Legacy.accoladesFor(athlete) : [];
     const accoladesHtml = accoladesCard(accolades, Legacy);
 
+    // Athlete Career Records (Course Records): the course records this athlete
+    // currently holds — a live, clickable accolade separate from the permanent
+    // ledger (course records can be broken; national/major titles still lead a
+    // résumé). Opens the full list of every course record held.
+    const Courses = window.XCD.engine.Courses;
+    const crCount = Courses ? Courses.courseHoldCount(game, athlete.id) : 0;
+    const courseRecordHtml = crCount ? `
+      <div style="margin:0 0 14px;">
+        <span class="clickable cr-holder-pill" id="pc-course-records" style="cursor:pointer; display:inline-block; background:var(--accent-soft); border:1px solid var(--accent); border-radius:14px; padding:4px 12px; font-size:12.5px;">
+          🏆 <strong>Course Record Holder</strong> — ${crCount} Course${crCount > 1 ? 's' : ''} <span style="color:var(--accent-hover);">▸</span>
+        </span>
+      </div>` : '';
+
     // Transfer Risk Indicator (spec Part 2, Section 14): the athlete's
     // Transfer Desire as a five-step level; expanding it reveals exactly
     // what's pushing them out — or anchoring them home.
@@ -197,6 +212,7 @@
       </div>
 
       ${badgesHtml}
+      ${courseRecordHtml}
 
       <div class="grid cols-4" style="margin-bottom:16px;">
         <div>
@@ -264,12 +280,12 @@
           <thead><tr><th>When</th><th>Meet</th><th></th><th class="num">Place</th><th class="num">Time</th></tr></thead>
           <tbody>
             ${athlete.raceLog.map((r) => `
-              <tr>
+              <tr${r.dnf ? ' style="color:var(--text-faint);"' : ''}>
                 <td>Wk ${r.w}, ${r.y}</td>
                 <td>${Utils.escapeHtml(r.m)}</td>
                 <td>${r.d}</td>
-                <td class="num">${r.p === 1 ? '🥇 1' : r.p}</td>
-                <td class="num">${window.XCD.engine.Races.formatTime(r.t)}</td>
+                <td class="num" ${r.dnf ? 'title="Did Not Finish"' : ''}>${r.dnf ? 'DNF' : (r.p === 1 ? '🥇 1' : r.p)}</td>
+                <td class="num">${r.t != null ? window.XCD.engine.Races.formatTime(r.t) : '—'}</td>
               </tr>`).join('')}
           </tbody>
         </table></div>
@@ -288,7 +304,12 @@
         <h3>Mental & Makeup</h3>
         <div class="attr-grid">${attrRows(MENTAL_ATTRS)}</div>
       </div>
-    `);
+    `, (modal) => {
+      const cr = modal.querySelector('#pc-course-records');
+      if (cr && UI.showAthleteCourseRecords) {
+        cr.addEventListener('click', () => UI.showAthleteCourseRecords(game, athlete.id, athlete.fullName));
+      }
+    });
   };
 
   /*
@@ -313,6 +334,17 @@
     const oh = rec.overallHistory || [];
     const winPct = stats.races ? Math.round((stats.wins / stats.races) * 1000) / 10 : 0;
     const school = rec.schoolId && game ? game.getSchool(rec.schoolId) : null;
+
+    // A legend can still hold course records long after graduating — a mark
+    // that stands for decades is exactly what the record book is for.
+    const Courses = window.XCD.engine.Courses;
+    const crCount = (Courses && rec.athleteId) ? Courses.courseHoldCount(game, rec.athleteId) : 0;
+    const courseRecordHtml = crCount ? `
+      <div style="margin:0 0 14px;">
+        <span class="clickable" id="legend-course-records" style="cursor:pointer; display:inline-block; background:var(--accent-soft); border:1px solid var(--accent); border-radius:14px; padding:4px 12px; font-size:12.5px;">
+          🏆 <strong>Course Record Holder</strong> — ${crCount} Course${crCount > 1 ? 's' : ''} <span style="color:var(--accent-hover);">▸</span>
+        </span>
+      </div>` : '';
 
     UI.showModal(`
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
@@ -341,6 +373,7 @@
             ${b.icon} ${b.label}${b.years && b.years.length ? ` <span style="color:var(--text-dim);">${b.years.join(' · ')}</span>` : ''}
           </span>`).join('')}
       </div>` : ''}
+      ${courseRecordHtml}
 
       <div class="grid cols-4" style="margin-bottom:14px;">
         <div class="stat-tile"><div class="label">Races</div><div class="value">${stats.races ?? '—'}</div></div>
@@ -371,6 +404,8 @@
     `, (modal) => {
       const se = modal.querySelector('#legend-school');
       if (se && school) se.addEventListener('click', () => UI.showSchoolCard(school, game));
+      const cr = modal.querySelector('#legend-course-records');
+      if (cr && UI.showAthleteCourseRecords) cr.addEventListener('click', () => UI.showAthleteCourseRecords(game, rec.athleteId, rec.name));
     });
   };
 

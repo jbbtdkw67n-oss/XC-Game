@@ -521,7 +521,7 @@
                      tip: 'Cheap weekly contact — a small relationship bump.' },
     call:          { label: 'Phone Call',           points: 2, cost: 100,  relationship: 5,  interest: 2, scout: 4,  reveal: 0.22,
                      tip: 'Builds the relationship and often reveals what the recruit cares about.' },
-    // Watch Race (Update 18): a scouting trip is legwork, not a budget line —
+    // Watch Race (Update 19): a scouting trip is legwork, not a budget line —
     // it costs recruiting effort (2 points) but no money. Everything else
     // about it (the big scouting reveal) is unchanged.
     watchRace:     { label: 'Watch Race',           points: 2, cost: 0,    relationship: 2,  interest: 2, scout: 30, reveal: 0.05,

@@ -1361,6 +1361,7 @@
     devProfileMult,
     careerInjuryDevMult,
     majorInjuryCount,
+    recordCareerInjury,
     MAJOR_INJURY_WEEKS,
     philosophyEffect,
     coachCraft,

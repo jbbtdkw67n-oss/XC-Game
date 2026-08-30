@@ -138,10 +138,10 @@
           <td>${f.place}</td>
           <td>${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: g }, { size: 20 })} ${Utils.escapeHtml(f.name)}${honored ? ` <span title="${honor.label}">${honor.icon}</span>` : ''} <span style="color:var(--text-faint); font-size:11px;">${f.classYear || ''}</span></td>
           <td>${Utils.escapeHtml(school ? school.name : '?')}</td>
-          <td class="num">${ft(f.time)}</td>
+          <td class="num">${ft(f.time)}${UI.crTag ? UI.crTag(f) : ''}</td>
         </tr>`;
       }).join('') +
-      // DNF runners (Update 18): listed at the bottom, no place, no time.
+      // DNF runners (Update 19): listed at the bottom, no place, no time.
       (res.dnfs || []).map((d) => {
         const school = game.getSchool(d.schoolId);
         const mine = d.schoolId === game.playerSchoolId;
@@ -153,11 +153,13 @@
         </tr>`;
       }).join('');
 
+      const anyCr = res.finishers.some((f) => f.cr);
       return `
         <h3 style="margin:0 0 10px;">${g === 'M' ? "Men's" : "Women's"} ${Races().distKey(res.distanceM)}</h3>
         ${honor ? `<div style="margin:0 0 10px; padding:7px 12px; border:1px solid var(--border); border-radius:8px; color:var(--text-dim); font-size:12.5px;">
           ${honor.icon} Championship race — the top ${honor.count} finishers earn <strong>${honor.label}</strong> honors, marked ${honor.icon}.
         </div>` : ''}
+        ${anyCr ? `<div style="color:var(--text-faint); font-size:11.5px; margin:0 0 8px;"><span class="cr-badge ncr">NCR</span> New Course Record · <span class="cr-badge">CR</span> Course Record</div>` : ''}
         <div class="grid cols-2">
           <div class="card" style="padding:12px;">
             <h3>Team Scores</h3>
@@ -188,10 +190,11 @@
         const altClass = window.XCD.data.altitudeClass(meet.courseMeta || meet.conditions);
         return hostHtml ? `<div style="color:var(--text-dim); font-size:12.5px; line-height:1.5;">${hostHtml}<div>⛰ ${altClass} altitude</div></div>` : '';
       })()}
-      <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">
-        Week ${meet.week} • ${meet.conditions.tempF}°F${meet.conditions.rain ? ' • Rain' : ''} •
+      <div style="color:var(--text-dim); font-size:13px; margin-bottom:10px;">
+        Week ${meet.week} • ${meet.conditions.tempF}°F${meet.conditions.windMph != null ? ` • Wind ${meet.conditions.windMph} mph` : ''}${meet.conditions.rain ? ' • Rain' : ''} •
         Hills ${meet.conditions.hilliness}/100 (${window.XCD.data.hillinessLabel ? window.XCD.data.hillinessLabel(meet.conditions.hilliness) : ''}) • ${meet.conditions.altitude} altitude
       </div>
+      ${UI.meetCourseRecordLine ? UI.meetCourseRecordLine(game, meet) : ''}
       <div class="pill-tabs" style="display:flex; gap:6px; margin-bottom:14px;">
         ${tabBtn('M', 'Men')}
         ${tabBtn('W', 'Women')}
@@ -211,6 +214,7 @@
         });
       };
       wireRows();
+      if (UI.wireCourseRecordLines) UI.wireCourseRecordLines(modal, game);
       modal.querySelectorAll('[data-meet-gender]').forEach((btn) => {
         btn.addEventListener('click', () => {
           if (btn.disabled) return;

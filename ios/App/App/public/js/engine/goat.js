@@ -49,7 +49,11 @@
     freshmanOfYear: 6,
     allConference: 4,
     confFreshmanOfYear: 2,
-    academicAllAmerican: 2
+    academicAllAmerican: 2,
+    // Course records contribute to a résumé but stay well below the major
+    // championships (a national title is worth 20 of these): a notable mark,
+    // never the measure of all-time greatness.
+    courseRecord: 5
   };
 
   // rec: a normalized athlete record — { accolades, stats:{races,wins,top5},

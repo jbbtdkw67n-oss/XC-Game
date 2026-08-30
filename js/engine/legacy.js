@@ -300,7 +300,7 @@
         if (reason && !entry.reason) entry.reason = reason;
         if (entry.prestigeEnd === undefined) entry.prestigeEnd = school.prestige;
       }
-      // Once you leave, the door closes behind you (Update 18). Every coach
+      // Once you leave, the door closes behind you (Update 19). Every coach
       // departure — head or assistant, quit / poached / promoted / released —
       // funnels through here, so this is the one place we stamp the leaving
       // coach onto the program's permanent "former staff" ledger. AI hiring
@@ -311,7 +311,7 @@
     }
   };
 
-  /* ---------------- Former-staff ledger (Update 18) ---------------- *
+  /* ---------------- Former-staff ledger (Update 19) ---------------- *
    * A program remembers who left. Assistants (and head coaches) who depart —
    * for a bigger job, a promotion, or because they were let go — are never
    * brought back by that same institution the next season. Recorded per

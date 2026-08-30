@@ -1,4 +1,4 @@
-// Update 18 test: DNF runners in race results, Watch Race re-costing (2 pts /
+// Update 19 test: DNF runners in race results, Watch Race re-costing (2 pts /
 // $0), and the former-staff rule (a program never re-hires a coach who left).
 const { chromium } = require('playwright');
 const { newDynasty, wireErrors, launchOpts } = require('./helpers');
@@ -161,7 +161,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   if (!staff.aiRecorded) errors.push('AI departure not recorded on former-staff ledger');
   if (staff.aiCameBack > 0) errors.push('AI school re-hired a coach it let go: ' + staff.aiCameBack + '/25');
 
-  console.log(errors.length ? 'FAIL\n' + errors.join('\n---\n') : 'PASS test-update17');
+  console.log(errors.length ? 'FAIL\n' + errors.join('\n---\n') : 'PASS test-update19');
   await browser.close();
   process.exit(errors.length ? 1 : 0);
 })().catch((e) => { console.error('SCRIPT ERROR', e); process.exit(1); });

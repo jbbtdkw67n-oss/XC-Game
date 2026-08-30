@@ -143,7 +143,7 @@
     return meets.sort((a, b) => a.week - b.week);
   }
 
-  // Race-day conditions advisory (Update 18). Upcoming weather is fixed when
+  // Race-day conditions advisory (Update 19). Upcoming weather is fixed when
   // the schedule is built, so the player can plan around it. Extreme heat is
   // the big one — it drives fades and real DNFs — so a hot forecast warns the
   // coach to bring fresh legs; frigid, very hilly, and thin-air races get a

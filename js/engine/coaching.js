@@ -449,7 +449,7 @@
     const pool = Object.values(gameState.world.coaches)
       .filter((c) => !c.schoolId && !c.isPlayer && c.id !== school.assistantId && (c.age || 40) < 68 &&
         // A coach who has already left this program is never brought back
-        // (Update 18): the former-staff ledger keeps them off your board.
+        // (Update 19): the former-staff ledger keeps them off your board.
         !Legacy.hasLeftSchool(school, c.id))
       .sort((a, b) => a.id < b.id ? -1 : 1); // stable order for determinism
     if (pool.length) {
@@ -498,7 +498,7 @@
     const gate = canHireAssistant(gameState);
     if (!gate.ok) return { ok: false, message: gate.why };
     const wasVacancy = !!gate.vacancy;
-    // Safety net for the former-staff rule (Update 18): even if a stale
+    // Safety net for the former-staff rule (Update 19): even if a stale
     // candidate list slips a departed coach through, the hire itself refuses
     // anyone who has already left this program.
     if (candidate && Legacy.hasLeftSchool(school, candidate.id)) {

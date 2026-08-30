@@ -153,6 +153,12 @@
           school: '—', schoolId: null, year: gs.year - 1, seeded: true
         };
       });
+      // Course Records: open the record book for every real named course
+      // (championship venues + famous invitational courses) with realistic
+      // historical baselines, so the record book reads as historic from day
+      // one and each dynasty then evolves its own. Home courses seed lazily
+      // the first time they host a race.
+      try { window.XCD.engine.Courses.seedRealCourses(gs); } catch (e) { /* non-fatal */ }
 
       const school = gs.world.schools[schoolId];
       const arch = (D.COACH_ARCHETYPES || []).find((a) => a.key === archetype) || { key: 'Developer', rating: 'training' };
@@ -682,6 +688,10 @@
       // history and a blank profile from the champions page. Seed any missing
       // current head coach now — idempotent, so it only fills the gaps.
       try { window.XCD.engine.Legacy.seedInitialCoaches(gs); } catch (e) { /* non-fatal */ }
+      // Course Records: backfill the named-course baselines for older saves,
+      // and re-open the book on load. Idempotent — never overwrites a record
+      // the dynasty has already set.
+      try { window.XCD.engine.Courses.seedRealCourses(gs); } catch (e) { /* non-fatal */ }
       // Day-planner training; saves from the old primary/secondary system
       // fall back to the default balanced week.
       const savedTraining = obj.training || {};
