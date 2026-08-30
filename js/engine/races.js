@@ -948,8 +948,16 @@
       }
     }
 
-    // Finish order
+    // DNF (Update 19): a small, realistic slice of the field drops out — a
+    // fall or rolled ankle, sudden illness, or a catastrophic bonk deep in the
+    // red. DNFs are rare on a temperate day and climb sharply in extreme heat.
+    // A DNF scores nothing and — crucially — does NOT count toward a team's
+    // five, so losing a runner mid-race can knock a team out of the standings.
+    markDNFs(runners, meet, rng);
+
+    // Finish order (DNF runners never crossed the line, so they're excluded).
     const finishers = runners
+      .filter((r) => !r.dnf)
       .map((r) => ({
         athleteId: r.athlete.id,
         name: r.athlete.fullName,
@@ -961,12 +969,27 @@
       .sort((a, b) => a.time - b.time);
     finishers.forEach((f, i) => { f.place = i + 1; });
 
+    // The runners who stepped off the course: listed at the bottom of the
+    // results with no place and no time.
+    const dnfs = runners
+      .filter((r) => r.dnf)
+      .map((r) => ({
+        athleteId: r.athlete.id,
+        name: r.athlete.fullName,
+        schoolId: r.schoolId,
+        classYear: r.athlete.classYear,
+        individual: r.individual,
+        dnf: true,
+        reason: r.dnfReason
+      }));
+
     const teamScores = scoreRace(finishers);
 
     const result = {
       distanceM,
       finishers: detailed ? finishers : finishers.slice(0, 15),
       finisherCount: finishers.length,
+      dnfs,
       teamScores
     };
     if (detailed) {
@@ -975,10 +998,108 @@
       result.events = events.slice(0, 60);
     }
 
-    // Post-race bookkeeping: stats, PRs, records, fatigue, morale.
+    // Post-race bookkeeping: stats, PRs, records, fatigue, morale — then the
+    // DNF fallout (fatigue, a morale/confidence hit, an injury risk, a marked
+    // race-log entry).
     applyRaceEffects(gameState, meet, gender, finishers, teamScores, distanceM);
+    applyDNFEffects(gameState, meet, gender, dnfs, rng);
 
     return result;
+  }
+
+  /*
+   * Decide which runners fail to finish (Update 19). Flags each dropped runner
+   * with `r.dnf = true` and a `r.dnfReason` ('bonk' | 'mishap'). Kept rare and
+   * conditions-driven so DNFs feel like real cross country: almost none on a
+   * cool day, a rash of them in dangerous heat, and the beaten-up, fragile,
+   * or thoroughly bonked runners the most exposed.
+   */
+  function markDNFs(runners, meet, rng) {
+    // DNFs are modeled for real, full-sized fields. In a tiny field (a rare
+    // edge case) a dropout distorts scoring wildly and risks leaving too few
+    // finishers, so leave those races clean.
+    if (!runners || runners.length < 10) return;
+    const cond = meet.conditions || {};
+    const tempF = cond.tempF == null ? 60 : cond.tempF;
+    const veryHot = tempF >= 90;
+    const hot = tempF >= 82;
+    const cold = tempF <= 15;
+    runners.forEach((r) => {
+      const a = r.athlete;
+      // Base mishap risk: a fall, a rolled ankle in a pack, a cramp, illness.
+      let mishap = 0.0022;
+      if (cold) mishap += 0.0015;
+      mishap += Math.max(0, 55 - (a.injuryResistance ?? 55)) * 0.00028;
+      mishap += (a.raceLoad || 0) / 100 * 0.0022;
+      // Heat is the dominant real-world DNF driver — dehydration and the body
+      // shutting the effort down. Hits the deeply fatigued hardest.
+      let heat = veryHot ? 0.020 : hot ? 0.008 : 0;
+      heat *= 1 + Math.max(0, a.fatigue - 60) / 90;
+      // A catastrophic bonk (finished the tank far in the red) can end a race
+      // outright — the legs simply stop.
+      let bonk = r.reserve < -24 ? Math.min(0.05, (-r.reserve - 24) * 0.0015) : 0;
+      // Grit gets runners to the line: mental toughness scales the whole risk.
+      const grit = 1.28 - (a.mentalToughness ?? 60) / 100 * 0.6;
+      const pMishap = (mishap + heat) * grit;
+      const pBonk = bonk * grit;
+      if (rng.bool(Utils.clamp(pMishap, 0, 0.12))) {
+        r.dnf = true; r.dnfReason = 'mishap';
+      } else if (rng.bool(Utils.clamp(pBonk, 0, 0.10))) {
+        r.dnf = true; r.dnfReason = 'bonk';
+      }
+    });
+  }
+
+  // In-race breakdowns for the runners who didn't finish (Update 19). A DNF
+  // still costs the body: heavy fatigue, a morale and confidence hit, and —
+  // for a physical mishap (a fall, a cramp, illness), not a pure energy bonk —
+  // a real chance of a short injury that carries into the following weeks.
+  function applyDNFEffects(gameState, meet, gender, dnfs, rng) {
+    if (!dnfs || !dnfs.length) return;
+    const Training = window.XCD.engine.Training;
+    const key = distKey(meet.distances[gender]);
+    const raceIntensity = (meet.type === 'national') ? 92
+      : (meet.type === 'regional' || meet.type === 'conference') ? 84 : 62;
+    dnfs.forEach((d) => {
+      const a = gameState.world.athletes[d.athleteId];
+      if (!a) return;
+      const isPlayerSchool = a.schoolId === gameState.playerSchoolId;
+      a.careerStats.races += 1; // they toed the line and started the race
+      a.seasonRaces = (a.seasonRaces || 0) + 1;
+      a.raceLog = a.raceLog || [];
+      a.raceLog.unshift({ y: gameState.year, w: meet.week, m: meet.name, p: 'DNF', t: null, d: key, dnf: true });
+      if (a.raceLog.length > 8) a.raceLog.length = 8;
+      // Coming apart mid-race is exhausting and demoralizing.
+      a.fatigue = Utils.clamp(a.fatigue + 10, 0, 100);
+      a.raceLoad = Math.max(a.raceLoad || 0, raceIntensity);
+      a.morale = Utils.clamp(a.morale - 5, 0, 100);
+      a.confidence = Utils.clamp((a.confidence ?? 60) - 3, 10, 99);
+      // A physical mishap can leave a mark — a short layoff (illness/tweak).
+      // Only the shorter injuries fit an in-race pull-up; nothing season-ending.
+      if (d.reason === 'mishap' && rng.bool(0.5)) {
+        const short = (D.INJURIES || []).filter((i) => (i.weeks[1] || 3) <= 4);
+        const src = short.length ? short : D.INJURIES;
+        const pick = src && src.length ? rng.weightedChoice(src, (i) => i.weight) : null;
+        if (pick) {
+          // Min 2 weeks: races run before the weekly training pass, which
+          // decrements the fresh injury once, so a 1-week layoff would clear
+          // the same week and cost no racing at all.
+          const weeks = Math.max(2, rng.int(pick.weeks[0], Math.min(pick.weeks[1], 4)));
+          const injury = { type: pick.type, weeksRemaining: weeks, totalWeeks: weeks, overuse: !!pick.overuse };
+          a.injury = injury;
+          a.health = 'Injured';
+          a.injuryResistance = Utils.clamp((a.injuryResistance ?? 55) - 1, 10, 99); // parity with the training injury path
+          if (Training && Training.recordCareerInjury) {
+            Training.recordCareerInjury(gameState, a, injury, isPlayerSchool);
+          }
+          if (isPlayerSchool) {
+            gameState.logNews(`🚑 DNF: ${a.fullName} pulls up at ${meet.name} (${injury.type}) — out ~${weeks} week${weeks === 1 ? '' : 's'}.`);
+          }
+        }
+      } else if (isPlayerSchool) {
+        gameState.logNews(`⚠️ DNF: ${a.fullName} fails to finish at ${meet.name}${d.reason === 'bonk' ? ' — the tank ran dry.' : '.'}`);
+      }
+    });
   }
 
   function median(arr) {

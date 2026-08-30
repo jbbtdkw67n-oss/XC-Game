@@ -280,12 +280,12 @@
           <thead><tr><th>When</th><th>Meet</th><th></th><th class="num">Place</th><th class="num">Time</th></tr></thead>
           <tbody>
             ${athlete.raceLog.map((r) => `
-              <tr>
+              <tr${r.dnf ? ' style="color:var(--text-faint);"' : ''}>
                 <td>Wk ${r.w}, ${r.y}</td>
                 <td>${Utils.escapeHtml(r.m)}</td>
                 <td>${r.d}</td>
-                <td class="num">${r.p === 1 ? '🥇 1' : r.p}</td>
-                <td class="num">${window.XCD.engine.Races.formatTime(r.t)}</td>
+                <td class="num" ${r.dnf ? 'title="Did Not Finish"' : ''}>${r.dnf ? 'DNF' : (r.p === 1 ? '🥇 1' : r.p)}</td>
+                <td class="num">${r.t != null ? window.XCD.engine.Races.formatTime(r.t) : '—'}</td>
               </tr>`).join('')}
           </tbody>
         </table></div>

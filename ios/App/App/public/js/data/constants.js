@@ -521,8 +521,11 @@
                      tip: 'Cheap weekly contact — a small relationship bump.' },
     call:          { label: 'Phone Call',           points: 2, cost: 100,  relationship: 5,  interest: 2, scout: 4,  reveal: 0.22,
                      tip: 'Builds the relationship and often reveals what the recruit cares about.' },
-    watchRace:     { label: 'Watch Race',           points: 3, cost: 500,  relationship: 2,  interest: 2, scout: 30, reveal: 0.05,
-                     tip: 'Scouting trip — lifts the fog off their true ratings.' },
+    // Watch Race (Update 19): a scouting trip is legwork, not a budget line —
+    // it costs recruiting effort (2 points) but no money. Everything else
+    // about it (the big scouting reveal) is unchanged.
+    watchRace:     { label: 'Watch Race',           points: 2, cost: 0,    relationship: 2,  interest: 2, scout: 30, reveal: 0.05,
+                     tip: 'Scouting trip — lifts the fog off their true ratings. Costs 2 recruiting points, no money.' },
     assistantVisit:{ label: 'Assistant Visit',      points: 3, cost: 800,  relationship: 7,  interest: 4, scout: 12, reveal: 0.25,
                      tip: 'Your assistant works the recruit — effect scales with their recruiting skill.' },
     homeVisit:     { label: 'Home Visit',           points: 5, cost: 1200, relationship: 12, interest: 6, scout: 8,  reveal: 0.55,

@@ -300,7 +300,43 @@
         if (reason && !entry.reason) entry.reason = reason;
         if (entry.prestigeEnd === undefined) entry.prestigeEnd = school.prestige;
       }
+      // Once you leave, the door closes behind you (Update 19). Every coach
+      // departure — head or assistant, quit / poached / promoted / released —
+      // funnels through here, so this is the one place we stamp the leaving
+      // coach onto the program's permanent "former staff" ledger. AI hiring
+      // and the player's staff pool both consult it, so a program can never
+      // re-hire a coach who has already walked out the door. (The player's own
+      // career is never blocked from returning — that's their choice to make.)
+      Legacy.recordDeparture(school, coach);
     }
+  };
+
+  /* ---------------- Former-staff ledger (Update 19) ---------------- *
+   * A program remembers who left. Assistants (and head coaches) who depart —
+   * for a bigger job, a promotion, or because they were let go — are never
+   * brought back by that same institution the next season. Recorded per
+   * school as a simple id list; player coaches are exempt so a dynasty can
+   * still return to an old program by the player's own choice.
+   */
+  Legacy.recordDeparture = function (school, coach) {
+    if (!school || !coach || coach.isPlayer) return;
+    school.formerCoachIds = school.formerCoachIds || [];
+    if (!school.formerCoachIds.includes(coach.id)) school.formerCoachIds.push(coach.id);
+  };
+
+  Legacy.hasLeftSchool = function (school, coachId) {
+    return !!(school && school.formerCoachIds && school.formerCoachIds.includes(coachId));
+  };
+
+  // Keep the former-staff ledgers bounded over century-long dynasties: a
+  // coach who no longer exists in the world (retired, faded from the pool)
+  // can never be re-hired anyway, so their id is dead weight. Coach ids are
+  // never recycled, so dropping them is always safe. Run once per offseason.
+  Legacy.pruneFormerStaff = function (gameState) {
+    Object.values(gameState.world.schools).forEach((school) => {
+      if (!school.formerCoachIds || !school.formerCoachIds.length) return;
+      school.formerCoachIds = school.formerCoachIds.filter((id) => gameState.world.coaches[id]);
+    });
   };
 
   Legacy.openStint = function (gameState, coach, school, startYear) {

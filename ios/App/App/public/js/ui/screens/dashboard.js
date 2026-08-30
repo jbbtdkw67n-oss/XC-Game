@@ -143,6 +143,26 @@
     return meets.sort((a, b) => a.week - b.week);
   }
 
+  // Race-day conditions advisory (Update 19). Upcoming weather is fixed when
+  // the schedule is built, so the player can plan around it. Extreme heat is
+  // the big one — it drives fades and real DNFs — so a hot forecast warns the
+  // coach to bring fresh legs; frigid, very hilly, and thin-air races get a
+  // lighter heads-up. Returns HTML for the Next Meet card, or '' on a
+  // temperate, unremarkable day.
+  function meetAdvisory(game, meet) {
+    const c = meet.conditions || {};
+    const notes = [];
+    if (c.tempF >= 90) notes.push({ icon: '🥵', color: 'var(--danger)', text: `Dangerous heat (${c.tempF}°F) — expect fades and a real risk of DNFs. Rest tired legs; readiness matters more than ever.` });
+    else if (c.tempF >= 82) notes.push({ icon: '🌡️', color: 'var(--warning)', text: `Hot day (${c.tempF}°F) — fatigued runners will fade, and a few in the field may not finish. Fresh legs pay off.` });
+    else if (c.tempF <= 25) notes.push({ icon: '🥶', color: 'var(--warning)', text: `Frigid (${c.tempF}°F) — tough on turnover; a gentler warm-up helps.` });
+    if (c.hilliness >= 78) notes.push({ icon: '⛰️', color: 'var(--text-dim)', text: `Punishing hills (${c.hilliness}/100) — strong hill runners move up here.` });
+    if (c.altitude === 'High') notes.push({ icon: '🫁', color: 'var(--text-dim)', text: `High altitude — thin air taxes everyone but altitude-trained programs.` });
+    if (!notes.length) return '';
+    return `<div style="margin-top:6px; display:flex; flex-direction:column; gap:3px;">
+      ${notes.map((n) => `<span style="color:${n.color}; font-size:12px;">${n.icon} ${n.text}</span>`).join('')}
+    </div>`;
+  }
+
   function playerPlace(game, meet) {
     if (!meet.results) return null;
     const places = ['M', 'W'].map((g) => {
@@ -506,6 +526,7 @@
             <span style="color:var(--text-dim); font-size:13px;">
               ${nextMeet.conditions.tempF}°F${nextMeet.conditions.rain ? ' · rain' : ''} · hills ${nextMeet.conditions.hilliness}/100 · ${nextMeet.conditions.altitude} altitude
             </span>
+            ${meetAdvisory(game, nextMeet)}
           </div>
           <button class="btn" id="btn-to-schedule-2">View Schedule →</button>
         </div>` : ''}
