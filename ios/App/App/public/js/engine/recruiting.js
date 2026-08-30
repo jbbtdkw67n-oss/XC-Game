@@ -567,10 +567,14 @@
     // around ~14:03 boys / ~16:03 girls, and (rarely) under 14:00 / 16:00.
     // Everyone else is floored well clear of the record.
     if (r.generational) {
-      const genBase = male ? 846 : 962;
-      const lo = male ? 836 : 955;   // ~13:56 / ~15:55 — record-breaking is rare
-      const hi = male ? 864 : 982;
-      return Math.round(Utils.clamp(genBase - (m - 88) * 1.5 + noise * 0.75, lo, hi));
+      // Generationals center just above the record and scale with how strong
+      // the talent is (engine ~85), so a truly special one genuinely threatens
+      // — and sometimes breaks — the 14:03 / 16:03 records, dipping under
+      // 14:00 / 16:00 only rarely. A weaker generational lands in the low 14:10s.
+      const genBase = male ? 846 : 966;
+      const lo = male ? 836 : 955;   // ~13:56 / ~15:55 — record-obliterating is rare
+      const hi = male ? 864 : 984;
+      return Math.round(Utils.clamp(genBase - (m - 85) * 1.8 + noise * 0.75, lo, hi));
     }
 
     // Concave map from current-ability engine `m` (≈0-92) to 5K time. It
