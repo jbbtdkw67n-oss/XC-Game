@@ -745,11 +745,13 @@
    * them, but rarely. Keyed `${gender}-${distanceK}` to match the race engine.
    * Seconds are elite course-record territory for each distance.
    */
+  // NCAA men race the 8K (regular season), 10K (DI/DII regionals + nationals)
+  // and, early season, the 6K — never a 5K, so there is no men's 5K record.
+  // Women race the 6K (championship) and the 5K (regular season).
   D.SEED_RECORDS = {
     'M-10K': 1718, // 28:38 — near the fastest realistic collegiate 10K
     'M-8K':  1388, // 23:08
-    'M-6K':  1018, // 16:58
-    'M-5K':  844,  // 14:04
+    'M-6K':  1050, // 17:30 — a realistic historic men's 6K best
     'W-6K':  1158, // 19:18
     'W-5K':  950   // 15:50
   };

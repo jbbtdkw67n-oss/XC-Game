@@ -353,6 +353,13 @@
         🏆 <strong>NEW COURSE RECORD</strong> — <span class="clickable" data-ath="${crFinisher.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(crFinisher.name)}</span>
         (${Utils.escapeHtml(game.getSchool(crFinisher.schoolId)?.name || '?')}) runs <strong>${ft(crFinisher.time)}</strong> — the fastest ${activeGender === 'M' ? "men's" : "women's"} time ever on this course.
       </div>` : '';
+    // A national record set in this race: the biggest headline of all.
+    const nrFinisher = res.finishers.find((f) => f.nr);
+    const nrBanner = nrFinisher ? `
+      <div style="margin:0 0 12px; padding:10px 12px; background:var(--accent-soft); border:1px solid var(--gold, #d4af37); border-radius:8px; font-size:13px;">
+        🇺🇸 <strong>NEW NATIONAL RECORD</strong> — <span class="clickable" data-ath="${nrFinisher.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(nrFinisher.name)}</span>
+        (${Utils.escapeHtml(game.getSchool(nrFinisher.schoolId)?.name || '?')}) runs <strong>${ft(nrFinisher.time)}</strong> — the fastest ${activeGender === 'M' ? "men's" : "women's"} ${gDist(meet, activeGender)} ever run.
+      </div>` : '';
     // Full individual results (Update 12): every finisher is published, and
     // at championship races the honor earners — All-Americans at nationals,
     // All-Conference at the conference meet — are marked with the honor
@@ -362,14 +369,15 @@
       <h2>Final — ${gDist(meet, activeGender)}</h2>
       <div style="margin:10px 0 14px; padding:12px; background:var(--accent-soft); border-radius:8px;">
         🥇 <strong class="clickable" data-ath="${winner.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(winner.name)}</strong> (<span class="clickable" data-school="${winner.schoolId}" style="cursor:pointer;">${Utils.escapeHtml(game.getSchool(winner.schoolId)?.name || '?')}</span>)
-        — ${ft(winner.time)}${UI.crTag ? UI.crTag(winner) : ''}
+        — ${ft(winner.time)}${UI.crTag ? UI.crTag(winner) : ''}${UI.nrTag ? UI.nrTag(winner) : ''}
       </div>
+      ${nrBanner}
       ${crBanner}
       ${honor ? `<div style="margin:0 0 10px; padding:8px 12px; border:1px solid var(--border); border-radius:8px; color:var(--text-dim); font-size:12.5px;">
         ${honor.icon} Championship race — the top ${honor.count} finishers earn <strong>${honor.label}</strong> honors, marked ${honor.icon} below.
       </div>` : ''}
       <h3 style="margin-bottom:6px;">Full Results — ${res.finishers.length} finishers${res.dnfs && res.dnfs.length ? ` • ${res.dnfs.length} DNF` : ''}</h3>
-      ${res.finishers.some((f) => f.cr) ? `<div style="color:var(--text-faint); font-size:11.5px; margin-bottom:6px;"><span class="cr-badge ncr">NCR</span> New Course Record · <span class="cr-badge">CR</span> Course Record</div>` : ''}
+      ${(res.finishers.some((f) => f.cr) || res.finishers.some((f) => f.nr)) ? `<div style="color:var(--text-faint); font-size:11.5px; margin-bottom:6px;">${res.finishers.some((f) => f.cr) ? '<span class="cr-badge">CR</span> Course Record' : ''}${res.finishers.some((f) => f.nr) ? `${res.finishers.some((f) => f.cr) ? ' · ' : ''}<span class="cr-badge nr">NR</span> National Record` : ''}</div>` : ''}
       <div class="table-wrap" style="max-height:420px; overflow-y:auto;">
         <table class="data">
           <thead><tr><th>Pl</th><th>Runner</th><th>School</th><th class="num">Time</th></tr></thead>
@@ -382,7 +390,7 @@
                 <td>${f.place}</td>
                 <td class="clickable" data-ath="${f.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: activeGender }, { size: 20 })} ${Utils.escapeHtml(f.name)}${honored ? ` <span title="${honor.label}">${honor.icon}</span>` : ''}</td>
                 <td class="clickable" data-school="${f.schoolId}" style="font-size:12px; cursor:pointer;">${Utils.escapeHtml(game.getSchool(f.schoolId)?.name || '?')}</td>
-                <td class="num">${ft(f.time)}${UI.crTag ? UI.crTag(f) : ''}</td>
+                <td class="num">${ft(f.time)}${UI.crTag ? UI.crTag(f) : ''}${UI.nrTag ? UI.nrTag(f) : ''}</td>
               </tr>`;
             }).join('')}
             ${(res.dnfs || []).map((d) => {

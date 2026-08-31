@@ -138,7 +138,7 @@
           <td>${f.place}</td>
           <td>${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: g }, { size: 20 })} ${Utils.escapeHtml(f.name)}${honored ? ` <span title="${honor.label}">${honor.icon}</span>` : ''} <span style="color:var(--text-faint); font-size:11px;">${f.classYear || ''}</span></td>
           <td>${Utils.escapeHtml(school ? school.name : '?')}</td>
-          <td class="num">${ft(f.time)}${UI.crTag ? UI.crTag(f) : ''}</td>
+          <td class="num">${ft(f.time)}${UI.crTag ? UI.crTag(f) : ''}${UI.nrTag ? UI.nrTag(f) : ''}</td>
         </tr>`;
       }).join('') +
       // DNF runners (Update 19): listed at the bottom, no place, no time.
@@ -154,12 +154,13 @@
       }).join('');
 
       const anyCr = res.finishers.some((f) => f.cr);
+      const anyNr = res.finishers.some((f) => f.nr);
       return `
         <h3 style="margin:0 0 10px;">${g === 'M' ? "Men's" : "Women's"} ${Races().distKey(res.distanceM)}</h3>
         ${honor ? `<div style="margin:0 0 10px; padding:7px 12px; border:1px solid var(--border); border-radius:8px; color:var(--text-dim); font-size:12.5px;">
           ${honor.icon} Championship race — the top ${honor.count} finishers earn <strong>${honor.label}</strong> honors, marked ${honor.icon}.
         </div>` : ''}
-        ${anyCr ? `<div style="color:var(--text-faint); font-size:11.5px; margin:0 0 8px;"><span class="cr-badge ncr">NCR</span> New Course Record · <span class="cr-badge">CR</span> Course Record</div>` : ''}
+        ${(anyCr || anyNr) ? `<div style="color:var(--text-faint); font-size:11.5px; margin:0 0 8px;">${anyCr ? '<span class="cr-badge">CR</span> Course Record' : ''}${anyNr ? `${anyCr ? ' · ' : ''}<span class="cr-badge nr">NR</span> National Record` : ''}</div>` : ''}
         <div class="grid cols-2">
           <div class="card" style="padding:12px;">
             <h3>Team Scores</h3>

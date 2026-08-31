@@ -423,17 +423,23 @@
       if (alum) { UI.showLegendCard(alum, game); return true; }
       const hof = (game.history.hallOfFame || []).find((x) => x.athleteId === athleteId);
       if (hof) { UI.showLegendCard(hof, game); return true; }
+      // We had a specific athlete id but nothing preserved a full profile for
+      // it (a graduated holder who never made the alumni ledger). Names repeat
+      // across a long dynasty, so we must NOT guess a same-named person here —
+      // that would open the WRONG athlete. Show what the record itself carries.
+      if (fallbackName) {
+        UI.showLegendCard({ name: fallbackName, school: '?', stats: {}, accolades: [] }, game);
+        return true;
+      }
+      return false;
     }
+    // No id at all (old saves recorded some marks by name only): a name match is
+    // the best we can do, and there is no id to contradict it.
     if (fallbackName) {
       const alum = (game.history.alumni || []).slice().reverse().find((x) => x.name === fallbackName);
       if (alum) { UI.showLegendCard(alum, game); return true; }
       const hof = (game.history.hallOfFame || []).slice().reverse().find((x) => x.name === fallbackName);
       if (hof) { UI.showLegendCard(hof, game); return true; }
-    }
-    // History never closes a door (Phase 4): even when a full ledger record
-    // isn't available (old saves recorded selectively), the profile still
-    // opens with everything history remembers.
-    if (fallbackName) {
       UI.showLegendCard({ name: fallbackName, school: '?', stats: {}, accolades: [] }, game);
       return true;
     }

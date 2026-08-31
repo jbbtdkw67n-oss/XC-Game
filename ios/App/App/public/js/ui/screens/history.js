@@ -836,10 +836,16 @@
         <h2>All-Time National Records</h2>
         ${keys.length ? keys.map((k) => {
           const r = R[k];
+          // A seeded opening mark has no real athlete behind it, so its holder
+          // is shown as plain text — only a record set by an actual runner links
+          // to a profile, and it links by that runner's id so the right one opens.
+          const holder = (r.athleteId && !r.seeded)
+            ? `<span class="clickable" data-ath="${r.athleteId}" data-ath-name="${Utils.escapeHtml(r.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(r.name)}</span>`
+            : `<span style="color:var(--text-faint);">${Utils.escapeHtml(r.name)}</span>`;
           return `<div class="attr-row">
             <span class="attr-name">${k.replace('M-', "Men's ").replace('W-', "Women's ")}</span>
             <span><strong>${window.XCD.engine.Races.formatTime(r.time)}</strong> —
-              <span class="clickable" data-ath="${r.athleteId || ''}" data-ath-name="${Utils.escapeHtml(r.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(r.name)}</span>,
+              ${holder},
               <span class="${r.schoolId ? 'clickable' : ''}" ${r.schoolId ? `data-school="${r.schoolId}" style="cursor:pointer;"` : ''}>${Utils.escapeHtml(r.school)}</span> (${r.year})</span>
           </div>`;
         }).join('') : '<div style="color:var(--text-dim);">Records will be set once racing begins.</div>'}

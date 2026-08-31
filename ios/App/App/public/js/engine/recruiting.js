@@ -1043,6 +1043,10 @@
     // player's alone, so only their staff's work (manual or Auto) reveals it.
     if (school.id === gameState.playerSchoolId) {
       const know = rec.playerKnowledge;
+      // Any recruiting action (even a scout-free one like an offer) counts as
+      // finally putting eyes on the recruit — this is what lifts the "?" off
+      // their potential on the recruit card.
+      know.probed = true;
       know.scout = Utils.clamp(know.scout + action.scout, 0, 100);
       if (rand() < action.reveal) {
         const hidden = rec.motivations.filter((m) => !know.revealed.includes(m));
