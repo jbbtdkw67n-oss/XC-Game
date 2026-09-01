@@ -486,6 +486,7 @@ table.data td.num, table.data th.num { text-align: right; }
   color: var(--accent-hover);
 }
 .cr-badge.ncr { background: rgba(212, 160, 23, 0.22); color: #f0c34e; }
+.cr-badge.nr  { background: rgba(212, 160, 23, 0.28); color: #f0c34e; }
 .course-record-line:hover { color: var(--text); }
 
 /* ---------- Meters ---------- */

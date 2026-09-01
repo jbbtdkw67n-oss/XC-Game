@@ -40,6 +40,18 @@
     return `<span class="rating ${cls}">${fogRange(value, scout, spread)}</span>`;
   }
 
+  // A recruit's potential is hidden entirely until the player spends a
+  // recruiting action on them — a bare range (say 77–99) would otherwise
+  // telegraph a hidden star at first glance. Once probed, the usual fog range
+  // shows and narrows toward the true ceiling as scouting deepens. Old saves
+  // (no `probed` flag) fall back to "any scouting done" so nothing regresses.
+  function potDisplay(rec, scout) {
+    const know = rec.playerKnowledge || {};
+    const probed = know.probed || (know.scout || 0) > 0;
+    if (!probed) return '<span title="Use a recruiting action to start scouting their potential">?</span>';
+    return fogRange(RE().perceivedPotential(rec), scout, 44);
+  }
+
   function stars(n) {
     return `<span style="color:var(--gold); letter-spacing:1px;">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span>`;
   }
@@ -148,7 +160,7 @@
         </div>
         <div style="text-align:right;">
           <div style="font-size:26px; font-weight:800;">${fogRange(rec.currentOverall, scout)}</div>
-          <div style="font-size:12px; color:var(--text-dim);">OVERALL • POT ${fogRange(RE().perceivedPotential(rec), scout, 44)}</div>
+          <div style="font-size:12px; color:var(--text-dim);">OVERALL • POT ${potDisplay(rec, scout)}</div>
           <div style="font-size:12px; color:var(--text-faint); margin-top:2px;">Scouted ${scout}%</div>
         </div>
       </div>

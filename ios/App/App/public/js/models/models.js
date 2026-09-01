@@ -585,8 +585,10 @@
         breakout: false,         // hidden late-riser flag
         breakoutFired: false,
 
-        // The player's scouting knowledge of this recruit.
-        playerKnowledge: { scout: 0, revealed: [] },
+        // The player's scouting knowledge of this recruit. `probed` flips true
+        // the first time the player spends any recruiting action on them; until
+        // then the recruit's potential stays a mystery (shown as "?").
+        playerKnowledge: { scout: 0, revealed: [], probed: false },
 
         ...data
       });

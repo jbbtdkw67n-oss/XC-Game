@@ -104,15 +104,27 @@
   };
 
   /*
-   * Course-record marks for a race result (Course Records): NCR = a new course
-   * record set in this race, CR = a run that equals the standing course record.
-   * The mark rides on the finisher object (set by the race engine) so it shows
-   * anywhere results are displayed — the race center and every results modal.
+   * Course-record mark for a race result (Course Records): always shown as a
+   * single CR badge — a run that set or equaled the standing course record.
+   * A newly-set record ('NCR' internally, so the "New Course Record" banner can
+   * still headline it) simply reads CR in a brighter accent; a tie reads CR in
+   * the muted accent. The mark rides on the finisher object (set by the race
+   * engine) so it shows anywhere results are displayed.
    */
   UI.crTag = function (f) {
     if (!f || !f.cr) return '';
     const isNew = f.cr === 'NCR';
-    return ` <span class="cr-badge${isNew ? ' ncr' : ''}" title="${isNew ? 'New Course Record' : 'Course Record'}">${f.cr}</span>`;
+    return ` <span class="cr-badge${isNew ? ' ncr' : ''}" title="${isNew ? 'New Course Record' : 'Course Record'}">CR</span>`;
+  };
+
+  /*
+   * National-record mark for a race result: NR is stamped on the finisher who
+   * broke the all-time national record for the raced distance (set by the race
+   * engine). Shown wherever course-record badges are, alongside any CR badge.
+   */
+  UI.nrTag = function (f) {
+    if (!f || !f.nr) return '';
+    return ` <span class="cr-badge nr" title="National Record">NR</span>`;
   };
 
   // A compact, clickable line of the current course records for a meet's
