@@ -329,20 +329,22 @@
   }
 
   /*
-   * Pre-Nationals Invitational (Update 3): a Division I-only elite meet on
-   * the NCAA DI Championship course. Invitations go to last year's top
-   * programs, national powers by prestige, the host, and a few rising
-   * mid-majors — never every DI school. Coaches accept or decline by
-   * philosophy; racing it earns a small familiarity edge at Nationals.
+   * Pre-Nationals (Update 20): a Division I elite meet on the NCAA DI
+   * Championship course, contested in Week 10. It is no longer an
+   * invitation the player accepts or declines — it is simply the most
+   * prestigious meet on the Week 10 calendar, selectable like any other
+   * elite invitational (gated by prestige / a top-25 ranking) on the
+   * Schedule screen. The field is dealt on merit (last year's poll blended
+   * with prestige); racing it earns a small familiarity edge at Nationals.
    */
   function buildPreNationals(gameState, rng, week, season, diCourse, invitedSet) {
     const cfg = D.PRE_NATIONALS;
     const diIds = gameState.world.schoolOrder.filter((id) => (gameState.getSchool(id).division || 'DI') === 'DI');
     if (!diIds.length) return;
 
-    // Standing that earns an invite: last year's poll (defending qualifiers /
-    // top-25) blended with prestige (traditional powers). First season has no
-    // prior poll, so prestige carries it.
+    // Standing that earns a place in the field: last year's poll (defending
+    // qualifiers / top-25) blended with prestige (traditional powers). First
+    // season has no prior poll, so prestige carries it.
     const prevRank = {};
     if (gameState.rankings) {
       ['M', 'W'].forEach((g) => (gameState.rankings[g] || []).forEach((r) => {
@@ -360,43 +362,25 @@
     const host = gameState.getSchool(diCourse ? diCourse.hostId : diIds[0]);
     const ranked = diIds.slice().sort((a, b) => merit(b) - merit(a));
     const meritSlots = Math.max(0, cfg.fieldSize - cfg.atLargeSlots);
-    const invited = [];
+    const field = [];
     const seen = new Set();
     // Host always gets a spot.
-    if (host) { invited.push(host.id); seen.add(host.id); }
+    if (host) { field.push(host.id); seen.add(host.id); }
     for (const id of ranked) {
-      if (invited.length >= meritSlots) break;
-      if (!seen.has(id)) { invited.push(id); seen.add(id); }
+      if (field.length >= meritSlots) break;
+      if (!seen.has(id)) { field.push(id); seen.add(id); }
     }
     // At-large: rising mid-majors having exceptional seasons (mid prestige,
-    // decent recent poll) sneak onto the list.
+    // decent recent poll) round out the field.
     const atLargePool = ranked.filter((id) => !seen.has(id) && gameState.getSchool(id).prestige >= 45);
     for (let i = 0; i < cfg.atLargeSlots && atLargePool.length; i++) {
       const pick = atLargePool.splice(rng.int(0, Math.min(atLargePool.length - 1, 40)), 1)[0];
-      invited.push(pick); seen.add(pick);
+      field.push(pick); seen.add(pick);
     }
 
-    // Accept / decline by coaching philosophy. Contenders and aggressive
-    // coaches race; development-minded and conservative staffs may rest.
-    const accepted = [];
-    const declined = [];
-    invited.forEach((id) => {
-      invitedSet.add(id);
-      if (id === gameState.playerSchoolId) { accepted.push(id); return; } // player defaults in; can decline in UI
-      const s = gameState.getSchool(id);
-      const coach = gameState.getCoach(s.coachId);
-      const rank = prevRank[id] || 999;
-      let accept = 0.82;
-      if (coach) {
-        if (coach.archetype === 'Developer') accept -= 0.30;
-        if (coach.hasTendency && coach.hasTendency('conservative')) accept -= 0.20;
-        if (coach.hasTendency && coach.hasTendency('aggressive')) accept += 0.15;
-        if (coach.hasTendency && coach.hasTendency('mileage-heavy')) accept -= 0.10; // stay in the block
-      }
-      if (rank <= 15) accept += 0.15;       // real contenders show up
-      if (s.prestige >= 80) accept += 0.08;
-      (rng.bool(Utils.clamp(accept, 0.15, 0.97)) ? accepted : declined).push(id);
-    });
+    // Reserve the field so these programs don't also get a regional meet this
+    // week; the player can still swap into/out of it on the Schedule screen.
+    field.forEach((id) => invitedSet.add(id));
 
     const conditions = {
       tempF: Math.round((diCourse ? diCourse.tempBase : host.weather.tempBase) + rng.int(-8, 8) - (week - 5) * 1.1),
@@ -410,7 +394,7 @@
       week,
       name: cfg.name,
       hostId: host.id,
-      schoolIds: accepted,
+      schoolIds: field,
       type: 'invite',
       division: 'DI',
       elite: cfg.pollWeight,
@@ -423,62 +407,29 @@
     season.meets[meet.id] = meet;
     season.byWeek[week] = season.byWeek[week] || [];
     season.byWeek[week].push(meet.id);
-    if (accepted.includes(gameState.playerSchoolId)) season.playerMeetByWeek[week] = meet.id;
+    if (field.includes(gameState.playerSchoolId)) season.playerMeetByWeek[week] = meet.id;
 
+    // `accepted` mirrors the field so the familiarity edge, preview stories,
+    // and morale weighting keep working off the roster that actually races.
     season.preNationals = {
       meetId: meet.id,
       week,
       hostId: host.id,
       diNationalsHostId: diCourse ? diCourse.hostId : null,
-      invited,
-      accepted: accepted.slice(),
-      declined,
-      playerInvited: invited.includes(gameState.playerSchoolId),
-      playerAccepted: accepted.includes(gameState.playerSchoolId)
+      accepted: field.slice()
     };
-
-    if (invited.includes(gameState.playerSchoolId)) {
-      gameState.logNews(`✉️ PRE-NATIONALS INVITE: your program is invited to the Pre-Nationals Invitational (Week ${week}) on the NCAA Championship course — an honor. Accept to preview the course, or rest and decline (Schedule screen).`);
-    }
   }
 
-  // Did a school race Pre-Nationals this season (course familiarity)?
+  // Did a school race Pre-Nationals this season (course familiarity)? A team
+  // races it when it is in the meet's field — the player's own Schedule-screen
+  // choice is reflected there, so this reads the live meet roster.
   function racedPreNationals(gameState, schoolId) {
-    const pn = gameState.season && gameState.season.preNationals;
-    return !!(pn && pn.accepted && pn.accepted.includes(schoolId));
-  }
-
-  // Player accepts or declines their Pre-Nationals invitation.
-  function setPreNationalsDecision(gameState, accept) {
     const season = gameState.season;
     const pn = season && season.preNationals;
-    if (!pn || !pn.playerInvited) return { ok: false, message: 'No Pre-Nationals invitation is open.' };
-    // The invitation is answered during Week 1 (spec Part 2, Section 15):
-    // once the schedule is finalized, the decision locks with it.
-    if (gameState.scheduleLocked && gameState.scheduleLocked()) {
-      return { ok: false, message: 'The schedule is finalized — the Pre-Nationals decision locked with it after Week 1.' };
-    }
-    if (gameState.week >= pn.week) return { ok: false, message: 'Too late to change — Pre-Nationals has arrived.' };
+    if (!pn) return false;
     const meet = season.meets[pn.meetId];
-    if (!meet) return { ok: false, message: 'Meet not found.' };
-    const pid = gameState.playerSchoolId;
-    if (accept && !pn.playerAccepted) {
-      if (!meet.schoolIds.includes(pid)) meet.schoolIds.push(pid);
-      if (!pn.accepted.includes(pid)) pn.accepted.push(pid);
-      pn.declined = pn.declined.filter((id) => id !== pid);
-      pn.playerAccepted = true;
-      season.playerMeetByWeek[pn.week] = pn.meetId;
-      return { ok: true, message: 'Accepted — your team will race Pre-Nationals and preview the Championship course.' };
-    }
-    if (!accept && pn.playerAccepted) {
-      meet.schoolIds = meet.schoolIds.filter((id) => id !== pid);
-      pn.accepted = pn.accepted.filter((id) => id !== pid);
-      if (!pn.declined.includes(pid)) pn.declined.push(pid);
-      pn.playerAccepted = false;
-      if (season.playerMeetByWeek[pn.week] === pn.meetId) delete season.playerMeetByWeek[pn.week];
-      return { ok: true, message: 'Declined — your squad rests and stays in its training block that week.' };
-    }
-    return { ok: true, message: 'No change.' };
+    if (meet) return (meet.schoolIds || []).includes(schoolId);
+    return !!(pn.accepted && pn.accepted.includes(schoolId));
   }
 
   function buildMeet(gameState, rng, base) {
@@ -679,8 +630,7 @@
     // edge (~0.6% faster). Rewards participation without deciding the race.
     if (meet.type === 'national' && (meet.division || 'DI') === 'DI') {
       const pn = gameState.season && gameState.season.preNationals;
-      if (pn && meet.hostId === pn.diNationalsHostId && pn.accepted &&
-          pn.accepted.includes(a.schoolId)) {
+      if (pn && meet.hostId === pn.diNationalsHostId && racedPreNationals(gameState, a.schoolId)) {
         mult -= D.PRE_NATIONALS.familiarityBonus;
       }
     }
@@ -719,7 +669,7 @@
       if (!school) return;
       const squad = (gender === 'M' ? school.rosterM : school.rosterW)
         .map((id) => gameState.world.athletes[id])
-        .filter((a) => a && !a.injury && a.redshirt !== 'True' && a.redshirt !== 'Medical')
+        .filter((a) => a && !a.injury)
         .sort((a, b) => (raceRating(b, distanceM) + b.fitness * 0.1) - (raceRating(a, distanceM) + a.fitness * 0.1))
         .slice(0, 7);
       squad.forEach((a) => entries.push({ athlete: a, schoolId }));
@@ -1489,15 +1439,33 @@
           if (!field.includes(sid)) field.push(sid);
         }
         champ.fieldIds[gender] = field;
-
-        // Individuals: division's top regional finishers not on a qualifying team.
         const fieldSet = new Set(field);
+
+        // Mark the regional results (Update 20) so the standings show who
+        // punched a ticket to Nationals: a team qualifies automatically (top N
+        // in its region) or on an at-large bid, and the top regional finishers
+        // not on a qualifying team advance as individuals. These flags are what
+        // the Race Center / history screens read to badge qualifiers.
         const individuals = [];
+        const individualSet = new Set();
         regionalMeets.forEach((meet) => {
           const res = meet.results[gender];
           if (!res) return;
+          res.teamScores.forEach((t) => {
+            t.nationalsBid = autoSet.has(t.schoolId) ? 'auto'
+              : fieldSet.has(t.schoolId) ? 'atlarge' : null;
+          });
           res.finishers.slice(0, rules.individualQualifiersPerRegional).forEach((f) => {
-            if (!fieldSet.has(f.schoolId)) individuals.push(f.athleteId);
+            if (!fieldSet.has(f.schoolId) && !individualSet.has(f.athleteId)) {
+              individuals.push(f.athleteId);
+              individualSet.add(f.athleteId);
+            }
+          });
+          // Flag every finisher belonging to a qualifying team or an individual
+          // qualifier, so the results can mark both cleanly.
+          res.finishers.forEach((f) => {
+            f.nationalsTeamQualifier = fieldSet.has(f.schoolId);
+            f.nationalsIndividual = individualSet.has(f.athleteId);
           });
         });
         champ.individualQualifiers[gender] = individuals;
@@ -1506,6 +1474,20 @@
           // Mirror onto the season-level view the UI reads.
           season.nationalsFieldIds[gender] = field;
           season.individualQualifiers[gender] = individuals;
+
+          // At-large bids (Update 20): the selection committee's picks — teams
+          // that made the field without an automatic qualifying spot — are
+          // reported in the news, so the whole bracket picture is visible.
+          const atLargeNames = field
+            .filter((sid) => !autoSet.has(sid))
+            .map((sid) => (gameState.getSchool(sid) || {}).name)
+            .filter(Boolean);
+          if (atLargeNames.length) {
+            const glabel = gender === 'M' ? "men's" : "women's";
+            const shown = atLargeNames.slice(0, 8).join(', ');
+            const extra = atLargeNames.length > 8 ? `, and ${atLargeNames.length - 8} more` : '';
+            gameState.logNews(`🎟️ AT-LARGE BIDS (${glabel}): ${shown}${extra} earn tickets to the NCAA Championships despite missing the automatic qualifying cut.`);
+          }
 
           if (field.includes(gameState.playerSchoolId)) {
             const wasAuto = auto.includes(gameState.playerSchoolId);
@@ -1765,12 +1747,6 @@
             gameState.logNews(`🌟 Your ${label} squad's strong Pre-Nationals run vaults you up the national rankings and onto every title-contender list.`);
           }
         });
-        const declinedElite = ((gameState.season.preNationals || {}).declined || [])
-          .map((id) => gameState.getSchool(id))
-          .filter((s) => s && s.prestige >= 80);
-        if (declinedElite.length) {
-          gameState.logNews(`Notable absence: ${declinedElite.slice(0, 2).map((s) => s.name).join(', ')} chose to rest and skip Pre-Nationals, banking on their championship training block.`);
-        }
       }
 
       // Player meet headline
@@ -1835,7 +1811,6 @@
     distKey,
     isRaceWeek,
     racedPreNationals,
-    setPreNationalsDecision,
     RACE_WEEKS,
     CONFERENCE_WEEK,
     REGIONAL_WEEK,

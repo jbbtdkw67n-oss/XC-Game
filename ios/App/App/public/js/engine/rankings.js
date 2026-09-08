@@ -238,7 +238,7 @@
       Object.values(gameState.world.schools).forEach((school) => {
         (gender === 'M' ? school.rosterM : school.rosterW).forEach((id) => {
           const a = gameState.world.athletes[id];
-          if (!a || a.redshirt === 'True' || a.redshirt === 'Medical') return;
+          if (!a) return;
           const ability = Races.raceRating(a, distanceM);
           const headroom = Utils.clamp(a.potential - a.currentOverall, 0, 40);
           const devFactor = a.age <= 19 ? 0.55 : a.age <= 21 ? 0.35 : 0.15;

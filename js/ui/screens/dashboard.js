@@ -235,7 +235,7 @@
             ${roster.slice(0, 7).map((a, i) => `
               <tr class="clickable" data-ath="${a.id}">
                 <td>${i + 1}</td>
-                <td>${UI.avatar(a, { size: 22 })} ${Utils.escapeHtml(a.fullName)}${a.redshirt === 'True' || a.redshirt === 'Medical' ? ' <span style="color:var(--warning); font-size:10px;">RS</span>' : ''}${a.injury ? ' <span style="color:var(--danger); font-size:10px;">INJ</span>' : a.health === 'Recovering' ? ' <span style="color:var(--warning); font-size:10px;" title="Returning from injury">REC</span>' : ''}</td>
+                <td>${UI.avatar(a, { size: 22 })} ${Utils.escapeHtml(a.fullName)}${a.injury ? ' <span style="color:var(--danger); font-size:10px;">INJ</span>' : a.health === 'Recovering' ? ' <span style="color:var(--warning); font-size:10px;" title="Returning from injury">REC</span>' : ''}</td>
                 <td>${a.classYear}</td>
                 <td class="num">${UI.ratingBadge(a.currentOverall)}</td>
                 <td class="num" style="color:${(a.seasonDev || 0) > 0 ? 'var(--success)' : 'var(--text-faint)'};">${(a.seasonDev || 0) > 0 ? '+' + a.seasonDev : '—'}</td>

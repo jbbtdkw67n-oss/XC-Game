@@ -846,7 +846,10 @@
         const promo = pick.c, fromSchool = pick.s, internal = pick.internal;
         const wasPlayerAsst = fromSchool.id === gameState.playerSchoolId && fromSchool.assistantId === promo.id;
         if (fromSchool.assistantId === promo.id) fromSchool.assistantId = null;
-        Legacy.closeStint(gameState, promo, fromSchool, gameState.year, 'promoted');
+        // An internal promotion keeps the coach at the same program, so it is
+        // NOT a departure — don't stamp them onto their own former-staff ledger
+        // (Update 20). Only a promotion OUT of another program is a departure.
+        Legacy.closeStint(gameState, promo, fromSchool, gameState.year, 'promoted', internal);
         // The boss they leave behind earns a branch on the coaching tree.
         Legacy.creditPromotion(gameState, promo, school, gameState.year);
         promo.role = 'Head'; // set before openStint so the program ledger records it
@@ -994,12 +997,17 @@
     });
 
     // 2) Upward lateral moves: a standout assistant fills an open assistant
-    //    seat at a bigger program, leaving their old seat to be regenerated.
-    //    The player's coordinator is a candidate like any other (Update 16) —
-    //    if a bigger program judges them the best fit and their ambition says
-    //    go, they leave, and the player must replace them.
+    //    seat at a bigger program, leaving their old seat to be regenerated —
+    //    so an assistant who leaves a program genuinely TAKES a job at another
+    //    program (Update 20), and (per the former-staff ledger) never boomerangs
+    //    back to the program they left in the same offseason. The mobility
+    //    reaches down past the blue bloods into the mid-major tier so these
+    //    moves happen across the whole ladder, not only at the very top. The
+    //    player's coordinator is a candidate like any other (Update 16) — if a
+    //    bigger program judges them the best fit and their ambition says go,
+    //    they leave, and the player must replace them.
     Object.values(gameState.world.schools)
-      .filter((s) => (!s.assistantId || !gameState.world.coaches[s.assistantId]) && s.prestige >= 55)
+      .filter((s) => (!s.assistantId || !gameState.world.coaches[s.assistantId]) && s.prestige >= 45)
       .sort((a, b) => b.prestige - a.prestige)
       .forEach((school) => {
         if (school.assistantId && gameState.world.coaches[school.assistantId]) return;
@@ -1023,7 +1031,7 @@
         const from = choice.s, c = choice.c;
         const wasPlayerAsst = from.id === playerHeadSchoolId;
         from.assistantId = null;
-        Legacy.closeStint(gameState, c, from, gameState.year, 'left');
+        Legacy.closeStint(gameState, c, from, gameState.year, 'left'); // stamps from.formerCoachIds — no return
         c.schoolId = school.id;
         c.yearsAtSchool = 0;
         school.assistantId = c.id;

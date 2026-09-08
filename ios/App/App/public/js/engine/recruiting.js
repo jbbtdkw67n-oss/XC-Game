@@ -64,11 +64,9 @@
         const overalls = roster.map((a) => a.currentOverall).sort((a, b) => b - a);
         marks[gender] = { fifth: overalls[4] ?? 40, seventh: overalls[6] ?? 35 };
 
-        // Graduation losses: who leaves after this season (redshirts keep
-        // their year, so they don't count as departures).
+        // Graduation losses: who leaves after this season (out of eligibility).
         const leaving = roster.filter((a) =>
-          a.redshirt !== 'True' && a.redshirt !== 'Medical' &&
-          (a.eligibilityRemaining <= 1 || a.classYear === 'Graduate'));
+          a.eligibilityRemaining <= 1 || a.classYear === 'Graduate');
         const eventNeeds = {};
         leaving.forEach((a) => {
           eventNeeds[a.preferredDistance] = (eventNeeds[a.preferredDistance] || 0) + 1;
@@ -133,8 +131,7 @@
     const div = school.division || 'DI';
     const cap = (D.RECRUITING.TARGETS[div] || D.RECRUITING.TARGETS.DI)[1];
     const leaving = roster.filter((a) =>
-      a.redshirt !== 'True' && a.redshirt !== 'Medical' &&
-      (a.eligibilityRemaining <= 1 || a.classYear === 'Graduate')).length;
+      a.eligibilityRemaining <= 1 || a.classYear === 'Graduate').length;
     const returning = roster.length - leaving;
     // Genuine open spots under the roster ceiling. DI is the hard 14; the
     // uncapped lower divisions aim for a healthy squad a hair deeper (they
@@ -148,7 +145,6 @@
     // roster as "not good enough" than a small program does.
     const weakBar = 34 + school.prestige * 0.35;
     const weakReturners = roster.filter((a) =>
-      a.redshirt !== 'True' && a.redshirt !== 'Medical' &&
       a.eligibilityRemaining >= 2 && a.classYear !== 'Graduate' &&
       (a.potential || 50) < weakBar && (a.currentOverall || 40) < weakBar).length;
     const upgrade = Math.min(3, Math.round(weakReturners * 0.5));
@@ -291,7 +287,7 @@
       fitness: Math.round(Utils.clamp(statMean - rng.int(0, 10), 10, 85)),
       morale: rng.int(60, 90),
       devProfile: rng.weightedChoice(D.DEV_PROFILES, (p) => p.weight).type,
-      eligibilityRemaining: source === 'JUCO' ? 3 : 4,
+      eligibilityRemaining: source === 'JUCO' ? 4 : 5,
 
       source,
       country,
@@ -1779,11 +1775,10 @@
     for (const [schoolId, recs] of Object.entries(bySchool)) {
       const school = gameState.getSchool(schoolId);
       if (!school) continue;
-      // Eligibility is granted by the division the athlete ENROLLS in
-      // (accurate NCAA rules): DI freshmen hold five seasons of competition
-      // on the five-year clock, DII/DIII four-in-five. JUCO transfers have
-      // already burned a season of competition on their clock.
-      const divSeasons = (D.eligibilityFor ? D.eligibilityFor(school) : { seasons: 4 }).seasons;
+      // Eligibility (Update 20 — redshirts removed): freshmen enroll with five
+      // straight years of eligibility. JUCO transfers arrive as sophomores
+      // having already used one year on their clock.
+      const divSeasons = (D.eligibilityFor ? D.eligibilityFor(school) : { seasons: 5 }).seasons;
       recs.forEach((rec) => {
         const athlete = new M.Athlete({
           ...rec,

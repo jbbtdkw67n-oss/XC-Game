@@ -134,7 +134,7 @@
           <div class="archetype-grid" id="role-grid">
             <div class="archetype-card ${spec.startRole === 'Head' ? 'selected' : ''}" data-role="Head">
               <div class="arch-name">🎖 Head Coach</div>
-              <div class="arch-desc">Full control: training, scheduling, race strategy, redshirts, and recruiting (manual or auto).</div>
+              <div class="arch-desc">Full control: training, scheduling, race strategy, and recruiting (manual or auto).</div>
             </div>
             <div class="archetype-card ${spec.startRole === 'Assistant' ? 'selected' : ''}" data-role="Assistant">
               <div class="arch-name">📋 Assistant Coach</div>

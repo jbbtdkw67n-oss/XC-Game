@@ -70,9 +70,9 @@
     {
       icon: '👟', title: 'Your Roster',
       body: () => `The <strong>Roster</strong> screen ("Team" tab) is your depth chart. Your top seven race varsity;
-        the top five score. <strong>Redshirt</strong> promising freshmen before mid-season to bank a year of
-        eligibility. Division I squads carry a hard limit of 14 per gender — each new season opens with a
-        <strong>Week 1 checklist</strong> (roster, schedule, staff) on the Dashboard before Week 2 unlocks.`
+        the top five score. Every athlete gets <strong>five full years of eligibility</strong> — develop them
+        across their whole career. Division I squads carry a hard limit of 14 per gender — each new season opens
+        with a <strong>Week 1 checklist</strong> (roster, schedule, staff) on the Dashboard before Week 2 unlocks.`
     },
     {
       icon: '🏁', title: 'Race Days',
@@ -97,7 +97,7 @@
   /* One-time, first-season tip banners per screen. */
   const TIPS = {
     dashboard: 'Your home base: weekly tasks, team snapshots, and each season\'s Week 1 setup checklist all live here. Follow the 1-2-3 steps in the top bar every week.',
-    roster: 'Tap any runner for their full card. Your best seven race varsity; the top five score. Consider redshirting raw freshmen early in the season to save a year of eligibility.',
+    roster: 'Tap any runner for their full card. Your best seven race varsity; the top five score. Every athlete gets five full years of eligibility to develop.',
     training: 'Set the weekly plan and mileage for each squad, then press Confirm Plan. Match the season phase (shown above the planner) and keep fatigue under control — tired legs get injured.',
     recruiting: 'Spend weekly points on calls, visits, and scouting to build relationships. Offer scholarships to your top targets, and use Sway to close recruits who are already considering you — it\'s your biggest edge.',
     portal: 'Slide Transfer Points onto portal athletes — enough points locks a commit at 100%. Your budget comes from prestige and your recruiting skill, so spend it where the fit is right.',

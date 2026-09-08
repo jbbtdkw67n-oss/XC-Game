@@ -110,6 +110,20 @@
       : meet.results.M ? 'M' : meet.results.W ? 'W' : null;
     if (!active) { UI.toast('No results for that race yet.'); return; }
 
+    // Regional-meet qualification badges (Update 20): a completed regional
+    // shows which teams punched a ticket to Nationals (automatic vs at-large)
+    // and which runners qualified as individuals.
+    const isRegional = meet.type === 'regional';
+    const teamBidBadge = (t) => {
+      if (!isRegional || !t.nationalsBid) return '';
+      return t.nationalsBid === 'auto'
+        ? ' <span title="Qualified for Nationals — automatic bid" style="color:var(--success); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 NQ</span>'
+        : ' <span title="Qualified for Nationals — at-large bid" style="color:var(--accent); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 AL</span>';
+    };
+    const indivQualBadge = (f) => (isRegional && f.nationalsIndividual && !f.nationalsTeamQualifier)
+      ? ' <span title="Qualified for Nationals as an individual" style="color:var(--accent); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 IQ</span>'
+      : '';
+
     // The full results body for one gender — rebuilt when a tab is clicked.
     function bodyFor(g) {
       const res = meet.results[g];
@@ -120,7 +134,7 @@
         const mine = t.schoolId === game.playerSchoolId;
         return `<tr class="clickable" data-school="${t.schoolId}" ${mine ? 'style="background:var(--accent-soft);"' : ''}>
           <td>${t.place}</td>
-          <td><strong>${Utils.escapeHtml(school ? school.name : '?')}</strong></td>
+          <td><strong>${Utils.escapeHtml(school ? school.name : '?')}</strong>${teamBidBadge(t)}</td>
           <td class="num">${t.points}</td>
           <td style="color:var(--text-dim); font-size:12px;">${t.scorers.join(' + ')}</td>
         </tr>`;
@@ -136,7 +150,7 @@
         const honored = honor && f.place <= honor.count;
         return `<tr class="clickable" data-ath="${f.athleteId}" ${mine ? 'style="background:var(--accent-soft);"' : ''}>
           <td>${f.place}</td>
-          <td>${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: g }, { size: 20 })} ${Utils.escapeHtml(f.name)}${honored ? ` <span title="${honor.label}">${honor.icon}</span>` : ''} <span style="color:var(--text-faint); font-size:11px;">${f.classYear || ''}</span></td>
+          <td>${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: g }, { size: 20 })} ${Utils.escapeHtml(f.name)}${honored ? ` <span title="${honor.label}">${honor.icon}</span>` : ''}${indivQualBadge(f)} <span style="color:var(--text-faint); font-size:11px;">${f.classYear || ''}</span></td>
           <td>${Utils.escapeHtml(school ? school.name : '?')}</td>
           <td class="num">${ft(f.time)}${UI.crTag ? UI.crTag(f) : ''}${UI.nrTag ? UI.nrTag(f) : ''}</td>
         </tr>`;
@@ -159,6 +173,9 @@
         <h3 style="margin:0 0 10px;">${g === 'M' ? "Men's" : "Women's"} ${Races().distKey(res.distanceM)}</h3>
         ${honor ? `<div style="margin:0 0 10px; padding:7px 12px; border:1px solid var(--border); border-radius:8px; color:var(--text-dim); font-size:12.5px;">
           ${honor.icon} Championship race — the top ${honor.count} finishers earn <strong>${honor.label}</strong> honors, marked ${honor.icon}.
+        </div>` : ''}
+        ${isRegional ? `<div style="margin:0 0 10px; padding:7px 12px; border:1px solid var(--border); border-radius:8px; color:var(--text-dim); font-size:12.5px;">
+          🎟 Nationals qualifiers — <strong style="color:var(--success);">NQ</strong> automatic team bid · <strong style="color:var(--accent);">AL</strong> at-large team bid · <strong style="color:var(--accent);">IQ</strong> individual qualifier. These teams and runners advance to the NCAA Championships.
         </div>` : ''}
         ${(anyCr || anyNr) ? `<div style="color:var(--text-faint); font-size:11.5px; margin:0 0 8px;">${anyCr ? '<span class="cr-badge">CR</span> Course Record' : ''}${anyNr ? `${anyCr ? ' · ' : ''}<span class="cr-badge nr">NR</span> National Record` : ''}</div>` : ''}
         <div class="grid cols-2">
@@ -356,37 +373,12 @@
     // division/gender labels and pre-meet projections (Meet preview overhaul).
     const previewHtml = inTheFieldHtml(game);
 
-    // Week 1 Administrative Phase (spec Part 2, Section 15): the schedule —
-    // including the Pre-Nationals answer — is set during Week 1 and then
-    // finalized for the season. After that, only the finalized table shows.
+    // Week 1 Administrative Phase (spec Part 2, Section 15): the schedule is
+    // set during Week 1 and then finalized for the season. After that, only
+    // the finalized table shows. Pre-Nationals (Update 20) is no longer a
+    // separate accept/decline invitation — it is a normal Week 10 elite meet
+    // option in the schedule selector below.
     const locked = game.scheduleLocked ? game.scheduleLocked() : game.week > 1;
-
-    // Pre-Nationals invitation (Update 3): accept for the course preview and
-    // ranking boost, or decline to rest / stay in a training block.
-    let preNatsHtml = '';
-    const pn = season.preNationals;
-    if (pn && pn.playerInvited && game.week < pn.week) {
-      const status = pn.playerAccepted
-        ? `<span style="color:var(--success); font-weight:700;">✓ Accepted — racing Week ${pn.week} on the Championship course</span>`
-        : `<span style="color:var(--warning); font-weight:700;">Declined — resting that week</span>`;
-      preNatsHtml = `
-        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent);">
-          <h2>✉️ Pre-Nationals Invitation — Week ${pn.week}</h2>
-          <div style="color:var(--text-dim); font-size:13px; margin-bottom:10px;">
-            A Division I-only elite invitational on the NCAA Championship course. Accepting previews the terrain
-            (a small familiarity edge at Nationals) and — with a strong run — boosts your national ranking, prestige,
-            and recruiting visibility. Declining rests your athletes and protects a high-mileage block.
-          </div>
-          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-            <span>${status}</span>
-            ${locked
-              ? '<span style="color:var(--text-faint); font-size:12px;">🔒 Locked with the finalized schedule</span>'
-              : pn.playerAccepted
-                ? '<button class="btn small" id="btn-pn-decline">Switch to Decline & Rest</button>'
-                : '<button class="btn small primary" id="btn-pn-accept">Accept Invitation</button>'}
-          </div>
-        </div>`;
-    }
 
     // Custom race scheduling (Update 4, Part 7 + Section 15): pick which
     // meets to attend during Week 1, gated by prestige — then finalize.
@@ -435,7 +427,7 @@
                 })()}
               </div>`).join('')}
             <div style="border-top:1px solid var(--border); padding-top:10px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
-              <span style="color:var(--text-dim); font-size:12.5px;">Happy with the slate${pn && pn.playerInvited ? ' (and your Pre-Nationals answer)' : ''}? Finalizing locks it for the whole season.</span>
+              <span style="color:var(--text-dim); font-size:12.5px;">Happy with the slate? Finalizing locks it for the whole season.</span>
               <button class="btn primary" id="btn-finalize-schedule">🔒 Finalize Schedule</button>
             </div>
           </div>`;
@@ -454,9 +446,8 @@
       const head = game.getCoach(school.coachId);
       scheduleHtml = `<div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent);">
         <h2>🗓 Race Scheduling</h2>
-        <div style="color:var(--text-dim); font-size:13px;">Head coach <strong>${head ? Utils.escapeHtml(head.fullName) : 'the staff'}</strong> sets the race schedule and answers invitations. As recruiting coordinator you'll see the season below, but scheduling isn't your call.</div>
+        <div style="color:var(--text-dim); font-size:13px;">Head coach <strong>${head ? Utils.escapeHtml(head.fullName) : 'the staff'}</strong> sets the race schedule. As recruiting coordinator you'll see the season below, but scheduling isn't your call.</div>
       </div>`;
-      preNatsHtml = '';
     }
 
     container.innerHTML = `
@@ -468,7 +459,6 @@
             ? '<button class="btn primary" id="btn-race-center">📺 Race Center (last meet)</button>' : ''}
         </div>
       </div>
-      ${preNatsHtml}
       ${scheduleHtml}
       <div class="card">
         <div class="table-wrap desktop-only"><table class="data">
@@ -516,16 +506,6 @@
         if (r.ok) render(container);
       });
     });
-
-    const pnAccept = container.querySelector('#btn-pn-accept');
-    const pnDecline = container.querySelector('#btn-pn-decline');
-    const pnDecide = (accept) => {
-      const r = Races().setPreNationalsDecision(game, accept);
-      UI.toast(r.message, r.ok ? 'success' : 'error');
-      if (r.ok) render(container);
-    };
-    if (pnAccept) pnAccept.addEventListener('click', () => pnDecide(true));
-    if (pnDecline) pnDecline.addEventListener('click', () => pnDecide(false));
 
     // Finalize (Section 15): permanently lock the season's slate.
     const finalizeBtn = container.querySelector('#btn-finalize-schedule');

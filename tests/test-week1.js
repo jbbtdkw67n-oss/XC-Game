@@ -50,27 +50,23 @@ async function run() {
   ok(card.title && card.locked, 'the Week 1 checklist card must render');
   ok(card.confirmDisabled, 'final confirmation must wait for the other tasks');
 
-  // ---- 3) Pre-Nationals: accepting lands straight in the schedule ----
+  // ---- 3) Pre-Nationals: a normal Week 10 elite meet option (Update 20) ----
   const pn = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     const season = g.season;
     const p = season.preNationals;
-    // Guarantee an invitation regardless of starting prestige.
-    if (!p.playerInvited) {
-      p.playerInvited = true;
-      if (!p.invited.includes(g.playerSchoolId)) p.invited.push(g.playerSchoolId);
-    }
-    // Start from a declined state, then accept.
-    window.XCD.engine.Races.setPreNationalsDecision(g, false);
-    const accept = window.XCD.engine.Races.setPreNationalsDecision(g, true);
+    const meet = p && season.meets[p.meetId];
+    const opts = window.XCD.engine.Scheduling.buildOptions(g);
+    const wk = (opts.weeks || []).find((w) => w.week === (p && p.week));
     return {
-      acceptOk: accept.ok,
-      inSlate: season.playerMeetByWeek[p.week] === p.meetId,
-      week: p.week
+      exists: !!p,
+      isElite: !!(meet && meet.elite && meet.preNationals),
+      isOption: !!(wk && wk.options.some((o) => o.meetId === (p && p.meetId))),
+      week: p && p.week
     };
   });
-  ok(pn.acceptOk, 'accepting the Pre-Nationals invitation must work at Week 1');
-  ok(pn.inSlate, 'an accepted invitation must go straight into the finalized schedule');
+  ok(pn.exists && pn.isElite, 'Pre-Nationals must be a normal Week 10 elite meet');
+  ok(pn.isOption, 'Pre-Nationals must appear as a selectable schedule option');
 
   // ---- 4) Complete the checklist through the real UI ----
   await page.click('[data-nav="dashboard"]');
@@ -97,17 +93,15 @@ async function run() {
       finalized: g.week1.scheduleFinalized,
       selectionGone: !text.includes('Race Schedule Selection'),
       lockedNote: text.includes('Schedule Finalized'),
-      pnLockedNote: text.includes('Locked with the finalized schedule') || !g.season.preNationals.playerInvited,
       selectBlocked: !window.XCD.engine.Scheduling.select(g, g.season.raceWeeks[0], null).ok,
-      pnBlocked: !window.XCD.engine.Races.setPreNationalsDecision(g, false).ok,
-      pnStillInSlate: g.season.playerMeetByWeek[g.season.preNationals.week] === g.season.preNationals.meetId
+      pnSelectBlocked: !window.XCD.engine.Scheduling.select(g, g.season.preNationals.week, g.season.preNationals.meetId).ok
     };
   });
   ok(preLock, 'the selection UI must be visible before finalization');
   ok(postLock.finalized && postLock.selectionGone && postLock.lockedNote,
     'finalizing must permanently replace the selection UI: ' + JSON.stringify(postLock));
   ok(postLock.selectBlocked, 'meet selection must be locked after finalization');
-  ok(postLock.pnBlocked && postLock.pnStillInSlate, 'the Pre-Nationals answer must lock with the schedule');
+  ok(postLock.pnSelectBlocked, 'Pre-Nationals (like any meet) must lock with the finalized schedule');
 
   // Final sign-off unlocks Week 2.
   await page.click('[data-nav="dashboard"]');

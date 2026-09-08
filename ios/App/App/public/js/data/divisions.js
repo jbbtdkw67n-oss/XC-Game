@@ -28,9 +28,9 @@
       developmentEmphasis: 1.0,         // training/development weight in identity
       coachSalaryTier: 3,               // relative pay band (drives coach mobility)
       expectations: 1.0,                // pressure multiplier for hot seats
-      // NCAA eligibility (accurate per-division rules): Division I runs a
-      // five-year clock with five seasons of competition available; a season
-      // in which the athlete never toes a line doesn't burn one.
+      // Eligibility (Update 20 — redshirts removed): every athlete gets five
+      // straight years of eligibility on a five-year clock; each season on
+      // campus burns one year.
       eligibility: { seasons: 5, clockYears: 5 },
       // NCAA Division I qualification (real structure): 9 regional meets, the
       // top 2 teams in each region qualify automatically (18), and 13 at-large
@@ -62,11 +62,10 @@
       coachSalaryTier: 2,
       expectations: 0.8,
       // Eligibility unification: for gameplay consistency, D2 uses the SAME
-      // collegiate eligibility rules as D1 — five seasons of competition on a
-      // five-year clock, with redshirt and non-competition years preserving
-      // seasons. This keeps progression, redshirts, and remaining eligibility
-      // identical across divisions, so a transfer never gains or loses
-      // eligibility simply by changing divisions.
+      // eligibility rules as D1 — five straight years on a five-year clock
+      // (Update 20 — redshirts removed). This keeps progression and remaining
+      // eligibility identical across divisions, so a transfer never gains or
+      // loses eligibility simply by changing divisions.
       eligibility: { seasons: 5, clockYears: 5 },
       // NCAA Division II qualification (real structure): 8 regional meets, the
       // top 2 teams in each region qualify automatically (16), and at-large
@@ -98,10 +97,11 @@
       developmentEmphasis: 1.4,  // coaching and culture over recruiting rankings
       coachSalaryTier: 1,
       expectations: 0.6,
-      // Eligibility unification: D3 uses the SAME collegiate eligibility rules
-      // as D1 (five seasons on a five-year clock), so years of eligibility,
-      // seasons competed, redshirts, progression, and remaining eligibility are
-      // consistent across every division and transfers carry eligibility intact.
+      // Eligibility unification: D3 uses the SAME eligibility rules as D1 —
+      // five straight years on a five-year clock (Update 20 — redshirts
+      // removed) — so years of eligibility, progression, and remaining
+      // eligibility are consistent across every division and transfers carry
+      // eligibility intact.
       eligibility: { seasons: 5, clockYears: 5 },
       // NCAA Division III qualification (real structure): 8 regional meets, the
       // top 2 teams in each region qualify automatically (16), with at-large
@@ -175,7 +175,7 @@
     return (map && map[key]) ? String(map[key]) : fallback;
   };
 
-  // Eligibility rules for a school/division key. Defaults to a 4-season /
+  // Eligibility rules for a school/division key. Defaults to a 5-season /
   // 5-year model when the division carries no explicit block (old saves).
   D.eligibilityFor = function (schoolOrKey) {
     // Unified collegiate eligibility across all divisions (5 seasons / 5-year
