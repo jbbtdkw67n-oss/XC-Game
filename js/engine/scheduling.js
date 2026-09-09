@@ -97,9 +97,12 @@
 
   function playerMeetsThisWeek(gameState, week) {
     const season = gameState.season;
+    // Pre-Nationals (Update 20) is now a normal elite invitational option —
+    // no longer a special accept/decline invitation — so it is included here
+    // and selectable like any other prestige-gated elite meet.
     return (season.byWeek[week] || [])
       .map((id) => season.meets[id])
-      .filter((m) => m && m.type === 'invite' && !m.preNationals);
+      .filter((m) => m && m.type === 'invite');
   }
 
   /*
@@ -308,8 +311,7 @@
       const school = gameState.getSchool(sid);
       if (!school) return;
       const roster = gameState.getRoster(sid, gender).filter((a) =>
-        a.isEligible && a.isEligible() && a.health !== 'Injured' &&
-        a.redshirt !== 'True' && a.redshirt !== 'Medical');
+        a.isEligible && a.isEligible() && a.health !== 'Injured');
       roster.forEach((a) => {
         // Projected strength: race rating (ability for this distance) plus a
         // light read on current fitness and race sharpness/form.

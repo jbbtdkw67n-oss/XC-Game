@@ -48,7 +48,7 @@
 
     // Phone view (Update 14): each athlete is a tappable card — identity,
     // ratings, and the three health meters at a glance; management actions
-    // (captain / redshirt / cut) ride along in the card footer.
+    // (captain / cut) ride along in the card footer.
     const mobileCard = (a) => {
       const isCapt = game.culture.captains[activeGender].includes(a.id);
       const status = a.injury
@@ -60,12 +60,6 @@
       if (canManage) {
         if (isCapt) actions.push(`<button class="btn small" data-capt="${a.id}" style="border-color:var(--gold); color:var(--gold);">⭐ Captain</button>`);
         else if (['Junior', 'Senior', 'Graduate'].includes(a.classYear)) actions.push(`<button class="btn small" data-capt="${a.id}">Make Captain</button>`);
-        if (a.redshirt === 'True') actions.push(`<button class="btn small" data-rs="${a.id}" style="border-color:var(--warning); color:var(--warning);">Redshirting ✕</button>`);
-        else if (a.redshirt === 'Medical') actions.push('<span style="color:var(--warning); font-size:12px; align-self:center;">Medical RS</span>');
-        else if (a.redshirt !== 'Used') {
-          const chk = window.XCD.engine.Portal.canRedshirt(game, a);
-          actions.push(`<button class="btn small" data-rs="${a.id}" ${chk.ok ? '' : `disabled title="${chk.why}"`}>Redshirt</button>`);
-        }
       }
       if (cutMode) actions.push(`<button class="btn small danger" data-cut="${a.id}">✂️ Cut</button>`);
       return `
@@ -136,18 +130,6 @@
             return `<button class="btn small" data-capt="${a.id}" title="Name captain (leadership ${a.leadership})">C?</button>`;
           }
         },
-        canManage && {
-          key: 'redshirt', label: 'Redshirt',
-          sortValue: (a) => a.redshirt,
-          render: (a) => {
-            if (a.redshirt === 'True' || a.redshirt === 'Medical') {
-              return `<button class="btn small" data-rs="${a.id}" ${a.redshirt === 'Medical' ? 'disabled title="Medical redshirt"' : ''} style="border-color:var(--warning); color:var(--warning);">${a.redshirt === 'Medical' ? 'Medical RS' : 'Redshirting ✕'}</button>`;
-            }
-            if (a.redshirt === 'Used') return '<span style="color:var(--text-faint); font-size:12px;">Used</span>';
-            const chk = window.XCD.engine.Portal.canRedshirt(UI.state.game, a);
-            return `<button class="btn small" data-rs="${a.id}" ${chk.ok ? '' : `disabled title="${chk.why}"`}>Redshirt</button>`;
-          }
-        },
         cutMode && {
           key: 'cut', label: 'Cut',
           render: (a) => `<button class="btn small danger" data-cut="${a.id}" title="Release ${Utils.escapeHtml(a.fullName)} — they enter the portal">✂️ Cut</button>`
@@ -182,14 +164,6 @@
             if (r.ok) render(container);
           });
         });
-        return;
-      }
-      const rsBtn = e.target.closest('[data-rs]');
-      if (rsBtn && !rsBtn.disabled) {
-        e.stopPropagation();
-        const result = window.XCD.engine.Portal.toggleRedshirt(UI.state.game, rsBtn.dataset.rs);
-        UI.toast(result.message, result.ok ? 'success' : 'error');
-        if (result.ok) render(container);
         return;
       }
       const cBtn = e.target.closest('[data-capt]');

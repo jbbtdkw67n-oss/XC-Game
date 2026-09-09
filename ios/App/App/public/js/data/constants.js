@@ -728,10 +728,12 @@
     { week: 8,  name: 'Chile Pepper Festival',          size: 26, weight: 1.1,
       city: 'Fayetteville', state: 'AR', course: 'Agri Park Cross Country Course',
       altitudeFt: 1400, hilliness: 25, prestige: 'High' },
-    // Pre-Nationals (Update 3): a Division I-only elite invitational late in
-    // the regular season, contested on the NCAA DI Championship course. Built
-    // specially by the race engine (invite/decline, course familiarity) — not
-    // through the generic prestige-field path, so it carries no `size` here.
+    // Pre-Nationals (Update 3; reworked Update 20): a Division I elite meet
+    // late in the regular season, contested on the NCAA DI Championship
+    // course. Built specially by the race engine so it lands on the real
+    // championship terrain (and carries a small course-familiarity edge) — no
+    // longer an accept/decline invitation, just the most prestigious Week 10
+    // meet option on the Schedule screen. It carries no generic `size`.
     { week: 10, name: 'Pre-Nationals', preNationals: true, weight: 1.45,
       prestige: 'Elite', divisions: ['DI'] }
   ];
@@ -779,13 +781,15 @@
   };
 
   /*
-   * Pre-Nationals Invitational (Update 3). Division I only. Racing it earns a
-   * small, non-decisive familiarity edge on the same course at NCAA Nationals.
+   * Pre-Nationals (Update 3; reworked Update 20). Division I only, a
+   * selectable Week 10 elite meet on the NCAA Championship course. Racing it
+   * earns a small, non-decisive familiarity edge on the same course at NCAA
+   * Nationals.
    */
   D.PRE_NATIONALS = {
-    name: 'Pre-Nationals Invitational',
+    name: 'Pre-Nationals',
     week: 10,                 // 3 weeks before conference (wk 13)
-    fieldSize: 40,            // invited DI programs (before declines)
+    fieldSize: 40,            // DI programs dealt into the field on merit
     atLargeSlots: 6,          // rising mid-majors having exceptional seasons
     familiarityBonus: 0.004,  // ~0.4% faster at Nationals on the same course
     pollWeight: 1.45          // one of the most influential regular-season meets
@@ -858,7 +862,6 @@
       { key: 'plus10',    label: '+10 mi',                   desc: 'Bump every runner +10 miles from their current load', delta: +10, filter: 'all' },
       { key: 'minus10',   label: '−10 mi',                   desc: 'Ease every runner −10 miles from their current load',  delta: -10, filter: 'all' },
       { key: 'freshmen',  label: 'Freshmen preset',          desc: 'New arrivals absorb less volume', delta: -15, filter: 'freshmen' },
-      { key: 'redshirt',  label: 'Redshirt preset',          desc: 'A quiet year of aerobic building', delta: +10, filter: 'redshirts' },
       { key: 'taper',     label: 'Championship taper',       desc: 'Cut volume, sharpen, race fast',   scale: 0.55, filter: 'all' },
       { key: 'recovery',  label: 'Recovery preset',          desc: 'Back off everyone to recharge',    absolute: 42, filter: 'all' }
     ]

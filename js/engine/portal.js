@@ -1,10 +1,8 @@
 /*
- * PortalEngine — Phase 5: redshirts + the transfer portal.
+ * PortalEngine — Phase 5: the transfer portal.
  *
- * Redshirts: true redshirts (chosen preseason) and medical redshirts
- * (granted after season-ending injuries). Redshirted runners don't race,
- * keep the year of eligibility, and stay in their athletic class — all
- * bounded by the NCAA five-year clock (yearsOnCampus).
+ * (Update 20 removed redshirts entirely: every athlete gets five straight
+ * years of eligibility, so there is no longer any redshirt mechanic here.)
  *
  * Portal: after nationals, unhappy athletes enter the portal with real
  * reasons (playing time, coach change, homesickness, prestige, facilities,
@@ -22,8 +20,6 @@
   // (weeks 1-3) EXCLUSIVELY for DII/DIII programs, stocked with Division I
   // roster cuts — a realistic second recruiting window.
   const SUMMER_FINAL_WEEK = CAL.SUMMER_WEEKS;
-  const SEASON_END_WEEK = CAL.NATIONAL_WEEK;
-  const REDSHIRT_CUTOFF = CAL.MEET_WEEKS[2];  // mid regular season
   // The player can spread transfer points across a wider board (Update 15) —
   // the points budget, not this cap, is the real constraint.
   const PLAYER_OFFER_LIMIT = 8;
@@ -366,69 +362,6 @@
   }
 
   /* ================================================================ *
-   * Redshirts
-   * ================================================================ */
-  function isRedshirted(athlete) {
-    return athlete.redshirt === 'True' || athlete.redshirt === 'Medical';
-  }
-
-  function canRedshirt(gameState, athlete) {
-    if (athlete.redshirt !== 'None') return { ok: false, why: 'Redshirt already used or active.' };
-    if (athlete.seasonRaces > 0) return { ok: false, why: 'Has already raced this season.' };
-    if (gameState.week > REDSHIRT_CUTOFF) return { ok: false, why: 'Too late in the season.' };
-    if (athlete.yearsOnCampus >= 5) return { ok: false, why: 'Five-year clock expired.' };
-    return { ok: true };
-  }
-
-  function toggleRedshirt(gameState, athleteId) {
-    const a = gameState.getAthlete(athleteId);
-    if (!a) return { ok: false, message: 'Unknown athlete.' };
-    if (isRedshirted(a)) {
-      if (a.redshirt === 'Medical') return { ok: false, message: 'Medical redshirts cannot be cancelled.' };
-      a.redshirt = 'None';
-      return { ok: true, message: `${a.fullName}'s redshirt is cancelled — eligible to race.` };
-    }
-    const chk = canRedshirt(gameState, a);
-    if (!chk.ok) return { ok: false, message: chk.why };
-    a.redshirt = 'True';
-    return { ok: true, message: `${a.fullName} will redshirt this season (develops, doesn't race, keeps the year).` };
-  }
-
-  // AI teams redshirt promising-but-raw freshmen early in the season.
-  function aiRedshirts(gameState, rng) {
-    for (const school of Object.values(gameState.world.schools)) {
-      if (school.id === gameState.playerSchoolId) continue;
-      ['rosterM', 'rosterW'].forEach((key) => {
-        const roster = school[key].map((id) => gameState.world.athletes[id]).filter(Boolean)
-          .sort((a, b) => b.currentOverall - a.currentOverall);
-        let count = 0;
-        roster.forEach((a, idx) => {
-          if (count >= 3 || idx < 7) return;
-          if (a.classYear === 'Freshman' && a.redshirt === 'None' &&
-              a.potential - a.currentOverall > 14 && rng.bool(0.6)) {
-            a.redshirt = 'True';
-            count++;
-          }
-        });
-      });
-    }
-  }
-
-  // Season-ending injuries earn a medical redshirt (keeps the year).
-  function medicalRedshirtScan(gameState) {
-    if (gameState.week < 2 || gameState.week > SEASON_END_WEEK) return;
-    Object.values(gameState.world.athletes).forEach((a) => {
-      if (!a.injury || a.redshirt !== 'None' || a.seasonRaces > 2) return;
-      if (a.injury.totalWeeks >= 4 && gameState.week + a.injury.weeksRemaining > SEASON_END_WEEK) {
-        a.redshirt = 'Medical';
-        if (a.schoolId === gameState.playerSchoolId) {
-          gameState.logNews(`${a.fullName} is granted a medical redshirt — the season is lost, but the year of eligibility is saved.`);
-        }
-      }
-    });
-  }
-
-  /* ================================================================ *
    * Portal: entries
    * ================================================================ */
   /*
@@ -451,7 +384,7 @@
     const roster = gameState.getRoster(school.id, a.gender).sort((x, y) => y.currentOverall - x.currentOverall);
     const rank = roster.findIndex((x) => x.id === a.id) + 1;
     const buried = rank > 7 && a.currentOverall > 45;
-    if ((a.seasonRaces || 0) === 0 && !isRedshirted(a) && a.currentOverall > 50) {
+    if ((a.seasonRaces || 0) === 0 && a.currentOverall > 50) {
       add(a.currentOverall > 70 ? 30 : 18, R.racing);
     } else if (buried) {
       add(20, R.racing);
@@ -625,7 +558,7 @@
       ['rosterM', 'rosterW'].forEach((key) => {
         school[key].forEach((id) => {
           const a = gameState.world.athletes[id];
-          if (!a || a.eligibilityRemaining < 2 || isRedshirted(a)) return;
+          if (!a || a.eligibilityRemaining < 2) return;
           // A transfer in their grace season stays put — they just got here.
           if (a.transferGraceYear === gameState.year) return;
           const { u, reason } = unhappiness(gameState, a, school);
@@ -792,8 +725,7 @@
         const overalls = roster.map((a) => a.currentOverall).sort((x, y) => y - x);
         const fifth = overalls[4] ?? 40;
         const leaving = roster.filter((a) =>
-          a.redshirt !== 'True' && a.redshirt !== 'Medical' &&
-          (a.eligibilityRemaining <= 1 || a.classYear === 'Graduate'));
+          a.eligibilityRemaining <= 1 || a.classYear === 'Graduate');
         const eventNeeds = {};
         leaving.forEach((a) => {
           eventNeeds[a.preferredDistance] = (eventNeeds[a.preferredDistance] || 0) + 1;
@@ -1500,8 +1432,6 @@
    * ================================================================ */
   function processWeek(gameState, rng) {
     const week = gameState.week;
-    if (week === CAL.SUMMER_WEEKS) aiRedshirts(gameState, rng); // decided before racing starts
-    medicalRedshirtScan(gameState);
 
     // The summer window (Update 11): DII/DIII pursue Division I roster cuts
     // across Summer Training, everything resolved before the racing starts.
@@ -1531,9 +1461,6 @@
 
   window.XCD.engine.Portal = {
     processWeek,
-    toggleRedshirt,
-    canRedshirt,
-    isRedshirted,
     playerOffer,
     portalAppeal,
     transferRisk,

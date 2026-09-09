@@ -396,7 +396,7 @@
       // fresh openings surface, others get filled behind the scenes.
       if (this.week > AWARDS_WEEK) window.XCD.engine.Careers.evolveJobMarket(this, rng);
 
-      // Redshirts + the transfer portal window.
+      // The transfer portal window.
       window.XCD.engine.Portal.processWeek(this, rng);
 
       // Beat writers file their stories.
@@ -421,21 +421,20 @@
       const transferCount = window.XCD.engine.Portal.applyTransfers(this, rng);
       if (transferCount) this.logNews(`Transfer portal closes: ${transferCount} athletes changed schools this cycle.`);
 
-      // 1) Age everyone under the division's real NCAA eligibility rules
-      //    (DI: five seasons of competition on a five-year clock; DII/DIII:
-      //    four seasons in five years). Redshirt years — and seasons in
-      //    which the athlete never raced — preserve seasons of competition,
-      //    but the clock always ticks. Graduates leave (Hall of Fame careers
-      //    get enshrined).
+      // 1) Age everyone one season (Update 20 — redshirts removed): every
+      //    athlete gets five straight years of eligibility, and each season on
+      //    campus burns one of them — no redshirts, no banked years, no
+      //    non-competition preservation. When the fifth year is up (or the
+      //    class reaches Graduate), the career ends and the athlete graduates
+      //    (Hall of Fame careers get enshrined).
       Object.values(this.world.schools).forEach((school) => {
-        const elig = D.eligibilityFor ? D.eligibilityFor(school) : { seasons: 4, clockYears: 5 };
+        const elig = D.eligibilityFor ? D.eligibilityFor(school) : { seasons: 5, clockYears: 5 };
         ['rosterM', 'rosterW'].forEach((rosterKey) => {
           const survivors = [];
           school[rosterKey].forEach((athId) => {
             const athlete = this.world.athletes[athId];
             if (!athlete) return;
             athlete.age += 1;
-            const raced = (athlete.seasonRaces || 0) > 0;
             athlete.yearsOnCampus = (athlete.yearsOnCampus || 1) + 1;
             athlete.seasonRaces = 0;
 
@@ -447,16 +446,6 @@
               delete this.world.athletes[athId];
             };
 
-            const redshirted = athlete.redshirt === 'True' || athlete.redshirt === 'Medical';
-            if (redshirted || !raced) {
-              // The season didn't burn a season of competition; the athletic
-              // class holds — but the eligibility clock keeps running.
-              if (redshirted) athlete.redshirt = 'Used';
-              if (athlete.yearsOnCampus > elig.clockYears) { graduate(); return; }
-              survivors.push(athId);
-              return;
-            }
-
             if (athlete.eligibilityRemaining <= 1 ||
                 athlete.yearsOnCampus > elig.clockYears ||
                 athlete.classYear === 'Graduate') {
@@ -464,9 +453,8 @@
               return;
             }
             const idx = D_ORDER.indexOf(athlete.classYear);
-            // DI's fifth season of competition is a Graduate year; DII/DIII
-            // careers top out at Senior under the four-season rule.
-            athlete.classYear = D_ORDER[Math.min(idx + 1, elig.seasons >= 5 ? 4 : 3)];
+            // Five seasons run Freshman → Graduate (class index 0 → 4).
+            athlete.classYear = D_ORDER[Math.min(idx + 1, 4)];
             athlete.eligibilityRemaining = Math.max(0, athlete.eligibilityRemaining - 1);
             survivors.push(athId);
           });

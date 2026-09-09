@@ -34,7 +34,7 @@
         personality: 'Grinder',
         // Relationship attributes (Update 5, Part 7): loyalty is two-sided.
         // Coach Relationship tracks the bond with the head coach (playing
-        // time, redshirt calls, injuries, development, communication);
+        // time, injuries, development, communication);
         // Team Relationship tracks chemistry with teammates. An athlete may
         // stay for a beloved coach despite weak team chemistry, or remain for
         // close friendships despite a frosty coach relationship. Both feed the
@@ -91,14 +91,14 @@
         // injuries slowly erode potential and future growth rate.
         careerInjuries: [], // { year, week, type, weeks, major }
         potentialLostToInjury: 0, // ceiling permanently lost to major injuries
-        redshirt: 'None',  // None | True | Medical | Used
+        redshirt: 'None',  // deprecated (Update 20 removed redshirts); kept for save compatibility
         // The season a transfer arrived (Update 11): during it, their
         // transfer risk reads zero and they never re-enter the portal — a
         // fresh start at the program they chose.
         transferGraceYear: null,
-        eligibilityRemaining: 4,
+        eligibilityRemaining: 5, // five straight years of eligibility (Update 20)
         yearsOnCampus: 1,  // NCAA five-year clock
-        seasonRaces: 0,    // races run this season (blocks redshirting)
+        seasonRaces: 0,    // races run this season (drives portal racing-opportunity read)
         honors: { allAmerican: 0, natChamp: 0, confChamp: 0, awards: [] },
         // Permanent award badges by year (Part 10): survive graduation via
         // the alumni ledger. { allAmerican:[years], natChamp:[...],

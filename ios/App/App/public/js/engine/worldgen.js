@@ -210,8 +210,8 @@
       morale: rng.int(55, 85),
       devProfile: rng.weightedChoice(D.DEV_PROFILES, (p) => p.weight).type,
 
-      // Division-accurate eligibility: DI athletes hold five seasons of
-      // competition on the five-year clock; DII/DIII hold four-in-five.
+      // Eligibility (Update 20 — redshirts removed): every athlete gets five
+      // straight years; a Freshman has all five, a Senior two, and so on.
       eligibilityRemaining: Math.max(1,
         window.XCD.data.eligibilityFor(school).seasons -
         ({ Freshman: 0, Sophomore: 1, Junior: 2, Senior: 3, Graduate: 4 }[classYear] || 0)),

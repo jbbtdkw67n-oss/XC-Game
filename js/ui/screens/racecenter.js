@@ -345,6 +345,20 @@
     if (!track) return;
     const ft = Races().formatTime;
 
+    // Regional-meet Nationals-qualification badges (Update 20): once the field
+    // is set, a completed regional shows who advances — automatic team bids,
+    // at-large team bids, and individual qualifiers.
+    const isRegional = meet.type === 'regional';
+    const teamBidBadge = (t) => {
+      if (!isRegional || !t.nationalsBid) return '';
+      return t.nationalsBid === 'auto'
+        ? ' <span title="Qualified for Nationals — automatic bid" style="color:var(--success); font-weight:700; font-size:10.5px;">🎟 NQ</span>'
+        : ' <span title="Qualified for Nationals — at-large bid" style="color:var(--accent); font-weight:700; font-size:10.5px;">🎟 AL</span>';
+    };
+    const indivQualBadge = (f) => (isRegional && f.nationalsIndividual && !f.nationalsTeamQualifier)
+      ? ' <span title="Qualified for Nationals as an individual" style="color:var(--accent); font-weight:700; font-size:10.5px;">🎟 IQ</span>'
+      : '';
+
     const winner = res.finishers[0];
     // A course record set in this race (Course Records): headline it.
     const crFinisher = res.finishers.find((f) => f.cr === 'NCR');
@@ -388,7 +402,7 @@
               return `
               <tr ${mine ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>${f.place}</td>
-                <td class="clickable" data-ath="${f.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: activeGender }, { size: 20 })} ${Utils.escapeHtml(f.name)}${honored ? ` <span title="${honor.label}">${honor.icon}</span>` : ''}</td>
+                <td class="clickable" data-ath="${f.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: activeGender }, { size: 20 })} ${Utils.escapeHtml(f.name)}${honored ? ` <span title="${honor.label}">${honor.icon}</span>` : ''}${indivQualBadge(f)}</td>
                 <td class="clickable" data-school="${f.schoolId}" style="font-size:12px; cursor:pointer;">${Utils.escapeHtml(game.getSchool(f.schoolId)?.name || '?')}</td>
                 <td class="num">${ft(f.time)}${UI.crTag ? UI.crTag(f) : ''}${UI.nrTag ? UI.nrTag(f) : ''}</td>
               </tr>`;
@@ -409,9 +423,10 @@
 
     board.innerHTML = `<h3>Final Team Scores</h3>` + res.teamScores.slice(0, 15).map((t) => `
       <div class="attr-row clickable" data-school="${t.schoolId}" style="padding:3px 0; cursor:pointer;">
-        <span style="${t.schoolId === game.playerSchoolId ? 'color:var(--accent-hover); font-weight:700;' : ''}">${t.place}. ${Utils.escapeHtml(game.getSchool(t.schoolId)?.name || '?')}</span>
+        <span style="${t.schoolId === game.playerSchoolId ? 'color:var(--accent-hover); font-weight:700;' : ''}">${t.place}. ${Utils.escapeHtml(game.getSchool(t.schoolId)?.name || '?')}${teamBidBadge(t)}</span>
         <span>${t.points}</span>
-      </div>`).join('');
+      </div>`).join('') + (isRegional && res.teamScores.some((t) => t.nationalsBid) ? `
+      <div style="color:var(--text-faint); font-size:11px; margin-top:6px;">🎟 <strong style="color:var(--success);">NQ</strong> auto bid · <strong style="color:var(--accent);">AL</strong> at-large · <strong style="color:var(--accent);">IQ</strong> individual → Nationals</div>` : '');
 
     // Every runner and team on the results board opens a profile (Phase 3).
     const wire = (root) => {

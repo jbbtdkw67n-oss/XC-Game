@@ -245,19 +245,36 @@
           }</span></div>
           ${riskHtml}
           ${(() => {
-            // NCAA eligibility panel (accurate per-division rules): remaining
-            // seasons of competition, academic year, redshirt status, and
-            // when the eligibility clock expires.
+            // NCAA eligibility panel (Update 20 — redshirts removed): five
+            // straight years of eligibility, the academic year, and when the
+            // eligibility clock expires.
             const elig = window.XCD.data.eligibilityFor
-              ? window.XCD.data.eligibilityFor(school || 'DI') : { seasons: 4, clockYears: 5 };
+              ? window.XCD.data.eligibilityFor(school || 'DI') : { seasons: 5, clockYears: 5 };
             const onCampus = athlete.yearsOnCampus || 1;
             const expires = game.year + Math.max(0, elig.clockYears - onCampus);
-            const rsLabel = { None: 'None', True: '🔴 Redshirting', Medical: '🏥 Medical Redshirt', Used: 'Used' }[athlete.redshirt] || athlete.redshirt;
             return `
-          <div class="attr-row"><span class="attr-name">Seasons Remaining</span><span><strong>${athlete.eligibilityRemaining}</strong> of ${elig.seasons} <span style="color:var(--text-faint); font-size:11.5px;">(${elig.seasons}-in-${elig.clockYears} ${(school && school.division) || 'DI'} rule)</span></span></div>
+          <div class="attr-row"><span class="attr-name">Seasons Remaining</span><span><strong>${athlete.eligibilityRemaining}</strong> of ${elig.seasons} <span style="color:var(--text-faint); font-size:11.5px;">(${elig.seasons}-year eligibility)</span></span></div>
           <div class="attr-row"><span class="attr-name">Academic Year</span><span>${athlete.classYear} <span style="color:var(--text-faint); font-size:11.5px;">• Year ${onCampus} on campus</span></span></div>
-          <div class="attr-row"><span class="attr-name">Redshirt</span><span>${rsLabel}</span></div>
           <div class="attr-row"><span class="attr-name">Eligibility Expires</span><span>${expires <= game.year ? `<span style="color:var(--warning);">After this season</span>` : `End of ${expires}`}</span></div>`;
+          })()}
+          ${(() => {
+            // Recruiting ranking (the athlete's standing as a high-school
+            // prospect): star rating and national / state class rank, shown
+            // for anyone who came through the recruiting pipeline.
+            const st = athlete.starRating || 0;
+            if (!st && !athlete.nationalRank) return '';
+            const starStr = st
+              ? `<span style="color:var(--gold, #d4af37);" title="${st}-star recruit">${'★'.repeat(st)}<span style="color:var(--text-faint);">${'☆'.repeat(5 - st)}</span></span>`
+              : '';
+            const bits = [];
+            if (athlete.nationalRank) bits.push(`#${athlete.nationalRank} nationally`);
+            if (athlete.stateRank && athlete.hometownState && athlete.hometownState !== 'INT') {
+              bits.push(`#${athlete.stateRank} in ${Utils.escapeHtml(athlete.hometownState)}`);
+            }
+            const cls = athlete.gradYear ? ` <span style="color:var(--text-faint); font-size:11.5px;">(Class of ${athlete.gradYear})</span>` : '';
+            return `<div class="attr-row"><span class="attr-name">Recruiting Rank</span><span>${
+              athlete.generational ? '<span title="Generational recruit">⭐</span> ' : ''
+            }${starStr}${bits.length ? ` <span style="color:var(--text-faint); font-size:11.5px;">${bits.join(' · ')}</span>` : ''}${cls}</span></div>`;
           })()}
           <div class="attr-row"><span class="attr-name">Races / Wins / Top-5s</span><span>${athlete.careerStats.races} / ${athlete.careerStats.wins} / ${athlete.careerStats.top5}</span></div>
           ${athlete.hsPB !== undefined ? `<div class="attr-row"><span class="attr-name">HS 5K PB</span><span title="Official high-school personal best — permanent history">${window.XCD.engine.Races.formatTime(athlete.hsPB)}</span></div>` : ''}

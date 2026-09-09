@@ -151,7 +151,7 @@
       ['nxnChampion', '👟', 'NXN Champion'],
       ['nxnAllAmerican', '🎽', 'NXN All-American'],
       // High-school state titles (Section 16) — permanent prep history.
-      ['hsStateChamp', '🏵', 'HS State Champion']
+      ['hsStateChamp', '🥇', 'HS State Champion']
     ];
     const badges = defs
       .filter(([k]) => hy[k] && hy[k].length)
@@ -284,7 +284,12 @@
   // `reason` (Coach Timeline fix) stamps WHY the tenure ended — retired,
   // fired, left for another job, released — and the prestige the program
   // stood at when they walked out the door. Both are permanent.
-  Legacy.closeStint = function (gameState, coach, school, endYear, reason) {
+  // `stayed` (Update 20): pass true when the coach is NOT leaving the program —
+  // an internal promotion (assistant → head at the SAME school) closes the old
+  // stint but must not stamp the coach onto their own program's former-staff
+  // ledger, or the program would be barred from ever re-hiring someone it never
+  // lost (and would read as "employing a coach it says left").
+  Legacy.closeStint = function (gameState, coach, school, endYear, reason, stayed) {
     coach.stints = coach.stints || [];
     const open = coach.stints.find((s) => !s.endYear);
     if (open) {
@@ -307,7 +312,8 @@
       // and the player's staff pool both consult it, so a program can never
       // re-hire a coach who has already walked out the door. (The player's own
       // career is never blocked from returning — that's their choice to make.)
-      Legacy.recordDeparture(school, coach);
+      // An internal promotion (`stayed`) is not a departure, so it is skipped.
+      if (!stayed) Legacy.recordDeparture(school, coach);
     }
   };
 

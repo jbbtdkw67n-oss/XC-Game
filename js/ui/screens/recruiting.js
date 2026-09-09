@@ -143,10 +143,10 @@
       <div class="player-card-header">
         <div style="flex:0 0 auto; margin-right:14px;">${UI.avatar(rec, { size: 64, outfit: 'jersey' })}</div>
         <div class="who">
-          <h2>${rec.generational ? '⭐ ' : ''}${stars(rec.starRating)} ${Utils.escapeHtml(rec.fullName)}${rec.nxn && rec.nxn.champion ? ' <span title="NXN Champion">👟</span>' : rec.nxn && rec.nxn.allAmerican ? ' <span title="NXN All-American">🎽</span>' : ''}${rec.hsStateChampion ? ' <span title="HS State Champion">🏵</span>' : ''}</h2>
+          <h2>${rec.generational ? '⭐ ' : ''}${stars(rec.starRating)} ${Utils.escapeHtml(rec.fullName)}${rec.nxn && rec.nxn.champion ? ' <span title="NXN Champion">👟</span>' : rec.nxn && rec.nxn.allAmerican ? ' <span title="NXN All-American">🎽</span>' : ''}${rec.hsStateChampion ? ' <span title="HS State Champion">🥇</span>' : ''}</h2>
           ${rec.generational ? '<div class="sub" style="color:var(--gold, #d4af37); font-weight:700;">GENERATIONAL RECRUIT — the story of this class</div>' : ''}
           ${rec.nxn && (rec.nxn.champion || rec.nxn.allAmerican) ? `<div class="sub" style="color:var(--accent); font-weight:600;">${rec.nxn.champion ? '👟 NXN Champion' : '🎽 NXN All-American'} (${rec.nxn.champion || rec.nxn.allAmerican})${rec.nxn.finish ? ` — NXN finish: ${rec.nxn.finish === 1 ? '🥇 1st' : '#' + rec.nxn.finish}` : ''} — a decorated prep runner</div>` : rec.nxn && rec.nxn.finish ? `<div class="sub" style="color:var(--text-dim);">NXN finish: #${rec.nxn.finish} (${rec.nxn.year})</div>` : ''}
-          ${rec.hsStateChampion ? `<div class="sub" style="color:var(--accent);">🏵 ${rec.hometownState} HS State Champion (${rec.gradYear})</div>` : ''}
+          ${rec.hsStateChampion ? `<div class="sub" style="color:var(--accent);">🥇 ${rec.hometownState} HS State Champion (${rec.gradYear})</div>` : ''}
           <div class="sub">
             ${rec.hsPB !== undefined ? `<strong style="color:var(--text); font-size:14px;" title="Official high-school 5K personal best">5K PB ${window.XCD.engine.Races.formatTime(rec.hsPB)}</strong> • ` : ''}Class of ${rec.gradYear} •
             ${rec.gender === 'M' ? "Men's" : "Women's"} • ${rec.source}${rec.country !== 'USA' ? ` (${rec.country})` : ''} •
