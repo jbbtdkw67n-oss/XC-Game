@@ -511,12 +511,17 @@
     const profile = athlete.devProfile || 'normal';
     const yr = Math.max(1, Math.min(5, athlete.yearsOnCampus || 1));
     // Per-year curves, indexed [yr-1].
+    // Early risers and late bloomers can SPIKE well past a steady runner's
+    // ~12-overall best season during their surge years — a breakout freshman
+    // or a junior/senior who suddenly puts it together can jump ~20 in a single
+    // season in a strong program (the effective-ceiling cap still stops anyone
+    // from blowing past their potential).
     const CURVES = {
-      early:  [1.55, 1.35, 0.85, 0.55, 0.45], // front-loaded: peaks by junior year
-      late:   [0.55, 0.75, 1.25, 1.60, 1.55], // back-loaded: big junior/senior jumps
+      early:  [2.10, 1.65, 0.80, 0.50, 0.40], // front-loaded: freshman/soph breakout, plateaus by junior
+      late:   [0.42, 0.60, 1.75, 2.45, 1.85], // back-loaded: dramatic junior/senior jumps
       normal: [1.08, 1.05, 1.00, 0.95, 0.90], // steady, gentle taper
       bust:   [0.48, 0.46, 0.44, 0.42, 0.40], // never quite gets there
-      legend: [1.70, 1.65, 1.60, 1.55, 1.50]  // the 1-in-1000 walk-on who becomes a star
+      legend: [1.90, 1.85, 1.80, 1.75, 1.70]  // the 1-in-1000 walk-on who becomes a star
     };
     return (CURVES[profile] || CURVES.normal)[yr - 1];
   }

@@ -432,37 +432,48 @@
       </div>` : ''}
       ${courseRecordHtml}
 
-      <div class="grid cols-4" style="margin-bottom:14px;">
+      <div class="grid cols-4" style="margin-bottom:16px;">
         <div class="stat-tile"><div class="label">Races</div><div class="value">${stats.races ?? '—'}</div></div>
         <div class="stat-tile"><div class="label">Wins</div><div class="value">${stats.wins ?? 0}</div><div class="sub">${winPct}% win rate</div></div>
         <div class="stat-tile"><div class="label">Top-5 Finishes</div><div class="value">${stats.top5 ?? 0}</div></div>
         <div class="stat-tile"><div class="label">Seasons</div><div class="value">${oh.length || '—'}</div></div>
       </div>
 
-      ${accolades.length
-        ? accoladesCard(accolades, Legacy)
-        : '<div class="card" style="padding:12px; margin-bottom:14px; color:var(--text-dim);">A career remembered for the wins, not the hardware.</div>'}
+      <div class="pc-tabs" role="tablist">
+        <button data-pctab="accolades" class="active">Accolades</button>
+        <button data-pctab="career">Career</button>
+      </div>
 
-      ${stats.prs && Object.keys(stats.prs).length ? `
-      <div class="card" style="padding:12px; margin-bottom:14px;">
-        <h3>Personal Bests</h3>
-        ${Object.entries(stats.prs).sort().map(([k, t]) =>
-          `<div class="attr-row"><span class="attr-name">PR ${k}</span><span>${window.XCD.engine.Races.formatTime(t)}</span></div>`).join('')}
-      </div>` : ''}
+      <div class="pc-tabpane" data-pcpane="accolades">
+        ${accolades.length
+          ? accoladesCard(accolades, Legacy)
+          : '<div class="card" style="padding:12px; margin-bottom:14px; color:var(--text-dim);">A career remembered for the wins, not the hardware.</div>'}
+      </div>
 
-      ${oh.length >= 2 ? `
-      <div class="card" style="padding:12px;">
-        <h3>Career Progression</h3>
-        <div style="display:flex; align-items:flex-end; gap:3px; height:48px;">
-          ${oh.slice(-8).map((h) => `<div title="${h.year}: ${h.overall} OVR" style="flex:1; background:var(--accent); opacity:0.75; border-radius:2px 2px 0 0; height:${Math.max(6, h.overall * 0.48)}px;"></div>`).join('')}
-        </div>
-        <div style="font-size:11.5px; color:var(--text-faint); margin-top:4px;">${oh[0].year} (${oh[0].overall}) → ${oh[oh.length - 1].year} (${oh[oh.length - 1].overall})</div>
-      </div>` : ''}
+      <div class="pc-tabpane" data-pcpane="career" hidden>
+        ${stats.prs && Object.keys(stats.prs).length ? `
+        <div class="card" style="padding:12px; margin-bottom:14px;">
+          <h3>Personal Bests</h3>
+          ${Object.entries(stats.prs).sort().map(([k, t]) =>
+            `<div class="attr-row"><span class="attr-name">PR ${k}</span><span>${window.XCD.engine.Races.formatTime(t)}</span></div>`).join('')}
+        </div>` : ''}
+        ${oh.length >= 2 ? `
+        <div class="card" style="padding:12px;">
+          <h3>Career Progression</h3>
+          <div style="display:flex; align-items:flex-end; gap:3px; height:48px;">
+            ${oh.slice(-8).map((h) => `<div title="${h.year}: ${h.overall} OVR" style="flex:1; background:var(--accent); opacity:0.75; border-radius:2px 2px 0 0; height:${Math.max(6, h.overall * 0.48)}px;"></div>`).join('')}
+          </div>
+          <div style="font-size:11.5px; color:var(--text-faint); margin-top:4px;">${oh[0].year} (${oh[0].overall}) → ${oh[oh.length - 1].year} (${oh[oh.length - 1].overall})</div>
+        </div>` : ''}
+        ${(!stats.prs || !Object.keys(stats.prs).length) && oh.length < 2
+          ? '<div class="card" style="padding:12px; color:var(--text-dim);">No detailed career record preserved for this legend.</div>' : ''}
+      </div>
     `, (modal) => {
       const se = modal.querySelector('#legend-school');
       if (se && school) se.addEventListener('click', () => UI.showSchoolCard(school, game));
       const cr = modal.querySelector('#legend-course-records');
       if (cr && UI.showAthleteCourseRecords) cr.addEventListener('click', () => UI.showAthleteCourseRecords(game, rec.athleteId, rec.name));
+      UI.wireProfileTabs(modal);
     });
   };
 
