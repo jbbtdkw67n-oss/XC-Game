@@ -134,6 +134,24 @@
         </span>
       </div>` : '';
 
+    // Accolade summary chips shown at the very top (UI overhaul): the honors
+    // and career headline stats a reader wants first, before anything else.
+    const cs = athlete.careerStats || { races: 0, wins: 0, top5: 0 };
+    const hy = athlete.honorYears || {};
+    const summaryChips = [
+      { n: (hy.natChamp || []).length, icon: '🥇', label: 'Natl Titles' },
+      { n: (hy.allAmerican || []).length, icon: '🇺🇸', label: 'All-American' },
+      { n: (hy.confChamp || []).length, icon: '🏅', label: 'Conf Titles' },
+      { n: crCount, icon: '🏆', label: 'Course Recs' }
+    ].filter((c) => c.n > 0);
+    const summaryStripHtml = `
+      <div class="grid cols-4" style="margin-bottom:14px;">
+        <div class="stat-tile"><div class="label">Overall</div><div class="value">${athlete.currentOverall}</div><div class="sub">POT ${Math.round(athlete.potential)}</div></div>
+        <div class="stat-tile"><div class="label">Races</div><div class="value">${cs.races}</div><div class="sub">${cs.wins} wins</div></div>
+        <div class="stat-tile"><div class="label">Top-5s</div><div class="value">${cs.top5}</div></div>
+        <div class="stat-tile"><div class="label">Honors</div><div class="value">${summaryChips.reduce((s, c) => s + c.n, 0)}</div><div class="sub">${summaryChips.length ? summaryChips.map((c) => `${c.icon}${c.n}`).join(' ') : 'building a résumé'}</div></div>
+      </div>`;
+
     // Transfer Risk Indicator (spec Part 2, Section 14): the athlete's
     // Transfer Desire as a five-step level; expanding it reveals exactly
     // what's pushing them out — or anchoring them home.
@@ -158,7 +176,8 @@
       </div>` : '';
 
     // Injury history (Injury System Expansion): the permanent career ledger,
-    // with the long-term toll of repeated major injuries spelled out.
+    // with the long-term toll of repeated major injuries spelled out — now a
+    // clean, scrollable list of rows.
     const ci = athlete.careerInjuries || [];
     const majors = ci.filter((i) => i.major).length;
     const injuryHistoryHtml = ci.length ? `
@@ -169,13 +188,12 @@
             ⚠ Repeated major injuries have lowered this athlete's long-term ceiling
             (−${athlete.potentialLostToInjury} potential) and slowed future development.
           </div>` : ''}
-        <div style="max-height:180px; overflow-y:auto;">
-          ${ci.slice().reverse().map((inj) => `
-            <div class="attr-row" style="padding:4px 0;">
-              <span>${Utils.escapeHtml(inj.type)}${inj.major ? ' <span style="color:var(--danger); font-size:10.5px; font-weight:700;">MAJOR</span>' : ''}</span>
-              <span style="color:var(--text-dim);">Wk ${inj.week}, ${inj.year} — ${inj.weeks} wk out</span>
-            </div>`).join('')}
-        </div>
+        ${UI.listGroup(ci.slice().reverse().map((inj) => UI.listRow({
+          badge: '🩼', tone: inj.major ? 'bad' : 'warn',
+          title: `${Utils.escapeHtml(inj.type)}${inj.major ? ' <span style="color:var(--danger); font-size:10.5px; font-weight:700;">MAJOR</span>' : ''}`,
+          sub: `Week ${inj.week}, ${inj.year}`,
+          meta: `<span class="big">${inj.weeks}</span><div class="small">weeks out</div>`
+        })))}
       </div>` : '';
 
     // Career overall progression (Update 4, Part 10).
@@ -189,50 +207,33 @@
         <div style="font-size:11.5px; color:var(--text-faint); margin-top:4px;">${oh[0].year} (${oh[0].overall}) → ${oh[oh.length - 1].year} (${oh[oh.length - 1].overall})</div>
       </div>` : '';
 
-    UI.showModal(`
-      <button class="btn small modal-close" data-modal-close>✕ Close</button>
-      <div class="player-card-header">
-        <div style="flex:0 0 auto; margin-right:14px;">${UI.avatar(athlete, { size: 64, outfit: 'jersey' })}</div>
-        <div class="who">
-          <h2>${athlete.generational ? '⭐ ' : ''}${Utils.escapeHtml(athlete.fullName)}</h2>
-          <div class="sub">
-            ${athlete.classYear} • ${athlete.gender === 'M' ? "Men's" : "Women's"} •
-            ${Utils.escapeHtml(athlete.hometownCity)}, ${athlete.hometownState === 'INT' ? Utils.escapeHtml(athlete.country || 'Intl') : athlete.hometownState} •
-            ${heightFt}'${heightIn}" / ${athlete.weightLb} lb • Age ${athlete.age}
-          </div>
-          <div class="sub">
-            ${school ? Utils.escapeHtml(school.name) + ' • ' : ''}Major: ${Utils.escapeHtml(athlete.major)} •
-            ${Utils.escapeHtml(athlete.personality)}${athlete.isWalkOn ? ' • <span style="color:var(--text-faint);">Walk-On</span>' : ''}
-          </div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:30px; font-weight:800;">${athlete.currentOverall}</div>
-          <div style="font-size:12px; color:var(--text-dim);">OVERALL (POT ${athlete.potential})</div>
-        </div>
-      </div>
+    // Recent races as clean status rows (win → gold, top-10 → accent, DNF →
+    // bad, otherwise muted) instead of a dense table.
+    const raceLogHtml = (athlete.raceLog && athlete.raceLog.length) ? `
+      <div class="card" style="padding:12px; margin-bottom:14px;">
+        <h3>Recent Races</h3>
+        ${UI.listGroup(athlete.raceLog.slice().reverse().map((r) => {
+          const tone = r.dnf ? 'bad' : r.p === 1 ? 'gold' : r.p <= 10 ? 'accent' : 'muted';
+          const badge = r.dnf ? '—' : (r.p === 1 ? '🥇' : r.p);
+          return UI.listRow({
+            badge, tone,
+            title: Utils.escapeHtml(r.m),
+            sub: `Wk ${r.w}, ${r.y} • ${r.d}`,
+            meta: `<span class="big">${r.dnf ? 'DNF' : Utils.ordinal(r.p)}</span><div class="small">${r.t != null ? window.XCD.engine.Races.formatTime(r.t) : '—'}</div>`
+          });
+        }))}
+      </div>` : '';
 
-      ${badgesHtml}
-      ${courseRecordHtml}
-
+    // Live status meters (fatigue / sharpness / morale / fitness).
+    const statusMetersHtml = `
       <div class="grid cols-4" style="margin-bottom:16px;">
-        <div>
-          <h3>Fatigue — ${Math.round(athlete.fatigue)}</h3>
-          ${UI.meter(athlete.fatigue, statusColor)}
-        </div>
-        <div>
-          <h3>Sharpness — ${Math.round(athlete.sharpness ?? 55)}</h3>
-          ${UI.meter(Math.round(athlete.sharpness ?? 55))}
-        </div>
-        <div>
-          <h3>Morale — ${Math.round(athlete.morale)}</h3>
-          ${UI.meter(athlete.morale, moraleColor)}
-        </div>
-        <div>
-          <h3>Fitness — ${Math.round(athlete.fitness)}</h3>
-          ${UI.meter(athlete.fitness)}
-        </div>
-      </div>
+        <div><h3>Fatigue — ${Math.round(athlete.fatigue)}</h3>${UI.meter(athlete.fatigue, statusColor)}</div>
+        <div><h3>Sharpness — ${Math.round(athlete.sharpness ?? 55)}</h3>${UI.meter(Math.round(athlete.sharpness ?? 55))}</div>
+        <div><h3>Morale — ${Math.round(athlete.morale)}</h3>${UI.meter(athlete.morale, moraleColor)}</div>
+        <div><h3>Fitness — ${Math.round(athlete.fitness)}</h3>${UI.meter(athlete.fitness)}</div>
+      </div>`;
 
+    const statusCareerHtml = `
       <div class="grid cols-2" style="margin-bottom:14px;">
         <div class="card" style="padding:12px;">
           <h3>Status &amp; Career</h3>
@@ -258,9 +259,6 @@
           <div class="attr-row"><span class="attr-name">Eligibility Expires</span><span>${expires <= game.year ? `<span style="color:var(--warning);">After this season</span>` : `End of ${expires}`}</span></div>`;
           })()}
           ${(() => {
-            // Recruiting ranking (the athlete's standing as a high-school
-            // prospect): star rating and national / state class rank, shown
-            // for anyone who came through the recruiting pipeline.
             const st = athlete.starRating || 0;
             if (!st && !athlete.nationalRank) return '';
             const starStr = st
@@ -288,44 +286,75 @@
           <div class="attr-row"><span class="attr-name">Climate</span><span>${athlete.preferredClimate}</span></div>
           <div class="attr-row"><span class="attr-name">School Size</span><span>${athlete.preferredSchoolSize}</span></div>
         </div>
-      </div>
+      </div>`;
 
-      ${athlete.raceLog && athlete.raceLog.length ? `
-      <div class="card" style="padding:12px; margin-bottom:14px;">
-        <h3>Recent Races</h3>
-        <div class="table-wrap"><table class="data">
-          <thead><tr><th>When</th><th>Meet</th><th></th><th class="num">Place</th><th class="num">Time</th></tr></thead>
-          <tbody>
-            ${athlete.raceLog.map((r) => `
-              <tr${r.dnf ? ' style="color:var(--text-faint);"' : ''}>
-                <td>Wk ${r.w}, ${r.y}</td>
-                <td>${Utils.escapeHtml(r.m)}</td>
-                <td>${r.d}</td>
-                <td class="num" ${r.dnf ? 'title="Did Not Finish"' : ''}>${r.dnf ? 'DNF' : (r.p === 1 ? '🥇 1' : r.p)}</td>
-                <td class="num">${r.t != null ? window.XCD.engine.Races.formatTime(r.t) : '—'}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table></div>
-      </div>` : ''}
-
-      ${accoladesHtml}
-      ${injuryHistoryHtml}
-      ${progressHtml}
-
+    const ratingsHtml = `
       <div class="card" style="padding:12px; margin-bottom:14px;">
         <h3>Physical Ratings</h3>
         <div class="attr-grid">${attrRows(PHYSICAL_ATTRS)}</div>
       </div>
-
       <div class="card" style="padding:12px;">
-        <h3>Mental & Makeup</h3>
+        <h3>Mental &amp; Makeup</h3>
         <div class="attr-grid">${attrRows(MENTAL_ATTRS)}</div>
+      </div>`;
+
+    // History tab body (progression + races + injuries), with a graceful
+    // empty state so the tab is never blank.
+    const historyBody = (progressHtml || raceLogHtml || injuryHistoryHtml)
+      ? `${progressHtml}${raceLogHtml}${injuryHistoryHtml}`
+      : '<div class="card" style="padding:14px; color:var(--text-dim);">No races or injuries recorded yet — this athlete\'s story is just beginning.</div>';
+
+    // Accolades tab body.
+    const accoladesBody = `${courseRecordHtml}${accoladesHtml || '<div class="card" style="padding:14px; color:var(--text-dim);">No career accolades yet.</div>'}`;
+
+    UI.showModal(`
+      <button class="btn small modal-close" data-modal-close>✕ Close</button>
+      <div class="player-card-header">
+        <div style="flex:0 0 auto; margin-right:14px;">${UI.avatar(athlete, { size: 64, outfit: 'jersey' })}</div>
+        <div class="who">
+          <h2>${athlete.generational ? '⭐ ' : ''}${Utils.escapeHtml(athlete.fullName)}</h2>
+          <div class="sub">
+            ${athlete.classYear} • ${athlete.gender === 'M' ? "Men's" : "Women's"} •
+            ${Utils.escapeHtml(athlete.hometownCity)}, ${athlete.hometownState === 'INT' ? Utils.escapeHtml(athlete.country || 'Intl') : athlete.hometownState} •
+            ${heightFt}'${heightIn}" / ${athlete.weightLb} lb • Age ${athlete.age}
+          </div>
+          <div class="sub">
+            ${school ? Utils.escapeHtml(school.name) + ' • ' : ''}Major: ${Utils.escapeHtml(athlete.major)} •
+            ${Utils.escapeHtml(athlete.personality)}${athlete.isWalkOn ? ' • <span style="color:var(--text-faint);">Walk-On</span>' : ''}
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:30px; font-weight:800;">${athlete.currentOverall}</div>
+          <div style="font-size:12px; color:var(--text-dim);">OVERALL (POT ${athlete.potential})</div>
+        </div>
+      </div>
+
+      ${summaryStripHtml}
+      ${badgesHtml}
+
+      <div class="pc-tabs" role="tablist">
+        <button data-pctab="overview" class="active">Overview</button>
+        <button data-pctab="history">History</button>
+        <button data-pctab="accolades">Accolades</button>
+      </div>
+
+      <div class="pc-tabpane" data-pcpane="overview">
+        ${statusMetersHtml}
+        ${statusCareerHtml}
+        ${ratingsHtml}
+      </div>
+      <div class="pc-tabpane" data-pcpane="history" hidden>
+        ${historyBody}
+      </div>
+      <div class="pc-tabpane" data-pcpane="accolades" hidden>
+        ${accoladesBody}
       </div>
     `, (modal) => {
       const cr = modal.querySelector('#pc-course-records');
       if (cr && UI.showAthleteCourseRecords) {
         cr.addEventListener('click', () => UI.showAthleteCourseRecords(game, athlete.id, athlete.fullName));
       }
+      UI.wireProfileTabs(modal);
     });
   };
 

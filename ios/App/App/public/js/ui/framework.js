@@ -87,6 +87,63 @@
     return `<div class="meter ${colorClass}"><span style="width:${Utils.clamp(value, 0, 100)}%"></span></div>`;
   };
 
+  /* ---------------- Modern list row (UI overhaul) ----------------
+   * One clean, scrollable list idiom used everywhere athletes, coaches and
+   * programs are listed, and inside every profile: a leading colored status
+   * circle, a bold title with a dimmed subtitle, and a trailing value.
+   *
+   * opts: {
+   *   badge:  emoji / short text / avatar HTML for the leading circle,
+   *   tone:   'gold' | 'accent' | 'good' | 'warn' | 'bad' | 'muted',
+   *   title:  main line (may contain safe HTML), tag: faint suffix on the title,
+   *   sub:    subtitle line (may contain safe HTML),
+   *   meta:   trailing value (may contain safe HTML),
+   *   mine:   highlight as the player's own,
+   *   attrs:  { key: value } → data-key="value" for click delegation,
+   *   clickable: adds the clickable affordance (default: true when attrs given)
+   * }
+   */
+  UI.listRow = function (opts) {
+    const o = opts || {};
+    const tone = o.tone ? ` t-${o.tone}` : '';
+    const attrs = o.attrs
+      ? Object.entries(o.attrs).map(([k, v]) => `data-${k}="${String(v == null ? '' : v).replace(/"/g, '&quot;')}"`).join(' ')
+      : '';
+    const clickable = o.clickable != null ? o.clickable : !!o.attrs;
+    const badge = o.badge != null && o.badge !== '' ? `<div class="lrow-badge${tone}">${o.badge}</div>` : '';
+    const tag = o.tag ? ` <span class="tag">${o.tag}</span>` : '';
+    const sub = o.sub ? `<div class="lrow-sub">${o.sub}</div>` : '';
+    const meta = o.meta != null && o.meta !== '' ? `<div class="lrow-meta">${o.meta}</div>` : '';
+    return `<div class="lrow${clickable ? ' clickable' : ''}${o.mine ? ' mine' : ''}" ${attrs}>
+      ${badge}
+      <div class="lrow-body"><div class="lrow-title">${o.title || ''}${tag}</div>${sub}</div>
+      ${meta}
+    </div>`;
+  };
+
+  // Wrap a set of list-row HTML strings in a scrollable list container.
+  // scroll:true (default) caps the height so long histories scroll cleanly.
+  UI.listGroup = function (rowsHtml, { scroll = true } = {}) {
+    const rows = Array.isArray(rowsHtml) ? rowsHtml.join('') : (rowsHtml || '');
+    return `<div class="lrow-list${scroll ? ' lrow-scroll' : ''}">${rows}</div>`;
+  };
+
+  // Wire a profile's tab bar: buttons carry data-pctab, panes carry
+  // data-pcpane with matching values. Every pane stays in the DOM (only
+  // hidden) so text search and deep links keep working.
+  UI.wireProfileTabs = function (root) {
+    const tabs = root.querySelectorAll('[data-pctab]');
+    const panes = root.querySelectorAll('[data-pcpane]');
+    if (!tabs.length) return;
+    tabs.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.pctab;
+        tabs.forEach((b) => b.classList.toggle('active', b === btn));
+        panes.forEach((p) => { p.hidden = p.dataset.pcpane !== key; });
+      });
+    });
+  };
+
   /*
    * Championship honor window for a meet (Update 12): at nationals the top
    * N finishers earn All-America honors; at a conference championship the
@@ -198,19 +255,28 @@
         return state.sortDir === 'asc' ? cmp : -cmp;
       });
 
+      // Card lists are now the format on EVERY screen size (UI overhaul):
+      // whenever a screen supplies a card renderer we render clean cards, on
+      // desktop flowing into a responsive grid. Screens without a card
+      // renderer still fall back to the sortable table.
+      const cardRenderer = config.mobileCard || config.card;
+      const mobile = UI.isMobile();
+      const useCards = !!cardRenderer;
+
       // Very large datasets (e.g. the national recruit pool) are capped per
       // view; sorting/searching still operates over the full set. Phones cap
       // lower — hundreds of card nodes is what makes mobile Safari stutter.
       const totalRows = rows.length;
-      const mobileCards = !!(config.mobileCard && UI.isMobile());
-      const cap = mobileCards ? Math.min(config.maxRows || 400, 120) : (config.maxRows || 400);
+      const cap = (useCards && mobile) ? Math.min(config.maxRows || 400, 120) : (config.maxRows || 400);
       const truncated = totalRows > cap;
       if (truncated) rows = rows.slice(0, cap);
 
-      /* Phone rendering: a sort bar + one tappable card per row instead of a
-       * wide table. The same rows, sorting, search, and row-click behavior. */
-      if (mobileCards) {
+      /* Card rendering: a sort bar + one tappable card per row instead of a
+       * wide table. The same rows, sorting, search, and row-click behavior.
+       * On desktop the cards flow into a responsive grid (.as-grid). */
+      if (useCards) {
         const sortable = config.columns.filter((c) => c.label);
+        const gridCls = (config.cardGrid !== false && !mobile) ? ' as-grid' : '';
         container.innerHTML = `
           <div class="sort-bar">
             <select class="search-input" data-sort-select aria-label="Sort by">
@@ -218,9 +284,9 @@
             </select>
             <button class="btn sort-dir" data-sort-dir title="Toggle sort direction">${state.sortDir === 'asc' ? '↑' : '↓'}</button>
           </div>
-          <div class="m-cards">
+          <div class="m-cards${gridCls}">
             ${rows.length
-              ? rows.map((row, i) => `<div class="m-card ${config.onRowClick ? 'clickable' : ''}" data-row="${i}">${config.mobileCard(row, i)}</div>`).join('')
+              ? rows.map((row, i) => `<div class="m-card ${config.onRowClick ? 'clickable' : ''}" data-row="${i}">${cardRenderer(row, i)}</div>`).join('')
               : `<div class="m-empty">${config.emptyMessage || 'No results match the current filters.'}</div>`}
           </div>
           ${truncated ? `<div style="color:var(--text-faint); font-size:12px; padding:8px 2px 0;">Showing ${cap} of ${totalRows.toLocaleString()} — narrow with search or sorting.</div>` : ''}`;
