@@ -158,8 +158,9 @@ const { newDynasty, wireErrors } = require('./helpers');
   // A player card + recruit card open fine
   {
     await page.click('[data-nav="roster"]');
-    await page.waitForSelector('#roster-table tbody tr');
-    await page.click('#roster-table tbody tr');
+    // The roster renders as a card list on every screen size now (UI overhaul).
+    await page.waitForSelector('#roster-table .m-card, #roster-table tbody tr');
+    await page.click('#roster-table .m-card, #roster-table tbody tr');
     await page.waitForTimeout(150);
     await page.keyboard.press('Escape');
     await page.click('[data-nav="recruiting"]');

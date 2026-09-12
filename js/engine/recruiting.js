@@ -261,12 +261,10 @@
       major: rng.choice(D.MAJORS),
 
       academics: rng.gaussianRange(62, 16, 25, 99),
-      discipline: rng.gaussianRange(60, 14, 20, 99),
       leadership: rng.gaussianRange(45, 15, 15, 99),
       confidence: rng.gaussianRange(58, 15, 15, 99),
       consistency: rng.gaussianRange(55, 14, 15, 99),
       workEthic: rng.gaussianRange(62, 14, 20, 99),
-      coachability: rng.gaussianRange(62, 14, 15, 99),
       mentalToughness: statFor(),
       raceIQ: rng.gaussianRange(statMean - 8, 10, 10, 95),
       personality: rng.choice(D.ATHLETE_PERSONALITIES),
@@ -413,7 +411,6 @@
         pick.potential = Utils.clamp(pick.potential + rng.int(12, 32), 72, 96);
         pick.peakOverall = pick.potential;
         pick.workEthic = Math.max(pick.workEthic, rng.int(82, 99));
-        pick.coachability = Math.max(pick.coachability, rng.int(78, 97));
         pick.consistency = Math.max(pick.consistency, rng.int(66, 92));
         pick.devProfile = rng.bool(0.6) ? 'late' : 'normal'; // late physical growth
         pick.scoutNotes = rng.shuffle(D.HIDDEN_GEMS.HINTS.slice()).slice(0, 2);
@@ -965,7 +962,9 @@
     const action = D.RECRUIT_ACTIONS[actionKey];
     // Effect scaling: the coach's Recruiting rating sells the relationship.
     const recruitingMul = 0.75 + coach.recruiting / 200;             // 0.85–1.25
-    const coachabilityMul = 0.8 + rec.coachability / 250;
+    // Receptiveness to recruiting (Update 21): Work Ethic now carries the
+    // "coachable / eager" read that the retired Coachability slider used to.
+    const coachabilityMul = 0.8 + (rec.workEthic ?? 60) / 250;
     let rel = action.relationship * recruitingMul * coachabilityMul;
     let int = action.interest * recruitingMul;
 
@@ -1570,7 +1569,7 @@
         for (const sid of offers) {
           if (sid === rec.committedTo) continue;
           const rivalAppeal = appeal(gameState, gameState.getSchool(sid), rec, ctx);
-          const loyaltyBrake = rec.personality === 'Team-First' || rec.discipline > 75 ? 6 : 0;
+          const loyaltyBrake = (rec.personality === 'Team-First' || (rec.workEthic ?? 60) > 78) ? 6 : 0;
           if (rivalAppeal > committedAppeal + 12 + loyaltyBrake && rng.bool(0.10)) {
             const from = committedSchool.name;
             rec.committedTo = sid;

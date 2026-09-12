@@ -10,11 +10,13 @@
     ['lactateThreshold', 'Lactate Threshold'], ['speed', 'Speed'], ['injuryResistance', 'Injury Resistance']
   ];
 
+  // Mental & makeup (Update 21): a focused set. The first four move with what
+  // happens on the course (see races/training engines); the rest are makeup
+  // traits. Discipline and Coachability were retired into Work Ethic.
   const MENTAL_ATTRS = [
-    ['workEthic', 'Work Ethic'], ['confidence', 'Confidence'], ['mentalToughness', 'Mental Toughness'],
-    ['academics', 'Academics'], ['coachRelationship', 'Coach Relationship'], ['teamRelationship', 'Team Relationship'],
-    ['raceIQ', 'Race IQ'], ['discipline', 'Discipline'], ['leadership', 'Leadership'],
-    ['consistency', 'Consistency'], ['coachability', 'Coachability']
+    ['confidence', 'Confidence'], ['mentalToughness', 'Mental Toughness'], ['consistency', 'Consistency'],
+    ['raceIQ', 'Race IQ'], ['workEthic', 'Work Ethic'], ['leadership', 'Leadership'],
+    ['academics', 'Academics'], ['coachRelationship', 'Coach Relationship'], ['teamRelationship', 'Team Relationship']
   ];
 
   const ACC_ICON = {
@@ -257,6 +259,15 @@
           <div class="attr-row"><span class="attr-name">Seasons Remaining</span><span><strong>${athlete.eligibilityRemaining}</strong> of ${elig.seasons} <span style="color:var(--text-faint); font-size:11.5px;">(${elig.seasons}-year eligibility)</span></span></div>
           <div class="attr-row"><span class="attr-name">Academic Year</span><span>${athlete.classYear} <span style="color:var(--text-faint); font-size:11.5px;">• Year ${onCampus} on campus</span></span></div>
           <div class="attr-row"><span class="attr-name">Eligibility Expires</span><span>${expires <= game.year ? `<span style="color:var(--warning);">After this season</span>` : `End of ${expires}`}</span></div>`;
+          })()}
+          ${(() => {
+            // Development curve (Update 21): the shape of an athlete's expected
+            // career growth — a visible, functional profile stat that governs
+            // WHEN their improvement arrives (see the training engine).
+            const gc = window.XCD.data.growthCurve
+              ? window.XCD.data.growthCurve(athlete.devProfile) : null;
+            if (!gc) return '';
+            return `<div class="attr-row"><span class="attr-name">Development Curve</span><span title="${Utils.escapeHtml(gc.desc)}">${gc.icon} ${gc.label}</span></div>`;
           })()}
           ${(() => {
             const st = athlete.starRating || 0;

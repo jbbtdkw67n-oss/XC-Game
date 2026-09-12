@@ -656,11 +656,29 @@
 
   // Hidden development archetypes (assigned at generation, never shown raw)
   D.DEV_PROFILES = [
-    { type: 'normal', weight: 55 },
-    { type: 'early',  weight: 15 },  // freshman-year surger, plateaus sooner
-    { type: 'late',   weight: 18 },  // slow start, junior/senior leap
-    { type: 'bust',   weight: 12 }   // never quite gets there
+    { type: 'normal', weight: 52 },
+    { type: 'early',  weight: 17 },  // freshman-year surger, plateaus sooner
+    { type: 'late',   weight: 20 },  // slow start, junior/senior leap
+    { type: 'bust',   weight: 11 }   // never quite gets there
   ];
+
+  /*
+   * Development curve (visible profile stat). An athlete's hidden devProfile
+   * shapes WHEN their career growth arrives; this maps it to a player-facing
+   * label. "bust" and the rare "legend" surprises are deliberately shown as
+   * "Steady" so they stay a genuine surprise — the curve tells you the SHAPE
+   * of expected growth, not whether a recruit will secretly over/under-deliver.
+   */
+  D.GROWTH_CURVES = {
+    early:  { label: 'Early Riser',  icon: '🚀', desc: 'Big gains as a freshman and sophomore, then plateaus earlier — often near their peak by junior year.' },
+    late:   { label: 'Late Bloomer', icon: '🌙', desc: 'Develops slowly at first, then makes dramatic jumps as a junior and senior.' },
+    normal: { label: 'Steady',       icon: '📈', desc: 'Consistent, roughly linear improvement across all four or five years.' },
+    bust:   { label: 'Steady',       icon: '📈', desc: 'Consistent, roughly linear improvement across all four or five years.' },
+    legend: { label: 'Steady',       icon: '📈', desc: 'Consistent, roughly linear improvement across all four or five years.' }
+  };
+  D.growthCurve = function (devProfile) {
+    return D.GROWTH_CURVES[devProfile] || D.GROWTH_CURVES.normal;
+  };
 
   /* ------------------------------------------------------------------ *
    * The season calendar — Update 2 (Part 5).

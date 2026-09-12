@@ -56,6 +56,10 @@
         : a.health === 'Recovering'
           ? '<span style="color:var(--warning);">Recovering</span>'
           : '<span style="color:var(--success);">Healthy</span>';
+      const risk = window.XCD.engine.Portal.transferRisk(game, a);
+      const riskTag = (risk && !risk.graduating)
+        ? ` • <span style="color:${risk.level.color};" title="Transfer risk — open the profile for details">Risk: ${risk.level.label}</span>`
+        : '';
       const actions = [];
       if (canManage) {
         if (isCapt) actions.push(`<button class="btn small" data-capt="${a.id}" style="border-color:var(--gold); color:var(--gold);">⭐ Captain</button>`);
@@ -66,7 +70,7 @@
         <div class="m-head">
           ${UI.avatar(a, { size: 42 })}
           <div class="m-title">${isCapt ? '⭐ ' : ''}${Utils.escapeHtml(a.fullName)}${a.isWalkOn ? ' <span style="color:var(--text-faint); font-size:10px;">WO</span>' : ''}
-            <div class="m-sub">${a.classYear} • ${Utils.escapeHtml(a.hometownCity)}, ${a.hometownState} • ${status}</div>
+            <div class="m-sub">${a.classYear} • ${Utils.escapeHtml(a.hometownCity)}, ${a.hometownState} • ${status}${riskTag}</div>
           </div>
           <div class="m-badge">${UI.ratingBadge(a.currentOverall)}
             <div class="m-sub">POT ${Math.round(a.potential)}</div>

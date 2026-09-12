@@ -41,8 +41,10 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   // 5-star + JUCO is frequently empty — must render an empty state, not crash.
   await page.selectOption('#star-filter', '5');
   await page.selectOption('#source-filter', 'JUCO');
-  const filterOk = await page.evaluate(() => !!document.querySelector('#rec-table table'));
-  if (!filterOk) fail('recruiting filter did not render a table for empty result set');
+  // Recruiting renders as a card list on every screen size now (UI overhaul);
+  // an empty result set must still render the list/empty-state, not crash.
+  const filterOk = await page.evaluate(() => !!document.querySelector('#rec-table .m-cards, #rec-table table'));
+  if (!filterOk) fail('recruiting filter did not render a list for empty result set');
   if (errors.length) { console.log('FILTER CRASH:\n' + errors.join('\n')); await browser.close(); process.exit(1); }
   console.log('filter stress: ok');
 

@@ -98,7 +98,8 @@ async function run() {
   await page.click('[data-nav="recruiting"]');
   await page.waitForSelector('[data-tab="search"]');
   await page.click('[data-tab="search"]');
-  await page.waitForSelector('.data');
+  // The recruiting board renders as a card list on every screen size now.
+  await page.waitForSelector('.m-cards, .data');
   const board = await page.evaluate(() => {
     const t = document.querySelector('.screen-body, main, body').textContent;
     return { column: t.includes('5K PB'), times: /1[456789]:\d\d\.\d/.test(t) };

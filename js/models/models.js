@@ -21,14 +21,16 @@
         weightLb: 140,
         major: 'Undecided',
 
-        // Mental / makeup
+        // Mental / makeup (Update 21: pruned the redundant Discipline and
+        // Coachability sliders — Work Ethic now carries drive/receptiveness —
+        // leaving a focused set where the performance-linked ones (confidence,
+        // mental toughness, consistency, race IQ) move with what happens on the
+        // course rather than sitting frozen for a career).
         academics: 60,
-        discipline: 60,
         leadership: 50,
         confidence: 60,
         consistency: 60,
         workEthic: 60,
-        coachability: 60,
         mentalToughness: 60,
         raceIQ: 55,
         personality: 'Grinder',
@@ -91,7 +93,6 @@
         // injuries slowly erode potential and future growth rate.
         careerInjuries: [], // { year, week, type, weeks, major }
         potentialLostToInjury: 0, // ceiling permanently lost to major injuries
-        redshirt: 'None',  // deprecated (Update 20 removed redshirts); kept for save compatibility
         // The season a transfer arrived (Update 11): during it, their
         // transfer risk reads zero and they never re-enter the portal — a
         // fresh start at the program they chose.

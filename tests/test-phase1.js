@@ -73,8 +73,11 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   for (const conf of options.slice(0, 12)) {
     await page.selectOption('#conf-filter', conf);
     await page.waitForTimeout(30);
-    const hasTable = await page.$('#world-table table');
-    if (!hasTable) errors.push(`NO TABLE after selecting ${conf}`);
+    // The world list renders as a card list on every screen size now (UI
+    // overhaul); accept either the card list or a legacy table, as long as the
+    // list itself is present after the filter redraw.
+    const hasList = await page.$('#world-table .m-cards, #world-table table');
+    if (!hasList) errors.push(`NO LIST after selecting ${conf}`);
   }
   // The select must survive the redraw (it should never be rebuilt)
   const selAlive = await page.$('#conf-filter');
