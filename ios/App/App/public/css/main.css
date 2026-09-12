@@ -447,6 +447,105 @@ table.data td.num, table.data th.num { text-align: right; }
 }
 .m-empty { color: var(--text-dim); padding: 18px 8px; text-align: center; }
 
+/* Desktop browse cards (UI overhaul): the same clean card lists the phone
+   uses are now the format on every screen size. On wide screens they flow
+   into a responsive grid so the horizontal space isn't wasted; on a phone
+   they stay a single tappable column. */
+.m-cards.as-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px;
+}
+@media (max-width: 760px) {
+  .m-cards.as-grid { grid-template-columns: 1fr; }
+}
+
+/* ---------- Modern list rows (UI overhaul) ----------
+   The clean, scrollable list format used across every athlete, coach and
+   program list and inside profiles: a leading colored status circle, a bold
+   title with a dimmed subtitle, and a trailing value. One idiom everywhere. */
+.lrow-list { display: flex; flex-direction: column; }
+/* A scroll box for long lists inside cards/profiles — a clean history that
+   scrolls rather than running off the screen. */
+.lrow-scroll {
+  max-height: 340px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+.lrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 6px;
+  border-bottom: 1px solid rgba(42, 51, 65, 0.55);
+  min-width: 0;
+}
+.lrow:last-child { border-bottom: none; }
+.lrow.clickable { cursor: pointer; border-radius: 10px; transition: background 0.12s; }
+.lrow.clickable:hover { background: var(--bg-hover); }
+.lrow.clickable:active { background: var(--bg-hover); }
+.lrow.mine { background: var(--accent-soft); border-radius: 10px; }
+.lrow-badge {
+  flex: none;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700;
+  color: #fff;
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+.lrow-badge img, .lrow-badge svg { width: 100%; height: 100%; }
+/* Status tones for the leading circle. */
+.lrow-badge.t-gold   { background: linear-gradient(135deg, #d4a017, #b6860f); }
+.lrow-badge.t-accent { background: linear-gradient(135deg, var(--accent), #2f6fd8); }
+.lrow-badge.t-good   { background: linear-gradient(135deg, var(--success), #1f9e6e); }
+.lrow-badge.t-warn   { background: linear-gradient(135deg, var(--warning), #c9932a); color: #241a02; }
+.lrow-badge.t-bad    { background: linear-gradient(135deg, var(--danger), #c53d36); }
+.lrow-badge.t-muted  { background: var(--bg-hover); color: var(--text-dim); }
+.lrow-body { flex: 1; min-width: 0; }
+.lrow-title {
+  font-weight: 650; font-size: 14.5px; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lrow-title .tag { color: var(--text-faint); font-weight: 400; font-size: 11.5px; }
+.lrow-sub { font-size: 12px; color: var(--text-dim); margin-top: 1px; overflow-wrap: anywhere; }
+.lrow-meta {
+  flex: none; text-align: right; color: var(--text-dim);
+  font-size: 13px; max-width: 45%; overflow-wrap: anywhere;
+}
+.lrow-meta .big { font-size: 17px; font-weight: 800; color: var(--text); }
+.lrow-meta .small { font-size: 11.5px; color: var(--text-faint); }
+
+/* ---------- Profile tabs (UI overhaul) ----------
+   Coaching and player profiles split their content across tabs (Overview /
+   History / …) to stay clean — a full-width segmented control in the modal. */
+.pc-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pc-tabs::-webkit-scrollbar { display: none; }
+.pc-tabs button {
+  flex: 1 1 auto;
+  min-width: max-content;
+  border: none; background: none; color: var(--text-dim);
+  padding: 9px 12px; border-radius: 9px;
+  font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.pc-tabs button.active { background: var(--accent); color: #fff; }
+.pc-tabpane { animation: fade-in 0.15s ease; }
+
 /* Simple stacked card list (schedule meets, etc.) */
 .card-list { display: flex; flex-direction: column; gap: 10px; }
 

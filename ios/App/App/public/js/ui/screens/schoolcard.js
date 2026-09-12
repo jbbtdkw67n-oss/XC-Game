@@ -40,16 +40,19 @@
     const rosterM = game.getRoster(school.id, 'M').sort((a, b) => b.currentOverall - a.currentOverall);
     const rosterW = game.getRoster(school.id, 'W').sort((a, b) => b.currentOverall - a.currentOverall);
 
-    const rosterRows = (roster) => roster.slice(0, 10).map((a) => `
-      <tr class="clickable" data-ath="${a.id}">
-        <td>${UI.avatar(a, { size: 22 })} ${a.generational ? '⭐ ' : ''}${Utils.escapeHtml(a.fullName)}</td>
-        <td>${a.classYear}</td>
-        <td class="num">${UI.ratingBadge(a.currentOverall)}</td>
-      </tr>`).join('') || '<tr><td colspan="3" style="color:var(--text-dim);">No roster.</td></tr>';
+    const rosterRows = (roster) => roster.length
+      ? UI.listGroup(roster.slice(0, 12).map((a) => UI.listRow({
+          badge: UI.avatar(a, { size: 40 }),
+          title: `${a.generational ? '⭐ ' : ''}${Utils.escapeHtml(a.fullName)}`,
+          sub: `${a.classYear} • ${Utils.escapeHtml(a.hometownState || '')}`,
+          meta: UI.ratingBadge(a.currentOverall),
+          attrs: { ath: a.id }
+        })))
+      : '<div style="color:var(--text-dim); font-size:13px;">No roster.</div>';
 
-    // Current-season schedule + results for this program.
+    // Current-season schedule + results for this program, as clean rows.
     const season = game.season;
-    let scheduleRows = '';
+    const scheduleList = [];
     if (season) {
       const weeks = [...(season.raceWeeks || []), season.conferenceWeek, season.regionalWeek, season.nationalWeek];
       const seen = new Set();
@@ -68,11 +71,15 @@
             const t = res.teamScores.find((x) => x.schoolId === school.id);
             return t ? `${g}:${Utils.ordinal(t.place)}` : '';
           };
-          scheduleRows += `<tr class="${done ? 'clickable' : ''}" ${done ? `data-meet="${m.id}"` : ''}>
-            <td>Wk ${m.week}</td>
-            <td>${Utils.escapeHtml(m.name)}</td>
-            <td style="color:var(--text-dim); font-size:12px;">${done ? [place('M'), place('W')].filter(Boolean).join(' · ') : (m.week >= game.week ? 'Upcoming' : '—')}</td>
-          </tr>`;
+          const placed = done ? [place('M'), place('W')].filter(Boolean).join(' · ') : '';
+          const upcoming = !done && m.week >= game.week;
+          scheduleList.push(UI.listRow({
+            badge: done ? '🏁' : '📅', tone: done ? 'accent' : 'muted',
+            title: Utils.escapeHtml(m.name),
+            sub: `Week ${m.week}`,
+            meta: done ? (placed || '—') : (upcoming ? '<span class="small">Upcoming</span>' : '—'),
+            attrs: done ? { meet: m.id } : null
+          }));
         });
       });
     }
@@ -108,29 +115,40 @@
         </div>
       </div>
 
-      <div class="grid cols-4" style="margin-bottom:14px;">
+      <div class="grid cols-4" style="margin-bottom:16px;">
         <div class="stat-tile"><div class="label">Team Rating M/W</div><div class="value">${teamStrength(game, school, 'M')}/${teamStrength(game, school, 'W')}</div></div>
         <div class="stat-tile"><div class="label">Facilities</div><div class="value">${school.facilitiesOverall}</div></div>
         <div class="stat-tile"><div class="label">Academics</div><div class="value">${school.academics}</div></div>
         <div class="stat-tile"><div class="label">Team Morale</div><div class="value">${school.teamMorale ?? '—'}</div></div>
       </div>
 
-      <div class="grid cols-2" style="margin-bottom:14px;">
-        <div class="card" style="padding:12px;">
-          <h3>Men's Roster</h3>
-          <div class="table-wrap" style="max-height:230px; overflow-y:auto;"><table class="data"><tbody>${rosterRows(rosterM)}</tbody></table></div>
-        </div>
-        <div class="card" style="padding:12px;">
-          <h3>Women's Roster</h3>
-          <div class="table-wrap" style="max-height:230px; overflow-y:auto;"><table class="data"><tbody>${rosterRows(rosterW)}</tbody></table></div>
+      <div class="pc-tabs" role="tablist">
+        <button data-pctab="rosters" class="active">Rosters</button>
+        <button data-pctab="season">Season</button>
+        <button data-pctab="history">History</button>
+      </div>
+
+      <div class="pc-tabpane" data-pcpane="rosters">
+        <div class="grid cols-2">
+          <div class="card" style="padding:12px;">
+            <h3>Men's Roster</h3>
+            ${rosterRows(rosterM)}
+          </div>
+          <div class="card" style="padding:12px;">
+            <h3>Women's Roster</h3>
+            ${rosterRows(rosterW)}
+          </div>
         </div>
       </div>
 
-      <div class="grid cols-2">
+      <div class="pc-tabpane" data-pcpane="season" hidden>
         <div class="card" style="padding:12px;">
           <h3>${season ? season.year : ''} Season</h3>
-          <div class="table-wrap" style="max-height:230px; overflow-y:auto;"><table class="data"><tbody>${scheduleRows || '<tr><td style="color:var(--text-dim);">No meets scheduled.</td></tr>'}</tbody></table></div>
+          ${scheduleList.length ? UI.listGroup(scheduleList) : '<div style="color:var(--text-dim); font-size:13px;">No meets scheduled.</div>'}
         </div>
+      </div>
+
+      <div class="pc-tabpane" data-pcpane="history" hidden>
         <div class="card" style="padding:12px;">
           <h3>Historical Achievements</h3>
           ${row('National Championships', prog.natTitles || 0)}
@@ -154,6 +172,7 @@
         </div>
       </div>
     `, (modal) => {
+      UI.wireProfileTabs(modal);
       modal.querySelectorAll('[data-ath]').forEach((tr) => {
         tr.addEventListener('click', () => {
           const a = game.getAthlete(tr.dataset.ath);

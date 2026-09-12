@@ -130,8 +130,13 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   // Gender filter: every visible athlete row must be women when W selected.
   await page.selectOption('#goat-gender', 'W');
   const goatW = await page.evaluate(() => {
-    const rows = [...document.querySelectorAll('#goat-body tbody tr')];
-    const genders = rows.map((r) => r.children[2] && r.children[2].textContent.trim()).filter(Boolean);
+    // GOAT lists render as clean list rows now (UI overhaul); gender leads the
+    // subtitle, e.g. "W • Oregon • 2 NC …".
+    const rows = [...document.querySelectorAll('#goat-body .lrow')];
+    const genders = rows.map((r) => {
+      const sub = r.querySelector('.lrow-sub');
+      return sub ? sub.textContent.trim().split('•')[0].trim() : '';
+    }).filter(Boolean);
     return { rows: rows.length, nonW: genders.filter((x) => x !== 'W').length };
   });
   ok(goatW.nonW === 0, 'GOAT gender filter leaks men into the women list');
@@ -143,7 +148,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     const g = window.XCD.ui.state.game;
     const all = GOAT.athletes(g);
     const d3 = all.filter((r) => r.division === 'DIII');
-    const rows = document.querySelectorAll('#goat-body tbody tr').length;
+    const rows = document.querySelectorAll('#goat-body .lrow').length;
     return { d3: d3.length, rows };
   });
   ok(goatD3.rows === Math.min(goatD3.d3, 40), `DIII filter row mismatch: ${JSON.stringify(goatD3)}`);

@@ -48,15 +48,6 @@
     const stat = (label, val, sub) => `
       <div class="stat-tile"><div class="label">${label}</div><div class="value">${val}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
 
-    const timelineHtml = stints.length ? stints.map((s) => {
-      const end = s.endYear ? s.endYear : (retired ? s.endYear : 'present');
-      const div = s.division && s.division !== 'DI' ? ` <span style="color:var(--text-faint);">${s.division}</span>` : '';
-      const roleTag = s.role === 'Assistant' ? ' <span style="color:var(--text-faint); font-size:11px;">(Assistant)</span>' : '';
-      return `<div class="attr-row">
-        <span>${Utils.escapeHtml(s.school)}${div}${roleTag}</span>
-        <span style="color:var(--text-dim);">${s.startYear}–${end}</span>
-      </div>`;
-    }).join('') : '<div style="color:var(--text-dim); font-size:13px;">No coaching stops recorded.</div>';
 
     UI.showModal(`
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
@@ -89,13 +80,21 @@
         </div>
       </div>
 
-      <div class="grid cols-4" style="margin-bottom:14px;">
+      <div class="grid cols-4" style="margin-bottom:16px;">
         ${stat('Record', `${cr.wins || 0}-${cr.losses || 0}`, `${yearsCoached} yrs · ${cr.seasons || 0} seasons`)}
         ${stat('National Titles', cr.nationalTitles || 0, `${cr.conferenceTitles || 0} conf · ${cr.regionalTitles || 0} reg`)}
         ${stat('Coach of Year', `${cr.natCOY || 0}🇺🇸 ${cr.confCOY || 0}🏅`, 'national · conference')}
         ${stat('Nationals Trips', cr.nationalsAppearances || 0, `best class #${cr.bestClassRank || '—'}`)}
       </div>
 
+      <div class="pc-tabs" role="tablist">
+        <button data-pctab="overview" class="active">Overview</button>
+        <button data-pctab="accolades">Accolades</button>
+        <button data-pctab="history">History</button>
+        <button data-pctab="tree">Tree</button>
+      </div>
+
+      <div class="pc-tabpane" data-pcpane="overview">
       <div class="grid cols-2" style="margin-bottom:14px;">
         <div class="card" style="padding:12px;">
           <h3>Athletes Coached</h3>
@@ -116,7 +115,9 @@
           <div class="attr-row" style="margin-top:6px;"><span class="attr-name">Style</span><span style="font-size:12px; color:var(--text-dim);">${tendencyLabels(coach).join(', ') || '—'}</span></div>
         </div>
       </div>
+      </div>
 
+      <div class="pc-tabpane" data-pcpane="accolades" hidden>
       ${(() => {
         // Organized Career Accolades (History & Legacy update, Phase 9):
         // every accomplishment CATEGORY is grouped together with its years
@@ -171,47 +172,62 @@
           }
         });
         const total = [...cats.values()].reduce((s, c) => s + c.entries.length, 0);
-        if (!total) return '';
-        const sectionNames = ['National', 'Regional', 'Conference'];
+        if (!total) return '<div class="card" style="padding:14px; color:var(--text-dim);">No championships or major awards yet.</div>';
+        // Clean, scrollable accolade rows — a leading medal circle toned by
+        // level (national → gold, regional → accent, conference → good), the
+        // honor's name and count, and every year it was won on the right.
+        const toneFor = (section) => section === 0 ? 'gold' : section === 1 ? 'accent' : 'good';
         const yearTag = (e) => e.ctx
-          ? `${e.year}&nbsp;<span style="color:var(--text-faint);">(${Utils.escapeHtml(e.ctx)})</span>`
+          ? `${e.year} <span style="color:var(--text-faint);">(${Utils.escapeHtml(e.ctx)})</span>`
           : `${e.year}`;
-        const catRow = (c) => {
-          c.entries.sort((x, y) => x.year - y.year);
-          return `<div class="attr-row" style="padding:4px 0; align-items:flex-start; gap:12px;">
-            <span style="flex:0 1 auto;">${c.icon} <strong>${Utils.escapeHtml(c.label)}</strong>${c.entries.length > 1 ? ` <span style="color:var(--text-faint); font-size:11.5px;">×${c.entries.length}</span>` : ''}</span>
-            <span style="text-align:right; color:var(--text-dim); font-size:12.5px; flex:1; min-width:0; overflow-wrap:anywhere;">${c.entries.map(yearTag).join(' · ')}</span>
-          </div>`;
-        };
+        const rows = [...cats.values()]
+          .sort((a, b) => a.section - b.section)
+          .map((c) => {
+            c.entries.sort((x, y) => x.year - y.year);
+            return UI.listRow({
+              badge: c.icon, tone: toneFor(c.section),
+              title: Utils.escapeHtml(c.label),
+              tag: c.entries.length > 1 ? `×${c.entries.length}` : '',
+              sub: c.entries.map(yearTag).join(' · ')
+            });
+          });
         return `
         <div class="card" style="padding:12px; margin-bottom:14px;">
           <h3>Career Accolades — ${total}</h3>
-          <div style="max-height:280px; overflow-y:auto;">
-            ${sectionNames.map((name, si) => {
-              const list = [...cats.values()].filter((c) => c.section === si);
-              if (!list.length) return '';
-              const n = list.reduce((s, c) => s + c.entries.length, 0);
-              return `<div style="margin-bottom:6px;">
-                <div style="font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-faint); margin:4px 0;">${name} — ${n}</div>
-                ${list.map(catRow).join('')}
-              </div>`;
-            }).join('')}
-          </div>
+          ${UI.listGroup(rows)}
         </div>`;
       })()}
-
-      <div class="card" style="padding:12px;">
-        <h3>Career Timeline — ${stints.length} stop${stints.length === 1 ? '' : 's'}</h3>
-        ${timelineHtml}
       </div>
 
+      <div class="pc-tabpane" data-pcpane="history" hidden>
+      <div class="card" style="padding:12px;">
+        <h3>Career Timeline — ${stints.length} stop${stints.length === 1 ? '' : 's'}</h3>
+        ${stints.length
+          ? UI.listGroup(stints.slice().reverse().map((s) => {
+              const end = s.endYear ? s.endYear : (retired ? s.endYear : 'present');
+              const div = s.division && s.division !== 'DI' ? ` <span class="tag">${s.division}</span>` : '';
+              return UI.listRow({
+                badge: s.role === 'Assistant' ? '👔' : '🏫',
+                tone: s.role === 'Assistant' ? 'muted' : 'accent',
+                title: `${Utils.escapeHtml(s.school)}${div}`,
+                sub: s.role === 'Assistant' ? 'Assistant Coach' : 'Head Coach',
+                meta: `${s.startYear}–${end}`
+              });
+            }))
+          : '<div style="color:var(--text-dim); font-size:13px;">No coaching stops recorded.</div>'}
+      </div>
+      </div>
+
+      <div class="pc-tabpane" data-pcpane="tree" hidden>
       ${(() => {
         // Coaching tree (Update 6, Section 1): mentors above, protégés below.
         const mentor = coach.mentorName;
         const served = (coach.workedFor || []);
         const tree = (coach.coachingTree || []);
-        if (!mentor && !served.length && !tree.length) return '';
-        const protege = (t) => {
+        if (!mentor && !served.length && !tree.length) {
+          return '<div class="card" style="padding:14px; color:var(--text-dim);">No coaching-tree connections recorded — this career stands on its own.</div>';
+        }
+        const protegeRow = (t) => {
           // A protégé may still be coaching (live lookup) or long retired
           // (registry lookup) — show where their own career went.
           let status = '';
@@ -225,21 +241,24 @@
               if (reg) status = `retired • ${(reg.careerRecord || {}).nationalTitles || 0} natl titles`;
             }
           }
-          return `<div class="attr-row">
-            <span>↳ ${Utils.escapeHtml(t.name)} <span style="color:var(--text-faint); font-size:11.5px;">→ ${Utils.escapeHtml(t.school)} (${t.year})</span></span>
-            <span style="color:var(--text-dim); font-size:11.5px;">${Utils.escapeHtml(status)}</span>
-          </div>`;
+          return UI.listRow({
+            badge: '🧢', tone: 'muted',
+            title: Utils.escapeHtml(t.name),
+            sub: `→ ${Utils.escapeHtml(t.school)} (${t.year})`,
+            meta: `<span class="small">${Utils.escapeHtml(status)}</span>`
+          });
         };
         return `
-        <div class="card" style="padding:12px; margin-top:14px;">
+        <div class="card" style="padding:12px;">
           <h3>🌳 Coaching Tree</h3>
           ${mentor ? `<div class="attr-row"><span>Mentored under</span><span style="color:var(--text-dim);">${Utils.escapeHtml(mentor)}</span></div>` : ''}
           ${served.length > (mentor ? 1 : 0) ? `<div class="attr-row"><span>Worked for</span><span style="color:var(--text-dim); font-size:12px;">${served.map((w) => Utils.escapeHtml(w.name)).join(', ')}</span></div>` : ''}
           ${tree.length ? `
-            <div style="font-size:12px; color:var(--text-faint); margin:8px 0 4px;">Former assistants who became head coaches — ${tree.length}</div>
-            ${tree.map(protege).join('')}` : ''}
+            <div style="font-size:12px; color:var(--text-faint); margin:10px 0 4px;">Former assistants who became head coaches — ${tree.length}</div>
+            ${UI.listGroup(tree.map(protegeRow))}` : ''}
         </div>`;
       })()}
-    `);
+      </div>
+    `, (modal) => { UI.wireProfileTabs(modal); });
   };
 })();

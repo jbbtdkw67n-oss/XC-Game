@@ -30,6 +30,12 @@
   const HARD_KEYS = Object.keys(D.WORKOUTS).filter((k) => D.WORKOUTS[k].hard);
   const CAL = D.CALENDAR;
 
+  // Global development-rate dial (Update 21). Lower = slower, more realistic
+  // multi-year progression. Calibrated so a freshman's first season rises
+  // ~7 overall in ordinary conditions and ~12 in a perfect program.
+  const DEV_RATE = 0.53;
+  const OFFSEASON_DEV_RATE = 0.55; // matching cut on the summer development jump
+
   /* ================================================================ *
    * Plans
    * ================================================================ */
@@ -495,17 +501,58 @@
    * Development
    * ================================================================ */
 
-  // Hidden archetype multiplier by athlete age (college years 18-23).
+  // Development-curve multiplier by career stage (Update 21: visible growth
+  // curves). The multiplier reshapes WHEN a career's growth arrives without
+  // changing how far it ultimately goes — each curve averages ~1.0 across a
+  // five-year clock, so an Early Riser and a Late Bloomer with the same
+  // potential both reach it, just on different timelines. Uses years on campus
+  // (the college clock) so the curve aligns with class year, not raw age.
   function devProfileMult(athlete) {
     const profile = athlete.devProfile || 'normal';
-    const age = athlete.age;
-    switch (profile) {
-      case 'early': return age <= 19 ? 1.5 : age <= 20 ? 0.9 : 0.5;
-      case 'late':  return age <= 19 ? 0.5 : age <= 20 ? 0.9 : 1.6;
-      case 'bust':  return 0.45;
-      case 'legend': return 1.9; // the 1-in-1000 walk-on who becomes a star
-      default:      return 1.0;
-    }
+    const yr = Math.max(1, Math.min(5, athlete.yearsOnCampus || 1));
+    // Per-year curves, indexed [yr-1].
+    // Early risers and late bloomers can SPIKE well past a steady runner's
+    // ~12-overall best season during their surge years — a breakout freshman
+    // or a junior/senior who suddenly puts it together can jump ~20 in a single
+    // season in a strong program (the effective-ceiling cap still stops anyone
+    // from blowing past their potential).
+    const CURVES = {
+      early:  [2.10, 1.65, 0.80, 0.50, 0.40], // front-loaded: freshman/soph breakout, plateaus by junior
+      late:   [0.42, 0.60, 1.75, 2.45, 1.85], // back-loaded: dramatic junior/senior jumps
+      normal: [1.08, 1.05, 1.00, 0.95, 0.90], // steady, gentle taper
+      bust:   [0.48, 0.46, 0.44, 0.42, 0.40], // never quite gets there
+      legend: [1.90, 1.85, 1.80, 1.75, 1.70]  // the 1-in-1000 walk-on who becomes a star
+    };
+    return (CURVES[profile] || CURVES.normal)[yr - 1];
+  }
+
+  /*
+   * Natural-aptitude weighting (Update 21). A runner develops fastest along
+   * the lines of their natural gift: a speed-based athlete sharpens speed and
+   * economy quicker, while an aerobic engine adds VO₂, threshold, and stamina
+   * quicker. We read the lean from their current ratings and nudge the plan's
+   * development weights toward it — a modest bias, so training focus still
+   * matters most, but two runners on the same plan grow differently.
+   *
+   * Lactate threshold is also deliberately SLOWED here: in reality a big
+   * threshold engine is one of the last adaptations to arrive, so it lags
+   * early and fills in over a career (applyDevelopment re-rolls past capped
+   * ratings, so a slow attribute still reaches its ceiling eventually).
+   */
+  function biasWeightsForAthlete(weights, athlete) {
+    const w = { ...weights };
+    const aero = ((athlete.vo2Max || 55) + (athlete.lactateThreshold || 55) + (athlete.stamina || 55)) / 3;
+    const spd = ((athlete.speed || 55) + (athlete.runningEconomy || 55)) / 2;
+    const lean = Utils.clamp((spd - aero) / 30, -1, 1); // + = speed type, − = aerobic type
+    const speedBias = 1 + Math.max(0, lean) * 0.6;
+    const aeroBias = 1 + Math.max(0, -lean) * 0.6;
+    if (w.speed) w.speed *= speedBias;
+    if (w.runningEconomy) w.runningEconomy *= speedBias;
+    if (w.vo2Max) w.vo2Max *= aeroBias;
+    if (w.stamina) w.stamina *= aeroBias;
+    // Threshold is a slow-arriving adaptation — develop it at ~half rate.
+    if (w.lactateThreshold) w.lactateThreshold *= 0.5;
+    return w;
   }
 
   /*
@@ -529,7 +576,7 @@
     const coachQ = Utils.clamp((coachSkill - 35) / 55, 0, 1);   // 35→0 … 90→1
     const execQ = Utils.clamp((execAvg - 0.72) / 0.5, 0, 1);    // sloppy→0 … textbook→1
     const facQ = Utils.clamp(((school.facilities.trainingCenter ?? 50) - 35) / 55, 0, 1);
-    const makeupQ = Utils.clamp(((athlete.workEthic ?? 60) + (athlete.coachability ?? 60) - 100) / 80, 0, 1);
+    const makeupQ = Utils.clamp(((athlete.workEthic ?? 60) - 55) / 40, 0, 1);
     return coachQ * 0.40 + execQ * 0.30 + facQ * 0.15 + makeupQ * 0.15;
   }
 
@@ -546,7 +593,7 @@
     // plateaus them meaningfully short (~86-88%). The slope keeps the top near
     // full attainment (so elite depth and championship calibration hold) while
     // the bottom falls away — a genuinely diversified spread.
-    let ceil = pot * (0.83 + 0.19 * env);
+    let ceil = pot * (0.86 + 0.15 * env);
     if (env >= 0.88 && pot >= 96) ceil += (env - 0.88) * (pot - 95) * 3.4; // perfect-storm overshoot toward 99
     return Utils.clamp(ceil, 20, 99);
   }
@@ -572,10 +619,14 @@
     // coach (~55) is neutral, an elite developer accelerates growth, a poor one
     // (~25) is a real drag — compounding with the lower ceiling above so a weak
     // program develops athletes both slower AND less far.
-    const coachFactor = 0.45 + coachSkill / 100;
+    // Compressed spread (Update 21): the environment still clearly rewards a
+    // strong program, but not by a runaway multiple — a perfect setup grows an
+    // athlete ~1.7× as fast as a bare-bones one, not 3×+, so ordinary programs
+    // still develop real runners.
+    const coachFactor = 0.82 + coachSkill / 300;
     // Facilities matter: training center + sports science drive development.
-    const facFactor = 0.50 + school.facilities.trainingCenter / 145;
-    const makeupFactor = 0.55 + (athlete.workEthic + athlete.coachability) / 320;
+    const facFactor = 0.85 + school.facilities.trainingCenter / 430;
+    const makeupFactor = 0.85 + (athlete.workEthic || 60) / 475;
     const moraleFactor = 0.75 + athlete.morale / 280;
     const fatiguePenalty = athlete.fatigue > 75 ? 0.50 : athlete.fatigue > 55 ? 0.85 : 1.0;
     const ageFactor = athlete.age <= 19 ? 1.15 : athlete.age <= 21 ? 1.0 : 0.8;
@@ -595,7 +646,11 @@
       else altitudeFactor = alt === 'High' ? 1.07 : 1.035;         // then the engine grows
     }
 
-    return 3.4 * planMeta.devMult * gapFactor * eliteFinish * coachFactor * facFactor * makeupFactor *
+    // DEV_RATE (Update 21): a single realism dial on how fast overall climbs.
+    // Tuned so a freshman's FIRST season rises ~7 in ordinary conditions and
+    // ~12 in a perfect program (higher for elite recruits) — a real multi-year
+    // development arc rather than a single-season leap to the ceiling.
+    return DEV_RATE * 3.4 * planMeta.devMult * gapFactor * eliteFinish * coachFactor * facFactor * makeupFactor *
       moraleFactor * fatiguePenalty * ageFactor * academicStress * altitudeFactor *
       devProfileMult(athlete) * careerInjuryDevMult(athlete) * noise;
   }
@@ -616,7 +671,13 @@
     const cap = Utils.clamp(Math.round(ceil) + 4, 20, 99);
     while (athlete.devProgress >= 1) {
       athlete.devProgress -= 1;
-      const key = rng.weightedChoice(keys, (k) => attrWeights[k]);
+      // Prefer an uncapped rating so no development point is wasted — this lets
+      // deliberately slow attributes (e.g. lactate threshold) lag early yet
+      // still fill in over a career once the faster ratings top out.
+      const open = keys.filter((k) => athlete[k] < cap);
+      const key = open.length
+        ? rng.weightedChoice(open, (k) => attrWeights[k])
+        : rng.weightedChoice(keys, (k) => attrWeights[k]);
       if (athlete[key] < cap) athlete[key] += 1;
       // Final polish toward 99: once an elite athlete at an elite program has
       // driven their developed ratings to the top, the innate Injury Resistance
@@ -698,7 +759,17 @@
       if (excess > 0) chance *= 1 + excess * 0.085 + Math.pow(excess / 22, 2) * 0.12;
     }
 
-    if (!rng.bool(Utils.clamp(chance, 0.0005, 0.42))) return null;
+    // Freak injuries (Update 21): training can never guarantee health. Even a
+    // perfectly rested, durable runner on a flawless plan can roll an ankle,
+    // catch an illness, or tweak something in a workout. A small irreducible
+    // per-week chance — only lightly softened by durability and the weight
+    // room, never to zero — keeps every season genuinely unpredictable and
+    // means a good program still loses runners to bad luck now and then.
+    const freak = 0.0062 * (1.25 - athlete.injuryResistance / 200)
+      * (1.1 - school.facilities.weightRoom / 500);
+    chance += Math.max(0.0018, freak);
+
+    if (!rng.bool(Utils.clamp(chance, 0.0018, 0.42))) return null;
 
     // Over the limit — by mileage or by sustained overtraining while deeply
     // fatigued — skews to overuse breakdowns (stress reactions/fractures,
@@ -1007,7 +1078,10 @@
     }
     athlete.devProgress = (athlete.devProgress || 0) + dev;
     if (athlete.devProgress >= 1) {
-      const weights = applyPhilosophyWeights(mileageAttrWeights(planMeta.attrWeights, mMeta.mileage), philo);
+      let weights = applyPhilosophyWeights(mileageAttrWeights(planMeta.attrWeights, mMeta.mileage), philo);
+      // Natural aptitude + slow-threshold realism (Update 21): bias growth
+      // toward the athlete's gift and hold lactate threshold to a slow climb.
+      weights = biasWeightsForAthlete(weights, athlete);
       // Indoor track (facilities overhaul): speed work on a real indoor
       // facility develops Speed noticeably faster than a cinder loop.
       if ((planMeta.speedDays || 0) > 0 && weights.speed) {
@@ -1046,8 +1120,13 @@
       athlete.injury = injury;
       athlete.health = 'Injured';
       // Injuries dent confidence (Update 5, Part 7) — the longer the layoff,
-      // the bigger the hit to belief.
+      // the bigger the hit to belief — and a serious layoff also shakes mental
+      // toughness (Update 21), so a rash of injuries visibly erodes a runner's
+      // head, not just their body.
       athlete.confidence = Utils.clamp((athlete.confidence ?? 60) - Math.min(8, 2 + injury.totalWeeks), 10, 99);
+      if (injury.totalWeeks >= 4) {
+        athlete.mentalToughness = Utils.clamp((athlete.mentalToughness ?? 60) - Math.min(4, injury.totalWeeks * 0.4), 10, 99);
+      }
       // Each injury slightly erodes Injury Resistance (Update 13, Phase 7):
       // an injured body is a touch more fragile afterward — more so after a
       // major layoff — so repeated breakdowns compound while smart management
@@ -1138,7 +1217,7 @@
 
     const chemistry = Math.round(Utils.clamp(
       Utils.average(roster.map((a) => a.morale)) * 0.40 +
-      Utils.average(roster.map((a) => a.discipline)) * 0.20 +
+      Utils.average(roster.map((a) => a.workEthic ?? 60)) * 0.20 +
       captainLeadership * 0.25 +
       (coach ? coach.culture : 50) * 0.15 +
       (asst ? (asst.culture - 55) * 0.06 : 0), // the assistant's locker-room touch
@@ -1241,7 +1320,7 @@
             : null;
 
           const gap = a.potential - a.currentOverall;
-          let pts = Utils.clamp(gap * 0.16, 0, 4.2);       // headroom drives growth
+          let pts = Utils.clamp(gap * 0.16, 0, 4.2) * OFFSEASON_DEV_RATE; // headroom drives growth (Update 21: realism dial)
           if (gap < 5) pts *= 0.3;                          // the plateau near the ceiling
           // Work Ethic is the LARGEST factor (Section 11): summer is
           // unsupervised, so the grinders separate themselves.
@@ -1267,13 +1346,18 @@
           if (a.fatigue > 82 && rng.bool(0.3)) loss += 1;
 
           const attrs = ['vo2Max', 'runningEconomy', 'stamina', 'lactateThreshold', 'speed'];
-          // The philosophy biases WHICH attributes summer gains land on.
-          const attrWeight = (k) => (philo.attrMult && philo.attrMult[k]) || 1;
+          // The philosophy biases WHICH attributes summer gains land on; natural
+          // aptitude and the slow-threshold rule (Update 21) bias them further.
+          const bias = biasWeightsForAthlete(
+            attrs.reduce((o, k) => { o[k] = (philo.attrMult && philo.attrMult[k]) || 1; return o; }, {}), a);
+          const attrWeight = (k) => bias[k] || 0.0001;
           const gain = Math.round(pts);
+          const cap = Math.min(97, a.potential + 8);
           for (let i = 0; i < gain; i++) {
-            const k = rng.weightedChoice(attrs, attrWeight);
-            const cap = Math.min(97, a.potential + 8);
-            if (a[k] < cap) a[k] += 1;
+            const open = attrs.filter((k) => a[k] < cap);
+            if (!open.length) break;
+            const k = rng.weightedChoice(open, attrWeight);
+            a[k] += 1;
           }
           for (let i = 0; i < loss; i++) {
             const k = rng.choice(attrs);
@@ -1281,11 +1365,16 @@
           }
 
           // Summer maturity beyond the stopwatch (Section 11): a season of
-          // reflection steadies a racer's head. Disciplined athletes tighten
-          // their consistency; anyone with real races banked sharpens their
-          // race IQ over the film sessions.
-          if (a.consistency < 92 && rng.bool(0.10 + a.discipline / 400)) a.consistency += 1;
+          // reflection steadies a racer's head. Hard workers tighten their
+          // consistency; anyone with real races banked sharpens their race IQ
+          // over the film sessions, and a healthy season of competition slowly
+          // rebuilds mental toughness (Update 21) — so a runner who took some
+          // knocks can grow back a little tougher heading into the next year.
+          if (a.consistency < 92 && rng.bool(0.10 + a.workEthic / 400)) a.consistency += 1;
           if ((a.careerStats.races || 0) > 0 && a.raceIQ < 90 && rng.bool(0.30)) a.raceIQ += 1;
+          if ((a.seasonRaces || 0) >= 3 && a.mentalToughness < 88 && (a.seasonInjuryWeeks || 0) < 5 && rng.bool(0.35)) {
+            a.mentalToughness = Utils.clamp((a.mentalToughness ?? 60) + 1, 10, 99);
+          }
 
           const before = a.currentOverall;
           a.recalculateOverall();

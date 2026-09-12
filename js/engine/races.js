@@ -1031,7 +1031,12 @@
       a.fatigue = Utils.clamp(a.fatigue + 10, 0, 100);
       a.raceLoad = Math.max(a.raceLoad || 0, raceIntensity);
       a.morale = Utils.clamp(a.morale - 5, 0, 100);
-      a.confidence = Utils.clamp((a.confidence ?? 60) - 3, 10, 99);
+      // Coming apart mid-race leaves a real mental mark — worse on a big stage.
+      const dnfStakes = meet.type === 'national' ? 1.6
+        : (meet.type === 'regional' || meet.type === 'conference') ? 1.3 : 1.0;
+      a.confidence = Utils.clamp((a.confidence ?? 60) - 3 * dnfStakes, 10, 99);
+      a.mentalToughness = Utils.clamp((a.mentalToughness ?? 60) - 1.5 * dnfStakes, 10, 99);
+      a.consistency = Utils.clamp((a.consistency ?? 60) - 1.5 * dnfStakes, 10, 99);
       // A physical mishap can leave a mark — a short layoff (illness/tweak).
       // Only the shorter injuries fit an in-race pull-up; nothing season-ending.
       if (d.reason === 'mishap' && rng.bool(0.5)) {
@@ -1153,14 +1158,29 @@
       // getting to toe the line for the program builds the relationship.
       a.coachRelationship = Utils.clamp((a.coachRelationship ?? 60) + 1.2, 10, 99);
 
-      // Confidence (Update 5, Part 7): built by strong races and personal
-      // bests, dented by rough outings. A dynamic belief metric that feeds
-      // race-day performance.
+      // Dynamic mental swings (Update 21): a runner's head moves with what
+      // happens on the course, and the bigger the stage the bigger the mark it
+      // leaves. Confidence, Mental Toughness, and Consistency all climb after
+      // strong, gutsy races and fall after rough ones — so mental ratings live
+      // and breathe across a career instead of sitting frozen. Championship
+      // meets swing hardest; a personal best always lifts belief.
       const wasPR = !pr || f.time < pr;
-      if (f.place === 1) a.confidence = Utils.clamp((a.confidence ?? 60) + 3, 10, 99);
-      else if (f.place <= 10) a.confidence = Utils.clamp((a.confidence ?? 60) + 1.5, 10, 99);
-      else if (f.place > finishers.length * 0.85) a.confidence = Utils.clamp((a.confidence ?? 60) - 1.5, 10, 99);
-      if (wasPR) a.confidence = Utils.clamp((a.confidence ?? 60) + 1, 10, 99);
+      const field = finishers.length || 1;
+      const frac = f.place / field; // 0 = winner, 1 = last
+      const stakes = meet.type === 'national' ? 1.6
+        : (meet.type === 'regional' || meet.type === 'conference') ? 1.3 : 1.0;
+      let dConf = 0, dTough = 0, dCons = 0;
+      if (f.place === 1) { dConf = 4; dTough = 2; dCons = 1; }
+      else if (frac <= 0.10) { dConf = 2.2; dTough = 1.2; dCons = 0.6; }   // podium/front pack — held the pressure
+      else if (frac <= 0.40) { dConf = 0.8; dTough = 0.3; dCons = 0.5; }   // a solid, reliable day
+      else if (frac >= 0.90) { dConf = -3.5; dTough = -1.6; dCons = -1.6; } // a genuine blow-up
+      else if (frac >= 0.70) { dConf = -2.0; dTough = -0.7; dCons = -1.0; } // an off day
+      if (wasPR) { dConf += 1.6; dCons += 0.5; }                            // a lifetime best always lifts belief
+      // Championship stakes amplify the swing in BOTH directions.
+      dConf *= stakes; dTough *= stakes; dCons *= stakes;
+      a.confidence = Utils.clamp((a.confidence ?? 60) + dConf, 10, 99);
+      a.mentalToughness = Utils.clamp((a.mentalToughness ?? 60) + dTough, 10, 99);
+      a.consistency = Utils.clamp((a.consistency ?? 60) + dCons, 10, 99);
 
       // Race experience nudges race IQ for young runners
       if (a.careerStats.races % 6 === 0 && a.raceIQ < 90) a.raceIQ += 1;

@@ -181,12 +181,10 @@
       major: rng.choice(D.MAJORS),
 
       academics: academicsBase,
-      discipline: rng.gaussianRange(60, 14, 20, 99),
       leadership: rng.gaussianRange(classYear === 'Senior' || classYear === 'Graduate' ? 62 : 48, 15, 15, 99),
       confidence: rng.gaussianRange(58, 15, 15, 99),
       consistency: rng.gaussianRange(58, 14, 15, 99),
       workEthic: rng.gaussianRange(62, 14, 20, 99),
-      coachability: rng.gaussianRange(60, 14, 15, 99),
       mentalToughness: statFor(),
       raceIQ: rng.gaussianRange(statMean - 5, 10, 15, 99),
       personality: rng.choice(D.ATHLETE_PERSONALITIES),
