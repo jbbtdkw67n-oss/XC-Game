@@ -40,12 +40,15 @@
     const rosterM = game.getRoster(school.id, 'M').sort((a, b) => b.currentOverall - a.currentOverall);
     const rosterW = game.getRoster(school.id, 'W').sort((a, b) => b.currentOverall - a.currentOverall);
 
-    const rosterRows = (roster) => roster.slice(0, 10).map((a) => `
-      <tr class="clickable" data-ath="${a.id}">
-        <td>${UI.avatar(a, { size: 22 })} ${a.generational ? '⭐ ' : ''}${Utils.escapeHtml(a.fullName)}</td>
-        <td>${a.classYear}</td>
-        <td class="num">${UI.ratingBadge(a.currentOverall)}</td>
-      </tr>`).join('') || '<tr><td colspan="3" style="color:var(--text-dim);">No roster.</td></tr>';
+    const rosterRows = (roster) => roster.length
+      ? UI.listGroup(roster.slice(0, 12).map((a) => UI.listRow({
+          badge: UI.avatar(a, { size: 40 }),
+          title: `${a.generational ? '⭐ ' : ''}${Utils.escapeHtml(a.fullName)}`,
+          sub: `${a.classYear} • ${Utils.escapeHtml(a.hometownState || '')}`,
+          meta: UI.ratingBadge(a.currentOverall),
+          attrs: { ath: a.id }
+        })))
+      : '<div style="color:var(--text-dim); font-size:13px;">No roster.</div>';
 
     // Current-season schedule + results for this program.
     const season = game.season;
@@ -118,11 +121,11 @@
       <div class="grid cols-2" style="margin-bottom:14px;">
         <div class="card" style="padding:12px;">
           <h3>Men's Roster</h3>
-          <div class="table-wrap" style="max-height:230px; overflow-y:auto;"><table class="data"><tbody>${rosterRows(rosterM)}</tbody></table></div>
+          ${rosterRows(rosterM)}
         </div>
         <div class="card" style="padding:12px;">
           <h3>Women's Roster</h3>
-          <div class="table-wrap" style="max-height:230px; overflow-y:auto;"><table class="data"><tbody>${rosterRows(rosterW)}</tbody></table></div>
+          ${rosterRows(rosterW)}
         </div>
       </div>
 

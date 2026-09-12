@@ -229,20 +229,13 @@
     const topRunnersHtml = (roster, label) => `
       <div class="card">
         <h2>${label} — Top 7</h2>
-        <div class="table-wrap"><table class="data">
-          <thead><tr><th>#</th><th>Name</th><th>Class</th><th class="num">OVR</th><th class="num">Δ</th><th class="num">Ready</th></tr></thead>
-          <tbody>
-            ${roster.slice(0, 7).map((a, i) => `
-              <tr class="clickable" data-ath="${a.id}">
-                <td>${i + 1}</td>
-                <td>${UI.avatar(a, { size: 22 })} ${Utils.escapeHtml(a.fullName)}${a.injury ? ' <span style="color:var(--danger); font-size:10px;">INJ</span>' : a.health === 'Recovering' ? ' <span style="color:var(--warning); font-size:10px;" title="Returning from injury">REC</span>' : ''}</td>
-                <td>${a.classYear}</td>
-                <td class="num">${UI.ratingBadge(a.currentOverall)}</td>
-                <td class="num" style="color:${(a.seasonDev || 0) > 0 ? 'var(--success)' : 'var(--text-faint)'};">${(a.seasonDev || 0) > 0 ? '+' + a.seasonDev : '—'}</td>
-                <td class="num">${TE.readiness(a)}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table></div>
+        ${roster.length ? UI.listGroup(roster.slice(0, 7).map((a, i) => UI.listRow({
+          badge: UI.avatar(a, { size: 40 }),
+          title: `${Utils.escapeHtml(a.fullName)}${a.injury ? ' <span style="color:var(--danger); font-size:10px;">INJ</span>' : a.health === 'Recovering' ? ' <span style="color:var(--warning); font-size:10px;" title="Returning from injury">REC</span>' : ''}`,
+          sub: `${a.classYear}${(a.seasonDev || 0) > 0 ? ` • <span style="color:var(--success);">+${a.seasonDev} this season</span>` : ''} • Ready ${TE.readiness(a)}`,
+          meta: UI.ratingBadge(a.currentOverall),
+          attrs: { ath: a.id }
+        })), { scroll: false }) : '<div style="color:var(--text-dim); font-size:13px;">No runners on this squad.</div>'}
       </div>`;
 
     // Season overview widget data (Update 5, Part 13).
