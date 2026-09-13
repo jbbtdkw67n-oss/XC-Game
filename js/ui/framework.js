@@ -261,7 +261,11 @@
       // renderer still fall back to the sortable table.
       const cardRenderer = config.mobileCard || config.card;
       const mobile = UI.isMobile();
-      const useCards = !!cardRenderer;
+      // Card lists are the default on every screen size, but a screen can opt
+      // back into the classic desktop TABLE (cards on phones only) by setting
+      // cardsOnDesktop:false — used where the wide, column-sortable table is a
+      // better fit for the data (e.g. the recruiting board).
+      const useCards = !!cardRenderer && (mobile || config.cardsOnDesktop !== false);
 
       // Very large datasets (e.g. the national recruit pool) are capped per
       // view; sorting/searching still operates over the full set. Phones cap

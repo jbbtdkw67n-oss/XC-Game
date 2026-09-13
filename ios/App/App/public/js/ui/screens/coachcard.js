@@ -200,6 +200,58 @@
       </div>
 
       <div class="pc-tabpane" data-pcpane="history" hidden>
+      ${(() => {
+        // Season-by-season results (Update 21): a year-by-year log of the
+        // coach's career — the school they led each season and its headline
+        // result, reconstructed from the championship history and their stints.
+        // National title → 🏆, regional → 🚩, conference → 🥇, otherwise a
+        // completed season → ✓; assistant years are marked as such.
+        if (!game || !stints.length) return '';
+        const H = game.history || {};
+        const short = { DI: 'D1', DII: 'D2', DIII: 'D3' };
+        const nowYear = game.year;
+        const seasons = [];
+        stints.forEach((st) => {
+          const div = st.division || 'DI';
+          const end = st.endYear || nowYear;
+          for (let y = st.startYear; y <= end; y++) {
+            if (st.role === 'Assistant') {
+              seasons.push({ year: y, school: st.school, div, tone: 'muted', badge: '👔', result: 'Assistant Coach' });
+              continue;
+            }
+            const natG = [], regG = [], confG = [];
+            const nat = (H.nationalChampions || {})[y] || {};
+            ['M', 'W'].forEach((g) => {
+              const key = div === 'DI' ? g : `${div}-${g}`;
+              if (nat[key] && nat[key].teamId === st.schoolId) natG.push(g);
+            });
+            Object.entries((H.regionalChampions || {})[y] || {}).forEach(([rk, name]) => {
+              if (name === st.school) regG.push(rk.endsWith('-M') ? 'M' : 'W');
+            });
+            Object.entries((H.conferenceChampions || {})[y] || {}).forEach(([ck, name]) => {
+              if (name === st.school) confG.push(ck.endsWith('-M') ? 'M' : 'W');
+            });
+            const gTag = (arr) => arr.length === 2 ? ' (M, W)' : arr.length === 1 ? ` (${arr[0]})` : '';
+            let tone = 'muted', badge = '✓', result = 'Season completed';
+            if (natG.length) { tone = 'gold'; badge = '🏆'; result = `National Champions${gTag(natG)}`; }
+            else if (regG.length) { tone = 'accent'; badge = '🚩'; result = `Regional Champions${gTag(regG)}`; }
+            else if (confG.length) { tone = 'good'; badge = '🥇'; result = `Conference Champions${gTag(confG)}`; }
+            seasons.push({ year: y, school: st.school, div, tone, badge, result });
+          }
+        });
+        if (!seasons.length) return '';
+        seasons.sort((a, b) => b.year - a.year); // newest first
+        return `
+        <div class="card" style="padding:12px; margin-bottom:14px;">
+          <h3>Season-by-Season — ${seasons.length} season${seasons.length === 1 ? '' : 's'}</h3>
+          ${UI.listGroup(seasons.map((s) => UI.listRow({
+            badge: s.badge, tone: s.tone,
+            title: `${Utils.escapeHtml(s.school)}${s.div !== 'DI' ? ` <span class="tag">${short[s.div] || s.div}</span>` : ''}`,
+            sub: s.result,
+            meta: `${s.year}`
+          })))}
+        </div>`;
+      })()}
       <div class="card" style="padding:12px;">
         <h3>Career Timeline — ${stints.length} stop${stints.length === 1 ? '' : 's'}</h3>
         ${stints.length
