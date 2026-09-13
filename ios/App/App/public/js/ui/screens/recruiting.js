@@ -307,6 +307,9 @@
       rows,
       emptyMessage: opts.emptyMessage,
       mobileCard,
+      // Keep the classic wide, column-sortable table on desktop (cards on
+      // phones only) — the recruiting board reads best as a full table.
+      cardsOnDesktop: false,
       // The national pool is 3,000/gender. Rendering hundreds of heavy
       // rows (meters, stars, badges) on every view is what pushed
       // memory-limited Safari over the edge, so the visible window is
