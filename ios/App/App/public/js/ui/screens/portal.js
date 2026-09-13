@@ -303,6 +303,8 @@
       defaultSort: 'overall',
       defaultDir: 'desc',
       searchKeys: ['name', 'from', 'reason', 'classYear'],
+      // Keep the classic wide desktop table (cards on phones only).
+      cardsOnDesktop: false,
       onRowClick: (row) => showPursuit(game, row.e, container),
       // Phone view: portal entries as cards with the pursuit action right on
       // the card — tap anywhere to open the points slider.
