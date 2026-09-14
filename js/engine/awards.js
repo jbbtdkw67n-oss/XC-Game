@@ -24,6 +24,39 @@
     else if (kind === 'indivNatChamp') s.indivNatChamps += 1;
   }
 
+  /*
+   * Every athlete in a division with a season-best pace, grouped by conference
+   * and ranked fastest-first — the complete field for All-Conference selection
+   * and conference honors. Unlike the national individual poll (capped per
+   * division for the rankings screen), this covers EVERY conference in full, so
+   * every conference names a complete All-Conference team (user request).
+   */
+  function conferenceBoard(gameState, division, gender) {
+    const byConf = {};
+    Object.values(gameState.world.schools).forEach((school) => {
+      if ((school.division || 'DI') !== division) return;
+      (gender === 'M' ? school.rosterM : school.rosterW).forEach((id) => {
+        const a = gameState.getAthlete(id);
+        if (!a) return;
+        const bests = (a.careerStats && a.careerStats.personalBests) || {};
+        let bestPace = null;
+        Object.entries(bests).forEach(([key, time]) => {
+          const km = parseFloat(key);
+          if (!km) return;
+          const pace = time / km;
+          if (bestPace === null || pace < bestPace) bestPace = pace;
+        });
+        if (bestPace === null) return; // hasn't raced yet this season
+        (byConf[school.conference] = byConf[school.conference] || []).push({
+          athleteId: a.id, name: a.fullName, school: school.name, schoolId: school.id,
+          classYear: a.classYear, conference: school.conference, pace: bestPace
+        });
+      });
+    });
+    Object.values(byConf).forEach((list) => list.sort((x, y) => x.pace - y.pace));
+    return byConf;
+  }
+
   function addHonor(gameState, athleteId, honor) {
     const a = gameState.world.athletes[athleteId];
     if (!a) return;
@@ -65,10 +98,21 @@
     // `divisions` holds every division's full award slate.
     const playerAwards = byDivision[playerDivision] || byDivision.DI || { M: {}, W: {} };
     gameState.history.awards = gameState.history.awards || {};
-    gameState.history.awards[gameState.year] = Object.assign({}, playerAwards, { divisions: byDivision });
+    gameState.history.awards[gameState.year] = Object.assign({}, playerAwards, { divisions: byDivision, stage: 'national' });
+
+    // Original season-in-review write-up per division (News → Awards tab).
+    try {
+      if (window.XCD.engine.Predictions) window.XCD.engine.Predictions.awardsRecap(gameState, byDivision);
+    } catch (e) { /* the recap is flavor and must never block awards */ }
 
     updatePlayerCareer(gameState);
     awardCoachUpgradePoints(gameState, rng);
+    // Grade the season against its preseason podium predictions BEFORE the
+    // hot-seat pass, so a program that was picked for the podium and fell
+    // short carries that pressure into the firing evaluation.
+    try {
+      if (window.XCD.engine.Predictions) window.XCD.engine.Predictions.evaluate(gameState);
+    } catch (e) { /* expectation grading must never block awards */ }
     coachFirings(gameState, rng);
 
     // Season ledgers (Update 12): seasons played, final top-25 finishes, and
@@ -228,6 +272,12 @@
             if (c.isPlayer) gameState.career.awards.push(`${conf} Coach of the Year (${gameState.year})`);
           }
         }
+        // NOTE: the full All-Conference TEAMS live in the 4-year confHonors
+        // store (processPostConference) rather than the permanent awards
+        // ledger — every year's team is large (every conference, full squad),
+        // so keeping them forever would bloat the save. The News → Awards tab
+        // reads All-Conference from confHonors; the permanent awards ledger
+        // keeps only the marquee per-conference honors (RoY/FoY/CoY).
       });
 
       // Academic All-Americans: best students among the division's top runners.
@@ -273,9 +323,12 @@
 
       const res = natMeet && natMeet.results[gender];
       if (res) {
-        // National title
+        // National title — a Division I crown is worth more (user request):
+        // the toughest field in the sport, so it pays out an extra dynasty
+        // point toward the coach's own ratings.
         if (res.teamScores[0] && res.teamScores[0].schoolId === gameState.playerSchoolId) {
-          pts += 3; why.push(`${label} NATIONAL TITLE (+3)`);
+          const titlePts = ((gameState.getPlayerSchool() || {}).division || 'DI') === 'DI' ? 4 : 3;
+          pts += titlePts; why.push(`${label} NATIONAL TITLE (+${titlePts})`);
         }
         // Individual national champion
         if (res.finishers[0] && res.finishers[0].schoolId === gameState.playerSchoolId) {
@@ -339,7 +392,8 @@
         if (!meet || meet.type !== 'national') return;
         const res = meet.results[gender];
         if (!res) return;
-        if (res.teamScores[0]) credit(res.teamScores[0].schoolId, 3);
+        // DI national title pays an extra ratings point (user request).
+        if (res.teamScores[0]) credit(res.teamScores[0].schoolId, (meet.division || 'DI') === 'DI' ? 4 : 3);
         if (res.finishers[0]) credit(res.finishers[0].schoolId, 2);
         const window_ = ((D.divisionFor(meet.division || 'DI') || {}).championship || {}).allAmericans || 40;
         const aaBySchool = {};
@@ -475,6 +529,13 @@
       // A top-15% squad in either gender actively cools the chair.
       if (Math.min(mPct, wPct) <= 0.15) coach.hotSeat = Math.max(0, coach.hotSeat - 25);
 
+      // Failed podium expectations (Predictions): a program the pundits picked
+      // for the podium that fell short heats the seat sharply — and the more
+      // years it happens in a row, the hotter it gets. Consumed here.
+      const podiumPressure = coach._podiumPressure || 0;
+      if (podiumPressure) coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(podiumPressure), 0, 100);
+      coach._podiumPressure = 0;
+
       // Hot Seat counter (Update 13, Phase 2): once a coach is genuinely on
       // the Hot Seat, a clock starts. Three consecutive seasons on the Hot
       // Seat and the coach is fired — no exceptions. A good season lowers the
@@ -484,40 +545,93 @@
       const onHotSeat = window.XCD.data.seatStatus(coach.hotSeat).key === 'hot';
       coach.hotSeatYears = onHotSeat ? (coach.hotSeatYears || 0) + 1 : 0;
 
-      // The player is never auto-fired (Legacy Dynasty Mode): their dynasty
-      // continues, with escalating warnings, until they choose to move on —
-      // but they always know exactly where they stand, counter and all.
+      // Repeated failure to meet the podium expectations the program was
+      // handed is itself a firing offense (user request): three straight
+      // seasons picked for the podium and falling short ends a tenure, for the
+      // player and the CPU alike, independent of the general hot-seat clock.
+      const podiumFired = (coach.podiumMissStreak || 0) >= 3;
+
+      // The player CAN now be let go (user request). Their dynasty doesn't end
+      // — a rebuilding program gives them a fresh start next offseason — but a
+      // sustained failure to meet expectations costs them the job, with clear,
+      // escalating warnings so they always know exactly where they stand.
       if (coach.isPlayer) {
-        if (onHotSeat) {
+        if (coach.hotSeatYears >= 3 || podiumFired) {
+          gameState.career.pendingFiring = { fromId: school.id, year: gameState.year };
+          coach.hotSeatYears = 0;
+          coach.podiumMissStreak = 0;
+          gameState.logNews(`🔥 FIRED: ${school.name} has let you go after too many seasons short of expectations. Your career continues — a program will give you a fresh start next offseason. (Land your own job from the carousel before the season turns to choose where you go.)`);
+        } else if (onHotSeat) {
           const yrsLeft = Math.max(0, 3 - coach.hotSeatYears);
-          if (coach.hotSeatYears >= 3) {
-            gameState.logNews(`🔥 HOT SEAT (Year ${coach.hotSeatYears}): ${school.name}'s patience is gone. A program elsewhere is the realistic path forward — explore the carousel before the decision is made for you.`);
-          } else {
-            gameState.logNews(`🔥 HOT SEAT (Year ${coach.hotSeatYears} of 3): ${school.name} expected more. ${yrsLeft} more season${yrsLeft === 1 ? '' : 's'} on the Hot Seat and the job is gone.`);
-          }
+          gameState.logNews(`🔥 HOT SEAT (Year ${coach.hotSeatYears} of 3): ${school.name} expected more. ${yrsLeft} more season${yrsLeft === 1 ? '' : 's'} on the Hot Seat and the job is gone.`);
         } else if (coach.hotSeat >= 34) {
           gameState.logNews(`🟠 Warm seat: results are trailing expectations at ${school.name}. Boosters are restless.`);
         }
         return;
       }
 
-      // AI coaches: three consecutive Hot Seat seasons is an automatic
-      // dismissal. (The fired<20 cap only paces the news feed — a coach who
-      // has hit the three-year mark is always let go.)
-      if (coach.hotSeatYears >= 3 && fired < 40) {
+      // AI coaches: three consecutive Hot Seat seasons — or three straight
+      // seasons of missed podium expectations — is an automatic dismissal.
+      // (The fired<40 cap only paces the news feed — a coach who has hit the
+      // mark is always let go.)
+      if ((coach.hotSeatYears >= 3 || podiumFired) && fired < 40) {
         fired++;
         gameState.history.firings = (gameState.history.firings || 0) + 1;
+        const why = (podiumFired && coach.hotSeatYears < 3)
+          ? 'after another season short of the podium it was picked to reach'
+          : 'after three seasons on the Hot Seat';
         window.XCD.engine.Legacy.closeStint(gameState, coach, school, gameState.year, 'fired');
         coach.schoolId = null;   // into the free-agent pool
         coach.hotSeat = 0;
         coach.hotSeatYears = 0;
+        coach.podiumMissStreak = 0;
         coach.poolYears = 0;
         coach.reputation = Utils.clamp((coach.reputation || 25) - 6, 1, 99); // firings sting
         school.coachId = null;   // the chair sits open until the carousel
         school.coachChangedYear = gameState.year;
-        gameState.logNews(`FIRED: ${school.name} lets ${coach.fullName} go after three seasons on the Hot Seat. The search for a successor begins.`);
+        gameState.logNews(`FIRED: ${school.name} lets ${coach.fullName} go ${why}. The search for a successor begins.`);
       }
     });
+  }
+
+  /*
+   * Post-conference honors preview (user request): as soon as the conference
+   * championships are run — well before nationals — the News → Awards tab can
+   * show that season's conference honors. This computes a DISPLAY-ONLY snapshot
+   * (All-Conference teams plus each conference's Runner/Freshman of the Year)
+   * from the post-conference individual standings. It records NO permanent
+   * accolades or career-record changes — those remain the sole responsibility
+   * of the authoritative post-nationals pass, so nothing is ever double-counted.
+   * The full award slate (national honors + All-Americans, with permanent
+   * history) replaces this preview once nationals are complete.
+   */
+  function processPostConference(gameState) {
+    if (!gameState.season || !gameState.rankings) return;
+    const D = window.XCD.data;
+    const byDivision = {};
+    const divisions = new Set(Object.values(gameState.world.schools).map((s) => s.division || 'DI'));
+    divisions.forEach((division) => {
+      const allConfCount = ((D.divisionFor(division) || {}).championship || {}).allConference || 7;
+      const confs = {};
+      ['M', 'W'].forEach((gender) => {
+        const byConf = conferenceBoard(gameState, division, gender);
+        Object.entries(byConf).forEach(([conf, list]) => {
+          const bucket = (confs[conf] = confs[conf] || {});
+          const roy = list[0];
+          const foy = list.find((r) => r.classYear === 'Freshman');
+          bucket[gender] = {
+            runnerOfYear: roy ? { name: roy.name, school: roy.school, athleteId: roy.athleteId } : null,
+            freshmanOfYear: foy ? { name: foy.name, school: foy.school, athleteId: foy.athleteId } : null,
+            allConference: list.slice(0, allConfCount).map((r) => ({ name: r.name, school: r.school, athleteId: r.athleteId, classYear: r.classYear }))
+          };
+        });
+      });
+      byDivision[division] = { conferences: confs };
+    });
+    gameState.history.confHonors = gameState.history.confHonors || {};
+    gameState.history.confHonors[gameState.year] = { year: gameState.year, divisions: byDivision };
+    const yrs = Object.keys(gameState.history.confHonors).map(Number).sort((a, b) => a - b);
+    while (yrs.length > 4) delete gameState.history.confHonors[yrs.shift()];
   }
 
   /* Hall of Fame: evaluated as athletes graduate. */
@@ -632,5 +746,5 @@
     gameState.season.nxn = result;
   }
 
-  window.XCD.engine.Awards = { processPostNationals, considerHallOfFame, addHonor, runNXN, coachFirings, cpuSpendUpgradePoints };
+  window.XCD.engine.Awards = { processPostNationals, processPostConference, considerHallOfFame, addHonor, runNXN, coachFirings, cpuSpendUpgradePoints };
 })();

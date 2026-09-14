@@ -792,25 +792,26 @@
 
   function records(game, el) {
     const R = game.history.records || {};
-    const keys = Object.keys(R).sort();
+    // Records are blank until a runner sets one (user request): only genuine,
+    // runner-set marks appear — never an auto-seeded opening mark. Men never
+    // race the 5K, so a men's 5K record can never be set or updated and is
+    // excluded entirely from the record book.
+    const keys = Object.keys(R)
+      .filter((k) => R[k] && !R[k].seeded && R[k].athleteId && k !== 'M-5K')
+      .sort();
     el.innerHTML = `
       <div class="card">
         <h2>All-Time National Records</h2>
         ${keys.length ? UI.listGroup(keys.map((k) => {
           const r = R[k];
-          // A seeded opening mark has no real athlete behind it, so its holder
-          // is shown as plain text — only a record set by an actual runner links
-          // to a profile, and it links by that runner's id so the right one opens.
-          const holder = (r.athleteId && !r.seeded)
-            ? `<span class="clickable" data-ath="${r.athleteId}" data-ath-name="${Utils.escapeHtml(r.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(r.name)}</span>`
-            : `<span style="color:var(--text-faint);">${Utils.escapeHtml(r.name)}</span>`;
+          const holder = `<span class="clickable" data-ath="${r.athleteId}" data-ath-name="${Utils.escapeHtml(r.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(r.name)}</span>`;
           return UI.listRow({
             badge: '🏁', tone: 'gold',
             title: k.replace('M-', "Men's ").replace('W-', "Women's "),
             sub: `${holder} — <span class="${r.schoolId ? 'clickable' : ''}" ${r.schoolId ? `data-school="${r.schoolId}" style="cursor:pointer;"` : ''}>${Utils.escapeHtml(r.school)}</span> (${r.year})`,
             meta: `<span class="big">${window.XCD.engine.Races.formatTime(r.time)}</span>`
           });
-        }), { scroll: false }) : '<div style="color:var(--text-dim);">Records will be set once racing begins.</div>'}
+        }), { scroll: false }) : '<div style="color:var(--text-dim);">No national records yet — they will be set by the runners once racing begins.</div>'}
       </div>`;
     wireProfileClicks(game, el);
   }

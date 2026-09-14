@@ -1204,10 +1204,11 @@
       gameState.history.records = gameState.history.records || {};
       const nrec = gameState.history.records[nKey];
       if (!nrec || f.time < nrec.time) {
-        // Beating an existing national mark (every raced distance opens with a
-        // seeded one) badges the finisher NR on the results screen. Finishers
-        // are processed fastest-first, so only the genuine new national-record
-        // holder is stamped.
+        // The record book opens blank (user request): the first runner to race
+        // a distance sets its inaugural mark with no NR badge, and only a
+        // runner who then BEATS a standing mark is badged NR on the results
+        // screen. Finishers are processed fastest-first, so only the genuine
+        // new national-record holder is stamped.
         if (nrec) f.nr = 'NR';
         gameState.history.records[nKey] = {
           time: f.time, name: f.name, athleteId: f.athleteId,
