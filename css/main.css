@@ -1508,3 +1508,64 @@ img, canvas, video { max-width: 100%; height: auto; }
   color: var(--accent-hover);
 }
 .watch-callout.rise .wc-tag { background: rgba(52, 201, 142, 0.14); color: var(--success); }
+
+/* =========================================================
+   Available Jobs popup (offseason job-offer picker)
+   A tappable list of open programs — team crest, record, and
+   program-rating ring — with a Continue action, matching the
+   game's card idiom.
+   ========================================================= */
+.job-popup { display: flex; flex-direction: column; min-height: 0; }
+.job-popup-head { margin-bottom: 10px; }
+.job-sort {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 8px 2px 12px; border-bottom: 1px solid var(--border);
+}
+.job-list {
+  display: flex; flex-direction: column;
+  max-height: 56vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  margin: 0 -6px; padding: 4px 6px;
+}
+.job-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 12px; border-radius: var(--radius-sm);
+  border: 1px solid transparent; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.job-row + .job-row { border-top: 1px solid var(--border); }
+.job-row:hover { background: var(--bg-hover); }
+.job-row.selected {
+  background: var(--accent-soft); border-color: var(--accent);
+  border-top-color: var(--accent);
+}
+.job-crest {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; color: #fff; font-weight: 800; line-height: 1;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+  text-transform: uppercase;
+}
+.job-row-body { flex: 1; min-width: 0; }
+.job-row-name {
+  font-weight: 700; font-size: 16px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.job-row-sub { font-size: 12.5px; color: var(--text-dim); margin-top: 2px; }
+.job-tag {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-dim); background: var(--bg-inset);
+  border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px;
+  vertical-align: middle; margin-left: 4px;
+}
+.job-tag.stay { color: var(--accent-hover); border-color: var(--accent); background: var(--accent-soft); }
+.job-interest { color: var(--text-faint); }
+.job-ring {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; border: 2.5px solid var(--border);
+  font-weight: 800; color: var(--text); background: var(--bg-card);
+}
+.job-popup-foot {
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.job-popup-foot .job-choice { font-size: 12.5px; color: var(--text-dim); text-align: center; }
+.job-popup-foot .btn.lg { width: 100%; min-height: 48px; font-size: 15px; font-weight: 700; }

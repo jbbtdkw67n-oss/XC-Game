@@ -46,6 +46,10 @@ every season opens with a projected outlook, and expectations now have teeth.
 - **Recruiting accountability for assistants.** A recruiting coordinator who
   fails to land a class up to the program's standard several years running can
   be let go.
+- **Available Jobs popup.** When the coaching market opens each offseason, a
+  clean full-screen picker presents every open chair — team crest, season
+  record, and Program Rating — sortable, so you can take a new job or stay put
+  in one tap. (The Dashboard job market is still there for a closer look.)
 - CPU head coaches and assistants keep upgrading their craft ratings on the
   same success-driven schedule the player does.
 
