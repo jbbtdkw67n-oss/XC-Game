@@ -5,7 +5,7 @@
  * always correct; bump CACHE_VERSION whenever shipped files change to make
  * installed players pick up a new build.
  */
-const CACHE_VERSION = 'xcd-v4';
+const CACHE_VERSION = 'xcd-v5';
 
 const ASSETS = [
   './',
@@ -33,6 +33,7 @@ const ASSETS = [
   './js/engine/scheduling.js',
   './js/engine/portal.js',
   './js/engine/awards.js',
+  './js/engine/predictions.js',
   './js/engine/newsengine.js',
   './js/engine/finances.js',
   './js/engine/legacy.js',

@@ -14,6 +14,41 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 14.2 — Update 20: The Newsroom, Season Predictions & Expectations
+
+A media-and-accountability pass: the News screen becomes a proper newsroom,
+every season opens with a projected outlook, and expectations now have teeth.
+
+- **Records start blank.** No all-time national records are auto-generated at
+  the start of a dynasty — every mark on the record book is one a runner
+  actually ran, set for the first time by the first athlete to race a distance.
+  Men never race the 5K, so the un-settable men's 5K is gone from the record
+  book entirely.
+- **The News screen has three tabs.**
+  - **News** — the running news log, as before.
+  - **Awards** — the season's honors, filterable **National / Conference** and
+    by division, with a conference picker. Conference awards and full
+    **All-Conference teams** post right after the conference championships; the
+    **All-America teams** post after the NCAA meet — all as clean, tappable
+    player cards, topped by an original sports-talk recap written fresh each
+    season.
+  - **Teams to Watch** — the preseason outlook: each division's **predicted
+    podium** and the **five runners projected to contend for the national
+    title**, plus a **dark horse** and a **program on the rise**, as tappable
+    team/player cards under an original sports-talk preview.
+- **A Division I national title makes a coach's name.** The deepest field in
+  the sport now moves a coach's reputation — and their own ratings — more than
+  any other single result.
+- **Expectations have teeth.** A program picked for the podium that falls short
+  puts its coach on the hot seat, and repeated failures cost them the job — for
+  the CPU **and** the player. A fired player isn't done: a rebuilding program
+  gives them a fresh start the next offseason.
+- **Recruiting accountability for assistants.** A recruiting coordinator who
+  fails to land a class up to the program's standard several years running can
+  be let go.
+- CPU head coaches and assistants keep upgrading their craft ratings on the
+  same success-driven schedule the player does.
+
 ## Version 14.1 — Update 19: DNF Races, Scouting Economy & Coaching Loyalty
 
 A realism-and-quality pass across race day, recruiting, and the coaching

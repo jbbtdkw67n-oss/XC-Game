@@ -143,16 +143,12 @@
       gs.week = 1;
       gs.createdAt = Date.now();
 
-      // Records realism: open the all-time record book anchored to elite modern
-      // collegiate marks so records read as historic from day one and are only
-      // broken by exceptional future performances (not by the first race run).
+      // All-time national records start BLANK (user request): no marks are
+      // auto-generated at the start of a dynasty. Each distance's record book
+      // opens empty and is written for the first time by the runners
+      // themselves — the first athlete to race a distance sets its inaugural
+      // record, and every mark on the page is one a real runner actually ran.
       gs.history.records = gs.history.records || {};
-      Object.keys(D.SEED_RECORDS || {}).forEach((k) => {
-        gs.history.records[k] = {
-          time: D.SEED_RECORDS[k], name: 'NCAA All-Time Best', athleteId: null,
-          school: '—', schoolId: null, year: gs.year - 1, seeded: true
-        };
-      });
       // Course Records: open the record book for every real named course
       // (championship venues + famous invitational courses) with realistic
       // historical baselines, so the record book reads as historic from day
@@ -331,6 +327,13 @@
       try {
         this.season.preseasonIndividuals = window.XCD.engine.Rankings.computePreseasonIndividuals(this);
       } catch (e) { this.season.preseasonIndividuals = { M: [], W: [] }; }
+      // Season outlook (Predictions): the projected podiums, individual title
+      // contenders, dark horses, and programs on the rise — plus the
+      // sports-talk preview shown on the News → Teams to Watch tab, and the
+      // yardstick a coach's podium expectations are judged against.
+      try {
+        if (window.XCD.engine.Predictions) window.XCD.engine.Predictions.generate(this);
+      } catch (e) { /* the outlook is best-effort and must never block a season */ }
       // Custom race schedule options (Update 4, Part 7): what the player can
       // enter each regular-season week, gated by prestige.
       try {
@@ -385,6 +388,17 @@
       // Post-week: build the nationals field once regionals wrap.
       window.XCD.engine.Races.postWeekHousekeeping(this);
 
+      // Conference honors preview (user request): the week after the
+      // conference championships run, surface that season's conference awards
+      // and All-Conference teams on the News → Awards tab — the national
+      // honors and All-Americans follow after the NCAA meet.
+      if (this.season && this.season.conferenceWeek && this.week === this.season.conferenceWeek + 1 &&
+          this.season.confHonorsYear !== this.year) {
+        this.season.confHonorsYear = this.year;
+        try { window.XCD.engine.Awards.processPostConference(this); }
+        catch (e) { /* the preview is best-effort and must never block a week */ }
+      }
+
       // Awards ceremony the week after nationals; ADs start calling.
       if (this.week === AWARDS_WEEK) {
         window.XCD.engine.Awards.processPostNationals(this, rng);
@@ -418,6 +432,14 @@
       const rng = new window.XCD.core.SeededRNG((this.seed + this.year) >>> 0);
 
       // 0) Transfers move to their new programs before anything else.
+      // Player firing (user request): if the player was let go last season and
+      // hasn't already landed their own job, a rebuilding program hires them
+      // now — before the new season is built, so it is constructed cleanly for
+      // the new program.
+      try {
+        if (window.XCD.engine.Careers.firePlayer) window.XCD.engine.Careers.firePlayer(this, rng);
+      } catch (e) { /* a firing must never break the rollover */ }
+
       const transferCount = window.XCD.engine.Portal.applyTransfers(this, rng);
       if (transferCount) this.logNews(`Transfer portal closes: ${transferCount} athletes changed schools this cycle.`);
 

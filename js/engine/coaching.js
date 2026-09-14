@@ -67,9 +67,20 @@
     if (conf[`${school.conference}-M`] === school.name) delta += 1.1;
     if (conf[`${school.conference}-W`] === school.name) delta += 1.1;
     const nat = (gameState.history.nationalChampions || {})[year] || {};
+    // A national title is the pinnacle of the sport, and a Division I crown —
+    // the deepest, most-scrutinized field in the country — makes a coach's
+    // name more than any other single result (user request). The DI-title
+    // reward is tracked separately and added AFTER the yearly delta cap and
+    // the diminishing-returns taper below, so winning it always visibly moves
+    // a coach's reputation even when they are already decorated.
+    let bigTitleBonus = 0;
     ['M', 'W'].forEach((g) => {
-      const key = (school.division || 'DI') === 'DI' ? g : `${school.division}-${g}`;
-      if (nat[key] && nat[key].teamId === school.id) delta += 4.0;
+      const division = school.division || 'DI';
+      const key = division === 'DI' ? g : `${school.division}-${g}`;
+      if (nat[key] && nat[key].teamId === school.id) {
+        if (division === 'DI') { delta += 4.0; bigTitleBonus += 3.5; }
+        else delta += 4.0;
+      }
       // National runner-up / podium team also builds a name (Update 13).
       else {
         const row = gameState.rankings && gameState.rankings[g].find((r) => r.schoolId === school.id);
@@ -122,6 +133,10 @@
     // coaches plateau well short of the top tiers.
     let applied = Utils.clamp(delta, -5, 6);
     if (applied > 0) applied *= Utils.clamp(1 - (coach.reputation || 20) / 155, 0.28, 1);
+    // A Division I national title lands on top, only lightly tapered — a
+    // decades-long legend still feels every crown, and it can push a coach
+    // over the line into the sport's top tier faster than anything else.
+    if (bigTitleBonus > 0) applied += bigTitleBonus * Utils.clamp(1 - (coach.reputation || 20) / 240, 0.7, 1);
     coach.reputation = Utils.clamp(Math.round((coach.reputation + applied) * 10) / 10, 1, 99);
   }
 

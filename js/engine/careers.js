@@ -99,7 +99,7 @@
         // Mutual parting / a move elsewhere — the coach hits the open market.
         c.schoolId = null;
         c.hotSeat = 0;
-        c.hotSeatYears = 0;
+        c.hotSeatYears = 0; c.podiumMissStreak = 0;
         c.poolYears = 0;
         gameState.logNews(`COACHING CHANGE: ${s.name} and ${c.fullName} part ways; the program opens a head-coaching search.`);
       }
@@ -458,7 +458,7 @@
       coach.schoolId = newSchool.id;
       coach.yearsAtSchool = 0;
       coach.hotSeat = 0;
-      coach.hotSeatYears = 0;
+      coach.hotSeatYears = 0; coach.podiumMissStreak = 0;
       newSchool.assistantId = coach.id;
       gameState.playerSchoolId = newSchool.id;
       Legacy.openStint(gameState, coach, newSchool, gameState.year + 1);
@@ -549,7 +549,7 @@
         Legacy.closeStint(gameState, incumbent, newSchool, gameState.year, 'fired');
         incumbent.schoolId = null;
         incumbent.hotSeat = 0;
-        incumbent.hotSeatYears = 0;
+        incumbent.hotSeatYears = 0; incumbent.podiumMissStreak = 0;
         incumbent.poolYears = 0;
       }
       coach.role = 'Head';
@@ -562,7 +562,7 @@
       coach.schoolId = newSchool.id;
       coach.yearsAtSchool = 0;
       coach.hotSeat = 0;
-      coach.hotSeatYears = 0;
+      coach.hotSeatYears = 0; coach.podiumMissStreak = 0;
       gameState.playerSchoolId = newSchool.id;
       Legacy.openStint(gameState, coach, newSchool, gameState.year + 1);
       newSchool.coachChangedYear = gameState.year;
@@ -607,7 +607,7 @@
     // job. Reputation transfers; the seat starts Stable, and expectations
     // are recalculated against the new school only.
     coach.hotSeat = 0;
-    coach.hotSeatYears = 0;
+    coach.hotSeatYears = 0; coach.podiumMissStreak = 0;
     gameState.playerSchoolId = newSchool.id;
     Legacy.openStint(gameState, coach, newSchool, gameState.year + 1);
     newSchool.coachChangedYear = gameState.year;
@@ -804,7 +804,7 @@
         c.schoolId = school.id;
         c.yearsAtSchool = 0;
         c.hotSeat = 0;
-        c.hotSeatYears = 0;
+        c.hotSeatYears = 0; c.podiumMissStreak = 0;
         Legacy.openStint(gameState, c, school, gameState.year);
         school.coachChangedYear = gameState.year;
         gameState.logNews(`POACHED: ${school.name} hires ${c.fullName} away from ${from.name} (${(c.reputationLevel || {}).label || 'rising name'}).`);
@@ -858,7 +858,7 @@
         promo.schoolId = school.id;
         promo.yearsAtSchool = 0;
         promo.hotSeat = 0;
-        promo.hotSeatYears = 0;
+        promo.hotSeatYears = 0; promo.podiumMissStreak = 0;
         school.coachId = promo.id;
         Legacy.openStint(gameState, promo, school, gameState.year);
         school.coachChangedYear = gameState.year;
@@ -968,6 +968,19 @@
     // departure leaves the seat OPEN for the player to fill from the pool.
     const playerHeadSchoolId = !gameState.isAssistant() ? gameState.playerSchoolId : null;
 
+    // The recruiting classes that just signed (same cycle the reputation pass
+    // grades), keyed by within-division rank — the assistant is the program's
+    // recruiting coordinator, so a class that lands well outside expectations
+    // is a mark against them (user request: assistants can be fired for
+    // repeatedly failing to land a good class).
+    const classRank = {};
+    ((gameState.history.recruitingClasses || {})[gameState.year - 1] || [])
+      .forEach((c) => { classRank[c.schoolId] = c.divisionRank; });
+    // The division-rank a program of a given prestige is expected to recruit
+    // to. Genuinely small programs aren't judged on recruiting rankings.
+    const expectedClassRank = (prestige) => prestige >= 80 ? 8 : prestige >= 65 ? 18
+      : prestige >= 50 ? 35 : prestige >= 38 ? 55 : null;
+
     // 1) Retirements + firings.
     Object.values(gameState.world.schools).forEach((school) => {
       const asst = school.assistantId && gameState.world.coaches[school.assistantId];
@@ -986,6 +999,33 @@
         }
         return;
       }
+
+      // Recruiting accountability (user request): track consecutive seasons the
+      // coordinator's class fell short of the program's recruiting expectation.
+      const exp = expectedClassRank(school.prestige || 0);
+      if (exp != null) {
+        const dr = classRank[school.id] || 999; // no ranked class at all = poor
+        asst.poorRecruitingYears = dr > exp ? (asst.poorRecruitingYears || 0) + 1 : 0;
+      } else {
+        asst.poorRecruitingYears = 0;
+      }
+      // Three straight poor recruiting classes ends a CPU coordinator's tenure.
+      if (!playerAsst && (asst.poorRecruitingYears || 0) >= 3) {
+        Legacy.closeStint(gameState, asst, school, gameState.year, 'released');
+        Legacy.recordRetiredCoach(gameState, asst, 'released');
+        delete gameState.world.coaches[asst.id];
+        school.assistantId = null;
+        if ((school.prestige || 0) >= 60) {
+          gameState.logNews(`Staff shake-up: ${school.name} parts with recruiting coordinator ${asst.fullName} after three straight underwhelming classes.`);
+        }
+        return;
+      }
+      // The player controls their own staff, but the program makes its concern
+      // known when the coordinator's recruiting keeps lagging.
+      if (playerAsst && (asst.poorRecruitingYears || 0) >= 2) {
+        gameState.logNews(`⚠️ Your assistant ${asst.fullName}'s recruiting classes have lagged expectations ${asst.poorRecruitingYears} years running — a change at coordinator is worth considering (Manage Staff on My Program).`);
+      }
+
       // Programs churn staff: a weak, stagnating assistant is occasionally let
       // go. The player makes their own firing calls, so never auto-fire theirs.
       if (!playerAsst && (asst.reputation || 0) < 18 && asst.age >= 34 && rng.bool(0.12)) {
@@ -1130,7 +1170,7 @@
         Legacy.closeStint(gameState, incumbent, newSchool, year, 'fired');
         incumbent.schoolId = null;
         incumbent.hotSeat = 0;
-        incumbent.hotSeatYears = 0;
+        incumbent.hotSeatYears = 0; incumbent.podiumMissStreak = 0;
         incumbent.poolYears = 0; // hits the open market, not oblivion
         gameState.logNews(`${newSchool.name} moves on from ${incumbent.fullName} to hand the program to a new voice.`);
       }
@@ -1273,9 +1313,89 @@
     return rows;
   }
 
+  /* ---------------- Player firing (user request) -------------------- *
+   * A player who repeatedly fails to meet expectations can now be let go
+   * (flagged in awards.coachFirings via gameState.career.pendingFiring). The
+   * dynasty never ends — after being fired, only a rebuilding program takes a
+   * chance on them, so they get a genuine fresh start at a lesser job. If the
+   * player has already landed their own new position from the carousel before
+   * the season turns, the firing is a no-op (they moved on their own terms).
+   *
+   * Runs at the very top of the year rollover, before the new season is built,
+   * so the whole new season is constructed cleanly for the new program.
+   */
+  function firePlayer(gameState, rng) {
+    const info = gameState.career && gameState.career.pendingFiring;
+    if (!info) return false;
+    gameState.career.pendingFiring = null;
+    // The player already took a job of their own — no forced placement.
+    if (gameState.playerSchoolId !== info.fromId || gameState.isAssistant()) return false;
+    const Legacy = window.XCD.engine.Legacy;
+    const coach = gameState.getPlayerCoach();
+    const oldSchool = gameState.getSchool(info.fromId);
+    if (!coach || !oldSchool) return false;
+
+    // A rebuilding landing spot: the lowest-prestige programs in the player's
+    // division (any division if that comes up empty), picked from the bottom
+    // cluster so it varies season to season but is always a genuine step down.
+    const division = oldSchool.division || 'DI';
+    let pool = Object.values(gameState.world.schools)
+      .filter((s) => s.id !== info.fromId && (s.division || 'DI') === division);
+    if (!pool.length) pool = Object.values(gameState.world.schools).filter((s) => s.id !== info.fromId);
+    if (!pool.length) return false; // one-school world: nowhere to go, keep them
+    pool.sort((a, b) => (a.prestige || 0) - (b.prestige || 0));
+    const bottom = pool.slice(0, Math.max(1, Math.min(15, pool.length)));
+    const newSchool = bottom[rng.int(0, bottom.length - 1)];
+
+    // Leave the old chair (fired) — it opens for real and gets backfilled.
+    Legacy.closeStint(gameState, coach, oldSchool, gameState.year, 'fired');
+    oldSchool.coachId = null;
+    oldSchool.coachChangedYear = gameState.year;
+    fillVacancy(gameState, oldSchool, rng, 0);
+
+    // Displace the incumbent at the new program into the free-agent pool.
+    const incumbent = newSchool.coachId && gameState.world.coaches[newSchool.coachId];
+    if (incumbent && !incumbent.isPlayer) {
+      Legacy.closeStint(gameState, incumbent, newSchool, gameState.year, 'fired');
+      incumbent.schoolId = null;
+      incumbent.hotSeat = 0;
+      incumbent.hotSeatYears = 0; incumbent.podiumMissStreak = 0;
+      incumbent.poolYears = 0;
+    }
+
+    coach.role = 'Head';
+    gameState.playerRole = 'Head';
+    newSchool.coachId = coach.id;
+    coach.schoolId = newSchool.id;
+    coach.yearsAtSchool = 0;
+    coach.hotSeat = 0;
+    coach.hotSeatYears = 0; coach.podiumMissStreak = 0;
+    coach.reputation = Utils.clamp((coach.reputation || 25) - 5, 1, 99); // a firing stings
+    gameState.playerSchoolId = newSchool.id;
+    Legacy.openStint(gameState, coach, newSchool, gameState.year);
+    newSchool.coachChangedYear = gameState.year;
+
+    // Session state tied to the old program resets, exactly as a coaching move.
+    gameState.training.overrides = {};
+    gameState.training.mileageOverrides = {};
+    gameState.culture.captains = { M: [], W: [] };
+    gameState.recruiting.budgetLeft = (newSchool.budget && newSchool.budget.recruiting) || 0;
+    gameState.recruiting.board = { M: [], W: [] };
+    gameState.lastPlayerMeetId = null;
+    gameState.jobOffers = null;
+    gameState.weeklyFlow = { trainingConfirmed: false, recruitingDone: false };
+
+    gameState.career.stops = gameState.career.stops || [];
+    gameState.career.stops.push({ school: newSchool.name, startYear: gameState.year, role: 'Head', fired: true });
+    gameState.career.timesFired = (gameState.career.timesFired || 0) + 1;
+
+    gameState.logNews(`🔻 FRESH START: After being let go by ${oldSchool.name}, you take the reins of a rebuilding ${newSchool.name} (${newSchool.conference}). Prove them wrong.`);
+    return true;
+  }
+
   window.XCD.engine.Careers = {
     generateOffers, generateAssistantOffers, acceptOffer, applyForJob, applicationRoll,
     declineOffers, expireOffers, evolveJobMarket, runCarousel, runAssistantCarousel,
-    fillVacancy, coachRankings, canRetire, retireAndSucceed
+    fillVacancy, coachRankings, canRetire, retireAndSucceed, firePlayer
   };
 })();
