@@ -19,11 +19,12 @@ Home Screen** — it installs as a full-screen, offline-capable app. See
 A media-and-accountability pass: the News screen becomes a proper newsroom,
 every season opens with a projected outlook, and expectations now have teeth.
 
-- **Records start blank.** No all-time national records are auto-generated at
-  the start of a dynasty — every mark on the record book is one a runner
-  actually ran, set for the first time by the first athlete to race a distance.
-  Men never race the 5K, so the un-settable men's 5K is gone from the record
-  book entirely.
+- **Records start blank.** No records are auto-generated at the start of a
+  dynasty — not the all-time national marks, and not the per-course record book.
+  Every mark is one a runner actually ran: the first athlete to race a distance
+  sets its inaugural national record, and the first to race a course sets that
+  course's opening mark. Men never race the 5K, so the un-settable men's 5K is
+  gone from the record book entirely.
 - **The News screen has three tabs.**
   - **News** — the running news log, as before.
   - **Awards** — the season's honors, filterable **National / Conference** and

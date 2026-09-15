@@ -122,38 +122,6 @@
 
   function recKey(gender, distanceM) { return `${gender}-${D.distanceKey(distanceM)}`; }
 
-  // Seed a realistic historical baseline for a course + gender + distance if
-  // none exists yet, so the very first race never sets a trivial record and
-  // every course opens anchored to a genuinely elite historical mark.
-  function ensureBaseline(gameState, entry, gender, distanceM) {
-    const gk = recKey(gender, distanceM);
-    if (entry.records[gk]) return entry.records[gk];
-    const time = D.seedCourseTime(gender, distanceM, entry);
-    // Date the historical mark somewhere in the decade before the dynasty,
-    // deterministically, so "some records have stood for decades" reads true.
-    let h = 0; const s = entry.key + gk;
-    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    const startYear = (gameState.year || 2026);
-    const rec = {
-      time,
-      athleteId: null,
-      name: 'Historic Course Best',
-      schoolId: null,
-      school: '—',
-      division: null,
-      gender,
-      distanceKey: D.distanceKey(distanceM),
-      year: startYear - 1 - (h % 12),
-      meet: 'Established record',
-      meetType: null,
-      conditions: null,
-      seeded: true
-    };
-    entry.records[gk] = rec;
-    entry.history[gk] = [rec];
-    return rec;
-  }
-
   // A weather/conditions snapshot to stamp onto a record, so the record book
   // shows the conditions the record was set in (makes it believable).
   function conditionsSnapshot(meet) {
@@ -187,21 +155,18 @@
     if (meet.type) entry.meetTypes[meet.type] = true;
 
     const gk = recKey(gender, distanceM);
-    const current = ensureBaseline(gameState, entry, gender, distanceM);
+    // Course records start BLANK and are written by the runners themselves
+    // (user request): the record book is never pre-seeded with a fabricated
+    // historical mark. The first athlete to race a course at a gender/distance
+    // sets its opening record; only a runner who then beats a STANDING mark
+    // scores a genuine course record.
+    const current = entry.records[gk] || null;
 
-    // The fastest finisher is the only one who can set the record.
     const fastest = finishers.reduce((a, b) => (b.time < a.time ? b : a), finishers[0]);
-    // A hair of epsilon so floating-point equality never counts as "faster".
-    if (!(fastest.time < current.time - 0.05)) {
-      // Nobody broke it. Mark a dead-even tie of a standing record as CR (rare).
-      if (Math.abs(fastest.time - current.time) <= 0.05 && !current.seeded) fastest.cr = 'CR';
-      return null;
-    }
-
     const athlete = gameState.world.athletes[fastest.athleteId];
     const school = gameState.getSchool(fastest.schoolId);
     const dk = D.distanceKey(distanceM);
-    const newRec = {
+    const buildRec = () => ({
       time: fastest.time,
       athleteId: fastest.athleteId,
       name: fastest.name,
@@ -215,8 +180,28 @@
       meetType: meet.type || 'invite',
       conditions: conditionsSnapshot(meet),
       seeded: false
-    };
+    });
 
+    // Inaugural mark: the course had no record, so the first runner establishes
+    // it. Recorded quietly — no "record broken" news, no résumé accolade, and
+    // no CR badge — so a course record stays the rare accomplishment of BEATING
+    // a standing mark, not simply being first to run a course.
+    if (!current) {
+      const rec = buildRec();
+      rec.inaugural = true;
+      entry.records[gk] = rec;
+      entry.history[gk] = [rec];
+      return rec;
+    }
+
+    // A hair of epsilon so floating-point equality never counts as "faster".
+    if (!(fastest.time < current.time - 0.05)) {
+      // Nobody broke it. Mark a dead-even tie of a standing record as CR (rare).
+      if (Math.abs(fastest.time - current.time) <= 0.05) fastest.cr = 'CR';
+      return null;
+    }
+
+    const newRec = buildRec();
     const previous = entry.records[gk];
     entry.records[gk] = newRec;
     entry.history[gk] = entry.history[gk] || [];
@@ -366,24 +351,19 @@
 
   /* ---------------- Dynasty setup ---------------- */
 
-  // At dynasty start, open the record book for the real named courses with
-  // realistic historical baselines (championship venues + famous invitational
-  // courses), so the record book reads as historic from the very first frame.
-  // Idempotent — safe to run on load to backfill older saves.
-  function seedRealCourses(gameState) {
-    (D.COURSES || []).forEach((c) => {
-      const entry = ensure(gameState, c);
-      // Men race 8K/10K, women 6K on these courses — seed the canonical marks.
-      ensureBaseline(gameState, entry, 'M', 8000);
-      ensureBaseline(gameState, entry, 'W', 6000);
-      if (entry.championship) ensureBaseline(gameState, entry, 'M', 10000);
-    });
+  // At dynasty start, REGISTER the real named courses (championship venues +
+  // famous invitational courses) so they're browsable in the record book — but
+  // seed NO records. Course records start blank and are written by the runners
+  // themselves (user request): each course's marks appear the first time an
+  // athlete actually races it. Idempotent — safe to run on load.
+  function registerRealCourses(gameState) {
+    (D.COURSES || []).forEach((c) => { ensure(gameState, c); });
   }
 
   window.XCD.engine.Courses = {
-    identify, homeCourseMeta, ensure, ensureBaseline, considerRace,
+    identify, homeCourseMeta, ensure, considerRace,
     countHeldBySchool, programStats, heldByAthlete, courseHoldCount,
-    recordFor, entryForMeet, list, seedRealCourses, isNotableCourse,
+    recordFor, entryForMeet, list, registerRealCourses, isNotableCourse,
     book
   };
 })();

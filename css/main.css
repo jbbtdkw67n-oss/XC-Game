@@ -1516,56 +1516,61 @@ img, canvas, video { max-width: 100%; height: auto; }
    game's card idiom.
    ========================================================= */
 .job-popup { display: flex; flex-direction: column; min-height: 0; }
-.job-popup-head { margin-bottom: 10px; }
+.job-popup-head {
+  text-align: center; padding-bottom: 14px; margin-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.job-popup-head h2 { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: 0.01em; }
 .job-sort {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; padding: 8px 2px 12px; border-bottom: 1px solid var(--border);
+  gap: 12px; padding: 14px 2px; border-bottom: 1px solid var(--border);
+}
+.job-sort .job-sort-label { color: var(--text-dim); font-size: 14px; }
+.job-sort select {
+  border: none; border-bottom: 1px solid var(--border); border-radius: 0;
+  background: transparent; color: var(--text); font-weight: 600; font-size: 14px;
+  padding: 4px 22px 6px 4px; max-width: 220px; cursor: pointer;
 }
 .job-list {
   display: flex; flex-direction: column;
-  max-height: 56vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
-  margin: 0 -6px; padding: 4px 6px;
+  max-height: 58vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  margin: 0 -6px; padding: 2px 6px 6px;
 }
 .job-row {
-  display: flex; align-items: center; gap: 14px;
-  padding: 12px 12px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; gap: 16px;
+  padding: 15px 10px; border-radius: var(--radius-sm);
   border: 1px solid transparent; cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .job-row + .job-row { border-top: 1px solid var(--border); }
 .job-row:hover { background: var(--bg-hover); }
-.job-row.selected {
-  background: var(--accent-soft); border-color: var(--accent);
-  border-top-color: var(--accent);
-}
+.job-row.selected { background: var(--accent-soft); border-color: var(--accent); }
 .job-crest {
   flex: none; display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%; color: #fff; font-weight: 800; line-height: 1;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14);
   text-transform: uppercase;
 }
 .job-row-body { flex: 1; min-width: 0; }
 .job-row-name {
-  font-weight: 700; font-size: 16px; color: var(--text);
+  font-weight: 700; font-size: 17px; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.job-row-sub { font-size: 12.5px; color: var(--text-dim); margin-top: 2px; }
-.job-tag {
-  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--text-dim); background: var(--bg-inset);
-  border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px;
-  vertical-align: middle; margin-left: 4px;
-}
-.job-tag.stay { color: var(--accent-hover); border-color: var(--accent); background: var(--accent-soft); }
-.job-interest { color: var(--text-faint); }
+.job-row-sub { font-size: 13px; color: var(--text-dim); margin-top: 3px; }
+.job-row.current .job-row-sub { color: var(--accent-hover); }
 .job-ring {
   flex: none; display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%; border: 2.5px solid var(--border);
-  font-weight: 800; color: var(--text); background: var(--bg-card);
+  font-weight: 700; color: var(--text); background: transparent;
 }
 .job-popup-foot {
-  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
-  display: flex; flex-direction: column; gap: 8px;
+  position: sticky; bottom: 0; z-index: 1;
+  margin: 0 -6px; padding: 16px 6px 4px;
+  display: flex; justify-content: center;
+  background: linear-gradient(to top, var(--bg-card) 60%, rgba(27, 33, 43, 0));
 }
-.job-popup-foot .job-choice { font-size: 12.5px; color: var(--text-dim); text-align: center; }
-.job-popup-foot .btn.lg { width: 100%; min-height: 48px; font-size: 15px; font-weight: 700; }
+.job-popup-foot .btn.pill {
+  border-radius: 999px; min-height: 50px; padding: 0 36px;
+  font-size: 15px; font-weight: 700; box-shadow: var(--shadow-pop);
+  display: inline-flex; align-items: center; gap: 9px;
+}

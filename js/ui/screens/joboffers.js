@@ -74,36 +74,24 @@
     return arr;
   }
 
+  // A clean row: crest, school name, season record, and the program-rating
+  // ring — nothing else, matching the reference design. The move's details
+  // (interest %, what you leave behind) live in the confirmation step.
   function rowHtml(game, o, selected) {
     const isStay = o.schoolId === STAY;
     const school = isStay ? game.getPlayerSchool() : (game.getSchool(o.schoolId) || { name: o.schoolName });
     const color = schoolColors(school)[0];
     const rec = seasonRecord(game, isStay ? game.playerSchoolId : o.schoolId);
-    const tag = isStay
-      ? '<span class="job-tag stay">Current</span>'
-      : (o.kind ? `<span class="job-tag">${Utils.escapeHtml(o.kind)}</span>` : '');
-    // Open-market chairs list the school's interest (apply-roll chance); direct
-    // offers (promotions / assistant posts) are yours to take outright.
-    const direct = isStay || o.assistantRole || (game.jobOffers && game.jobOffers.promotion);
-    const sub = isStay
-      ? `${rec.w}-${rec.l} · your program`
-      : `${rec.w}-${rec.l}${(!direct && o.interest != null) ? ` · <span class="job-interest">${o.interest}% interest</span>` : (direct ? ' · <span class="job-interest">offer</span>' : '')}`;
+    const sub = `${rec.w}-${rec.l}${isStay ? ' · Current' : ''}`;
     return `
-      <div class="job-row${selected ? ' selected' : ''}" data-job="${isStay ? STAY : o.schoolId}">
-        ${crest(school, 46)}
+      <div class="job-row${isStay ? ' current' : ''}${selected ? ' selected' : ''}" data-job="${isStay ? STAY : o.schoolId}">
+        ${crest(school, 52)}
         <div class="job-row-body">
-          <div class="job-row-name">${Utils.escapeHtml(school.name || o.schoolName)}${tag}</div>
+          <div class="job-row-name">${Utils.escapeHtml(school.name || o.schoolName)}</div>
           <div class="job-row-sub">${sub}</div>
         </div>
         ${ring(isStay ? school.prestige : o.prestige, color, 46)}
       </div>`;
-  }
-
-  function continueLabel(game) {
-    if (selectedId === STAY) return `→ Stay at ${Utils.escapeHtml(game.getPlayerSchool().name)}`;
-    const o = openOffers(game).find((x) => x.schoolId === selectedId);
-    const direct = o && (o.assistantRole || (game.jobOffers && game.jobOffers.promotion));
-    return `→ ${direct ? 'Take' : 'Apply for'} ${Utils.escapeHtml(o ? o.schoolName : 'Job')}`;
   }
 
   function listHtml(game) {
@@ -113,20 +101,12 @@
   }
 
   function render(game) {
-    const promo = game.jobOffers && game.jobOffers.promotion;
     const html = `
       <div class="job-popup">
-        <div class="job-popup-head">
-          <h2 style="margin:0;">Available Jobs</h2>
-          <div style="color:var(--text-dim); font-size:12.5px; margin-top:3px;">
-            ${promo
-              ? 'Your recruiting earned head-coaching offers. Take one to run your own program, or stay an assistant.'
-              : 'The coaching carousel is open. Pick a program to take over, or stay where you are.'}
-          </div>
-        </div>
+        <div class="job-popup-head"><h2>Available Jobs</h2></div>
         <div class="job-sort">
-          <span style="color:var(--text-dim); font-size:13px;">Sort By:</span>
-          <select id="job-sort-sel" class="search-input" style="max-width:200px;">
+          <span class="job-sort-label">Sort By:</span>
+          <select id="job-sort-sel">
             <option value="prestige" ${sortKey === 'prestige' ? 'selected' : ''}>Program Rating</option>
             <option value="record" ${sortKey === 'record' ? 'selected' : ''}>Team Record</option>
             <option value="name" ${sortKey === 'name' ? 'selected' : ''}>School Name</option>
@@ -134,8 +114,7 @@
         </div>
         <div class="job-list" id="job-list">${listHtml(game)}</div>
         <div class="job-popup-foot">
-          <div class="job-choice" id="job-choice"></div>
-          <button class="btn primary lg" id="job-continue">${continueLabel(game)}</button>
+          <button class="btn primary pill" id="job-continue">→ Continue</button>
         </div>
       </div>`;
     UI.showModal(html, (modal) => wire(modal, game));
@@ -146,25 +125,8 @@
       row.addEventListener('click', () => {
         selectedId = row.dataset.job;
         modal.querySelectorAll('.job-row').forEach((r) => r.classList.toggle('selected', r === row));
-        const btn = modal.querySelector('#job-continue');
-        if (btn) btn.innerHTML = continueLabel(game);
-        updateChoice(modal, game);
       });
     });
-  }
-
-  function updateChoice(modal, game) {
-    const el = modal.querySelector('#job-choice');
-    if (!el) return;
-    if (selectedId === STAY) {
-      el.textContent = 'You will keep your current position.';
-    } else {
-      const o = openOffers(game).find((x) => x.schoolId === selectedId);
-      const direct = o && (o.assistantRole || (game.jobOffers && game.jobOffers.promotion));
-      el.textContent = direct
-        ? "You'll leave your program immediately — your career record travels with you."
-        : `Their interest is ${o ? o.interest : 0}% — your chance of landing the chair if you apply.`;
-    }
   }
 
   function wire(modal, game) {
@@ -175,7 +137,6 @@
       if (list) { list.innerHTML = listHtml(game); wireRows(modal, game); }
     });
     wireRows(modal, game);
-    updateChoice(modal, game);
     const cont = modal.querySelector('#job-continue');
     if (cont) cont.addEventListener('click', () => onContinue(game));
   }
