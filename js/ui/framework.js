@@ -548,16 +548,23 @@
       }
       // If our team just raced, cut straight to the broadcast.
       const meet = game.lastPlayerMeetId && game.season && game.season.meets[game.lastPlayerMeetId];
-      if (meet && meet.week === weekBefore && meet.results.M) {
+      const cutToRace = !!(meet && meet.week === weekBefore && meet.results.M);
+      if (cutToRace) {
         UI.state.currentScreen = 'racecenter';
       }
       // A new season always starts on the Dashboard.
-      if (game.week < weekBefore) {
+      const rolledOver = game.week < weekBefore;
+      if (rolledOver) {
         UI.state.currentScreen = 'dashboard';
         UI.toast(`Welcome to the ${game.year} season!`, 'success', 2600);
       }
       UI.renderShell();
       UI.toast(`Advanced to ${Utils.formatDate(game.week, game.year)}`, 'success', 1800);
+      // Offseason job market (Available Jobs popup): once the season is over
+      // and offers are on the table, prompt the player to take a new job or
+      // stay put — but not on the advance that just cut to the nationals
+      // broadcast, nor on a fresh-season rollover.
+      if (!cutToRace && !rolledOver && UI.maybeShowJobOffers) UI.maybeShowJobOffers(game);
     });
 
     const simBtn = document.getElementById('btn-sim-race');
@@ -573,7 +580,8 @@
         // stopping at a new season's Week 1 for the administrative phase.
         let raced = false;
         let rolledOver = false;
-        for (let i = 0; i < 26 && !raced && !rolledOver; i++) {
+        let offersPending = false;
+        for (let i = 0; i < 26 && !raced && !rolledOver && !offersPending; i++) {
           const wk = game.week;
           const s = game.season;
           const hadMeet = s && (s.playerMeetByWeek[wk] ||
@@ -581,6 +589,12 @@
           game.advanceWeek();
           if (game.week < wk) rolledOver = true;
           if (hadMeet) raced = true;
+          // Stop at the offseason job market so the Available Jobs popup isn't
+          // skipped past when simming through the offseason.
+          if (!raced && game.seasonPhase === 'Offseason' && game.jobOffers &&
+              !game.jobOffers.popupSeen && (game.jobOffers.offers || []).some((o) => !o.rejected)) {
+            offersPending = true;
+          }
         }
         try {
           await window.XCD.engine.SaveManager.autoSave(game);
@@ -591,6 +605,7 @@
         if (rolledOver) UI.state.currentScreen = 'dashboard'; // new seasons start at home
         UI.renderShell();
         UI.toast(`Simulated ahead to ${Utils.formatDate(game.week, game.year)}`, 'success', 2200);
+        if (offersPending && UI.maybeShowJobOffers) UI.maybeShowJobOffers(game);
       });
     }
 

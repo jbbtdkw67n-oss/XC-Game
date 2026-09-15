@@ -76,9 +76,9 @@
       </div>
       <div class="card" style="margin-bottom:14px; color:var(--text-dim); font-size:12.5px;">
         Every course keeps its own record book. Because courses differ dramatically — terrain, altitude,
-        distance — a time on one course is never compared to a time on another. Records are seeded with
-        realistic historical marks and then evolve as your dynasty writes its own history. A course record
-        is a genuinely rare accomplishment.
+        distance — a time on one course is never compared to a time on another. Each course's record book
+        starts blank: the first athlete to race a course sets its opening mark, and beating a standing
+        record from there is a genuinely rare accomplishment.
       </div>
       ${(() => {
         // Season history: the most recent course records set across the dynasty
