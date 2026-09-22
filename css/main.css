@@ -1511,19 +1511,30 @@ img, canvas, video { max-width: 100%; height: auto; }
 
 /* =========================================================
    Available Jobs popup (offseason job-offer picker)
-   A tappable list of open programs — team crest, record, and
-   program-rating ring — with a Continue action, matching the
-   game's card idiom.
+   A tappable list of open programs — crest, move type, record,
+   interest, and program-rating ring. Tapping a row expands a
+   comparison with the player's current program. Footer carries
+   Turn Down Offers / Take-Apply actions.
    ========================================================= */
 .job-popup { display: flex; flex-direction: column; min-height: 0; }
 .job-popup-head {
-  text-align: center; padding-bottom: 14px; margin-bottom: 2px;
+  text-align: center; padding-bottom: 12px; margin-bottom: 2px;
   border-bottom: 1px solid var(--border);
 }
 .job-popup-head h2 { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: 0.01em; }
+.job-popup-intro { font-size: 12.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.45; }
+.job-current {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 12px; padding: 10px 12px;
+  background: var(--bg-inset); border: 1px dashed var(--border); border-radius: var(--radius-sm);
+}
+.job-current-label {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--accent-hover);
+}
 .job-sort {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 14px 2px; border-bottom: 1px solid var(--border);
+  gap: 12px; padding: 12px 2px; border-bottom: 1px solid var(--border);
 }
 .job-sort .job-sort-label { color: var(--text-dim); font-size: 14px; }
 .job-sort select {
@@ -1537,12 +1548,14 @@ img, canvas, video { max-width: 100%; height: auto; }
   margin: 0 -6px; padding: 2px 6px 6px;
 }
 .job-row {
-  display: flex; align-items: center; gap: 16px;
-  padding: 15px 10px; border-radius: var(--radius-sm);
-  border: 1px solid transparent; cursor: pointer;
+  border-radius: var(--radius-sm); border: 1px solid transparent;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .job-row + .job-row { border-top: 1px solid var(--border); }
+.job-row-main {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 10px; cursor: pointer;
+}
 .job-row:hover { background: var(--bg-hover); }
 .job-row.selected { background: var(--accent-soft); border-color: var(--accent); }
 .job-crest {
@@ -1553,24 +1566,85 @@ img, canvas, video { max-width: 100%; height: auto; }
 }
 .job-row-body { flex: 1; min-width: 0; }
 .job-row-name {
-  font-weight: 700; font-size: 17px; color: var(--text);
+  font-weight: 700; font-size: 16px; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.job-row-sub { font-size: 13px; color: var(--text-dim); margin-top: 3px; }
-.job-row.current .job-row-sub { color: var(--accent-hover); }
+.job-row-sub { font-size: 12.5px; color: var(--text-dim); margin-top: 4px; }
+.job-row-sub .job-kind { font-size: 10px; margin-right: 4px; vertical-align: 1px; }
+.job-chance {
+  flex: none; display: flex; flex-direction: column; align-items: flex-end;
+  font-weight: 800; font-size: 16px; line-height: 1.05; min-width: 52px;
+}
+.job-chance small { font-size: 9.5px; font-weight: 600; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
 .job-ring {
   flex: none; display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%; border: 2.5px solid var(--border);
   font-weight: 700; color: var(--text); background: transparent;
 }
+.job-detail { padding: 0 10px 12px; cursor: default; }
+.job-detail-meta { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+.job-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+@media (max-width: 760px) { .job-stats { grid-template-columns: repeat(2, 1fr); } }
+.job-stat { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; min-width: 0; }
+.job-stat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); }
+.job-stat-value { font-size: 13.5px; font-weight: 700; color: var(--text); margin-top: 2px; }
+.job-stat-sub { font-size: 10.5px; color: var(--text-dim); margin-top: 1px; }
+.job-delta { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.job-delta.up { color: var(--success); }
+.job-delta.down { color: var(--danger); }
+.job-delta.even { color: var(--text-faint); font-weight: 600; }
+.job-weigh { margin-top: 8px; }
+.job-weigh .to-col { background: var(--bg-card); }
 .job-popup-foot {
   position: sticky; bottom: 0; z-index: 1;
   margin: 0 -6px; padding: 16px 6px 4px;
-  display: flex; justify-content: center;
-  background: linear-gradient(to top, var(--bg-card) 60%, rgba(27, 33, 43, 0));
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+  background: linear-gradient(to top, var(--bg-card) 70%, rgba(27, 33, 43, 0));
 }
 .job-popup-foot .btn.pill {
-  border-radius: 999px; min-height: 50px; padding: 0 36px;
+  border-radius: 999px; min-height: 48px; padding: 0 26px;
   font-size: 15px; font-weight: 700; box-shadow: var(--shadow-pop);
   display: inline-flex; align-items: center; gap: 9px;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.job-popup-foot .btn.danger.pill { background: var(--bg-card); }
+@media (max-width: 760px) {
+  .job-popup-foot { flex-wrap: wrap; gap: 8px; padding-top: 12px; }
+  .job-popup-foot .btn.pill { flex: 1 1 0; min-width: 0; min-height: 46px; padding: 0 12px; font-size: 14px; justify-content: center; }
+}
+.job-later {
+  flex-basis: 100%; background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-size: 12.5px; text-decoration: underline; padding: 4px;
+}
+.job-later:hover { color: var(--text-dim); }
+
+/* =========================================================
+   Coaching philosophy strengths / weaknesses
+   (UI.philosophyTradeoffs — wizard cards, My Program, etc.)
+   ========================================================= */
+.tradeoffs {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  margin-top: 8px; font-size: 12.5px; line-height: 1.4;
+}
+.tradeoffs.compact { grid-template-columns: 1fr; gap: 6px; font-size: 11.5px; }
+@media (max-width: 760px) { .tradeoffs { grid-template-columns: 1fr; } }
+.tradeoffs .to-col {
+  background: var(--bg-inset); border-radius: var(--radius-sm);
+  padding: 7px 9px; border-left: 3px solid var(--border);
+}
+.tradeoffs .to-col:first-child { border-left-color: var(--success); }
+.tradeoffs .to-col:last-child { border-left-color: var(--danger); }
+.tradeoffs .to-head {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; margin-bottom: 3px;
+}
+.tradeoffs .to-head.pro { color: var(--success); }
+.tradeoffs .to-head.con { color: var(--danger); }
+.tradeoffs ul { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.tradeoffs li { display: flex; gap: 6px; color: var(--text); }
+.tradeoffs .to-mark { flex: none; width: 10px; font-weight: 800; text-align: center; }
+.tradeoffs li.pro .to-mark { color: var(--success); }
+.tradeoffs li.con .to-mark { color: var(--danger); }
+.to-summary { font-size: 11.5px; line-height: 1.4; margin: 1px 0 6px 18px; }
+.to-summary .pro { color: var(--success); }
+.to-summary .con { color: var(--danger); }

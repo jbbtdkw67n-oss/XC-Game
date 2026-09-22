@@ -43,6 +43,7 @@
         <p style="color:var(--text-dim);">You are the <strong>recruiting coordinator</strong> at ${Utils.escapeHtml(school.name)}. Weekly training, workouts, mileage, race scheduling, and race strategy are set by head coach
         <strong>${head ? Utils.escapeHtml(head.fullName) : 'the staff'}</strong>${philo.label ? ` (${philo.icon || ''} ${Utils.escapeHtml(philo.label)} philosophy)` : ''}.
         Your job is to build the best recruiting classes in the country — do that well and you'll earn head-coaching offers of your own.</p>
+        ${philo.label ? UI.philosophyTradeoffs(philo, { compact: true }) : ''}
       </div>
       <div class="grid cols-4" style="margin-top:14px;">
         <div class="stat-tile"><div class="label">Squad Fitness</div><div class="value">${avg((a) => a.fitness)}</div></div>

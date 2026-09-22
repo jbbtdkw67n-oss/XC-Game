@@ -1,5 +1,6 @@
 // Feature test: the offseason "Available Jobs" popup — appears when the market
-// opens, lets the player stay put or take a new job, fully functional.
+// opens, shows decision detail per offer, lets the player turn the offers
+// down (stay put) or take a new job, fully functional.
 const { chromium } = require('playwright');
 const { newDynasty, wireErrors, launchOpts } = require('./helpers');
 
@@ -36,45 +37,69 @@ async function run() {
     'the popup shows once per cycle then suppresses: ' + JSON.stringify(trig));
   await page.waitForSelector('.job-popup');
 
-  // 2) The popup renders the screenshot's shape: title, crest, record, ring,
-  //    a Continue action, and a selectable list (stay + offers).
+  // 2) The popup renders: title, current-program reference card, offer rows
+  //    with crest/ring/interest/kind, sort control, and the footer actions
+  //    (Turn Down Offers + Take/Apply). The current school is NOT an option.
   const shape = await page.evaluate(() => ({
     title: (document.querySelector('.job-popup h2') || {}).textContent,
     rows: document.querySelectorAll('.job-row').length,
-    crests: document.querySelectorAll('.job-crest').length,
-    rings: document.querySelectorAll('.job-ring').length,
-    stayRow: !!document.querySelector('.job-row[data-job="__stay__"]'),
-    staySelected: document.querySelector('.job-row[data-job="__stay__"]').classList.contains('selected'),
-    hasContinue: !!document.querySelector('#job-continue'),
+    crests: document.querySelectorAll('.job-row .job-crest').length,
+    rings: document.querySelectorAll('.job-row .job-ring').length,
+    chances: document.querySelectorAll('.job-row .job-chance').length,
+    kinds: document.querySelectorAll('.job-row .job-kind').length,
+    current: !!document.querySelector('.job-current'),
+    currentSelectable: !!document.querySelector('.job-current[data-job], .job-row[data-job="__stay__"]'),
+    hasDecline: !!document.querySelector('#job-decline'),
+    continueDisabled: document.querySelector('#job-continue').disabled,
     hasSort: !!document.querySelector('#job-sort-sel'),
     recordShown: /\d+-\d+/.test((document.querySelector('.job-row-sub') || {}).textContent || '')
   }));
   ok(shape.title === 'Available Jobs', 'popup title must be "Available Jobs": ' + shape.title);
-  ok(shape.rows >= 3, 'popup must list the stay option plus offers: ' + shape.rows);
+  ok(shape.rows >= 2, 'popup must list the offers: ' + shape.rows);
   ok(shape.crests === shape.rows && shape.rings === shape.rows, 'every row needs a crest and a rating ring');
-  ok(shape.stayRow && shape.staySelected, 'a "stay put" row must exist and be selected by default');
-  ok(shape.hasContinue && shape.hasSort, 'popup needs a Continue button and a sort control');
+  ok(shape.chances === shape.rows && shape.kinds === shape.rows, 'every row needs an interest/offer chip and a move-type tag');
+  ok(shape.current && !shape.currentSelectable, 'the current program is shown for reference, not as a selectable option');
+  ok(shape.hasDecline, 'popup needs a Turn Down Offers button');
+  ok(shape.continueDisabled, 'Take/Apply is disabled until an offer is selected');
+  ok(shape.hasSort, 'popup needs a sort control');
   ok(shape.recordShown, 'rows must show a W-L record');
 
   // 3) Sorting by Program Rating must be descending by prestige.
   const sortOk = await page.evaluate(() => {
-    const rings = [...document.querySelectorAll('.job-row')].slice(1) // skip stay row
-      .map((r) => Number(r.querySelector('.job-ring').textContent));
+    const rings = [...document.querySelectorAll('.job-row .job-ring')].map((r) => Number(r.textContent));
     for (let i = 1; i < rings.length; i++) if (rings[i] > rings[i - 1]) return false;
     return true;
   });
   ok(sortOk, 'offers must sort by Program Rating (descending) by default');
 
-  // 4) Continue with the stay row selected keeps the current job and closes.
-  const before = await page.evaluate(() => window.XCD.ui.state.game.playerSchoolId);
-  await page.click('#job-continue');
-  await page.waitForTimeout(60);
-  const afterStay = await page.evaluate(() => ({
-    school: window.XCD.ui.state.game.playerSchoolId,
-    modalGone: !document.querySelector('.job-popup')
-  }));
-  ok(afterStay.school === before, 'staying put must not change the player school');
-  ok(afterStay.modalGone, 'Continue (stay) must close the popup');
+  // 4) Selecting an offer expands a decision panel comparing it with the
+  //    current program and enables the Take/Apply button.
+  const firstId = await page.evaluate(() => document.querySelector('.job-row').dataset.job);
+  await page.click(`.job-row[data-job="${firstId}"] .job-row-main`);
+  const detail = await page.evaluate((id) => {
+    const row = document.querySelector(`.job-row[data-job="${id}"]`);
+    const d = row && row.querySelector('.job-detail');
+    return {
+      selected: row && row.classList.contains('selected'),
+      stats: d ? d.querySelectorAll('.job-stat').length : 0,
+      labels: d ? [...d.querySelectorAll('.job-stat-label')].map((x) => x.textContent) : [],
+      yours: d ? /yours:/.test(d.textContent) : false,
+      weighPros: d ? d.querySelectorAll('.job-weigh li.pro').length : 0,
+      weighCons: d ? d.querySelectorAll('.job-weigh li.con').length : 0,
+      btn: document.querySelector('#job-continue').textContent,
+      btnDisabled: document.querySelector('#job-continue').disabled
+    };
+  }, firstId);
+  ok(detail.selected && detail.stats >= 8, 'selecting an offer expands its detail stats: ' + JSON.stringify(detail));
+  ['Program Rating', 'Roster Strength', 'Budget', 'Facilities', 'Academics', 'Expectations'].forEach((l) =>
+    ok(detail.labels.includes(l), 'detail panel must show ' + l));
+  ok(detail.yours, 'detail stats must compare against your current program');
+  ok(detail.weighPros >= 1 && detail.weighCons >= 1, 'detail panel must list reasons to take it and to stay');
+  ok(!detail.btnDisabled && /^(Take This Job|Apply \(\d+% chance\))/.test(detail.btn), 'selecting enables Take/Apply: ' + detail.btn);
+  // Tapping the same row again collapses it.
+  await page.click(`.job-row[data-job="${firstId}"] .job-row-main`);
+  const collapsed = await page.evaluate(() => !document.querySelector('.job-detail') && document.querySelector('#job-continue').disabled);
+  ok(collapsed, 'tapping a selected row collapses it and disables Take/Apply');
 
   // 5) Taking a job actually moves the player.
   const move = await page.evaluate(() => {
@@ -82,11 +107,40 @@ async function run() {
     // Guarantee a landable chair, then reopen the picker and select it.
     const offer = g.jobOffers.offers.find((o) => !o.rejected);
     offer.interest = 100; // certain to land on the application roll
-    window.XCD.ui.showJobOffersPopup(g);
     return { targetId: offer.schoolId, targetName: offer.schoolName, before: g.playerSchoolId };
   });
+
+  // 5a) Turn Down Offers: confirm → market closes, player stays, popup gone.
+  const beforeDecline = await page.evaluate(() => window.XCD.ui.state.game.playerSchoolId);
+  await page.click('#job-decline');
+  await page.waitForSelector('#job-decline-confirm');
+  // Back returns to the picker without closing the market.
+  await page.click('#job-back');
+  await page.waitForSelector('.job-popup');
+  ok(await page.evaluate(() => !!window.XCD.ui.state.game.jobOffers), 'Back from the turn-down confirm keeps the market open');
+  // Stash the market so we can restore it for the move test afterwards.
+  await page.evaluate(() => { window.__market = JSON.parse(JSON.stringify(window.XCD.ui.state.game.jobOffers)); });
+  await page.click('#job-decline');
+  await page.waitForSelector('#job-decline-confirm');
+  await page.click('#job-decline-confirm');
+  await page.waitForTimeout(80);
+  const afterDecline = await page.evaluate(() => ({
+    school: window.XCD.ui.state.game.playerSchoolId,
+    market: window.XCD.ui.state.game.jobOffers,
+    modalGone: !document.querySelector('.job-popup') && !document.querySelector('#active-modal')
+  }));
+  ok(afterDecline.school === beforeDecline, 'turning down offers must keep the player at the current school');
+  ok(afterDecline.market === null, 'turning down offers closes the market for this cycle');
+  ok(afterDecline.modalGone, 'turning down offers closes the popup');
+
+  // 5b) Restore the market and take the job.
+  await page.evaluate(() => {
+    const g = window.XCD.ui.state.game;
+    g.jobOffers = window.__market;
+    window.XCD.ui.showJobOffersPopup(g);
+  });
   await page.waitForSelector(`.job-row[data-job="${move.targetId}"]`);
-  await page.click(`.job-row[data-job="${move.targetId}"]`);
+  await page.click(`.job-row[data-job="${move.targetId}"] .job-row-main`);
   await page.click('#job-continue');
   await page.waitForSelector('#job-confirm');
   await page.click('#job-confirm');
