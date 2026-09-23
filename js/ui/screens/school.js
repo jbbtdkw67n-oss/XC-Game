@@ -830,12 +830,16 @@
             <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
               <div style="font-size:12.5px;"><strong>${tp.icon} Training Philosophy:</strong> ${tp.label}
                 <span style="color:var(--text-faint);"> • permanent, scales with Training (${coach.training})</span></div>
-              <div style="font-size:12px; color:var(--text-dim); margin:3px 0 10px;">${tp.desc}</div>
-              <div style="font-size:12.5px; margin-bottom:5px;"><strong>Race Philosophy:</strong> <span style="color:var(--text-dim);">${rp.desc}</span></div>
-              <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              <div style="font-size:12px; color:var(--text-dim); margin:3px 0 8px;">${tp.desc}</div>
+              ${UI.philosophyTradeoffs(tp)}
+              <div style="font-size:12.5px; margin:12px 0 5px;"><strong>${rp.icon} Race Philosophy:</strong> ${rp.label}
+                <span style="color:var(--text-faint);"> • change any time</span></div>
+              <div style="font-size:12px; color:var(--text-dim); margin-bottom:8px;">${rp.desc}</div>
+              ${UI.philosophyTradeoffs(rp)}
+              <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;">
                 ${D.RACE_PHILOSOPHIES.map((x) => `
                   <button class="btn small ${coach.racePhilosophy === x.key ? 'primary' : ''}" data-race-philo="${x.key}"
-                    title="${x.desc.replace(/&amp;/g, '&').replace(/"/g, '&quot;')}">${x.icon} ${x.label}</button>`).join('')}
+                    title="${[x.desc].concat((x.pros || []).map((t) => '+ ' + t), (x.cons || []).map((t) => '− ' + t)).join('\n').replace(/&amp;/g, '&').replace(/"/g, '&quot;')}">${x.icon} ${x.label}</button>`).join('')}
               </div>
             </div>`;
           })()}

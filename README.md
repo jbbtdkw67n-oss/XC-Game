@@ -48,9 +48,22 @@ every season opens with a projected outlook, and expectations now have teeth.
   fails to land a class up to the program's standard several years running can
   be let go.
 - **Available Jobs popup.** When the coaching market opens each offseason, a
-  clean full-screen picker presents every open chair — team crest, season
-  record, and Program Rating — sortable, so you can take a new job or stay put
-  in one tap. (The Dashboard job market is still there for a closer look.)
+  full-screen picker presents every open chair — team crest, the kind of move
+  (Step up, Lateral, Dream job…), division & conference, season record, the
+  school's **interest** in you (your hiring chance), and Program Rating —
+  sortable by rating, interest, record, or name. Tap an offer to expand a
+  side-by-side comparison with your current program (prestige, roster
+  strength, final national ranks, budget, facilities, academics, titles, and
+  the finish the AD will expect) plus a plain-language **Why take it / Why
+  stay** list. Your current program is shown for reference; a dedicated
+  **Turn Down Offers** button recommits you and closes the market for the
+  cycle, and **Decide later** leaves the offers open on the Dashboard.
+- **Coaching philosophies show their trade-offs.** Every training and race
+  philosophy now lists its concrete **Strengths** and **Weaknesses** (e.g.
+  High Mileage: biggest Stamina boost, but the most fatigue and injury risk)
+  — on the coach-creation cards, the career summary, the My Program screen
+  (including the race philosophy you currently run), and the assistant's
+  training view.
 - CPU head coaches and assistants keep upgrading their craft ratings on the
   same success-driven schedule the player does.
 

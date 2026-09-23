@@ -286,6 +286,7 @@
               <div class="archetype-card ${spec.trainingPhilosophy === tp.key ? 'selected' : ''}" data-tp="${tp.key}">
                 <div class="arch-name">${tp.icon} ${tp.label}</div>
                 <div class="arch-desc">${tp.desc}</div>
+                ${UI.philosophyTradeoffs(tp, { compact: true })}
               </div>`).join('')}
           </div>
         </div>`,
@@ -314,6 +315,7 @@
               <div class="archetype-card ${spec.racePhilosophy === rp.key ? 'selected' : ''}" data-rp="${rp.key}">
                 <div class="arch-name">${rp.icon} ${rp.label}</div>
                 <div class="arch-desc">${rp.desc}</div>
+                ${UI.philosophyTradeoffs(rp, { compact: true })}
               </div>`).join('')}
           </div>
         </div>`,
@@ -328,6 +330,12 @@
       });
 
       wireNav(null);
+    }
+
+    // One-line headline strength / weakness for the summary step.
+    function summaryTradeoff(p) {
+      const pro = (p.pros || [])[0], con = (p.cons || [])[0];
+      return `${pro ? `<span class="pro">+ ${pro}</span>` : ''}${pro && con ? '<br>' : ''}${con ? `<span class="con">− ${con}</span>` : ''}`;
     }
 
     /* ---------------- Step 6: Summary ---------------- */
@@ -365,7 +373,9 @@
             <div class="wizard-summary-title">Identity</div>
             <div>${arch.icon || ''} ${Utils.escapeHtml(spec.archetype || '—')} archetype</div>
             <div>${tp.icon || ''} ${Utils.escapeHtml(tp.label || 'Balanced')} training</div>
-            <div>${rp.icon || ''} ${Utils.escapeHtml(rp.label || 'Even')} racing</div>
+            <div class="to-summary">${summaryTradeoff(tp)}</div>
+            <div>${rp.icon || ''} ${rp.label || 'Even Pace'} racing</div>
+            <div class="to-summary">${summaryTradeoff(rp)}</div>
           </div>
           <div class="wizard-summary-box">
             <div class="wizard-summary-title">Starting Ratings</div>

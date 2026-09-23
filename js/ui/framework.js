@@ -87,6 +87,21 @@
     return `<div class="meter ${colorClass}"><span style="width:${Utils.clamp(value, 0, 100)}%"></span></div>`;
   };
 
+  /*
+   * Strengths / weaknesses list for a coaching philosophy (training or race).
+   * `compact` renders a denser variant for cards and pickers.
+   */
+  UI.philosophyTradeoffs = function (philo, { compact = false } = {}) {
+    if (!philo || (!(philo.pros || []).length && !(philo.cons || []).length)) return '';
+    const list = (items, cls, mark) => (items || []).map((t) =>
+      `<li class="${cls}"><span class="to-mark">${mark}</span><span>${t}</span></li>`).join('');
+    return `
+      <div class="tradeoffs${compact ? ' compact' : ''}">
+        <div class="to-col"><div class="to-head pro">Strengths</div><ul>${list(philo.pros, 'pro', '+')}</ul></div>
+        <div class="to-col"><div class="to-head con">Weaknesses</div><ul>${list(philo.cons, 'con', '−')}</ul></div>
+      </div>`;
+  };
+
   /* ---------------- Modern list row (UI overhaul) ----------------
    * One clean, scrollable list idiom used everywhere athletes, coaches and
    * programs are listed, and inside every profile: a leading colored status
