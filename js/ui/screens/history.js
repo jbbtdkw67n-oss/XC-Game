@@ -13,6 +13,9 @@
   let champYear = '';   // Champions page year filter (Update 12, Phase 8)
   let awardDiv = 'DI';  // Awards page division filter (Update 4, Part 6)
   let awardYear = '';   // Awards page year filter
+  const YEARS_PAGE = 8; // Champions/Awards show this many seasons at a time
+  let champShown = YEARS_PAGE;
+  let awardShown = YEARS_PAGE;
   let goatSub = 'athletes';   // GOAT Lists sub-page
   const goatFilters = { query: '', division: '', gender: '', status: '' }; // Update 12: GOAT list filters
   let boardSub = 'programs';  // Leaderboards sub-page
@@ -82,15 +85,15 @@
           </div>
           ${UI.listGroup([
             ...game.history.playerCareers.map((p, i) => UI.listRow({
-              badge: '🧢', tone: (p.careerRecord || {}).nationalTitles > 0 ? 'gold' : 'muted',
-              title: Utils.escapeHtml(p.name),
+              badge: UI.avatar(p, { size: 40, outfit: 'polo' }), tone: (p.careerRecord || {}).nationalTitles > 0 ? 'gold' : 'muted',
+              title: `<span class="person-name">${Utils.escapeHtml(p.name)}</span>`,
               tag: `retired ${p.retiredYear}`,
-              sub: `${(p.careerRecord || {}).seasons || 0} szn • ${(p.careerRecord || {}).nationalTitles || 0} natl • ${(p.careerRecord || {}).conferenceTitles || 0} conf • ${p.winPct || 0}%`,
+              sub: `${(p.careerRecord || {}).seasons || 0} szn • ${(p.careerRecord || {}).nationalTitles || 0} natl • ${(p.careerRecord || {}).conferenceTitles || 0} conf`,
               attrs: { lineage: i }
             })),
             UI.listRow({
-              badge: '🧢', tone: 'accent', mine: true,
-              title: Utils.escapeHtml(coach.fullName), tag: '(current)',
+              badge: UI.avatar(coach, { size: 40, outfit: 'polo' }), tone: 'accent', mine: true,
+              title: `<span class="person-name">${Utils.escapeHtml(coach.fullName)}</span>`, tag: '(current)',
               sub: `${c.seasons} szn • ${c.nationalTitles} natl • ${c.conferenceTitles} conf`
             })
           ], { scroll: false })}
@@ -249,7 +252,7 @@
         ${rows.length ? UI.listGroup(rows.map((r, i) => UI.listRow({
           badge: i + 1, tone: rankTone(i),
           mine: r.schoolId === game.playerSchoolId,
-          title: `${r.generational ? '⭐ ' : ''}${Utils.escapeHtml(r.name)}`,
+          title: UI.personName(game, 'ath', r.athleteId, r.name, { link: false, prefix: r.generational ? '⭐ ' : '', extra: { gender: r.gender, schoolId: r.schoolId } }),
           tag: r.years === 'active' ? '● active' : Utils.escapeHtml(r.years || ''),
           sub: `${r.gender} • ${Utils.escapeHtml(r.school)} • ${honorBits([['NC', r.natTitles], ['AoY', r.aoyAwards], ['AA', r.allAmerican], ['Conf', r.confChamps], ['wins', r.wins]])}`,
           meta: `<span class="big">${r.score}</span><div class="small">legacy</div>`,
@@ -278,9 +281,9 @@
         </div>
         ${rows.length ? UI.listGroup(rows.map((r, i) => UI.listRow({
           badge: i + 1, tone: rankTone(i), mine: r.isPlayer,
-          title: `${Utils.escapeHtml(r.name)}${r.isPlayer ? ' (You)' : ''}`,
+          title: `${UI.personName(game, 'coach', r.coachId, r.name, { link: false, person: r.record || undefined })}${r.isPlayer ? ' (You)' : ''}`,
           tag: r.years === 'active' ? '● active' : Utils.escapeHtml(r.years || ''),
-          sub: `${Utils.escapeHtml(r.school)} • ${honorBits([['NC', r.natTitles], ['RU', r.natRunnerUp], ['CoY', r.coy], ['Conf', r.confTitles], ['Reg', r.regTitles]])} • ${r.winPct}% · ${r.seasons} szn`,
+          sub: `${Utils.escapeHtml(r.school)} • ${honorBits([['NC', r.natTitles], ['RU', r.natRunnerUp], ['CoY', r.coy], ['Conf', r.confTitles], ['Reg', r.regTitles]])} · ${r.seasons} szn`,
           meta: `<span class="big">${r.score}</span><div class="small">legacy</div>`,
           attrs: { gcoach: i }
         })), { scroll: false })
@@ -291,7 +294,7 @@
         <h2>National Coach Rankings — Active</h2>
         ${UI.listGroup(active.map((r) => UI.listRow({
           badge: r.rank, tone: rankTone(r.rank - 1), mine: r.isPlayer,
-          title: `${Utils.escapeHtml(r.name)}${r.isPlayer ? ' (You)' : ''}`,
+          title: `${UI.personName(game, 'coach', r.coachId, r.name, { link: false })}${r.isPlayer ? ' (You)' : ''}`,
           sub: `${Utils.escapeHtml(r.school)} • ${r.natTitles} NC · ${r.confTitles} Conf${r.bestRank < 900 ? ` · best #${r.bestRank}` : ''}`,
           meta: `<span class="big">${r.reputation}</span><div class="small">${Utils.escapeHtml(r.repLabel)}</div>`,
           attrs: { coach: r.coachId }
@@ -328,10 +331,10 @@
     const draw = (q) => {
       const filtered = registry.filter((c) => !q || c.name.toLowerCase().includes(q));
       list.innerHTML = filtered.length ? UI.listGroup(filtered.slice(0, 40).map((c, i) => UI.listRow({
-        badge: '🧢', tone: (c.careerRecord.nationalTitles > 0 ? 'gold' : 'muted'), mine: c.isPlayer,
-        title: `${Utils.escapeHtml(c.name)}${c.isPlayer ? ' (You)' : ''}`,
+        badge: UI.avatar(c, { size: 40, outfit: 'polo' }), tone: (c.careerRecord.nationalTitles > 0 ? 'gold' : 'muted'), mine: c.isPlayer,
+        title: `<span class="person-name">${Utils.escapeHtml(c.name)}</span>${c.isPlayer ? ' (You)' : ''}`,
         sub: `${Utils.escapeHtml(c.reputationLabel || '')} • ${c.reason === 'retired' ? `retired ${c.year}, age ${c.age}` : `left the profession ${c.year}`}<br>${(c.stints || []).map((s) => `${Utils.escapeHtml(s.school)} '${String(s.startYear).slice(2)}–'${String(s.endYear).slice(2)}`).join(' → ')}`,
-        meta: `<span class="small">${c.careerRecord.wins}-${c.careerRecord.losses} (${c.winPct}%)<br>${c.careerRecord.nationalTitles} natl · ${c.careerRecord.conferenceTitles} conf · ${c.careerRecord.allAmericans || 0} AAs</span>`,
+        meta: `<span class="small">${c.careerRecord.seasons || 0} seasons<br>${c.careerRecord.nationalTitles} natl · ${c.careerRecord.conferenceTitles} conf · ${c.careerRecord.allAmericans || 0} AAs</span>`,
         attrs: { reg: i }
       })), { scroll: false }) : '<div style="color:var(--text-dim); font-size:13px;">No matches.</div>';
       list.querySelectorAll('[data-reg]').forEach((row) => {
@@ -348,14 +351,14 @@
         <h2>🐐 Greatest Programs of All Time</h2>
         <div style="color:var(--text-dim); font-size:12.5px; margin-bottom:8px;">
           Historical prestige: national championships and runner-up finishes lead, then top-25 seasons,
-          conference and regional titles, NCAA appearances, winning percentage, and longevity.
+          conference and regional titles, NCAA appearances, and longevity.
           Programs rise and fall throughout history.
         </div>
         ${rows.length ? UI.listGroup(rows.map((r, i) => UI.listRow({
           badge: i + 1, tone: rankTone(i), mine: r.schoolId === game.playerSchoolId,
           title: Utils.escapeHtml(r.name),
           tag: `${DIV_LABELS[r.division] || r.division}`,
-          sub: `${Utils.escapeHtml(r.conference)} • ${honorBits([['NC', r.natTitles], ['RU', r.natRunnerUp], ['Conf', r.confTitles], ['Top25', r.top25], ['apps', r.natApps]])} • ${r.winPct}%`,
+          sub: `${Utils.escapeHtml(r.conference)} • ${honorBits([['NC', r.natTitles], ['RU', r.natRunnerUp], ['Conf', r.confTitles], ['Top25', r.top25], ['apps', r.natApps]])}`,
           meta: `<span class="big">${r.score}</span><div class="small">legacy</div>`,
           attrs: { gprog: i }
         })), { scroll: false })
@@ -382,7 +385,7 @@
           badge: i + 1, tone: rankTone(i), mine: r.schoolId === game.playerSchoolId,
           title: `${r.year} ${Utils.escapeHtml(r.school)}`,
           tag: `${r.gender} • ${DIV_LABELS[r.division] || r.division}`,
-          sub: `🧢 <span class="clickable" data-team-coach="${i}" style="color:var(--accent-hover);">${Utils.escapeHtml(r.coachName || '—')}</span> • OVR ${r.teamOverall} · Perf ${r.teamPerformance}${r.margin != null ? ` · margin ${r.margin}` : ''}`,
+          sub: `<span class="clickable" data-team-coach="${i}">${r.coachName ? UI.personName(game, 'coach', r.coachId, r.coachName, { link: false, size: 18 }) : '—'}</span> • OVR ${r.teamOverall} · Perf ${r.teamPerformance}${r.margin != null ? ` · margin ${r.margin}` : ''}`,
           meta: `<span class="big">${r.score}</span><div class="small">legacy</div>`,
           attrs: { gteam: i }
         })), { scroll: false })
@@ -453,8 +456,6 @@
           { key: 'natRunnerUp', label: 'RU', numeric: true },
           { key: 'confTitles', label: 'Conf', numeric: true },
           { key: 'regTitles', label: 'Reg', numeric: true },
-          { key: 'winPct', label: 'Win%', numeric: true, render: (r) => `${r.winPct}%` },
-          { key: 'wins', label: 'Wins', numeric: true },
           { key: 'top25', label: 'Top25', numeric: true },
           { key: 'natApps', label: 'Apps', numeric: true },
           { key: 'streak', label: 'Streak', numeric: true },
@@ -475,7 +476,7 @@
       }));
       config = {
         columns: [
-          { key: 'name', label: 'Coach', render: (r) => `<strong>${Utils.escapeHtml(r.name)}</strong>${r.isPlayer ? ' (You)' : ''} <span style="color:var(--text-faint); font-size:11px;">${r.years === 'active' ? '●' : Utils.escapeHtml(r.years)}</span>` },
+          { key: 'name', label: 'Coach', render: (r) => `${UI.personName(game, 'coach', r.coachId, r.name, { link: false, person: r.record || undefined })}${r.isPlayer ? ' (You)' : ''} <span style="color:var(--text-faint); font-size:11px;">${r.years === 'active' ? '●' : Utils.escapeHtml(r.years)}</span>` },
           { key: 'school', label: 'School' },
           { key: 'natTitles', label: 'NC', numeric: true },
           { key: 'natRunnerUp', label: 'RU', numeric: true },
@@ -484,8 +485,6 @@
           { key: 'regTitles', label: 'Reg', numeric: true },
           { key: 'top25', label: 'Top25', numeric: true },
           { key: 'natApps', label: 'Apps', numeric: true },
-          { key: 'winPct', label: 'Win%', numeric: true, render: (r) => `${r.winPct}%` },
-          { key: 'wins', label: 'Wins', numeric: true },
           { key: 'seasons', label: 'Szn', numeric: true },
           { key: 'score', label: 'Legacy', numeric: true, render: (r) => `<strong>${r.score}</strong>` }
         ],
@@ -500,7 +499,7 @@
       allRows = GOAT.athletes(game);
       config = {
         columns: [
-          { key: 'name', label: 'Athlete', render: (r) => `<strong>${r.generational ? '⭐ ' : ''}${Utils.escapeHtml(r.name)}</strong> <span style="color:var(--text-faint); font-size:11px;">${r.years === 'active' ? '●' : Utils.escapeHtml(r.years || '')}</span>` },
+          { key: 'name', label: 'Athlete', render: (r) => `${UI.personName(game, 'ath', r.athleteId, r.name, { link: false, prefix: r.generational ? '⭐ ' : '', extra: { gender: r.gender, schoolId: r.schoolId } })} <span style="color:var(--text-faint); font-size:11px;">${r.years === 'active' ? '●' : Utils.escapeHtml(r.years || '')}</span>` },
           { key: 'gender', label: '' },
           { key: 'school', label: 'School' },
           { key: 'natTitles', label: 'NC', numeric: true },
@@ -511,7 +510,6 @@
           { key: 'regChamps', label: 'Reg', numeric: true },
           { key: 'allConference', label: 'AllC', numeric: true },
           { key: 'wins', label: 'Wins', numeric: true },
-          { key: 'winPct', label: 'Win%', numeric: true, render: (r) => `${r.winPct}%` },
           { key: 'seasons', label: 'Szn', numeric: true },
           { key: 'score', label: 'Legacy', numeric: true, render: (r) => `<strong>${r.score}</strong>` }
         ],
@@ -552,6 +550,8 @@
    * D1/D2/D3, plus conference champions grouped by division → conference.
    * A division filter keeps the page readable; conference lists collapse.
    * Update 12: a year filter jumps straight to any season in history.
+   * Every athlete and coach carries their avatar; years page in a few at a
+   * time and the collapsed conference/regional lists render when opened.
    */
   function champions(game, el) {
     const natl = game.history.nationalChampions || {};
@@ -575,11 +575,21 @@
       return sid ? Legacy.coachForSchoolYear(game, sid, year) : '';
     };
     const coachTag = (name, coachId) => name
-      ? ` <span style="color:var(--text-faint); font-size:11.5px;">🧢 <span class="clickable" data-coach="${coachId || ''}" data-coach-name="${Utils.escapeHtml(name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(name)}</span></span>`
+      ? ` <span style="color:var(--text-faint); font-size:11.5px;">🧢 ${UI.personName(game, 'coach', coachId, name, { size: 18 })}</span>`
       : '';
+    const athTag = (id, name, gender, schoolId) => UI.personName(game, 'ath', id, name, { extra: { gender, schoolId } });
     let years = [...new Set([...Object.keys(natl), ...Object.keys(conf), ...Object.keys(regional)])].sort((a, b) => b - a);
     if (champYear) years = years.filter((y) => String(y).includes(champYear));
     const ft = window.XCD.engine.Races.formatTime;
+    const lazy = [];
+    const lazyDetails = (summary, renderFn) => {
+      lazy.push(renderFn);
+      return `
+          <details style="margin-top:10px;" data-lazy="${lazy.length - 1}">
+            <summary style="cursor:pointer; color:var(--text-dim); font-size:13px;">${summary}</summary>
+            <div class="lazy-body" style="margin-top:8px;"></div>
+          </details>`;
+    };
 
     const filterBar = `
       <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
@@ -589,8 +599,7 @@
         <input type="text" id="champ-year" class="search-input" placeholder="Filter year… e.g. 2031" value="${Utils.escapeHtml(champYear)}" style="max-width:170px;">
       </div>`;
 
-    const body = !years.length ? '<div class="card" style="color:var(--text-dim);">No championships match the current filters.</div>'
-      : years.slice(0, 60).map((year) => {
+    const cards = years.map((year) => {
         const n = natl[year] || {};
         // National team + individual champions for the selected division.
         const natBlock = ['M', 'W'].map((g) => {
@@ -599,10 +608,10 @@
           const teamCoach = coachFor(rec.team, year, rec.coach, rec.teamId);
           const indivCoach = coachFor(rec.individualSchool, year, rec.individualCoach, rec.individualSchoolId);
           return `
-            <div class="attr-row">
+            <div class="attr-row" style="flex-wrap:wrap; gap:6px;">
               <span>🏆 ${g === 'M' ? "Men's" : "Women's"} National Champions:
                 <strong class="clickable-school" data-school="${rec.teamId || ''}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(rec.team)}</strong>${coachTag(teamCoach, rec.coachId)}</span>
-              <span style="color:var(--text-dim);">🥇 <span class="${rec.individualId ? 'clickable' : ''}" ${rec.individualId ? `data-ath="${rec.individualId}" data-ath-name="${Utils.escapeHtml(rec.individual)}" style="cursor:pointer; color:var(--accent-hover);"` : ''}>${Utils.escapeHtml(rec.individual)}</span> (<span class="${rec.individualSchoolId ? 'clickable' : ''}" ${rec.individualSchoolId ? `data-school="${rec.individualSchoolId}" style="cursor:pointer;"` : ''}>${Utils.escapeHtml(rec.individualSchool)}</span>)${rec.individualTime ? ' — ' + ft(rec.individualTime) : ''}${coachTag(indivCoach)}</span>
+              <span style="color:var(--text-dim);">🥇 ${athTag(rec.individualId, rec.individual, g, rec.individualSchoolId)} (<span class="${rec.individualSchoolId ? 'clickable' : ''}" ${rec.individualSchoolId ? `data-school="${rec.individualSchoolId}" style="cursor:pointer;"` : ''}>${Utils.escapeHtml(rec.individualSchool)}</span>)${rec.individualTime ? ' — ' + ft(rec.individualTime) : ''}${coachTag(indivCoach)}</span>
             </div>`;
         }).join('');
 
@@ -619,34 +628,29 @@
             return (schoolDiv[r[`${rg}-${g}`]] || 'DI') === champDiv;
           }))
           .sort();
-        const regBlock = regionNames.length ? `
-          <details style="margin-top:10px;">
-            <summary style="cursor:pointer; color:var(--text-dim); font-size:13px;">Regional Champions (${regionNames.length} regions)</summary>
-            <div style="margin-top:8px;">
-              ${regionNames.map((rg) => {
-                const teamLine = (g) => {
-                  const m = rm[`${champDiv}:${rg}-${g}`];
-                  const nameOnly = r[`${rg}-${g}`];
-                  const champName = m ? m.school : nameOnly;
-                  if (!champName) return '';
-                  if (!m && (schoolDiv[champName] || 'DI') !== champDiv) return '';
-                  const coach = coachFor(champName, year, m && m.coach, m && m.schoolId);
-                  return `<div style="font-size:12.5px;">${g}: <strong>${Utils.escapeHtml(champName)}</strong>${coachTag(coach, m && m.coachId)}</div>`;
-                };
-                const indivLine = (g) => {
-                  const rec = ri[`${rg}-${g}`];
-                  if (!rec) return '';
-                  if ((schoolDiv[rec.school] || 'DI') !== champDiv) return '';
-                  return `<div style="color:var(--text-faint); font-size:11.5px;">🥇${g}: <span class="clickable" data-ath="${rec.athleteId}" data-ath-name="${Utils.escapeHtml(rec.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(rec.name)}</span> (${Utils.escapeHtml(rec.school)})${rec.coach ? ` — 🧢 ${Utils.escapeHtml(rec.coach)}` : ''}</div>`;
-                };
-                return `
-                <div class="attr-row" style="align-items:flex-start;">
-                  <span class="attr-name">🗺 ${Utils.escapeHtml(rg)}</span>
-                  <span style="text-align:right;">${teamLine('M')}${teamLine('W')}${indivLine('M')}${indivLine('W')}</span>
-                </div>`;
-              }).join('')}
-            </div>
-          </details>` : '';
+        const regBlock = regionNames.length ? lazyDetails(`Regional Champions (${regionNames.length} regions)`, () =>
+          regionNames.map((rg) => {
+            const teamLine = (g) => {
+              const m = rm[`${champDiv}:${rg}-${g}`];
+              const nameOnly = r[`${rg}-${g}`];
+              const champName = m ? m.school : nameOnly;
+              if (!champName) return '';
+              if (!m && (schoolDiv[champName] || 'DI') !== champDiv) return '';
+              const coach = coachFor(champName, year, m && m.coach, m && m.schoolId);
+              return `<div style="font-size:12.5px;">${g}: <strong>${Utils.escapeHtml(champName)}</strong>${coachTag(coach, m && m.coachId)}</div>`;
+            };
+            const indivLine = (g) => {
+              const rec = ri[`${rg}-${g}`];
+              if (!rec) return '';
+              if ((schoolDiv[rec.school] || 'DI') !== champDiv) return '';
+              return `<div style="color:var(--text-faint); font-size:11.5px;">🥇${g}: ${athTag(rec.athleteId, rec.name, g)} (${Utils.escapeHtml(rec.school)})${rec.coach ? coachTag(rec.coach) : ''}</div>`;
+            };
+            return `
+            <div class="attr-row" style="align-items:flex-start;">
+              <span class="attr-name">🗺 ${Utils.escapeHtml(rg)}</span>
+              <span style="text-align:right;">${teamLine('M')}${teamLine('W')}${indivLine('M')}${indivLine('W')}</span>
+            </div>`;
+          }).join('')) : '';
 
         // Conference champions in this division, grouped by conference.
         const c = conf[year] || {};
@@ -655,44 +659,60 @@
         const confNames = [...new Set(Object.keys(c).map((k) => k.slice(0, k.lastIndexOf('-'))))]
           .filter((name) => (confDiv[name] || 'DI') === champDiv)
           .sort();
-        const confBlock = confNames.length ? `
-          <details style="margin-top:10px;">
-            <summary style="cursor:pointer; color:var(--text-dim); font-size:13px;">Conference Champions (${confNames.length})</summary>
-            <div style="margin-top:8px;">
-              ${confNames.map((name) => {
-                const teamBit = (g) => {
-                  const champName = c[`${name}-${g}`];
-                  if (!champName) return '';
-                  const m = cm[`${name}-${g}`];
-                  const coach = coachFor(champName, year, m && m.coach, m && m.schoolId);
-                  return `${g === 'W' ? ' · ' : ''}${g}: ${Utils.escapeHtml(champName)}${coachTag(coach, m && m.coachId)}`;
-                };
-                const indivLine = (g) => {
-                  const rec = ci[`${name}-${g}`];
-                  if (!rec) return '';
-                  return ` <span style="color:var(--text-faint); font-size:11.5px;">🥇${g}: <span class="clickable" data-ath="${rec.athleteId}" data-ath-name="${Utils.escapeHtml(rec.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(rec.name)}</span></span>`;
-                };
-                return `
-                <div class="attr-row">
-                  <span class="attr-name">${Utils.escapeHtml(name)}</span>
-                  <span style="font-size:12.5px;">${teamBit('M')}${teamBit('W')}${indivLine('M')}${indivLine('W')}</span>
-                </div>`;
-              }).join('')}
-            </div>
-          </details>` : '';
+        const confBlock = confNames.length ? lazyDetails(`Conference Champions (${confNames.length})`, () =>
+          confNames.map((name) => {
+            const teamLine = (g) => {
+              const champName = c[`${name}-${g}`];
+              if (!champName) return '';
+              const m = cm[`${name}-${g}`];
+              const coach = coachFor(champName, year, m && m.coach, m && m.schoolId);
+              return `<div style="font-size:12.5px;">${g}: <strong>${Utils.escapeHtml(champName)}</strong>${coachTag(coach, m && m.coachId)}</div>`;
+            };
+            const indivLine = (g) => {
+              const rec = ci[`${name}-${g}`];
+              if (!rec) return '';
+              return `<div style="color:var(--text-faint); font-size:11.5px;">🥇${g}: ${athTag(rec.athleteId, rec.name, g)}</div>`;
+            };
+            return `
+            <div class="attr-row" style="align-items:flex-start;">
+              <span class="attr-name">${Utils.escapeHtml(name)}</span>
+              <span style="text-align:right;">${teamLine('M')}${teamLine('W')}${indivLine('M')}${indivLine('W')}</span>
+            </div>`;
+          }).join('')) : '';
 
         if (!natBlock && !confBlock && !regBlock) return '';
         return `<div class="card" style="margin-bottom:16px;"><h2>${year} — ${window.XCD.data.divisionFor(champDiv).label}</h2>${natBlock}${regBlock}${confBlock}</div>`;
-      }).join('') || '<div class="card" style="color:var(--text-dim);">No championships in this division yet.</div>';
+      });
+    const populated = cards.filter(Boolean);
+    const body = !years.length ? '<div class="card" style="color:var(--text-dim);">No championships match the current filters.</div>'
+      : (populated.slice(0, champShown).join('') || '<div class="card" style="color:var(--text-dim);">No championships in this division yet.</div>') +
+        (populated.length > champShown ? `<button class="btn" id="champ-more" style="width:100%; margin-bottom:16px;">Show more years (${populated.length - champShown} older)</button>` : '');
 
     el.innerHTML = filterBar + body;
 
     el.querySelectorAll('[data-champ-div]').forEach((btn) => {
-      btn.addEventListener('click', () => { champDiv = btn.dataset.champDiv; champions(game, el); });
+      btn.addEventListener('click', () => { champDiv = btn.dataset.champDiv; champShown = YEARS_PAGE; champions(game, el); });
     });
     const yearInput = el.querySelector('#champ-year');
-    yearInput.addEventListener('change', () => { champYear = yearInput.value.trim(); champions(game, el); });
+    yearInput.addEventListener('change', () => { champYear = yearInput.value.trim(); champShown = YEARS_PAGE; champions(game, el); });
+    const more = el.querySelector('#champ-more');
+    if (more) more.addEventListener('click', () => { champShown += YEARS_PAGE; champions(game, el); });
+    wireLazyDetails(game, el, lazy);
     wireProfileClicks(game, el);
+  }
+
+  // Collapsed sections render their (avatar-heavy) contents the first time
+  // they are opened, then wire their profile links.
+  function wireLazyDetails(game, el, lazy) {
+    el.querySelectorAll('details[data-lazy]').forEach((d) => {
+      d.addEventListener('toggle', () => {
+        if (!d.open || d.dataset.filled) return;
+        d.dataset.filled = '1';
+        const target = d.querySelector('.lazy-body');
+        target.innerHTML = lazy[Number(d.dataset.lazy)]();
+        wireProfileClicks(game, target);
+      });
+    });
   }
 
   // Shared click wiring for champions/awards profile navigation. Every name
@@ -720,11 +740,21 @@
   /*
    * Awards (Update 4, Part 6): national awards for D1/D2/D3 and conference
    * awards for every conference. Division + year filters keep it browsable.
+   * Every honoree — athlete or coach — is shown with their avatar.
    */
   function awards(game, el) {
     const A = game.history.awards || {};
     let years = Object.keys(A).sort((a, b) => b - a);
     if (awardYear) years = years.filter((y) => String(y).includes(awardYear));
+    const lazy = [];
+    const lazyDetails = (summary, renderFn) => {
+      lazy.push(renderFn);
+      return `
+          <details style="margin-top:12px;" data-lazy="${lazy.length - 1}">
+            <summary style="cursor:pointer; color:var(--text-dim); font-size:13px;">${summary}</summary>
+            <div class="lazy-body" style="margin-top:8px;"></div>
+          </details>`;
+    };
 
     const filterBar = `
       <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
@@ -734,11 +764,11 @@
         <input type="text" id="award-year" class="search-input" placeholder="Filter year…" value="${Utils.escapeHtml(awardYear)}" style="max-width:170px;">
       </div>`;
 
-    const nameSpan = (x) => x ? `<span class="${x.athleteId ? 'clickable' : ''}" ${x.athleteId ? `data-ath="${x.athleteId}" data-ath-name="${Utils.escapeHtml(x.name)}" style="cursor:pointer; color:var(--accent-hover);"` : ''}>${Utils.escapeHtml(x.name)}</span> — ${Utils.escapeHtml(x.school)}` : '';
-    const coachSpan = (x) => x ? `<span class="clickable" ${x.coachId ? `data-coach="${x.coachId}"` : 'data-coach=""'} data-coach-name="${Utils.escapeHtml(x.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(x.name)}</span> — ${Utils.escapeHtml(x.school)}` : '';
+    const nameSpan = (x, gender) => x ? `${UI.personName(game, 'ath', x.athleteId, x.name, { extra: { gender } })} <span style="color:var(--text-dim);">— ${Utils.escapeHtml(x.school)}</span>` : '';
+    const coachSpan = (x) => x ? `${UI.personName(game, 'coach', x.coachId, x.name)} <span style="color:var(--text-dim);">— ${Utils.escapeHtml(x.school)}</span>` : '';
+    const nameList = (list, gender, max) => `<span class="person-list" style="font-size:12px;">${list.slice(0, max).map((x) => UI.personName(game, 'ath', x.athleteId, x.name, { size: 18, extra: { gender } })).join('')}${list.length > max ? '<span style="color:var(--text-faint);">…</span>' : ''}</span>`;
 
-    const body = !years.length ? '<div class="card" style="color:var(--text-dim);">Awards are handed out after each NCAA Championships.</div>'
-      : years.slice(0, 60).map((year) => {
+    const cards = years.map((year) => {
         // Prefer the per-division slate; fall back to legacy top-level M/W.
         const slate = ((A[year].divisions || {})[awardDiv]) || (awardDiv === 'DI' ? A[year] : null);
         if (!slate) return '';
@@ -747,46 +777,48 @@
           if (!g) return '';
           return `
             <h3 style="margin-top:10px;">${gender === 'M' ? 'Men' : 'Women'}</h3>
-            ${g.runnerOfYear ? `<div class="attr-row"><span class="attr-name">Runner of the Year</span><span>${nameSpan(g.runnerOfYear)}</span></div>` : ''}
-            ${g.freshmanOfYear ? `<div class="attr-row"><span class="attr-name">Freshman of the Year</span><span>${nameSpan(g.freshmanOfYear)}</span></div>` : ''}
+            ${g.runnerOfYear ? `<div class="attr-row"><span class="attr-name">Runner of the Year</span><span>${nameSpan(g.runnerOfYear, gender)}</span></div>` : ''}
+            ${g.freshmanOfYear ? `<div class="attr-row"><span class="attr-name">Freshman of the Year</span><span>${nameSpan(g.freshmanOfYear, gender)}</span></div>` : ''}
             ${g.coachOfYear ? `<div class="attr-row"><span class="attr-name">Coach of the Year</span><span>${coachSpan(g.coachOfYear)}</span></div>` : ''}
-            ${g.allAmericans && g.allAmericans.length ? `<div class="attr-row"><span class="attr-name">All-Americans</span><span style="font-size:12px; color:var(--text-dim);">${g.allAmericans.slice(0, 10).map((x) => `<span class="clickable" data-ath="${x.athleteId || ''}" data-ath-name="${Utils.escapeHtml(x.name)}" style="cursor:pointer;">${Utils.escapeHtml(x.name)}</span>`).join(', ')}${g.allAmericans.length > 10 ? '…' : ''}</span></div>` : ''}
-            ${g.academicAllAmericans && g.academicAllAmericans.length ? `<div class="attr-row"><span class="attr-name">Academic All-Americans</span><span style="font-size:12px; color:var(--text-dim);">${g.academicAllAmericans.slice(0, 5).map((x) => `<span class="clickable" data-ath="${x.athleteId || ''}" data-ath-name="${Utils.escapeHtml(x.name)}" style="cursor:pointer;">${Utils.escapeHtml(x.name)}</span>`).join(', ')}</span></div>` : ''}`;
+            ${g.allAmericans && g.allAmericans.length ? `<div class="attr-row" style="align-items:flex-start;"><span class="attr-name" style="flex:0 0 auto;">All-Americans</span>${nameList(g.allAmericans, gender, 10)}</div>` : ''}
+            ${g.academicAllAmericans && g.academicAllAmericans.length ? `<div class="attr-row" style="align-items:flex-start;"><span class="attr-name" style="flex:0 0 auto;">Academic All-Americans</span>${nameList(g.academicAllAmericans, gender, 5)}</div>` : ''}`;
         };
 
         // Conference awards for every conference in this division.
         const confs = slate.conferences || {};
         const confNames = Object.keys(confs).sort();
-        const confBlock = confNames.length ? `
-          <details style="margin-top:12px;">
-            <summary style="cursor:pointer; color:var(--text-dim); font-size:13px;">Conference Awards (${confNames.length})</summary>
-            <div style="margin-top:8px;">
-              ${confNames.map((conf) => {
-                const cb = confs[conf];
-                const line = (gender) => {
-                  const g = cb[gender]; if (!g) return '';
-                  const bits = [];
-                  if (g.runnerOfYear) bits.push(`RoY: ${nameSpan(g.runnerOfYear)}`);
-                  if (g.freshmanOfYear) bits.push(`FoY: ${nameSpan(g.freshmanOfYear)}`);
-                  if (g.coachOfYear) bits.push(`CoY: ${coachSpan(g.coachOfYear)}`);
-                  return bits.length ? `<div style="font-size:12px; color:var(--text-dim); margin-left:8px;">${gender}: ${bits.join(' &nbsp;·&nbsp; ')}</div>` : '';
-                };
-                return `<div style="margin-bottom:8px;"><strong style="font-size:12.5px;">${Utils.escapeHtml(conf)}</strong>${line('M')}${line('W')}</div>`;
-              }).join('')}
-            </div>
-          </details>` : '';
+        const confBlock = confNames.length ? lazyDetails(`Conference Awards (${confNames.length})`, () =>
+          confNames.map((conf) => {
+            const cb = confs[conf];
+            const line = (gender) => {
+              const g = cb[gender]; if (!g) return '';
+              const bits = [];
+              if (g.runnerOfYear) bits.push(`<div>RoY: ${nameSpan(g.runnerOfYear, gender)}</div>`);
+              if (g.freshmanOfYear) bits.push(`<div>FoY: ${nameSpan(g.freshmanOfYear, gender)}</div>`);
+              if (g.coachOfYear) bits.push(`<div>CoY: ${coachSpan(g.coachOfYear)}</div>`);
+              return bits.length ? `<div style="font-size:12px; color:var(--text-dim); margin:4px 0 0 8px;"><span style="color:var(--text-faint);">${gender === 'M' ? 'Men' : 'Women'}</span>${bits.join('')}</div>` : '';
+            };
+            return `<div style="margin-bottom:10px;"><strong style="font-size:12.5px;">${Utils.escapeHtml(conf)}</strong>${line('M')}${line('W')}</div>`;
+          }).join('')) : '';
 
         if (!slate.M && !slate.W && !confNames.length) return '';
         return `<div class="card" style="margin-bottom:16px;"><h2>${year} Awards — ${window.XCD.data.divisionFor(awardDiv).label}</h2>${natBlock('M')}${natBlock('W')}${confBlock}</div>`;
-      }).join('') || '<div class="card" style="color:var(--text-dim);">No awards recorded for this division yet.</div>';
+      });
+    const populated = cards.filter(Boolean);
+    const body = !years.length ? '<div class="card" style="color:var(--text-dim);">Awards are handed out after each NCAA Championships.</div>'
+      : (populated.slice(0, awardShown).join('') || '<div class="card" style="color:var(--text-dim);">No awards recorded for this division yet.</div>') +
+        (populated.length > awardShown ? `<button class="btn" id="award-more" style="width:100%; margin-bottom:16px;">Show more years (${populated.length - awardShown} older)</button>` : '');
 
     el.innerHTML = filterBar + body;
 
     el.querySelectorAll('[data-award-div]').forEach((btn) => {
-      btn.addEventListener('click', () => { awardDiv = btn.dataset.awardDiv; awards(game, el); });
+      btn.addEventListener('click', () => { awardDiv = btn.dataset.awardDiv; awardShown = YEARS_PAGE; awards(game, el); });
     });
     const yearInput = el.querySelector('#award-year');
-    yearInput.addEventListener('change', () => { awardYear = yearInput.value.trim(); awards(game, el); });
+    yearInput.addEventListener('change', () => { awardYear = yearInput.value.trim(); awardShown = YEARS_PAGE; awards(game, el); });
+    const more = el.querySelector('#award-more');
+    if (more) more.addEventListener('click', () => { awardShown += YEARS_PAGE; awards(game, el); });
+    wireLazyDetails(game, el, lazy);
     wireProfileClicks(game, el);
   }
 
@@ -804,12 +836,12 @@
         <h2>All-Time National Records</h2>
         ${keys.length ? UI.listGroup(keys.map((k) => {
           const r = R[k];
-          const holder = `<span class="clickable" data-ath="${r.athleteId}" data-ath-name="${Utils.escapeHtml(r.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(r.name)}</span>`;
+          const person = UI.resolvePerson(game, 'ath', r.athleteId, r.name, { gender: k[0], schoolId: r.schoolId });
           return UI.listRow({
-            badge: '🏁', tone: 'gold',
+            badge: UI.avatar(person, { size: 40, outfit: 'jersey' }), tone: 'gold',
             title: k.replace('M-', "Men's ").replace('W-', "Women's "),
-            sub: `${holder} — <span class="${r.schoolId ? 'clickable' : ''}" ${r.schoolId ? `data-school="${r.schoolId}" style="cursor:pointer;"` : ''}>${Utils.escapeHtml(r.school)}</span> (${r.year})`,
-            meta: `<span class="big">${window.XCD.engine.Races.formatTime(r.time)}</span>`
+            sub: `${UI.personName(game, 'ath', r.athleteId, r.name, { person, size: 18 })} — <span class="${r.schoolId ? 'clickable' : ''}" ${r.schoolId ? `data-school="${r.schoolId}" style="cursor:pointer;"` : ''}>${Utils.escapeHtml(r.school)}</span>`,
+            meta: `<span class="big">${window.XCD.engine.Races.formatTime(r.time)}</span><div class="small">set ${r.year}</div>`
           });
         }), { scroll: false }) : '<div style="color:var(--text-dim);">No national records yet — they will be set by the runners once racing begins.</div>'}
       </div>`;
@@ -838,8 +870,8 @@
             ? window.XCD.engine.Legacy.badgesFor(active)
             : (alum ? alum.badges : []);
           return UI.listRow({
-            badge: '⭐', tone: 'gold',
-            title: Utils.escapeHtml(g.name),
+            badge: UI.avatar(active || alum || { name: g.name, gender: g.gender }, { size: 40, outfit: 'jersey' }), tone: 'gold',
+            title: `<span class="person-name">⭐ ${Utils.escapeHtml(g.name)}</span>`,
             tag: active ? '● active' : '',
             sub: `${g.gender} • ${Utils.escapeHtml(g.school)} • Class of ${g.classYear}`,
             meta: `<span class="small">${badges.filter((b) => b.key !== 'generational').map((b) => `${b.icon}×${b.years.length}`).join(' ') || 'story still being written'}</span>`,
@@ -865,8 +897,8 @@
     const draw = (q) => {
       const filtered = alumni.filter((a) => !q || a.name.toLowerCase().includes(q) || (a.school || '').toLowerCase().includes(q));
       list.innerHTML = filtered.length ? UI.listGroup(filtered.slice(0, 50).map((a, i) => UI.listRow({
-        badge: a.generational ? '⭐' : '🎽', tone: a.generational ? 'gold' : 'muted',
-        title: Utils.escapeHtml(a.name),
+        badge: UI.avatar(a, { size: 40, outfit: 'jersey' }), tone: a.generational ? 'gold' : 'muted',
+        title: `<span class="person-name">${a.generational ? '⭐ ' : ''}${Utils.escapeHtml(a.name)}</span>`,
         sub: `${a.gender} • ${Utils.escapeHtml(a.school)} '${String(a.gradYear).slice(2)}`,
         meta: `<span class="small">${a.badges.filter((b) => b.key !== 'generational').map((b) => `<span title="${b.label}: ${b.years.join(', ')}">${b.icon} ${b.years.join(' ')}</span>`).join(' ') || 'career winner'}</span>`,
         attrs: { alum: i }
@@ -895,7 +927,7 @@
     }
     const table = UI.renderSortableTable(tableEl, {
       columns: [
-        { key: 'name', label: 'Legend', render: (r) => `${UI.avatar(r, { size: 24, outfit: 'jersey' })} <strong>${r.generational ? '⭐ ' : ''}${Utils.escapeHtml(r.name)}</strong>` },
+        { key: 'name', label: 'Legend', render: (r) => UI.personName(game, 'ath', r.athleteId, r.name, { link: false, person: r, size: 24, prefix: r.generational ? '⭐ ' : '' }) },
         { key: 'gender', label: '' },
         { key: 'school', label: 'School' },
         { key: 'wins', label: 'Wins', numeric: true, sortValue: (r) => r.stats.wins, render: (r) => r.stats.wins },

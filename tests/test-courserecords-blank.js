@@ -60,6 +60,37 @@ async function run() {
   });
   ok(screenOk, 'the Course Records screen must render');
 
+  // 4) Course Records filters: only search, division, and state remain, and
+  //    the State filter genuinely narrows the list to that state's courses.
+  const filt = await page.evaluate(async () => {
+    const c = document.querySelector('#screen-container');
+    const sel = c.querySelector('#cr-state');
+    const count = () => c.querySelector('#cr-count').textContent;
+    const out = {
+      selects: [...c.querySelectorAll('select')].map((x) => x.id).filter(Boolean).sort(),
+      hasState: !!sel, before: count()
+    };
+    if (!sel) return out;
+    const opt = [...sel.options].find((o) => o.value);
+    sel.value = opt.value;
+    sel.dispatchEvent(new Event('change'));
+    out.stateName = opt.textContent;
+    out.after = count();
+    const book = window.XCD.engine.Courses.list(window.XCD.ui.state.game);
+    out.expected = book.filter((e) => e.state === opt.value).length;
+    sel.value = '';
+    sel.dispatchEvent(new Event('change'));
+    out.reset = count();
+    return out;
+  });
+  ok(filt.hasState, 'Course Records must offer a State filter');
+  ok(JSON.stringify(filt.selects) === JSON.stringify(['cr-div', 'cr-state']),
+    'only the division and state filters should remain: ' + filt.selects);
+  ok(filt.after === `${filt.expected} of ${filt.before.split(' of ')[1]}` && filt.expected > 0,
+    'the State filter must show exactly that state\'s courses: ' + JSON.stringify(filt));
+  ok(filt.reset === filt.before, '"All States" must restore the full list: ' + JSON.stringify(filt));
+  console.log('course record filters:', JSON.stringify(filt));
+
   ok(errors.length === 0, 'page errors: ' + errors.slice(0, 4).join(' | '));
 
   await browser.close();

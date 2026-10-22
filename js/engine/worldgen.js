@@ -288,7 +288,7 @@
 
     // Coaching philosophies (Update 4): seeded from identity for variety, with
     // real randomness so every philosophy appears across the simulation. The
-    // training philosophy is permanent; the race philosophy is a tactic.
+    // training philosophy is the coach's identity; the race philosophy is a tactic.
     coach.trainingPhilosophy = pickTrainingPhilosophy(rng, coach);
     coach.racePhilosophy = pickRacePhilosophy(rng, coach);
 

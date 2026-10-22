@@ -34,7 +34,10 @@
   // multi-year progression. Calibrated so a freshman's first season rises
   // ~7 overall in ordinary conditions and ~12 in a perfect program.
   const DEV_RATE = 0.53;
-  const OFFSEASON_DEV_RATE = 0.55; // matching cut on the summer development jump
+  // Summer development dial: the offseason is where grinders make their
+  // biggest jumps (a 90+ work ethic with headroom can gain +4/+5 overall).
+  const OFFSEASON_DEV_RATE = 1.0;
+  const OFFSEASON_MAX_POINTS = 30;
 
   /* ================================================================ *
    * Plans
@@ -419,7 +422,7 @@
   /* ================================================================ *
    * Training philosophy (Update 4, Part 2)
    * ================================================================ *
-   * A coach's permanent training philosophy shapes HOW a program develops.
+   * A coach's training philosophy shapes HOW a program develops.
    * Effectiveness scales with the coach's Training rating: a great trainer
    * executes the philosophy near its full potential, a poor one realizes
    * only a fraction of its bonuses. The scaling is centered so an average
@@ -1319,13 +1322,18 @@
             ? REPORT_ATTRS.reduce((s, k) => { s[k] = a[k]; return s; }, {})
             : null;
 
+          // Attribute points, not overall: ~5.5 points across the five
+          // physical ratings move the overall by 1, so a +4/+5 summer is a
+          // ~22-28 point haul — only possible for a grinder with real headroom.
           const gap = a.potential - a.currentOverall;
-          let pts = Utils.clamp(gap * 0.16, 0, 4.2) * OFFSEASON_DEV_RATE; // headroom drives growth (Update 21: realism dial)
+          let pts = Utils.clamp(gap * 1.1, 0, 22) * OFFSEASON_DEV_RATE; // headroom drives growth
           if (gap < 5) pts *= 0.3;                          // the plateau near the ceiling
           // Work Ethic is the LARGEST factor (Section 11): summer is
-          // unsupervised, so the grinders separate themselves.
-          pts *= 0.42 + a.workEthic / 105;
-          if (a.workEthic >= 88) pts *= 1.12;               // elite grinders (90+) make the biggest summer leaps (Update 5, Part 7)
+          // unsupervised, so the grinders separate themselves. The curve is
+          // steep — a 90 work ethic gains ~2.5x what a 60 does, ~5x a 40.
+          const we = Utils.clamp(a.workEthic ?? 60, 0, 100) / 100;
+          pts *= 0.10 + Math.pow(we, 2.5) * 2;
+          if (a.workEthic >= 88) pts *= 1.15;               // elite grinders (90+) make the biggest summer leaps (Update 5, Part 7)
           pts *= 0.70 + coachSkill / 180;                   // the program's summer plan
           pts *= devProfileMult(a);                         // late bloomers pop here
           pts *= philo.devMult;                             // the coach's philosophy
@@ -1337,6 +1345,9 @@
           pts *= careerInjuryDevMult(a);                    // repeated major injuries shrink the upside
           if (a.fatigue > 70) pts *= 0.65;                  // burnout eats the summer
           pts *= 0.7 + rng.next() * 0.6;
+          // One summer can't remake a runner: ~30 points is a +5/+6 ceiling,
+          // so stacked late-bloomer multipliers never produce a +15 jump.
+          pts = Math.min(pts, OFFSEASON_MAX_POINTS);
 
           // Regression: age, injuries, apathy, and burnout take ratings back.
           let loss = 0;

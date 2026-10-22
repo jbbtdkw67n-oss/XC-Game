@@ -35,9 +35,6 @@
     const repIcon = (D.reputationLevel(coach.reputation || 0, coach.role) || {}).icon || '';
     const archIcon = (D.COACH_ARCHETYPES.find((a) => a.key === coach.archetype) || {}).icon || '🧢';
 
-    const winPct = coach.winPct !== undefined ? coach.winPct
-      : (() => { const g = (cr.wins || 0) + (cr.losses || 0); return g ? Math.round((cr.wins / g) * 1000) / 10 : 0; })();
-
     // Career timeline from stints (schools coached, in order, with years).
     const stints = (coach.stints || []).slice().sort((a, b) => a.startYear - b.startYear);
     const yearsCoached = cr.seasons || stints.reduce((s, st) => s + Math.max(0, (st.endYear || (game ? game.year : st.startYear)) - st.startYear), 0);
@@ -76,12 +73,11 @@
         <div style="text-align:right;">
           <div style="font-size:26px; font-weight:800;">${Math.round(coach.reputation || 0)}</div>
           <div style="font-size:12px; color:var(--text-dim);">CAREER PRESTIGE</div>
-          <div style="font-size:12px; color:var(--text-faint); margin-top:2px;">${winPct}% win rate</div>
         </div>
       </div>
 
       <div class="grid cols-4" style="margin-bottom:16px;">
-        ${stat('Record', `${cr.wins || 0}-${cr.losses || 0}`, `${yearsCoached} yrs · ${cr.seasons || 0} seasons`)}
+        ${stat('Team Wins', cr.teamWins || 0, `meets won · ${cr.seasons || 0} season${cr.seasons === 1 ? '' : 's'}`)}
         ${stat('National Titles', cr.nationalTitles || 0, `${cr.conferenceTitles || 0} conf · ${cr.regionalTitles || 0} reg`)}
         ${stat('Coach of Year', `${cr.natCOY || 0}🇺🇸 ${cr.confCOY || 0}🏅`, 'national · conference')}
         ${stat('Nationals Trips', cr.nationalsAppearances || 0, `best class #${cr.bestClassRank || '—'}`)}
@@ -294,8 +290,8 @@
             }
           }
           return UI.listRow({
-            badge: '🧢', tone: 'muted',
-            title: Utils.escapeHtml(t.name),
+            badge: UI.avatar(UI.resolvePerson(game, 'coach', t.coachId, t.name), { size: 40, outfit: 'polo' }), tone: 'muted',
+            title: `<span class="person-name">${Utils.escapeHtml(t.name)}</span>`,
             sub: `→ ${Utils.escapeHtml(t.school)} (${t.year})`,
             meta: `<span class="small">${Utils.escapeHtml(status)}</span>`
           });
@@ -303,8 +299,8 @@
         return `
         <div class="card" style="padding:12px;">
           <h3>🌳 Coaching Tree</h3>
-          ${mentor ? `<div class="attr-row"><span>Mentored under</span><span style="color:var(--text-dim);">${Utils.escapeHtml(mentor)}</span></div>` : ''}
-          ${served.length > (mentor ? 1 : 0) ? `<div class="attr-row"><span>Worked for</span><span style="color:var(--text-dim); font-size:12px;">${served.map((w) => Utils.escapeHtml(w.name)).join(', ')}</span></div>` : ''}
+          ${mentor ? `<div class="attr-row"><span>Mentored under</span><span>${UI.personName(game, 'coach', null, mentor, { link: false })}</span></div>` : ''}
+          ${served.length > (mentor ? 1 : 0) ? `<div class="attr-row"><span>Worked for</span><span class="person-list" style="font-size:12px;">${served.map((w) => UI.personName(game, 'coach', w.coachId, w.name, { link: false, size: 18 })).join('')}</span></div>` : ''}
           ${tree.length ? `
             <div style="font-size:12px; color:var(--text-faint); margin:10px 0 4px;">Former assistants who became head coaches — ${tree.length}</div>
             ${UI.listGroup(tree.map(protegeRow))}` : ''}

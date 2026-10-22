@@ -533,7 +533,7 @@
       <h2>🏆 ${t.year} ${Utils.escapeHtml(t.school)} — ${gTag} National Champions</h2>
       <div style="color:var(--text-dim); font-size:12.5px; margin-bottom:10px;">
         ${DIV_LABELS[t.division] || t.division || 'D1'} • ${Utils.escapeHtml(t.conference || '')} •
-        Coach: <span class="clickable" id="champ-team-coach" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(t.coachName || '—')}</span>
+        Coach: <span class="clickable" id="champ-team-coach" style="cursor:pointer;">${t.coachName ? UI.personName(game, 'coach', t.coachId, t.coachName, { link: false }) : '—'}</span>
       </div>
       <div class="grid cols-4" style="margin-bottom:12px;">
         <div class="stat-tile"><div class="label">National Finish</div><div class="value">1st</div>${t.teamScore != null ? `<div class="sub">${t.teamScore} points</div>` : ''}</div>
@@ -549,7 +549,7 @@
           <tbody>${roster.map((r) => `
             <tr class="clickable" data-ath="${r.athleteId || ''}" data-ath-name="${Utils.escapeHtml(r.name)}" style="cursor:pointer;">
               <td>${Utils.ordinal(r.place)}</td>
-              <td style="color:var(--accent-hover);">${Utils.escapeHtml(r.name)}</td>
+              <td>${UI.personName(game, 'ath', r.athleteId, r.name, { link: false, extra: { gender: t.gender, schoolId: t.schoolId } })}</td>
               ${rich ? `
                 <td>${Utils.escapeHtml(r.classYear || '—')}</td>
                 <td class="num">${r.overall ?? '—'}</td>

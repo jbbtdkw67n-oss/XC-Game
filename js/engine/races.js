@@ -1243,20 +1243,16 @@
       const w = teamScores.length - t.place;
       const l = t.place - 1;
       const prog = Legacy.program(gameState, t.schoolId);
-      const winsBefore = prog.wins;
       prog.wins += w;
       prog.losses += l;
-      // Program milestone: all-time victory thresholds (Phase 11).
-      [100, 250, 500, 1000, 2000].forEach((mark) => {
-        if (winsBefore < mark && prog.wins >= mark) {
-          Legacy.recordProgramMilestone(gameState, t.schoolId, `Program reached ${mark} all-time victories.`);
-        }
-      });
-      if (t.place === 1 && teamScores.length >= 2) prog.meetWins += 1;
+      const teamWin = t.place === 1 && teamScores.length >= 2;
+      if (teamWin) prog.meetWins += 1;
       const coach = gameState.getCoach(gameState.getSchool(t.schoolId)?.coachId);
       if (coach) {
         coach.careerRecord.wins += w;
         coach.careerRecord.losses += l;
+        // Team wins: meets (men's or women's race) the coach's team won outright.
+        if (teamWin) coach.careerRecord.teamWins = (coach.careerRecord.teamWins || 0) + 1;
         // Per-school stint ledger (History & Legacy update, Phases 3/6/8):
         // the coach's record AT this school, tracked alongside the career.
         const st = (coach.stints || []).find((s) => !s.endYear && s.schoolId === t.schoolId);

@@ -520,6 +520,27 @@ table.data td.num, table.data th.num { text-align: right; }
 .lrow-meta .big { font-size: 17px; font-weight: 800; color: var(--text); }
 .lrow-meta .small { font-size: 11.5px; color: var(--text-faint); }
 
+/* ---------- Person names ----------
+   Every athlete / coach name in the game renders through UI.personName():
+   the avatar bust + the name in ONE type style, so names read the same on
+   every screen (History, Champions, Awards, Records, Course Records…). */
+.person-name {
+  display: inline-flex; align-items: center; gap: 6px;
+  max-width: 100%; vertical-align: middle;
+  font-family: var(--font); font-weight: 600; font-size: 13px; line-height: 1.35;
+  letter-spacing: normal; color: var(--text);
+}
+.person-name.clickable { cursor: pointer; color: var(--accent-hover); }
+.person-name.clickable:hover .pn-text { text-decoration: underline; }
+.person-name > svg { flex: none; }
+.person-name .pn-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-list { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; justify-content: flex-end; }
+/* The season a course record was set, shown beside every record time. */
+.cr-year {
+  display: inline-block; font-size: 10.5px; font-weight: 600; color: var(--text-faint);
+  background: var(--bg-hover); border-radius: 6px; padding: 1px 6px; vertical-align: middle;
+}
+
 /* ---------- Profile tabs (UI overhaul) ----------
    Coaching and player profiles split their content across tabs (Overview /
    History / …) to stay clean — a full-width segmented control in the modal. */

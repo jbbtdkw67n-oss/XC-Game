@@ -48,7 +48,9 @@ async function run() {
 
   // World talent must stay stable for a century (no pipeline decay/inflation).
   const ovrs = samples.map((s) => s.avgOvr);
-  ok(Math.min(...ovrs) > 32 && Math.max(...ovrs) < 50,
+  // (The generous offseason lets athletes reach their potential a year
+  // sooner, so the steady state sits ~50 rather than ~46 — still flat.)
+  ok(Math.min(...ovrs) > 32 && Math.max(...ovrs) < 54,
     'world talent must hold steady across 100 seasons: ' + ovrs.join(', '));
   ok(samples.every((s) => s.injuredPct < 6), 'injury rates must stay sane: ' + samples.map((s) => s.injuredPct).join(', '));
 

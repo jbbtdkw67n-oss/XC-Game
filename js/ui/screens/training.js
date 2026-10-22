@@ -243,7 +243,7 @@
         <h2>Injury Report — Whole Program</h2>
         ${injured.length ? injured.map((a) => `
           <div class="attr-row" style="padding:6px 0;">
-            <span><strong>${Utils.escapeHtml(a.fullName)}</strong> <span style="color:var(--text-dim);">(${a.gender === 'M' ? 'M' : 'W'} • ${a.classYear})</span></span>
+            <span>${UI.personName(game, 'ath', a.id, a.fullName, { person: a, link: false })} <span style="color:var(--text-dim);">(${a.gender === 'M' ? 'M' : 'W'} • ${a.classYear})</span></span>
             <span style="color:var(--danger);">${Utils.escapeHtml(a.injury.type)}</span>
             <span style="color:var(--text-dim);">${a.injury.weeksRemaining} of ${a.injury.totalWeeks} wk remaining</span>
           </div>`).join('') : '<div style="color:var(--text-dim);">No injuries. Keep managing those fatigue levels.</div>'}
@@ -251,7 +251,7 @@
           <h3 style="margin-top:12px;">Returning to Form</h3>
           ${recovering.map((a) => `
           <div class="attr-row" style="padding:6px 0;">
-            <span><strong>${Utils.escapeHtml(a.fullName)}</strong> <span style="color:var(--text-dim);">(${a.gender === 'M' ? 'M' : 'W'} • ${a.classYear})</span></span>
+            <span>${UI.personName(game, 'ath', a.id, a.fullName, { person: a, link: false })} <span style="color:var(--text-dim);">(${a.gender === 'M' ? 'M' : 'W'} • ${a.classYear})</span></span>
             <span style="color:var(--warning);">Rebuilding fitness, sharpness & confidence</span>
             <span style="color:var(--text-dim);">~${Math.max(1, a.recentInjuryWeeks || 1)} wk to full strength</span>
           </div>`).join('')}` : ''}

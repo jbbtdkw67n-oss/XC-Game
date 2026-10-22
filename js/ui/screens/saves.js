@@ -35,14 +35,14 @@
         </div>
         ${slots.length ? `
           <div class="table-wrap"><table class="data">
-            <thead><tr><th>Dynasty</th><th>School</th><th>Coach</th><th>Record</th><th>Year</th><th>Last Saved</th><th></th></tr></thead>
+            <thead><tr><th>Dynasty</th><th>School</th><th>Coach</th><th class="num">Team Wins</th><th>Year</th><th>Last Saved</th><th></th></tr></thead>
             <tbody>
               ${slots.map((s) => `
                 <tr>
                   <td><strong>${Utils.escapeHtml(s.dynastyName)}</strong>${(game && s.dynastyId === game.dynastyId) ? ' <span style="color:var(--accent);font-size:11px;">(current)</span>' : ''}</td>
                   <td>${Utils.escapeHtml(s.schoolName)}</td>
                   <td>${Utils.escapeHtml(s.coachName)}</td>
-                  <td>${Utils.escapeHtml(s.record || '—')}</td>
+                  <td class="num">${s.teamWins != null ? s.teamWins : '—'}</td>
                   <td>Wk ${s.week}, ${s.year}</td>
                   <td>${new Date(s.savedAt).toLocaleString()}<span style="color:var(--text-faint); font-size:11px;">${s.isAuto ? ' · auto' : ' · manual'}</span></td>
                   <td style="text-align:right; white-space:nowrap;">

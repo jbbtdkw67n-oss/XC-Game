@@ -8,7 +8,7 @@
  *   Step 1  Identity      — name, age, hometown, alma mater, starting position
  *   Step 2  Appearance    — portrait with live preview + randomize
  *   Step 3  Archetype     — the coach's defining strength
- *   Step 4  Training philosophy (permanent; strengths & weaknesses shown)
+ *   Step 4  Training philosophy (strengths & weaknesses shown)
  *   Step 5  Race philosophy
  *   Step 6  Career summary — everything on one confirmation screen
  *
@@ -278,7 +278,7 @@
     function renderTraining() {
       root.innerHTML = frame(
         'Training <span>Philosophy</span>',
-        'Permanent for this coach\'s career — its effectiveness scales with your Training rating. Every philosophy trades something away.',
+        'Its effectiveness scales with your Training rating, and you can switch it later from My Program. Every philosophy trades something away.',
         `
         <div class="field" style="margin-bottom:0;">
           <div class="archetype-grid" id="tp-grid">
@@ -307,7 +307,7 @@
     function renderRacing() {
       root.innerHTML = frame(
         'Race <span>Philosophy</span>',
-        'How your teams run when the gun goes off. Unlike training philosophy, this can be changed later.',
+        'How your teams run when the gun goes off. You can switch it later from My Program.',
         `
         <div class="field" style="margin-bottom:0;">
           <div class="archetype-grid" id="rp-grid">

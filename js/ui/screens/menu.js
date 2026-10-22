@@ -346,7 +346,7 @@
                 <button class="btn" data-load="${s.dynastyId}" style="flex:1; text-align:left; display:block; padding:10px 14px;">
                   <div style="display:flex; justify-content:space-between; gap:8px;">
                     <span style="font-weight:600;">${Utils.escapeHtml(s.dynastyName)}</span>
-                    <span style="color:var(--text-dim); font-size:12px;">${Utils.escapeHtml(s.record || '0-0')}</span>
+                    ${s.teamWins != null ? `<span style="color:var(--text-dim); font-size:12px;">${s.teamWins} team win${s.teamWins === 1 ? '' : 's'}</span>` : ''}
                   </div>
                   <div style="color:var(--text-dim); font-size:12px; margin-top:2px;">
                     ${Utils.escapeHtml(s.schoolName)} · ${Utils.escapeHtml(s.coachName)} · Wk ${s.week}, ${s.year}

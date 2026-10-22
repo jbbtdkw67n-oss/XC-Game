@@ -364,14 +364,14 @@
     const crFinisher = res.finishers.find((f) => f.cr === 'NCR');
     const crBanner = crFinisher ? `
       <div style="margin:0 0 12px; padding:10px 12px; background:var(--accent-soft); border:1px solid var(--accent); border-radius:8px; font-size:13px;">
-        🏆 <strong>NEW COURSE RECORD</strong> — <span class="clickable" data-ath="${crFinisher.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(crFinisher.name)}</span>
+        🏆 <strong>NEW COURSE RECORD</strong> — ${UI.personName(game, 'ath', crFinisher.athleteId, crFinisher.name)}
         (${Utils.escapeHtml(game.getSchool(crFinisher.schoolId)?.name || '?')}) runs <strong>${ft(crFinisher.time)}</strong> — the fastest ${activeGender === 'M' ? "men's" : "women's"} time ever on this course.
       </div>` : '';
     // A national record set in this race: the biggest headline of all.
     const nrFinisher = res.finishers.find((f) => f.nr);
     const nrBanner = nrFinisher ? `
       <div style="margin:0 0 12px; padding:10px 12px; background:var(--accent-soft); border:1px solid var(--gold, #d4af37); border-radius:8px; font-size:13px;">
-        🇺🇸 <strong>NEW NATIONAL RECORD</strong> — <span class="clickable" data-ath="${nrFinisher.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(nrFinisher.name)}</span>
+        🇺🇸 <strong>NEW NATIONAL RECORD</strong> — ${UI.personName(game, 'ath', nrFinisher.athleteId, nrFinisher.name)}
         (${Utils.escapeHtml(game.getSchool(nrFinisher.schoolId)?.name || '?')}) runs <strong>${ft(nrFinisher.time)}</strong> — the fastest ${activeGender === 'M' ? "men's" : "women's"} ${gDist(meet, activeGender)} ever run.
       </div>` : '';
     // Full individual results (Update 12): every finisher is published, and
@@ -446,7 +446,7 @@
         if (!sp) return '';
         const legs = sp.map((c, i) => i === 0 ? c : c - sp[i - 1]);
         return `<div style="margin-bottom:8px;">
-          <div style="font-size:12.5px; font-weight:600;">${Utils.escapeHtml(f.name)} — ${ft(f.time)} (${Utils.ordinal(f.place)})</div>
+          <div style="font-size:12.5px;">${UI.personName(game, 'ath', f.athleteId, f.name, { link: false, size: 18 })} — ${ft(f.time)} (${Utils.ordinal(f.place)})</div>
           <div style="font-size:11px; color:var(--text-faint);">${legs.map((l) => ft(l)).join(' · ')}</div>
         </div>`;
       }).join('') : '<h3>Team Scores Locked</h3>';

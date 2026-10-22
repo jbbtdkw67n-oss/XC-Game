@@ -197,14 +197,13 @@
   function renderArchive(game, school, body) {
     const Legacy = window.XCD.engine.Legacy;
     const prog = Legacy.program(game, school.id);
-    const winPct = Legacy.programWinPct(prog);
     const ph = school.prestigeHistory || [];
     const trend = ph.slice(-10).map((p) => p.prestige);
     const trendStr = trend.length >= 2 ? `${trend[0]} → ${trend[trend.length - 1]} over ${trend.length} yrs` : '—';
     const h = programHistory(game, school);
     const gTag = (g) => g === 'M' ? "Men's" : "Women's";
-    const athLink = (name, id) => `<span class="clickable" data-ath="${id || ''}" data-ath-name="${Utils.escapeHtml(name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(name)}</span>`;
-    const coachLink = (name, coachId) => name ? `<span class="clickable" data-coach="${coachId || ''}" data-coach-name="${Utils.escapeHtml(name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(name)}</span>` : '—';
+    const athLink = (name, id, gender) => UI.personName(game, 'ath', id, name, { extra: { gender, schoolId: school.id } });
+    const coachLink = (name, coachId) => name ? UI.personName(game, 'coach', coachId, name) : '—';
     const sectionTable = (title, headers, rows, empty) => `
       <div class="card" style="margin-bottom:16px;">
         <h2>${title}</h2>
@@ -216,7 +215,7 @@
 
     body.innerHTML = `
       <div class="grid cols-4" style="margin-bottom:16px;">
-        <div class="stat-tile"><div class="label">All-Time Record</div><div class="value">${prog.wins}-${prog.losses}</div><div class="sub">${winPct}% winning pct</div></div>
+        <div class="stat-tile"><div class="label">Conference Titles</div><div class="value">${prog.confTitles || 0}</div><div class="sub">${prog.regionalTitles || 0} regional titles</div></div>
         <div class="stat-tile"><div class="label">National Titles</div><div class="value">${prog.natTitles}</div><div class="sub">${prog.natRunnerUp || 0} runner-up</div></div>
         <div class="stat-tile"><div class="label">Best NCAA Finish</div><div class="value">${prog.bestFinish ? Utils.ordinal(prog.bestFinish) : '—'}</div><div class="sub">${prog.podiums} podiums</div></div>
         <div class="stat-tile"><div class="label">Highest Ranking</div><div class="value">${prog.highestRank ? '#' + prog.highestRank : '—'}</div><div class="sub">prestige ${trendStr}</div></div>
@@ -234,7 +233,7 @@
       ${sectionTable('🥇 Individual National Champions',
         ['Year', 'Athlete', 'Coach', 'Event'],
         h.indivNat.map((t) => `<tr>
-          <td>${t.year}</td><td>${gTag(t.gender)[0]} — ${athLink(t.athlete, t.athleteId)}</td><td>${coachLink(t.coach)}</td><td>${t.event}</td>
+          <td>${t.year}</td><td>${gTag(t.gender)[0]} — ${athLink(t.athlete, t.athleteId, t.gender)}</td><td>${coachLink(t.coach)}</td><td>${t.event}</td>
         </tr>`),
         'No individual national champions yet.')}
 
@@ -245,14 +244,14 @@
 
       ${sectionTable('🥇 Individual Conference Champions',
         ['Year', 'Athlete', 'Coach'],
-        h.indivConf.map((t) => `<tr><td>${t.year}</td><td>${gTag(t.gender)[0]} — ${athLink(t.athlete, t.athleteId)}</td><td>${coachLink(t.coach)}</td></tr>`),
+        h.indivConf.map((t) => `<tr><td>${t.year}</td><td>${gTag(t.gender)[0]} — ${athLink(t.athlete, t.athleteId, t.gender)}</td><td>${coachLink(t.coach)}</td></tr>`),
         'No individual conference champions yet.')}
 
       ${sectionTable('🗺 Regional Championships — Team & Individual',
         ['Year', 'Type', 'Detail', 'Coach'],
         [
           ...h.regTeam.map((t) => `<tr><td>${t.year}</td><td>Team (${gTag(t.gender)[0]})</td><td>${Utils.escapeHtml(t.region)} Regional Champions</td><td>${coachLink(t.coach)}</td></tr>`),
-          ...h.indivReg.map((t) => `<tr><td>${t.year}</td><td>Individual (${gTag(t.gender)[0]})</td><td>${athLink(t.athlete, t.athleteId)}</td><td>${coachLink(coachOfYear(game, school, t.year))}</td></tr>`)
+          ...h.indivReg.map((t) => `<tr><td>${t.year}</td><td>Individual (${gTag(t.gender)[0]})</td><td>${athLink(t.athlete, t.athleteId, t.gender)}</td><td>${coachLink(coachOfYear(game, school, t.year))}</td></tr>`)
         ].sort(),
         'No regional titles recorded yet.')}
 
@@ -263,12 +262,11 @@
           each coach accomplished <strong>at this school</strong> — never at other stops (Phases 3 &amp; 8).
         </div>
         ${prog.coaches.length ? `<div class="table-wrap"><table class="data">
-          <thead><tr><th>Coach</th><th>Years</th><th class="num">Record Here</th><th class="num">Win%</th><th class="num">Titles Here</th><th class="num" title="Regional titles won here">Reg</th><th class="num">NCAA Trips</th><th>Coach of the Year</th><th class="num" title="Program prestige when the tenure ended (current prestige for the sitting coach)">Prestige Reached</th><th>Departure</th></tr></thead>
+          <thead><tr><th>Coach</th><th>Years</th><th class="num">Titles Here</th><th class="num" title="Regional titles won here">Reg</th><th class="num">NCAA Trips</th><th>Coach of the Year</th><th class="num" title="Program prestige when the tenure ended (current prestige for the sitting coach)">Prestige Reached</th><th>Departure</th></tr></thead>
           <tbody>${prog.coaches.slice().reverse().map((c) => {
             const rec = resolveCoachRecord(game, c);
             const sr = rec ? window.XCD.engine.Legacy.coachSchoolRecord(game, rec, school.id)
-              : { wins: 0, losses: 0, natTitles: 0, confTitles: 0, regTitles: 0, natApps: 0, natCOY: 0, confCOY: 0, winPct: 0 };
-            const wl = (sr.wins || sr.losses) ? `${sr.wins}-${sr.losses}` : '—';
+              : { natTitles: 0, confTitles: 0, regTitles: 0, natApps: 0, natCOY: 0, confCOY: 0 };
             const coy = [];
             if (sr.natCOY) coy.push(`${sr.natCOY}× National`);
             if (sr.confCOY) coy.push(`${sr.confCOY}× Conference`);
@@ -277,8 +275,6 @@
             return `<tr>
               <td>${coachLink(c.name, c.coachId)}</td>
               <td style="color:var(--text-dim);">${c.startYear}–${c.endYear || 'present'}</td>
-              <td class="num">${wl}</td>
-              <td class="num">${(sr.wins || sr.losses) ? sr.winPct + '%' : '—'}</td>
               <td class="num">${sr.natTitles}🏆 ${sr.confTitles}🥇</td>
               <td class="num">${sr.regTitles || '—'}</td>
               <td class="num">${sr.natApps || '—'}</td>
@@ -332,7 +328,6 @@
     const Legacy = window.XCD.engine.Legacy;
     const GOAT = window.XCD.engine.GOAT;
     const prog = Legacy.program(game, school.id);
-    const winPct = Legacy.programWinPct(prog);
     const confStreak = longestConfStreak(game, school);
     const ft = window.XCD.engine.Races.formatTime;
 
@@ -381,7 +376,7 @@
         <span class="attr-name" style="flex:0 1 auto;">${label}</span>
         <span style="text-align:right; flex:1; min-width:0;">
           <strong>${value}</strong>
-          ${holder ? `<div style="font-size:12px; color:var(--accent-hover);">${holder.generational ? '⭐ ' : ''}${Utils.escapeHtml(holder.name)}</div>
+          ${holder ? `<div style="font-size:12px;">${UI.personName(game, kind === 'coach' ? 'coach' : 'ath', kind === 'coach' ? holder.coachId : holder.athleteId, holder.name, { link: false, prefix: holder.generational ? '⭐ ' : '', extra: { gender: holder.gender, schoolId: school.id } })}</div>
           <div style="font-size:11px; color:var(--text-faint);">${Utils.escapeHtml(holder.tenure || holder.years || '')}</div>` : ''}
         </span>
       </div>`;
@@ -389,8 +384,6 @@
       <div class="attr-row"><span class="attr-name">${label}</span><span style="text-align:right;"><strong>${value}</strong>${sub ? `<div style="font-size:11.5px; color:var(--text-faint);">${sub}</div>` : ''}</span></div>`;
 
     // Coach record holders (school-scoped).
-    const cMostWins = bestCoachBy((r) => r.sr.wins || 0, 0);
-    const cWinPct = bestCoachBy((r) => (r.sr.wins + r.sr.losses) >= 30 ? r.sr.winPct : -1, 0);
     const cTenure = bestCoachBy((r) => r.years, 0);
     const cNat = bestCoachBy((r) => r.sr.natTitles, 0);
     const cConf = bestCoachBy((r) => r.sr.confTitles, 0);
@@ -421,8 +414,6 @@
         </div>
         <div class="card">
           <h2>🧢 Coach Records <span style="font-size:11px; color:var(--text-faint); font-weight:400;">— earned at this school only</span></h2>
-          ${holderRec('Most Wins', cMostWins ? `${cMostWins.value} wins` : '—', cMostWins, 'coach')}
-          ${holderRec('Highest Winning %', cWinPct ? `${cWinPct.value}%` : '—', cWinPct, 'coach')}
           ${holderRec('Longest Tenure', cTenure ? `${cTenure.value} season${cTenure.value > 1 ? 's' : ''}` : '—', cTenure, 'coach')}
           ${holderRec('Most National Titles', cNat ? `${cNat.value} title${cNat.value > 1 ? 's' : ''}` : '—', cNat, 'coach')}
           ${holderRec('Most Conference Titles', cConf ? `${cConf.value} title${cConf.value > 1 ? 's' : ''}` : '—', cConf, 'coach')}
@@ -443,7 +434,6 @@
         </div>
         <div class="card">
           <h2>Program Records</h2>
-          ${rec('All-Time Wins', prog.wins || 0, `${prog.wins}-${prog.losses} • ${winPct}%`)}
           ${rec('NCAA Appearances', prog.ncaaAppearances || 0)}
           ${rec('Longest NCAA Appearance Streak', prog.ncaaStreakBest ? `${prog.ncaaStreakBest} yr${prog.ncaaStreakBest > 1 ? 's' : ''}` : '—')}
           ${rec('All-Americans', prog.allAmericans || 0)}
@@ -467,7 +457,7 @@
           <div style="color:var(--text-faint); font-size:11.5px; margin-bottom:6px;">Counting only accomplishments earned while representing ${Utils.escapeHtml(school.name)}.</div>
           ${athRows[0] ? `
             <div class="attr-row clickable" data-ath="${athRows[0].athleteId || ''}" data-ath-name="${Utils.escapeHtml(athRows[0].name)}" style="cursor:pointer;">
-              <span><strong>${athRows[0].generational ? '⭐ ' : ''}${Utils.escapeHtml(athRows[0].name)}</strong>
+              <span>${UI.personName(game, 'ath', athRows[0].athleteId, athRows[0].name, { link: false, size: 24, prefix: athRows[0].generational ? '⭐ ' : '', extra: { gender: athRows[0].gender, schoolId: school.id } })}
                 <div style="font-size:12px; color:var(--text-dim);">${athRows[0].natTitles} natl • ${athRows[0].allAmerican} AA • ${athRows[0].confChamps} conf • ${athRows[0].wins} wins</div></span>
               <span style="text-align:right;"><strong>${athRows[0].score}</strong><div style="font-size:11px; color:var(--text-faint);">legacy here</div></span>
             </div>` : '<div style="color:var(--text-dim); font-size:13px;">No decorated athletes yet.</div>'}
@@ -484,7 +474,7 @@
             if (!bc || bc.score <= 1) return `<div style="color:var(--text-dim); font-size:13px;">The program's defining coach is yet to emerge.</div>`;
             return `
             <div class="attr-row clickable" data-coach="${bc.coachId || ''}" data-coach-name="${Utils.escapeHtml(bc.name)}" style="cursor:pointer;">
-              <span><strong>${Utils.escapeHtml(bc.name)}</strong>
+              <span>${UI.personName(game, 'coach', bc.coachId, bc.name, { link: false, size: 24 })}
                 <div style="font-size:12px; color:var(--text-dim);">${bc.sr.natTitles} natl • ${bc.sr.confTitles} conf • ${bc.sr.natCOY + bc.sr.confCOY} CoY • ${bc.years} seasons here</div></span>
               <span style="text-align:right; color:var(--text-faint); font-size:11.5px;">${Utils.escapeHtml(bc.tenure)}</span>
             </div>`;
@@ -536,7 +526,6 @@
   function renderStatistics(game, school, body) {
     const Legacy = window.XCD.engine.Legacy;
     const prog = Legacy.program(game, school.id);
-    const winPct = Legacy.programWinPct(prog);
     const h = programHistory(game, school);
     const coachCount = new Set((prog.coaches || []).map((c) => c.name)).size;
     const avgTenure = (prog.coaches || []).length
@@ -581,7 +570,6 @@
           <h2>🧢 Coaching</h2>
           ${row('Total Head Coaches', coachCount)}
           ${row('Average Coach Tenure', avgTenure ? `${avgTenure} yrs` : '—')}
-          ${row('All-Time Winning Percentage', `${winPct}%`)}
           ${row('National Coach of the Year Awards', prog.natCoyAwards || 0)}
           ${row('Conference Coach of the Year Awards', prog.confCoyAwards || 0)}
         </div>
@@ -590,7 +578,7 @@
         <h2>📊 Overall</h2>
         <div class="grid cols-4" style="margin-top:8px;">
           <div class="stat-tile"><div class="label">Seasons Played</div><div class="value">${prog.seasonsPlayed || 0}</div></div>
-          <div class="stat-tile"><div class="label">Dual Meet Record</div><div class="value">${prog.wins || 0}-${prog.losses || 0}</div><div class="sub">${winPct}% all-time</div></div>
+          <div class="stat-tile"><div class="label">Conference Titles</div><div class="value">${prog.confTitles || 0}</div><div class="sub">${prog.confRunnerUp || 0} runner-up</div></div>
           <div class="stat-tile"><div class="label">NCAA Appearances</div><div class="value">${prog.ncaaAppearances || 0}</div><div class="sub">best finish: ${prog.bestFinish ? Utils.ordinal(prog.bestFinish) : '—'}</div></div>
           <div class="stat-tile"><div class="label">Current NCAA Streak</div><div class="value">${prog.ncaaStreak || 0}</div><div class="sub">longest: ${prog.ncaaStreakBest || 0} yr${(prog.ncaaStreakBest || 0) === 1 ? '' : 's'}</div></div>
         </div>
@@ -664,9 +652,9 @@
         <h2>🏃 Athletes — ${athletes.length}</h2>
         ${athletes.length ? athletes.map((h, i) => `
           <div class="attr-row clickable" data-hof-ath="${i}" style="cursor:pointer; align-items:flex-start; padding:10px 0; gap:10px;">
-            <span style="font-size:24px; flex:0 0 auto;">${h.portrait || '🏛'}</span>
+            <span style="flex:0 0 auto;">${UI.avatar(h, { size: 36, outfit: 'jersey' })}</span>
             <span style="flex:1; min-width:0;">
-              <strong>${Utils.escapeHtml(h.name)}</strong>
+              <span class="person-name">${Utils.escapeHtml(h.name)}</span>
               <span style="color:var(--text-faint); font-size:12px;"> (${h.gender}) • ${h.yearsCompeted || h.inducted} • inducted ${h.inducted}</span>
               <div style="font-size:12px; color:var(--text-dim); margin-top:2px; overflow-wrap:anywhere;">
                 ${(h.badges || []).filter((b) => b.key !== 'generational').map((b) => `${b.icon} ${b.label}`).slice(0, 4).join(' · ') || 'A defining career'}
@@ -685,12 +673,12 @@
         <div style="color:var(--text-faint); font-size:11.5px; margin-bottom:6px;">Enshrined for what they built at ${Utils.escapeHtml(school.name)} — titles, awards, and defining tenures here only.</div>
         ${coaches.length ? coaches.map((c, i) => `
           <div class="attr-row clickable" data-hof-coach="${i}" style="cursor:pointer; align-items:flex-start; padding:10px 0; gap:10px;">
-            <span style="font-size:24px; flex:0 0 auto;">🧢</span>
+            <span style="flex:0 0 auto;">${UI.avatar(UI.resolvePerson(game, 'coach', c.coachId, c.name), { size: 36, outfit: 'polo' })}</span>
             <span style="flex:1; min-width:0;">
-              <strong>${Utils.escapeHtml(c.name)}</strong>
+              <span class="person-name">${Utils.escapeHtml(c.name)}</span>
               <span style="color:var(--text-faint); font-size:12px;"> • ${Utils.escapeHtml(c.tenure)}</span>
               <div style="font-size:12px; color:var(--text-dim);">
-                ${c.sr.natTitles} natl • ${c.sr.confTitles} conf • ${c.sr.natCOY + c.sr.confCOY} Coach of the Year • ${c.sr.wins}-${c.sr.losses}${(c.sr.wins || c.sr.losses) ? ` (${c.sr.winPct}%)` : ''} here
+                ${c.sr.natTitles} natl • ${c.sr.confTitles} conf • ${c.sr.natCOY + c.sr.confCOY} Coach of the Year here
               </div>
             </span>
             <span style="text-align:right; flex:0 0 auto;"><strong style="font-size:18px;">${Math.round(c.score)}</strong><div style="font-size:11px; color:var(--text-faint);">legacy here</div></span>
@@ -803,7 +791,7 @@
           <div style="font-size:12.5px; margin-bottom:12px;">
             <span title="National reputation — separate from school prestige. Feeds recruiting, the portal, and job offers.">${repLevel.icon} <strong>${repLevel.label}</strong> (${Math.round(coach.reputation || 0)}/99)</span>
             ${tendencies.length ? `<span style="color:var(--text-dim);"> • ${tendencies.join(' • ')}</span>` : ''}
-            <span style="color:var(--text-dim);"> • Career ${coach.careerRecord.wins}-${coach.careerRecord.losses} (${coach.winPct}%)</span>
+            <span style="color:var(--text-dim);"> • ${coach.careerRecord.teamWins || 0} career team win${coach.careerRecord.teamWins === 1 ? '' : 's'}</span>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
             <span style="font-size:13px;" title="Dynasty Points — earned through success. Spend on coach ratings below, or on facility upgrades.">🏆 Dynasty Points: <strong style="color:${coach.upgradePoints ? 'var(--gold)' : 'var(--text-dim)'};">${coach.upgradePoints || 0}</strong></span>
@@ -826,21 +814,25 @@
             const D = window.XCD.data;
             const tp = D.trainingPhilosophy(coach.trainingPhilosophy);
             const rp = D.racePhilosophy(coach.racePhilosophy);
+            // Choice buttons for a philosophy list, shown ABOVE its strengths
+            // and weaknesses so the trade-offs read as "what you just picked".
+            const choices = (list, current, attr) => `
+              <div style="display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px;">
+                ${list.map((x) => `
+                  <button class="btn small ${current === x.key ? 'primary' : ''}" ${attr}="${x.key}"
+                    title="${[x.desc].concat((x.pros || []).map((t) => '+ ' + t), (x.cons || []).map((t) => '− ' + t)).join('\n').replace(/&amp;/g, '&').replace(/"/g, '&quot;')}">${x.icon} ${x.label}</button>`).join('')}
+              </div>`;
             return `
             <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
               <div style="font-size:12.5px;"><strong>${tp.icon} Training Philosophy:</strong> ${tp.label}
-                <span style="color:var(--text-faint);"> • permanent, scales with Training (${coach.training})</span></div>
+                <span style="color:var(--text-faint);"> • scales with your Training rating (${coach.training})</span></div>
               <div style="font-size:12px; color:var(--text-dim); margin:3px 0 8px;">${tp.desc}</div>
+              ${choices(D.TRAINING_PHILOSOPHIES, coach.trainingPhilosophy, 'data-train-philo')}
               ${UI.philosophyTradeoffs(tp)}
-              <div style="font-size:12.5px; margin:12px 0 5px;"><strong>${rp.icon} Race Philosophy:</strong> ${rp.label}
-                <span style="color:var(--text-faint);"> • change any time</span></div>
+              <div style="font-size:12.5px; margin:14px 0 5px;"><strong>${rp.icon} Race Philosophy:</strong> ${rp.label}</div>
               <div style="font-size:12px; color:var(--text-dim); margin-bottom:8px;">${rp.desc}</div>
+              ${choices(D.RACE_PHILOSOPHIES, coach.racePhilosophy, 'data-race-philo')}
               ${UI.philosophyTradeoffs(rp)}
-              <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;">
-                ${D.RACE_PHILOSOPHIES.map((x) => `
-                  <button class="btn small ${coach.racePhilosophy === x.key ? 'primary' : ''}" data-race-philo="${x.key}"
-                    title="${[x.desc].concat((x.pros || []).map((t) => '+ ' + t), (x.cons || []).map((t) => '− ' + t)).join('\n').replace(/&amp;/g, '&').replace(/"/g, '&quot;')}">${x.icon} ${x.label}</button>`).join('')}
-              </div>
             </div>`;
           })()}
         </div>
@@ -977,7 +969,7 @@
             <div style="color:var(--text-dim); font-size:12px; margin-top:2px;">
               Age ${c.age} • ${Utils.escapeHtml(c.archetype || '')} •
               ${Utils.escapeHtml((window.XCD.data.trainingPhilosophy(c.trainingPhilosophy) || {}).label || '')}${rp.label ? ` / ${Utils.escapeHtml(rp.label)}` : ''}
-              ${seasons ? ` • ${seasons} season${seasons > 1 ? 's' : ''} coached${cr.wins || cr.losses ? ` (${cr.wins || 0}-${cr.losses || 0})` : ''}${cr.nationalTitles ? ` • ${cr.nationalTitles}🏆` : ''}` : ' • First job'}
+              ${seasons ? ` • ${seasons} season${seasons > 1 ? 's' : ''} coached${cr.nationalTitles ? ` • ${cr.nationalTitles}🏆` : ''}` : ' • First job'}
               • Rep ${Math.round(c.reputation || 0)}
             </div>
             <div style="font-size:12px; margin-top:3px;">
@@ -1028,6 +1020,16 @@
             if (res.ok) render(outerContainer);
           });
         });
+      });
+    });
+
+    container.querySelectorAll('[data-train-philo]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.trainPhilo;
+        if (coach.trainingPhilosophy === key) return;
+        coach.trainingPhilosophy = key;
+        UI.toast(`Training philosophy set: ${window.XCD.data.trainingPhilosophy(key).label}.`, 'success');
+        render(outerContainer);
       });
     });
 

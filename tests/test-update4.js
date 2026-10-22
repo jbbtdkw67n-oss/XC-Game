@@ -1,6 +1,6 @@
 // Update 4 test suite. Verifies the deep-dynasty additions:
-//  - Coaching philosophies: permanent training philosophy (scales with
-//    Training) + changeable race philosophy; assigned to AI + player.
+//  - Coaching philosophies: training philosophy (scales with Training) +
+//    race philosophy, both changeable; assigned to AI + player.
 //  - Rich accolades: division/conference/year-stamped, never overwritten,
 //    persisting into the alumni ledger after graduation.
 //  - Universal profile navigation: program/coach/athlete profiles open from
@@ -57,6 +57,15 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   const racePhilo = await page.evaluate(() => window.XCD.ui.state.game.getPlayerCoach().racePhilosophy);
   if (racePhilo !== 'pack') fail('race philosophy did not change to pack: ' + racePhilo);
   console.log('race philosophy change: ok');
+  await page.waitForSelector('[data-train-philo]');
+  const altTp = await page.evaluate(() => {
+    const cur = window.XCD.ui.state.game.getPlayerCoach().trainingPhilosophy;
+    return window.XCD.data.TRAINING_PHILOSOPHIES.find((p) => p.key !== cur).key;
+  });
+  await page.click(`[data-train-philo="${altTp}"]`);
+  const trainPhilo = await page.evaluate(() => window.XCD.ui.state.game.getPlayerCoach().trainingPhilosophy);
+  if (trainPhilo !== altTp) fail('training philosophy did not change to ' + altTp + ': ' + trainPhilo);
+  console.log('training philosophy change: ok');
 
   // ---- 3) Prestige seeds + heritage ----
   const prestige = await page.evaluate(() => {
