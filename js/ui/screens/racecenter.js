@@ -11,6 +11,10 @@
 
   let activeGender = 'M';
   let anim = null; // { raf, start, speed, duration }
+  // Playback speed the player picked. Kept across replays and Men/Women
+  // switches so the highlighted button always matches what's playing.
+  const SPEEDS = [1, 2, 4];
+  let replaySpeed = 1;
 
   function stopAnim() {
     if (anim && anim.raf) cancelAnimationFrame(anim.raf);
@@ -52,7 +56,9 @@
           </div>
           ${hasSplits ? `
             <button class="btn" id="btn-replay">▶ Replay</button>
-            <button class="btn" id="btn-speed">2×</button>
+            <div class="pill-tabs" id="speed-tabs" title="Replay speed">
+              ${SPEEDS.map((s) => `<button data-speed="${s}" class="${s === replaySpeed ? 'active' : ''}" aria-pressed="${s === replaySpeed}">${s}×</button>`).join('')}
+            </div>
             <button class="btn" id="btn-skip">⏭ Final</button>` : ''}
         </div>
       </div>
@@ -87,13 +93,18 @@
     }
 
     const replayBtn = container.querySelector('#btn-replay');
-    const speedBtn = container.querySelector('#btn-speed');
     const skipBtn = container.querySelector('#btn-skip');
     replayBtn.addEventListener('click', () => startReplay(game, meet, container));
-    speedBtn.addEventListener('click', () => {
-      if (!anim) return;
-      anim.speed = anim.speed === 1 ? 2 : anim.speed === 2 ? 4 : 1;
-      speedBtn.textContent = `${anim.speed === 1 ? 2 : anim.speed === 2 ? 4 : 1}×`;
+    container.querySelectorAll('#speed-tabs [data-speed]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        replaySpeed = Number(btn.dataset.speed);
+        if (anim) anim.speed = replaySpeed; // takes effect mid-replay
+        container.querySelectorAll('#speed-tabs [data-speed]').forEach((b) => {
+          const on = Number(b.dataset.speed) === replaySpeed;
+          b.classList.toggle('active', on);
+          b.setAttribute('aria-pressed', String(on));
+        });
+      });
     });
     skipBtn.addEventListener('click', () => { stopAnim(); showFinal(game, meet, container); });
 
@@ -161,7 +172,7 @@
     ticker.innerHTML = `<h3>📡 Race Feed</h3><div class="race-ticker"><div class="tick">The gun goes off — ${shown.length} runners shown of ${res.finisherCount}.</div></div>`;
 
     const playedSeconds = 48; // broadcast length at 1×
-    anim = { speed: 1, elapsed: 0, last: performance.now(), raf: null, lastSnap: 0 };
+    anim = { speed: replaySpeed, elapsed: 0, last: performance.now(), raf: null, lastSnap: 0 };
 
     function progressAt(r, t) {
       // t = race seconds; splits are cumulative per segment (equal distance)
