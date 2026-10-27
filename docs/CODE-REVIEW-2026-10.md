@@ -17,7 +17,7 @@ ratios, not absolutes.
 | `test-update6` | "every chair must stay filled through succession" | Stale assertion. Since the offseason job market (Updates 14–15), open head-coach chairs deliberately stay vacant from Week 16 until the rollover carousel, so the player can apply for them. Retiring never opened a *new* vacancy. | Test now asserts that succession opens no new vacancy (post-retirement vacancies ⊆ pre-retirement vacancies) and that every assistant seat is filled. |
 | `test-update15-balance` | NAU prestige "96 → 8", few transfers and 4★/5★ signings | **Not a prestige collapse.** Northern Arizona stayed at 94–96. The harness coach was **fired** (three straight preseason-podium picks without a top-3 finish, `js/engine/awards.js:552`) and sent to a bottom-15 program (`js/engine/careers.js:1347`): Eastern Illinois, prestige 12. The harness never job-hunts, so it spent 35 seasons at the bottom, and the test read *that* school's prestige. | The harness keeps its coach in place (clears `career.pendingFiring`, counts and prints each override) because the test measures recruiting/transfer balance *at a blue blood*. Firing has its own coverage in `test-update13-features`. A new check fails if the harness ever changes schools. |
 
-Result after the fixes: **35 / 35 tests pass**. The 40-season balance run now holds NAU at prestige 92–99, with 23 five-star signings, about 2.8 transfers per season, and a flat world average OVR of 47.
+Result after the fixes: **35 / 35 tests pass**, including the 100-season soak (avg OVR 47.5–47.8 throughout, no integrity faults). The 40-season balance run now holds NAU at prestige 92–99, with 23 five-star signings, about 2.8 transfers per season, and a flat world average OVR of 47.
 
 ### Design question raised by the balance run (your call)
 
@@ -50,7 +50,7 @@ is unchanged. Options if it feels too harsh:
 
 3. **The Load screen reads every save in full.** `SaveManager.listSlots()`
    (`js/engine/savemanager.js:220`) calls `getAll()`, which deserializes every dynasty *and*
-   its yearly backup (~65 MB each after two seasons, ~135 MB after 100) just to show names
+   its yearly backup (~65 MB each after two seasons, 164.5 MB after 100 — measured, and only 5 MB under the century test's 170 MB limit) just to show names
    and dates. With three dynasties that's ~400 MB+ of structured-clone work on the main
    thread. On an iPhone this is the most likely path to a freeze or a tab crash. *Fix:* write
    a small metadata record (`meta_<dynId>`) next to each save, or a separate object store,
