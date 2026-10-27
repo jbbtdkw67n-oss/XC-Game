@@ -1135,6 +1135,8 @@
       athlete.injuryResistance = Utils.clamp(athlete.injuryResistance - irHit, 10, 99);
       if (isPlayerSchool) {
         gameState.logNews(`Injury: ${athlete.fullName} — ${injury.type}, out ~${injury.totalWeeks} week${injury.totalWeeks > 1 ? 's' : ''}.`);
+        const Events = window.XCD.engine.Events;
+        if (Events) Events.emit(gameState, 'athlete:injured', { athleteId: athlete.id, name: athlete.fullName, weeks: injury.totalWeeks, injury: injury.type });
       }
       // Permanent career ledger + long-term toll of repeated major injuries.
       recordCareerInjury(gameState, athlete, injury, isPlayerSchool);

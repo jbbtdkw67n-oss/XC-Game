@@ -13,6 +13,14 @@
  * recovery point (`dyn_<id>__bak`) written in the background once per in-game
  * year, which Load falls back to if the primary record is ever unreadable.
  *
+ * Save index (Code Review Oct 2026): every save also writes a tiny metadata
+ * record (`meta:<slotId>`, the save browser's columns only) in the same
+ * transaction. The save browser lists from those, so opening Load no longer
+ * deserializes every full world (~65 MB+ each). It is also the index a future
+ * split-record save format (world / history / season stored separately)
+ * hangs off. Dynasties saved by older builds have no meta record yet; the
+ * first listing falls back to the full scan once and backfills them.
+ *
  * Legacy records from earlier builds (a shared `auto` slot, per-dynasty
  * `auto_<id>` autosaves, and `slot_<timestamp>` manual saves) are transparently
  * consolidated the first time the save list is opened: the most recent record
@@ -23,6 +31,8 @@
   const DB_VERSION = 1;
   const STORE = 'dynasties';
   const BAK_SUFFIX = '__bak';
+  const META_PREFIX = 'meta:';
+  const isMetaKey = (k) => typeof k === 'string' && k.startsWith(META_PREFIX);
   // In-memory marker so the rolling backup is written at most once per in-game
   // year per dynasty, without an extra IndexedDB read on the hot save path.
   const backupYears = {};
@@ -69,6 +79,26 @@
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, 'readonly');
       const req = tx.objectStore(STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  // Keys only — cheap, no record is deserialized.
+  function getAllKeys(db) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).getAllKeys();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  // Just the small `meta:` index records.
+  function getMetaRecords(db) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).getAll(IDBKeyRange.bound(META_PREFIX, META_PREFIX + '\uffff'));
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
     });
@@ -132,9 +162,20 @@
   const META_FIELDS = ['slotId', 'dynastyId', 'label', 'dynastyName', 'savedAt',
     'lastSaveType', 'year', 'week', 'schoolName', 'coachName', 'record'];
 
+  // The index record stored beside a full save: the browser's columns only.
+  function buildMeta(record) {
+    const meta = {};
+    META_FIELDS.forEach((k) => { meta[k] = record[k]; });
+    meta.dynastyName = cleanName(record);
+    meta.forSlot = record.slotId;
+    meta.slotId = META_PREFIX + record.slotId;
+    return meta;
+  }
+
   function metaOnly(record) {
     const out = {};
     META_FIELDS.forEach((k) => { out[k] = record[k]; });
+    if (record.forSlot) out.slotId = record.forSlot; // a meta: index record
     out.dynastyName = cleanName(record);
     out.isAuto = record.lastSaveType ? record.lastSaveType === 'auto' : /^auto/.test(record.slotId || '');
     return out;
@@ -148,6 +189,23 @@
     return bases.some((b) => r.slotId === b || r.slotId === b + BAK_SUFFIX);
   }
 
+  // Every stored key for one dynasty. When the store holds only canonical
+  // `dyn_` saves (plus their backups and index records), the keys are known
+  // without reading any record; legacy key shapes fall back to a full scan.
+  async function keysForDynasty(db, dynId) {
+    const keys = await getAllKeys(db);
+    const legacy = keys.some((k) => !isMetaKey(k) && !String(k).startsWith('dyn_'));
+    if (!legacy) {
+      const canon = canonicalKey(dynId);
+      const want = new Set([canon, canon + BAK_SUFFIX, META_PREFIX + canon, dynId, dynId + BAK_SUFFIX]);
+      return keys.filter((k) => want.has(k));
+    }
+    const all = await getAllRecords(db);
+    return all.filter((r) => belongsToDynasty(r, dynId) ||
+      (isMetaKey(r.slotId) && belongsToDynasty({ slotId: r.forSlot, dynastyId: r.dynastyId }, dynId)))
+      .map((r) => r.slotId);
+  }
+
   const SaveManager = {
     /*
      * Write the dynasty's single save record (used by both autoSave and
@@ -159,10 +217,12 @@
       const record = buildRecord(gameState, type || 'manual');
       await withStore('readwrite', (store) => {
         store.put(record);
+        store.put(buildMeta(record));
         // Retire the old separate autosave slot (and its backup) so a dynasty
         // never shows both an autosave and a main save again.
         store.delete('auto_' + dynId);
         store.delete('auto_' + dynId + BAK_SUFFIX);
+        store.delete(META_PREFIX + 'auto_' + dynId);
       });
       return record;
     },
@@ -220,9 +280,24 @@
     async listSlots() {
       const db = await openDB();
       try {
+        // Fast path: every save already has its index record — list from the
+        // index alone, without reading a single world.
+        const keys = await getAllKeys(db);
+        const primaries = keys.filter((k) => !isMetaKey(k) && !String(k).endsWith(BAK_SUFFIX));
+        const metas = await getMetaRecords(db);
+        const metaFor = {};
+        metas.forEach((m) => { metaFor[m.forSlot] = m; });
+        if (primaries.every((k) => String(k).startsWith('dyn_') && metaFor[k])) {
+          return primaries.map((k) => metaOnly(metaFor[k]))
+            .sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+        }
+
+        // Slow path (saves from older builds): full scan, consolidate, and
+        // backfill the index so the next listing is fast.
         const all = await getAllRecords(db);
         const groups = {};
         all.forEach((r) => {
+          if (isMetaKey(r.slotId)) return;          // index records
           if (r.slotId.endsWith(BAK_SUFFIX)) return; // backups are silent
           const dynId = recordDynId(r);
           (groups[dynId] = groups[dynId] || []).push(r);
@@ -250,13 +325,17 @@
               migrated.data.dynastyId = dynId;
             }
             puts.push(migrated);
+            puts.push(buildMeta(migrated));
             rows.push(metaOnly(migrated));
           } else {
+            if (!metaFor[canonical]) puts.push(buildMeta(newest));
             rows.push(metaOnly(newest));
           }
           // Delete every non-canonical record for this dynasty, plus backups.
           list.forEach((r) => {
-            if (r.slotId !== canonical) { dels.push(r.slotId); dels.push(r.slotId + BAK_SUFFIX); }
+            if (r.slotId !== canonical) {
+              dels.push(r.slotId); dels.push(r.slotId + BAK_SUFFIX); dels.push(META_PREFIX + r.slotId);
+            }
           });
         });
 
@@ -281,8 +360,7 @@
       const db = await openDB();
       let keys;
       try {
-        const all = await getAllRecords(db);
-        keys = all.filter((r) => belongsToDynasty(r, dynId)).map((r) => r.slotId);
+        keys = await keysForDynasty(db, dynId);
       } finally {
         db.close();
       }
@@ -298,8 +376,8 @@
       const db = await openDB();
       let matches;
       try {
-        const all = await getAllRecords(db);
-        matches = all.filter((r) => belongsToDynasty(r, dynId));
+        const keys = await keysForDynasty(db, dynId);
+        matches = (await Promise.all(keys.map((k) => getRecord(db, k).catch(() => null)))).filter(Boolean);
       } finally {
         db.close();
       }

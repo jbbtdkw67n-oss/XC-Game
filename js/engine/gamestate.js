@@ -118,6 +118,13 @@
       // a successor coach is created inside the same dynasty. Null for
       // pre-Update-15 saves — they never see it.
       this.tutorial = null;
+
+      // Groundwork (Code Review Oct 2026): difficulty sliders / flags (all
+      // neutral by default — see engine/settings.js), the machine-readable
+      // event log, and the player's Inbox (engine/events.js).
+      this.settings = window.XCD.engine.Settings ? window.XCD.engine.Settings.defaults() : {};
+      this.eventLog = [];
+      this.inbox = [];
     }
 
     /*
@@ -367,6 +374,17 @@
       this.lastPlayerMeetId = meetBefore ||
         (this.season && this.week === this.season.nationalWeek ? this.season.nationalsMeetId : null) ||
         this.lastPlayerMeetId;
+      const Events = window.XCD.engine.Events;
+      const ranMeet = this.season && this.season.meets[this.lastPlayerMeetId];
+      if (Events && ranMeet && ranMeet.week === this.week && ranMeet.results && ranMeet.results.M) {
+        const places = {};
+        ['M', 'W'].forEach((g) => {
+          const res = ranMeet.results[g];
+          const mine = res && res.teamScores && res.teamScores.find((t) => t.schoolId === this.playerSchoolId);
+          places[g] = mine ? mine.place : null;
+        });
+        if (places.M || places.W) Events.emit(this, 'race:completed', { meetId: ranMeet.id, name: ranMeet.name, places });
+      }
 
       // Nike Cross Nationals runs the same week as NCAA Nationals (Update 5,
       // Part 9): the high-school class crowns its champions, once per year.
@@ -383,6 +401,7 @@
         this.week = 1;
         this.year += 1;
         this.rolloverYear();
+        if (Events) Events.emit(this, 'season:started', { year: this.year });
       }
 
       // Post-week: build the nationals field once regionals wrap.
@@ -425,6 +444,8 @@
       this.weeklyFlow = { trainingConfirmed: !this.controlsTraining(), recruitingDone: false };
       // Auto Recruiting: the CPU already worked the board this week.
       if (this.recruiting.auto) this.weeklyFlow.recruitingDone = true;
+
+      if (Events) Events.emit(this, 'week:advanced', { year: this.year, week: this.week });
     }
 
     rolloverYear() {
@@ -630,7 +651,11 @@
         tutorial: this.tutorial || null,
         // Custom League (Update 13): the imported spec that renamed divisions,
         // added conferences, and set meet/award names. Re-applied on load.
-        customLeague: this.customLeague || null
+        customLeague: this.customLeague || null,
+        // Groundwork (Code Review Oct 2026): settings, event log, inbox.
+        settings: this.settings || null,
+        eventLog: this.eventLog || [],
+        inbox: this.inbox || []
       };
     }
 
@@ -742,6 +767,13 @@
       // resets the tables back to their defaults.
       gs.customLeague = obj.customLeague || null;
       D.applyCustomLeague(gs.customLeague);
+
+      // Groundwork (Code Review Oct 2026): older saves load with neutral
+      // default settings and an empty event log / inbox.
+      gs.settings = obj.settings || null;
+      window.XCD.engine.Settings.ensure(gs);
+      gs.eventLog = Array.isArray(obj.eventLog) ? obj.eventLog : [];
+      gs.inbox = Array.isArray(obj.inbox) ? obj.inbox : [];
 
       // Every dynasty owns a stable id (Phase 5). Pre-multi-save dynasties get
       // one derived deterministically from their seed + creation time, so a

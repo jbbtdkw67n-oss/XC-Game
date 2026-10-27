@@ -5,7 +5,7 @@
  * always correct; bump CACHE_VERSION whenever shipped files change to make
  * installed players pick up a new build.
  */
-const CACHE_VERSION = 'xcd-v7';
+const CACHE_VERSION = 'xcd-v9';
 
 const ASSETS = [
   './',
@@ -24,6 +24,8 @@ const ASSETS = [
   './js/data/schools-data.js',
   './js/data/schools-lower.js',
   './js/data/schools-meta.js',
+  './js/data/geography.js',
+  './js/data/courses.js',
   './js/models/models.js',
   './js/engine/worldgen.js',
   './js/engine/recruiting.js',
@@ -37,6 +39,7 @@ const ASSETS = [
   './js/engine/newsengine.js',
   './js/engine/finances.js',
   './js/engine/legacy.js',
+  './js/engine/courses.js',
   './js/engine/goat.js',
   './js/engine/morale.js',
   './js/engine/coaching.js',
@@ -45,9 +48,13 @@ const ASSETS = [
   './js/engine/gamestate.js',
   './js/engine/savemanager.js',
   './js/engine/store.js',
+  './js/engine/settings.js',
+  './js/engine/events.js',
+  './js/engine/sim.js',
   './js/ui/framework.js',
   './js/ui/avatar.js',
   './js/ui/coachwizard.js',
+  './js/ui/tutorial.js',
   './js/ui/screens/playercard.js',
   './js/ui/screens/coachcard.js',
   './js/ui/screens/schoolcard.js',
@@ -61,6 +68,7 @@ const ASSETS = [
   './js/ui/screens/rankings.js',
   './js/ui/screens/portal.js',
   './js/ui/screens/history.js',
+  './js/ui/screens/courses.js',
   './js/ui/screens/school.js',
   './js/ui/screens/world.js',
   './js/ui/screens/news.js',
