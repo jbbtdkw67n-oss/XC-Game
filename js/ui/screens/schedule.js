@@ -121,7 +121,7 @@
         : ' <span title="Qualified for Nationals — at-large bid" style="color:var(--accent); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 AL</span>';
     };
     const indivQualBadge = (f) => (isRegional && f.nationalsIndividual && !f.nationalsTeamQualifier)
-      ? ' <span title="Qualified for Nationals as an individual" style="color:var(--accent); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 IQ</span>'
+      ? (f.nationalsIndividualAtLarge ? ' <span title="Qualified for Nationals as a national at-large individual" style="color:var(--accent); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 IQ·AL</span>' : '') || ' <span title="Qualified for Nationals as an individual (first 4 from non-qualifying teams, top 25)" style="color:var(--accent); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 IQ</span>'
       : '';
 
     // The full results body for one gender — rebuilt when a tab is clicked.
@@ -137,6 +137,7 @@
           <td><strong>${Utils.escapeHtml(school ? school.name : '?')}</strong>${teamBidBadge(t)}</td>
           <td class="num">${t.points}</td>
           <td style="color:var(--text-dim); font-size:12px;">${t.scorers.join(' + ')}</td>
+          <td class="num">${typeof t.gap === 'number' ? `<span class="pack-gap-chip ${UI.screens.racecenter.gapTone(t.gap, res)}">${Races().formatGap(t.gap)}</span>` : '—'}</td>
         </tr>`;
       }).join('');
 
@@ -167,6 +168,7 @@
         </tr>`;
       }).join('');
 
+      const pack = UI.screens.racecenter.packReportHtml(game, res);
       const anyCr = res.finishers.some((f) => f.cr);
       const anyNr = res.finishers.some((f) => f.nr);
       return `
@@ -178,11 +180,12 @@
           🎟 Nationals qualifiers — <strong style="color:var(--success);">NQ</strong> automatic team bid · <strong style="color:var(--accent);">AL</strong> at-large team bid · <strong style="color:var(--accent);">IQ</strong> individual qualifier. These teams and runners advance to the NCAA Championships.
         </div>` : ''}
         ${(anyCr || anyNr) ? `<div style="color:var(--text-faint); font-size:11.5px; margin:0 0 8px;">${anyCr ? '<span class="cr-badge">CR</span> Course Record' : ''}${anyNr ? `${anyCr ? ' · ' : ''}<span class="cr-badge nr">NR</span> National Record` : ''}</div>` : ''}
+        ${pack ? `<div class="card" style="padding:12px; margin-bottom:12px;">${pack}</div>` : ''}
         <div class="grid cols-2">
           <div class="card" style="padding:12px;">
             <h3>Team Scores</h3>
             <div class="table-wrap" style="max-height:340px; overflow-y:auto;">
-              <table class="data"><thead><tr><th>Pl</th><th>Team</th><th class="num">Pts</th><th>Scorers</th></tr></thead>
+              <table class="data"><thead><tr><th>Pl</th><th>Team</th><th class="num">Pts</th><th>Scorers</th><th class="num" title="1–5 gap: the time between a team's 1st and 5th scorer">1–5 Gap</th></tr></thead>
               <tbody>${teamRows}</tbody></table>
             </div>
           </div>

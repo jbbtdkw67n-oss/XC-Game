@@ -1286,7 +1286,10 @@
     // CPU programs: a yearly budget ledger that persists across the cycle.
     R.aiBudgets = R.aiBudgets || {};
     if (R.aiBudgets[school.id] === undefined) R.aiBudgets[school.id] = school.budget.recruiting;
-    const box = { pts: schoolWeeklyPoints(gameState, school, coach) };
+    // Difficulty: CPU recruiting strength scales every CPU staff's weekly points.
+    const S = window.XCD.engine.Settings;
+    const strength = S ? S.mult(gameState, 'recruitingCompetition') : 1;
+    const box = { pts: Math.round(schoolWeeklyPoints(gameState, school, coach) * strength) };
     return {
       get points() { return box.pts; }, set points(v) { box.pts = v; },
       get budget() { return R.aiBudgets[school.id]; }, set budget(v) { R.aiBudgets[school.id] = v; },
@@ -1581,6 +1584,9 @@
             if (rec.starRating >= 3 || sid === player || committedSchool.id === player) {
               gameState.logNews(`FLIP: ${rec.fullName} decommits from ${from} and pledges to ${to}!`);
             }
+            if (committedSchool.id === player && window.XCD.engine.Events) {
+              window.XCD.engine.Events.emit(gameState, 'recruit:decommitted', { recruitId: rec.id, name: rec.fullName, stars: rec.starRating, to });
+            }
             break;
           }
         }
@@ -1591,6 +1597,9 @@
           rec.commitWeek = null;
           if (rec.starRating >= 3 || committedSchool.id === player) {
             gameState.logNews(`${rec.fullName} has decommitted from ${from} and reopened his recruitment.`);
+          }
+          if (committedSchool.id === player && window.XCD.engine.Events) {
+            window.XCD.engine.Events.emit(gameState, 'recruit:decommitted', { recruitId: rec.id, name: rec.fullName, stars: rec.starRating, to: null });
           }
         }
       }

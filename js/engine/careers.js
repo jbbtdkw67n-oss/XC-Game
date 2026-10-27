@@ -253,6 +253,7 @@
       }
       market.offers.push(buildOfferRow(gameState, school, resumeLite, s));
       gameState.logNews(`📞 New opening: ${s.name} (${s.division || 'DI'}, ${s.conference}) begins a head-coaching search.`);
+      if (window.XCD.engine.Events) window.XCD.engine.Events.emit(gameState, 'jobs:newOpening', { schoolId: s.id, name: s.name, division: s.division || 'DI' });
     });
     if (market && fresh.length) market.offers.sort((a, b) => b.prestige - a.prestige);
   }
@@ -677,7 +678,10 @@
   function declineOffers(gameState) {
     if (!gameState.jobOffers) return;
     gameState.logNews(`You turn down outside interest and recommit to ${gameState.getPlayerSchool().name}.`);
-    gameState.jobOffers = null;
+    // Turning everything down closes the market for this cycle — otherwise
+    // the next new opening would rebuild the board (and re-trigger the
+    // Available Jobs popup) a week later.
+    closeJobSearch(gameState);
   }
 
   function expireOffers(gameState) {
@@ -767,6 +771,7 @@
       ? `accepts the head coaching job at ${destSchool.name}`
       : `leaves for a bigger assistant post at ${destSchool.name}`;
     gameState.logNews(`📣 STAFF DEPARTURE: your assistant coach ${coach.fullName} ${verb}. Replace them from the hiring pool on My Program.`);
+    if (window.XCD.engine.Events) window.XCD.engine.Events.emit(gameState, 'staff:assistantLeft', { name: coach.fullName, school: destSchool.name, kind });
   }
 
   /*
@@ -997,6 +1002,7 @@
         if (playerAsst) {
           gameState.assistantDeparture = { year: gameState.year, coachName: asst.fullName, school: null, kind: 'retired' };
           gameState.logNews(`📣 STAFF DEPARTURE: your assistant coach ${asst.fullName} retires after ${asst.careerRecord.seasons || 'many'} seasons. Hire a replacement from the pool on My Program.`);
+          if (window.XCD.engine.Events) window.XCD.engine.Events.emit(gameState, 'staff:assistantLeft', { name: asst.fullName, school: null, kind: 'retired' });
         }
         return;
       }

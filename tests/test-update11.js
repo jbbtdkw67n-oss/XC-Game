@@ -266,6 +266,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     // Manufacture the exact bug: a runner who'd read Very High risk.
     a.morale = 1; a.coachRelationship = 10; a.teamRelationship = 10;
     a.seasonRaces = 0; a.currentOverall = 80;
+    a.transferGraceYear = null; // the athlete found may itself be a fresh transfer
     const before = P.transferRisk(g, a);
     a.transferGraceYear = g.year; // ...but they just transferred in
     const after = P.transferRisk(g, a);

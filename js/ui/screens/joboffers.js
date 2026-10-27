@@ -386,21 +386,31 @@
   UI.showJobOffersPopup = function (game) {
     if (!game.jobOffers || !openOffers(game).length) return false;
     game.jobOffers.popupSeen = true;
+    game.jobPopupYear = game.year; // once per offseason, whatever happens to the board
+    UI.state.jobsAfterBroadcast = false;
     sortKey = 'prestige';
     selectedId = null;
     render(game);
     return true;
   };
 
+  // True when the one-time popup for this offseason is still owed.
+  UI.jobOffersPending = function (game) {
+    if (!game || game.seasonPhase !== 'Offseason') return false;
+    if (game.jobPopupYear === game.year) return false;
+    if (!game.jobOffers || game.jobOffers.popupSeen) return false;
+    return openOffers(game).length > 0;
+  };
+
   /*
-   * Show the picker once per offseason cycle when the market first opens (the
-   * awards week / offseason), unless the player has already been shown it or
-   * closed the market. Callers gate on the advance flow (framework.js).
+   * Show the picker ONCE per offseason: right after the national meet is
+   * simulated (the awards week, when the market opens). Turning the offers
+   * down, taking a job, or choosing "Decide later" all count as having seen
+   * it — new openings that surface later in the offseason go to the Inbox
+   * and the Dashboard's job market instead of re-opening the popup.
    */
   UI.maybeShowJobOffers = function (game) {
-    if (!game || game.seasonPhase !== 'Offseason') return false;
-    if (!game.jobOffers || game.jobOffers.popupSeen) return false;
-    if (!openOffers(game).length) return false;
+    if (!UI.jobOffersPending(game)) return false;
     return UI.showJobOffersPopup(game);
   };
 })();

@@ -146,7 +146,9 @@
 
       // Movement cap raised ±3 → ±4: eras still read as eras, but a
       // championship breakthrough (or a collapse) visibly moves the brand.
-      delta = Utils.clamp(delta, -4, 4);
+      // Difficulty: Prestige volatility widens or calms every program's swing.
+      const vol = window.XCD.engine.Settings ? window.XCD.engine.Settings.mult(gameState, 'prestigeVolatility') : 1;
+      delta = Utils.clamp(delta * vol, -4 * vol, 4 * vol);
       const before = school.prestige;
       school.prestige = Utils.clamp(Math.round(school.prestige + delta), 5, 99);
 

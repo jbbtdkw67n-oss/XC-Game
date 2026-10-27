@@ -945,7 +945,9 @@
 
     const result = {
       distanceM,
-      finishers: detailed ? finishers : finishers.slice(0, 15),
+      // Regionals keep a deeper list: individual qualifying reads finishers
+      // down past 25th (top-25 cutoff + national at-large individuals).
+      finishers: detailed ? finishers : finishers.slice(0, meet.type === 'regional' ? 60 : 15),
       finisherCount: finishers.length,
       dnfs,
       teamScores
@@ -1071,6 +1073,39 @@
     return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
   }
 
+  /*
+   * Pack stats: how tightly a team's five scorers ran together. `gap` is the
+   * 1–5 split (5th scorer's time minus the 1st's), `avg` the scorers' average
+   * time, both in seconds (one decimal). Kept on every team score — small
+   * enough to save for every meet, and it survives the trimmed finisher
+   * lists stored for meets the player didn't run.
+   */
+  function packOf(top5) {
+    if (top5.length < 5 || top5.some((f) => typeof f.time !== 'number')) return {};
+    const avg = top5.reduce((s, f) => s + f.time, 0) / 5;
+    return { gap: Math.round((top5[4].time - top5[0].time) * 10) / 10, avg: Math.round(avg * 10) / 10 };
+  }
+
+  // Pack stats for one team in a result, or null. Older saves have no
+  // stored gap; their full (player-meet) finisher lists still give one.
+  function packStats(res, schoolId) {
+    if (!res) return null;
+    const t = (res.teamScores || []).find((x) => x.schoolId === schoolId);
+    if (t && typeof t.gap === 'number') return { gap: t.gap, avg: t.avg, place: t.place };
+    const mine = (res.finishers || []).filter((f) => f.schoolId === schoolId).slice(0, 5);
+    const p = packOf(mine);
+    return typeof p.gap === 'number' ? Object.assign(p, { place: t ? t.place : null }) : null;
+  }
+
+  // The tightest five-runner pack in a race (lowest 1–5 gap).
+  function tightestPack(res) {
+    let best = null;
+    (res && res.teamScores || []).forEach((t) => {
+      if (typeof t.gap === 'number' && (!best || t.gap < best.gap)) best = t;
+    });
+    return best;
+  }
+
   /* NCAA team scoring */
   function scoreRace(finishers) {
     const byTeam = {};
@@ -1089,18 +1124,24 @@
       const team = scoringRunners.filter((f) => f.schoolId === schoolId);
       const top5 = team.slice(0, 5);
       const points = top5.reduce((s, f) => s + f.scoringPlace, 0);
-      return {
+      return Object.assign({
         schoolId,
         points,
         scorers: top5.map((f) => f.scoringPlace),
         sixth: team[5] ? team[5].scoringPlace : Infinity,
         finishers: team.length
-      };
+      }, packOf(top5));
     });
 
     teams.sort((a, b) => (a.points - b.points) || (a.sixth - b.sixth));
     teams.forEach((t, i) => { t.place = i + 1; });
     return teams;
+  }
+
+  // A pack gap for display: "18.4s" under a minute, "1:02.3" beyond.
+  function formatGap(sec) {
+    if (typeof sec !== 'number' || !Number.isFinite(sec)) return '—';
+    return sec < 60 ? `${sec.toFixed(1)}s` : formatTime(sec);
   }
 
   function distKey(distanceM) { return `${distanceM / 1000}K`; }
@@ -1395,6 +1436,84 @@
     }
   }
 
+  /*
+   * Head-to-head team results for the Kolas at-large method: h2h[a][b] is
+   * how many times team a placed ahead of team b in a team-scored race this
+   * season before Nationals (invitationals, conference, regional), counting
+   * only teams of one division.
+   */
+  function headToHead(gameState, division, gender) {
+    const season = gameState.season;
+    const h2h = {};
+    const divOf = (sid) => ((gameState.getSchool(sid) || {}).division || 'DI');
+    Object.values((season && season.meets) || {}).forEach((meet) => {
+      if (!meet || meet.type === 'national' || meet.week >= NATIONAL_WEEK) return;
+      const res = meet.results && meet.results[gender];
+      if (!res || !res.teamScores) return;
+      const ids = res.teamScores.filter((t) => divOf(t.schoolId) === division).map((t) => t.schoolId);
+      for (let i = 0; i < ids.length; i++) {
+        const row = h2h[ids[i]] || (h2h[ids[i]] = {});
+        for (let j = i + 1; j < ids.length; j++) row[ids[j]] = (row[ids[j]] || 0) + 1;
+      }
+    });
+    return h2h;
+  }
+  const wins = (h2h, a, b) => (h2h[a] && h2h[a][b]) || 0;
+  function kolasCount(h2h, sid, fieldSet) {
+    const row = h2h[sid];
+    if (!row) return 0;
+    let n = 0;
+    fieldSet.forEach((b) => { if (b !== sid) n += row[b] || 0; });
+    return n;
+  }
+  function lossCount(h2h, sid, fieldSet) {
+    let n = 0;
+    fieldSet.forEach((b) => { if (b !== sid) n += wins(h2h, b, sid); });
+    return n;
+  }
+
+  /*
+   * Kolas standing for one team (the Rankings → Selection board): wins and
+   * losses against a field. With no field given, the projected field is the
+   * division's current poll top-N (N = the nationals field size).
+   *   → { points, losses, field: [ids], vs: [{ schoolId, w, l }] }
+   */
+  function kolasPoints(gameState, gender, schoolId, fieldIds) {
+    const school = gameState.getSchool(schoolId);
+    const division = (school && school.division) || 'DI';
+    const size = (D.divisionFor(division).championship || {}).nationalsFieldSize || 31;
+    const field = fieldIds || ((gameState.rankings && gameState.rankings[gender]) || [])
+      .filter((r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DI') === division)
+      .slice(0, size).map((r) => r.schoolId);
+    const h2h = headToHead(gameState, division, gender);
+    const set = new Set(field);
+    const vs = field.filter((b) => b !== schoolId)
+      .map((b) => ({ schoolId: b, w: wins(h2h, schoolId, b), l: wins(h2h, b, schoolId) }))
+      .filter((x) => x.w || x.l);
+    return { points: kolasCount(h2h, schoolId, set), losses: lossCount(h2h, schoolId, set), field, vs };
+  }
+
+  /*
+   * At-Large Watch board (Rankings → Selection, before the field is set):
+   * the division's top `n` poll teams, each with Kolas points and losses
+   * against the projected field (the poll's top N, N = field size).
+   *   → { field: [ids], size, rows: [{ schoolId, rank, points, losses, inField }] }
+   */
+  function kolasBoard(gameState, gender, division, n) {
+    const size = (D.divisionFor(division).championship || {}).nationalsFieldSize || 31;
+    const poll = ((gameState.rankings && gameState.rankings[gender]) || [])
+      .filter((r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DI') === division);
+    const field = poll.slice(0, size).map((r) => r.schoolId);
+    const set = new Set(field);
+    const h2h = headToHead(gameState, division, gender);
+    const rows = poll.slice(0, n || 50).map((r) => ({
+      schoolId: r.schoolId, rank: r.rank,
+      points: kolasCount(h2h, r.schoolId, set), losses: lossCount(h2h, r.schoolId, set),
+      inField: set.has(r.schoolId)
+    }));
+    return { field, size, rows };
+  }
+
   function buildNationalsField(gameState) {
     // Per division (Part 13): auto qualifiers per regional + at-larges fill
     // the field to the division's size; the division's top regional
@@ -1422,11 +1541,15 @@
         });
         const autoSet = new Set(auto);
 
-        // At-large selections: the committee weighs season performance AND
-        // championship results. Teams that missed the auto cut are ranked by
-        // their national poll standing blended with how they placed at their
-        // own regional — a strong regional finish (just missing the auto bids)
-        // is a core NCAA at-large criterion.
+        // At-large selections — the real NCAA Kolas method. Bids go one at a
+        // time. The candidates are the highest-finishing non-qualified team
+        // from EACH regional (so no team is picked ahead of a team that beat
+        // it at its own regional). Each candidate's Kolas points are its
+        // head-to-head wins this season (invitationals, conference, regional)
+        // over teams ALREADY in the field. The most points earns the bid; the
+        // field grows, points are recounted, and the next region's team steps
+        // up — until the field is full. Ties: head-to-head, then the regional
+        // finish, then the poll.
         const rankIndex = {};
         (rankings[gender] || []).forEach((r) => {
           if (((gameState.getSchool(r.schoolId) || {}).division || 'DI') === division) {
@@ -1436,20 +1559,53 @@
         const ranked = (rankings[gender] || [])
           .filter((r) => ((gameState.getSchool(r.schoolId) || {}).division || 'DI') === division)
           .map((r) => r.schoolId);
-        const atLarge = Object.keys(regionalPlace)
-          .filter((sid) => !autoSet.has(sid))
-          .map((sid) => {
-            const pollScore = rankIndex[sid] ? Math.max(0, 100 - rankIndex[sid]) : 0;
-            const regionScore = Math.max(0, 12 - (regionalPlace[sid] || 12));
-            return { sid, score: pollScore + regionScore * 2.2 };
-          })
-          .sort((a, b) => b.score - a.score);
-
+        const h2h = headToHead(gameState, division, gender);
+        const regionQueues = regionalMeets.map((meet) => {
+          const res = meet.results[gender];
+          return {
+            region: meet.region,
+            allIds: res ? res.teamScores.map((t) => t.schoolId) : [],
+            ids: res ? res.teamScores.map((t) => t.schoolId).filter((sid) => !autoSet.has(sid)) : []
+          };
+        });
         const field = [...auto];
-        for (const c of atLarge) {
-          if (field.length >= rules.nationalsFieldSize) break;
-          if (!field.includes(c.sid)) field.push(c.sid);
+        const fieldSet0 = new Set(field);
+        const atLargePicks = [];
+        let bubble = [];
+        while (field.length < rules.nationalsFieldSize) {
+          const cands = regionQueues
+            .map((q) => {
+              const sid = q.ids.find((id) => !fieldSet0.has(id));
+              return sid ? { sid, region: q.region } : null;
+            })
+            .filter(Boolean)
+            .map((c) => Object.assign(c, {
+              points: kolasCount(h2h, c.sid, fieldSet0),
+              losses: lossCount(h2h, c.sid, fieldSet0),
+              regionalPlace: regionalPlace[c.sid] || 99,
+              poll: rankIndex[c.sid] || 999
+            }));
+          if (!cands.length) break;
+          cands.sort((x, y) => (y.points - x.points) ||
+            (wins(h2h, y.sid, x.sid) - wins(h2h, x.sid, y.sid)) ||
+            (x.regionalPlace - y.regionalPlace) || (x.poll - y.poll));
+          const pick = cands[0];
+          atLargePicks.push({ schoolId: pick.sid, region: pick.region, points: pick.points, losses: pick.losses, regionalPlace: pick.regionalPlace, pick: atLargePicks.length + 1 });
+          field.push(pick.sid);
+          fieldSet0.add(pick.sid);
+          bubble = cands.slice(1);
         }
+        // "First teams out": the candidates still on the board when the last
+        // bid went, re-counted against the final field.
+        bubble = bubble.map((c) => ({ schoolId: c.sid, region: c.region, points: kolasCount(h2h, c.sid, fieldSet0), losses: lossCount(h2h, c.sid, fieldSet0), regionalPlace: c.regionalPlace }))
+          .sort((x, y) => (y.points - x.points) || (x.regionalPlace - y.regionalPlace));
+        champ.selection = champ.selection || {};
+        champ.selection[gender] = {
+          method: 'kolas',
+          auto: auto.map((sid) => ({ schoolId: sid, region: (regionQueues.find((q) => q.allIds.includes(sid)) || {}).region || null, regionalPlace: regionalPlace[sid] || null, points: kolasCount(h2h, sid, fieldSet0) })),
+          atLarge: atLargePicks,
+          firstOut: bubble.slice(0, 6)
+        };
         // Safety top-off (tiny/custom divisions): fill any remainder from poll.
         for (const sid of ranked) {
           if (field.length >= rules.nationalsFieldSize) break;
@@ -1463,8 +1619,20 @@
         // in its region) or on an at-large bid, and the top regional finishers
         // not on a qualifying team advance as individuals. These flags are what
         // the Race Center / history screens read to badge qualifiers.
+        //
+        // Individual qualifiers (real NCAA rules): at each regional, the first
+        // N finishers whose teams did NOT make the field advance automatically
+        // — but only if they placed inside the regional's top-X cutoff (DI:
+        // first 4, top 25). Then the committee adds national at-large
+        // individuals (DI: 2): the highest regional placers from
+        // non-qualifying teams who missed the automatic cut, compared across
+        // regions by place and then by margin behind their regional winner.
         const individuals = [];
         const individualSet = new Set();
+        const perRegional = rules.individualQualifiersPerRegional || 0;
+        const cutoff = rules.individualTopCutoff || Infinity;
+        const indivAuto = [];
+        const leftovers = [];
         regionalMeets.forEach((meet) => {
           const res = meet.results[gender];
           if (!res) return;
@@ -1472,20 +1640,48 @@
             t.nationalsBid = autoSet.has(t.schoolId) ? 'auto'
               : fieldSet.has(t.schoolId) ? 'atlarge' : null;
           });
-          res.finishers.slice(0, rules.individualQualifiersPerRegional).forEach((f) => {
-            if (!fieldSet.has(f.schoolId) && !individualSet.has(f.athleteId)) {
+          const winTime = res.finishers[0] ? res.finishers[0].time : null;
+          let taken = 0;
+          res.finishers.forEach((f) => {
+            if (fieldSet.has(f.schoolId) || individualSet.has(f.athleteId)) return;
+            if (taken < perRegional && f.place <= cutoff) {
+              taken++;
               individuals.push(f.athleteId);
               individualSet.add(f.athleteId);
+              indivAuto.push({ athleteId: f.athleteId, schoolId: f.schoolId, place: f.place, region: meet.region });
+            } else {
+              leftovers.push({
+                athleteId: f.athleteId, schoolId: f.schoolId, place: f.place, region: meet.region,
+                behind: winTime ? (f.time - winTime) / winTime : 1
+              });
             }
           });
-          // Flag every finisher belonging to a qualifying team or an individual
-          // qualifier, so the results can mark both cleanly.
+        });
+        leftovers.sort((a, b) => (a.place - b.place) || (a.behind - b.behind));
+        const indivAtLarge = [];
+        for (const c of leftovers) {
+          if (indivAtLarge.length >= (rules.individualAtLarge || 0)) break;
+          if (individualSet.has(c.athleteId)) continue;
+          individuals.push(c.athleteId);
+          individualSet.add(c.athleteId);
+          indivAtLarge.push({ athleteId: c.athleteId, schoolId: c.schoolId, place: c.place, region: c.region });
+        }
+        const atLargeIndivSet = new Set(indivAtLarge.map((x) => x.athleteId));
+        // Flag every finisher belonging to a qualifying team or an individual
+        // qualifier, so the results can mark both cleanly.
+        regionalMeets.forEach((meet) => {
+          const res = meet.results[gender];
+          if (!res) return;
           res.finishers.forEach((f) => {
             f.nationalsTeamQualifier = fieldSet.has(f.schoolId);
             f.nationalsIndividual = individualSet.has(f.athleteId);
+            f.nationalsIndividualAtLarge = atLargeIndivSet.has(f.athleteId);
           });
         });
         champ.individualQualifiers[gender] = individuals;
+        if (champ.selection && champ.selection[gender]) {
+          champ.selection[gender].individuals = { auto: indivAuto, atLarge: indivAtLarge, cutoff: Number.isFinite(cutoff) ? cutoff : null, perRegional };
+        }
 
         if (division === playerDivision) {
           // Mirror onto the season-level view the UI reads.
@@ -1503,18 +1699,19 @@
             const glabel = gender === 'M' ? "men's" : "women's";
             const shown = atLargeNames.slice(0, 8).join(', ');
             const extra = atLargeNames.length > 8 ? `, and ${atLargeNames.length - 8} more` : '';
-            gameState.logNews(`🎟️ AT-LARGE BIDS (${glabel}): ${shown}${extra} earn tickets to the NCAA Championships despite missing the automatic qualifying cut.`);
+            gameState.logNews(`🎟️ AT-LARGE BIDS (${glabel}): ${shown}${extra} earn tickets to the NCAA Championships on Kolas points — head-to-head wins over teams already in the field.`);
           }
 
           if (field.includes(gameState.playerSchoolId)) {
             const wasAuto = auto.includes(gameState.playerSchoolId);
-            gameState.logNews(`Your ${gender === 'M' ? 'men' : 'women'} are headed to the NCAA Championships${wasAuto ? ' as automatic qualifiers' : ' with an at-large bid'}!`);
+            const myPick = atLargePicks.find((p) => p.schoolId === gameState.playerSchoolId);
+            gameState.logNews(`Your ${gender === 'M' ? 'men' : 'women'} are headed to the NCAA Championships${wasAuto ? ' as automatic qualifiers' : ` with an at-large bid${myPick ? ` (${myPick.points} Kolas point${myPick.points === 1 ? '' : 's'}, pick #${myPick.pick})` : ''}`}!`);
           } else {
             const mine = individuals
               .map((id) => gameState.world.athletes[id])
               .filter((a) => a && a.schoolId === gameState.playerSchoolId);
             if (mine.length) {
-              gameState.logNews(`${mine.map((a) => a.fullName).join(' and ')} punch${mine.length === 1 ? 'es' : ''} an individual ticket to the NCAA Championships (top-${rules.individualQualifiersPerRegional} at regionals)!`);
+              gameState.logNews(`${mine.map((a) => a.fullName).join(' and ')} punch${mine.length === 1 ? 'es' : ''} an individual ticket to the NCAA Championships${mine.some((a) => atLargeIndivSet.has(a.id)) ? ' (a national at-large individual pick)' : ` (among the first ${rules.individualQualifiersPerRegional} from non-qualifying teams at regionals)`}!`);
             }
           }
         }
@@ -1806,13 +2003,40 @@
   }
 
   // Nationals fields are built as soon as every regional has results.
+  // Selection day for the player (Inbox / sim report): how each squad got in
+  // — automatic, at-large (with its Kolas points), individuals only, or out.
+  function announceSelection(gameState) {
+    const Events = window.XCD.engine.Events;
+    const season = gameState.season;
+    const school = gameState.getPlayerSchool();
+    if (!Events || !season || !school) return;
+    const champ = season.championships[school.division || 'DI'];
+    if (!champ || !champ.selection) return;
+    const status = {};
+    ['M', 'W'].forEach((g) => {
+      const sel = champ.selection[g];
+      if (!sel) { status[g] = null; return; }
+      const sid = gameState.playerSchoolId;
+      const al = sel.atLarge.find((p) => p.schoolId === sid);
+      const out = sel.firstOut.find((p) => p.schoolId === sid);
+      const indiv = (champ.individualQualifiers[g] || []).filter((id) => (gameState.world.athletes[id] || {}).schoolId === sid).length;
+      status[g] = sel.auto.some((p) => p.schoolId === sid) ? { bid: 'auto' }
+        : al ? { bid: 'atlarge', points: al.points, pick: al.pick }
+        : { bid: null, points: out ? out.points : null, bubble: !!out, individuals: indiv };
+    });
+    Events.emit(gameState, 'nationals:selection', { M: status.M, W: status.W });
+  }
+
   function postWeekHousekeeping(gameState) {
     if (gameState.week === REGIONAL_WEEK + 1 || gameState.week === REGIONAL_WEEK) {
       const season = gameState.season;
       if (season && !nationalsFieldsReady(season)) {
         const regionalsDone = (season.byWeek[REGIONAL_WEEK] || [])
           .every((id) => season.meets[id] && season.meets[id].results.M);
-        if (regionalsDone) buildNationalsField(gameState);
+        if (regionalsDone) {
+          buildNationalsField(gameState);
+          announceSelection(gameState);
+        }
       }
     }
   }
@@ -1823,6 +2047,11 @@
     postWeekHousekeeping,
     simulateRace,
     scoreRace,
+    packStats,
+    tightestPack,
+    formatGap,
+    kolasPoints,
+    kolasBoard,
     raceRating,
     formatTime,
     distKey,

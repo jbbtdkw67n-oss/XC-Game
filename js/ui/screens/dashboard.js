@@ -274,6 +274,8 @@
         </div>
       </div>
 
+      ${UI.inboxDashboardCard ? UI.inboxDashboardCard(game) : ''}
+
       ${(() => {
         // Week 1 Administrative Phase (spec Part 2, Section 15): the season-
         // setup checklist. Week 2 stays locked until every task is complete.
@@ -524,6 +526,7 @@
           </div>`).join('') || '<div style="color:var(--text-dim);">No news yet.</div>'}
       </div>`;
 
+    if (UI.wireInboxCard) UI.wireInboxCard(container, game);
     container.querySelectorAll('[data-ath]').forEach((tr) => {
       tr.addEventListener('click', () => UI.showPlayerCard(game.getAthlete(tr.dataset.ath), game));
     });

@@ -717,7 +717,13 @@
   /* ================================================================ *
    * Injuries
    * ================================================================ */
-  function rollInjury(athlete, school, planMeta, mMeta, rng, philoInjuryMult = 1) {
+  // A difficulty slider as a multiplier (1 when the settings module is absent).
+  function settingMult(gameState, key) {
+    const S = window.XCD.engine.Settings;
+    return S ? S.mult(gameState, key) : 1;
+  }
+
+  function rollInjury(athlete, school, planMeta, mMeta, rng, philoInjuryMult = 1, rateMult = 1) {
     // Rebalanced (Update 6, Phase 2). Injury risk is now driven far more
     // strongly by how much a runner is being pushed: severe fatigue,
     // consecutive weeks of heavy workload, recent race intensity, a recent
@@ -772,7 +778,11 @@
       * (1.1 - school.facilities.weightRoom / 500);
     chance += Math.max(0.0018, freak);
 
-    if (!rng.bool(Utils.clamp(chance, 0.0018, 0.42))) return null;
+    // Difficulty: the Injury frequency slider scales the whole chance (0 =
+    // no injuries at all). The roll is always drawn so the RNG stream — and
+    // with it the rest of the world — stays identical at the default of 1.
+    const roll = rng.bool(Utils.clamp(chance * rateMult, 0.0018 * rateMult, 0.42));
+    if (!roll || rateMult <= 0) return null;
 
     // Over the limit — by mileage or by sustained overtraining while deeply
     // fatigued — skews to overuse breakdowns (stress reactions/fractures,
@@ -1011,6 +1021,8 @@
     athlete.devExecAvg = (athlete.devExecAvg == null) ? execWk : (athlete.devExecAvg * 0.9 + execWk * 0.1);
 
     let dev = devPoints(athlete, coach, school, planMeta, rng) * mMeta.devMult;
+    // Difficulty: CPU athlete development (the player's own roster is never scaled).
+    if (!isPlayerSchool) dev *= settingMult(gameState, 'cpuDevelopment');
     if (culture) {
       dev *= 0.88 + culture.chemistry / 450; // 0.88–1.10
       if (athlete.classYear === 'Freshman' && culture.captainLeadership >= 75) dev *= 1.10;
@@ -1118,7 +1130,7 @@
 
     // Injury roll (philosophy adjusts overtraining risk — Norwegian/
     // strength-endurance staffs manage load better).
-    const injury = rollInjury(athlete, school, planMeta, mMeta, rng, philo.injuryMult);
+    const injury = rollInjury(athlete, school, planMeta, mMeta, rng, philo.injuryMult, settingMult(gameState, 'injuryRate'));
     if (injury) {
       athlete.injury = injury;
       athlete.health = 'Injured';
@@ -1347,6 +1359,7 @@
           pts *= careerInjuryDevMult(a);                    // repeated major injuries shrink the upside
           if (a.fatigue > 70) pts *= 0.65;                  // burnout eats the summer
           pts *= 0.7 + rng.next() * 0.6;
+          if (!isPlayerSchool) pts *= settingMult(gameState, 'cpuDevelopment'); // difficulty
           // One summer can't remake a runner: ~30 points is a +5/+6 ceiling,
           // so stacked late-bloomer multipliers never produce a +15 jump.
           pts = Math.min(pts, OFFSEASON_MAX_POINTS);

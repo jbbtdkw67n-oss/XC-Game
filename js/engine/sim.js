@@ -37,7 +37,8 @@
   // 4+ weeks on the player's roster, the job market opening, or a firing.
   Sim.defaultStopWhen = function (evt) {
     if (evt.type === 'athlete:injured') return (evt.payload.weeks || 0) >= 4;
-    return evt.type === 'jobs:marketOpened' || evt.type === 'career:fired';
+    return evt.type === 'jobs:marketOpened' || evt.type === 'career:fired' ||
+      evt.type === 'staff:assistantLeft';
   };
 
   // Each target resolves to a predicate on the game, checked at the start of
@@ -62,6 +63,42 @@
     return wk === s.nationalWeek && !!(
       (s.nationalsFieldIds.M && s.nationalsFieldIds.M.includes(game.playerSchoolId)) ||
       (s.nationalsFieldIds.W && s.nationalsFieldIds.W.includes(game.playerSchoolId)));
+  };
+
+  // The next week (after this one) in which the player's team races, or null.
+  Sim.nextRaceWeek = function (game) {
+    const s = game.season;
+    if (!s) return null;
+    for (let w = game.week + 1; w <= C.WEEKS_PER_YEAR; w++) {
+      if (s.playerMeetByWeek && s.playerMeetByWeek[w]) return w;
+      if (w === s.nationalWeek) {
+        const f = s.nationalsFieldIds || {};
+        // Before regionals the field isn't set: the race is still possible.
+        if (!f.M && !f.W) return w;
+        if ((f.M && f.M.includes(game.playerSchoolId)) || (f.W && f.W.includes(game.playerSchoolId))) return w;
+      }
+    }
+    return null;
+  };
+
+  /*
+   * What the sim menu shows for a target: whether it can be reached from here
+   * this season, the week it lands on, and how many weeks away it is.
+   *   → { available, weeks, week, weekLabel, why }
+   */
+  Sim.describeTarget = function (game, target) {
+    const t = resolve(target);
+    if (t.newSeason) {
+      return { available: true, weeks: C.WEEKS_PER_YEAR - game.week + 1, week: 1, weekLabel: `Week 1, ${game.year + 1}` };
+    }
+    let week = t.week;
+    if (target === 'nextRace') {
+      week = Sim.nextRaceWeek(game);
+      if (!week) return { available: false, weeks: null, week: null, weekLabel: '', why: 'No races left this season' };
+    }
+    if (week === game.week) return { available: false, weeks: 0, week, weekLabel: `Week ${week}`, why: 'You are here' };
+    if (week < game.week) return { available: false, weeks: null, week, weekLabel: `Week ${week}`, why: 'Done for this season' };
+    return { available: true, weeks: week - game.week, week, weekLabel: `Week ${week}` };
   };
 
   function resolve(target) {

@@ -14,6 +14,50 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 14.4 — Sim to a Date, the Inbox, Difficulty & Real NCAA Selection
+
+- **Sim to a date.** The ⏩ menu in the top bar (the ▾ beside Sim to Race)
+  sims to the next race, Conference, Regionals, Nationals, the awards week,
+  Signing Day or next season. It stops at the **start** of that week so you
+  still make the call, never skips a new season's Week 1 setup, and — with
+  "Stop when something needs me" on — stops early for a 4+ week injury, the
+  job market opening, a firing, or your assistant leaving. A **Sim Report**
+  then shows why it stopped, what needs you, and every race you ran.
+- **The Inbox.** One place for every decision: a live **Needs you now** list
+  (training, recruiting, the Week 1 checklist, job offers, an empty assistant
+  chair, roster cuts, portal departures) above a saved feed of injuries,
+  commits and decommits, race results, the portal opening, Signing Day,
+  Selection Day, the job market and the Hot Seat. Filters, mark read, and an
+  Open button that jumps to the right screen. Unread counts sit on the top bar
+  and the sidebar; the Dashboard shows the top items.
+- **Difficulty settings** (⚙️ Settings): CPU recruiting strength, injury
+  frequency (0 = none), Hot Seat patience (2–6 seasons before a firing), CPU
+  athlete development and prestige volatility — with Rookie / Normal /
+  Veteran / Legend presets. All are wired into the engine; Normal plays
+  exactly as before.
+- **God Mode.** Adds ✏️ Edit to athlete, program and coach profiles: ratings,
+  potential, morale, fatigue, healing, prestige, facilities, recruiting
+  budget, coach ratings, reputation and the Hot Seat.
+- **Light theme and text size**, per dynasty (the menu remembers the last look).
+- **Real NCAA at-large selection (Kolas).** The top 2 per regional qualify
+  automatically; at-large bids then go one at a time to whichever region's
+  best remaining team has the most **Kolas points** — wins this season over
+  teams already in the field — recounting after every pick. **Rankings →
+  🎟 Selection** shows the picks in order, the first teams out, and (before
+  regionals) an At-Large Watch with your Kolas résumé.
+- **Real DI individual qualifying.** From each of the 9 regionals, the first
+  4 finishers from non-qualifying teams advance — if they finish in the top
+  25 — plus 2 national at-large individuals (the best regional placers who
+  missed the cut): 38 per gender. Marked 🎟 IQ / IQ·AL in the results.
+- **Pack stats.** Every team score carries its 1–5 gap and top-5 average.
+  Race Center adds a **Pack Report** (gap, average, pack rank in the field,
+  and a strip placing each scorer); result tables show a 1–5 Gap column,
+  colored against the rest of the field.
+- **Fix: the Available Jobs popup appears once.** It opens right after the
+  national meet (when the broadcast ends, or when you leave the Race Center)
+  and never again that offseason. Turning offers down now really closes the
+  market for the cycle, and that choice survives a reload.
+
 ## Version 14.3 — Faces Everywhere, Team Wins & Summer Breakouts
 
 - **No more win-loss records.** The dual-meet W–L ledger is gone from every

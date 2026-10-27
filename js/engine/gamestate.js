@@ -423,6 +423,11 @@
         window.XCD.engine.Awards.processPostNationals(this, rng);
         if (this.isAssistant()) window.XCD.engine.Careers.generateAssistantOffers(this, rng);
         else window.XCD.engine.Careers.generateOffers(this, rng);
+        // The Available Jobs popup is a one-time decision point right after
+        // nationals. With nothing on the table now, there is no popup this
+        // offseason — later openings land in the Inbox instead.
+        const open = this.jobOffers && (this.jobOffers.offers || []).some((o) => !o.rejected);
+        if (!open) this.jobPopupYear = this.year;
       }
       window.XCD.engine.Careers.expireOffers(this);
       // The offseason job market keeps evolving week to week (spec Part 2):
@@ -445,6 +450,11 @@
       // Auto Recruiting: the CPU already worked the board this week.
       if (this.recruiting.auto) this.weeklyFlow.recruitingDone = true;
 
+      if (Events && this.week === D.RECRUITING.SIGNING_WEEK) {
+        const offered = Object.values(this.world.recruits || {}).filter((r) => !r.signed &&
+          r.interests && r.interests[this.playerSchoolId] && r.interests[this.playerSchoolId].offered).length;
+        Events.emit(this, 'recruit:signingDay', { offered });
+      }
       if (Events) Events.emit(this, 'week:advanced', { year: this.year, week: this.week });
     }
 
@@ -640,6 +650,9 @@
         jobOffers: this.jobOffers,
         // Update 11: accepting a job closes the carousel for the season.
         jobSearchClosedYear: this.jobSearchClosedYear || null,
+        // The season whose Available Jobs popup was already shown (once per
+        // offseason, right after nationals).
+        jobPopupYear: this.jobPopupYear || null,
         weeklyFlow: this.weeklyFlow,
         offseasonReport: this.offseasonReport || null,
         staffHiredYear: this.staffHiredYear || null,
@@ -748,6 +761,10 @@
       gs.career.stops = gs.career.stops || [{ school: gs.getPlayerSchool().name, startYear: 2026 }];
       gs.culture = obj.culture || { captains: { M: [], W: [] } };
       gs.jobOffers = obj.jobOffers || null;
+      gs.jobSearchClosedYear = obj.jobSearchClosedYear || null;
+      // Older saves tracked "popup seen" on the market object itself.
+      gs.jobPopupYear = obj.jobPopupYear ||
+        (obj.jobOffers && obj.jobOffers.popupSeen ? obj.jobOffers.year : null);
       gs.weeklyFlow = obj.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
       gs.offseasonReport = obj.offseasonReport || null;
       gs.staffHiredYear = obj.staffHiredYear || null;
