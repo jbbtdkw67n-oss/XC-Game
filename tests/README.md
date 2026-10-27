@@ -32,6 +32,7 @@ node tests/test-update11.js    # Update 11: recruit-to-need signing targets (qua
 node tests/test-update12.js    # Update 12 (Living History & Legacy): GOAT lists (top-40, weighted legacy scores, dynamic recalc), championship-team snapshots, legacy leaderboards (sortable + division/conference filters), clickable profiles everywhere (incl. graduated legends), program history archive/records/hall of fame, mileage +10/-10 quick sets, unpursued transfers, D1/D2 regional 10K + Pre-Nats 8K distance fix, save round-trip of new history
 node tests/test-update13-features.js # Update 13 (Balance/Coach Progression/Training): Double Threshold workout, Sway action + gating, elite-coach recruit motivation, role-aware reputation tiers, Reset Ideal Training (phase-appropriate), Build-phase advice/eval alignment, facility decay + floor, Hot Seat 3-season firing, philosophy fatigue relief, mileage scaling M75/W60, GOAT division weighting
 node tests/test-groundwork.js       # Groundwork: settings (neutral defaults, clamping, save round-trip), events + inbox, Sim.advanceUntil targets/stops, save index (fast listing, legacy backfill, rename, delete)
+node tests/test-racecenter-speed.js # Race Center replay: 1×/2×/4× highlight matches the real playback rate (clock runs 2×/4× as fast), survives Replay + Men/Women switch
 node tests/test-sw-precache.js     # Offline install: sw.js precaches every script/stylesheet index.html loads (no browser needed)
 ```
 
