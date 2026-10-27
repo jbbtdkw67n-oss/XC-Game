@@ -53,9 +53,17 @@ async function skipTutorial(page) {
   await page.waitForTimeout(80);
 }
 
+// The offseason Available Jobs popup opens over the shell (and blocks the
+// Advance button) the first week offers exist. Tests that advance through the
+// offseason via the UI close it with "Decide Later", as a player would.
+async function dismissJobOffers(page) {
+  const later = await page.$('#job-later');
+  if (later) await later.click();
+}
+
 function wireErrors(page, errors) {
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message + '\n' + (e.stack || '')));
   page.on('console', (m) => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
 }
 
-module.exports = { newDynasty, walkCoachWizard, skipTutorial, wireErrors, launchOpts };
+module.exports = { newDynasty, walkCoachWizard, skipTutorial, dismissJobOffers, wireErrors, launchOpts };

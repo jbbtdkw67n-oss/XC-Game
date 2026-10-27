@@ -189,10 +189,11 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     const gender = document.querySelector('#g-m.active') ? 'M' : 'W';
     const res = meet.results[gender];
     const rows = document.querySelectorAll('#race-track tbody tr').length;
-    return { finishers: res.finishers.length, rows };
+    // DNFs are listed in the same table, after the finishers.
+    return { finishers: res.finishers.length, dnfs: (res.dnfs || []).length, rows };
   });
   console.log('full results:', JSON.stringify(fullResults));
-  ok(fullResults.rows === fullResults.finishers, `Race Center must publish all ${fullResults.finishers} finishers (got ${fullResults.rows})`);
+  ok(fullResults.rows === fullResults.finishers + fullResults.dnfs, `Race Center must publish all ${fullResults.finishers} finishers + ${fullResults.dnfs} DNFs (got ${fullResults.rows} rows)`);
 
   await browser.close();
   const problems = fails.concat(errors);

@@ -556,11 +556,6 @@
       }
       const weekBefore = game.week;
       game.advanceWeek();
-      try {
-        await window.XCD.engine.SaveManager.autoSave(game);
-      } catch (err) {
-        UI.toast('Autosave failed: ' + err.message, 'error');
-      }
       // If our team just raced, cut straight to the broadcast.
       const meet = game.lastPlayerMeetId && game.season && game.season.meets[game.lastPlayerMeetId];
       const cutToRace = !!(meet && meet.week === weekBefore && meet.results.M);
@@ -580,6 +575,14 @@
       // stay put — but not on the advance that just cut to the nationals
       // broadcast, nor on a fresh-season rollover.
       if (!cutToRace && !rolledOver && UI.maybeShowJobOffers) UI.maybeShowJobOffers(game);
+      // Save only after the new week is on screen: the write can take a
+      // while (rollover saves are big), and rendering after it would yank the
+      // player back here if they had already navigated to another screen.
+      try {
+        await window.XCD.engine.SaveManager.autoSave(game);
+      } catch (err) {
+        UI.toast('Autosave failed: ' + err.message, 'error');
+      }
     });
 
     const simBtn = document.getElementById('btn-sim-race');
@@ -611,16 +614,17 @@
             offersPending = true;
           }
         }
-        try {
-          await window.XCD.engine.SaveManager.autoSave(game);
-        } catch (err) {
-          UI.toast('Autosave failed: ' + err.message, 'error');
-        }
         if (raced) UI.state.currentScreen = 'racecenter';
         if (rolledOver) UI.state.currentScreen = 'dashboard'; // new seasons start at home
         UI.renderShell();
         UI.toast(`Simulated ahead to ${Utils.formatDate(game.week, game.year)}`, 'success', 2200);
         if (offersPending && UI.maybeShowJobOffers) UI.maybeShowJobOffers(game);
+        // Save after rendering, for the same reason as Advance Week above.
+        try {
+          await window.XCD.engine.SaveManager.autoSave(game);
+        } catch (err) {
+          UI.toast('Autosave failed: ' + err.message, 'error');
+        }
       });
     }
 
