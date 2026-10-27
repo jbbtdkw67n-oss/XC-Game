@@ -5,7 +5,7 @@
  * week), the player is presented with every open program already tracked in
  * game.jobOffers — the same offers surfaced on the Dashboard's job market —
  * as a full-screen picker. Each row shows the program's crest, the kind of
- * move, division/conference, season record, the school's interest in you,
+ * move, division/conference, the school's interest in you,
  * and its Program Rating (prestige). Tapping a row expands a side-by-side
  * comparison with your current program (prestige, roster strength, budget,
  * facilities, academics, pedigree, expectations) plus the key things to weigh.
@@ -24,7 +24,7 @@
   const Utils = window.XCD.core.Utils;
 
   // Per-open-popup state.
-  let sortKey = 'prestige'; // prestige | interest | record | name
+  let sortKey = 'prestige'; // prestige | interest | name
   let selectedId = null;    // schoolId of the expanded offer, or null
 
   function schoolColors(school) {
@@ -41,27 +41,6 @@
 
   function ring(value, color, size) {
     return `<span class="job-ring" style="width:${size}px; height:${size}px; border-color:${color}; font-size:${Math.round(size * 0.34)}px;" title="Program Rating (prestige)">${Math.round(value || 0)}</span>`;
-  }
-
-  // W–L for any program from the just-completed season — the same rule the
-  // Dashboard uses for the player's record: in every meet, teams you beat are
-  // wins and teams that beat you are losses (men's and women's races both).
-  function seasonRecord(game, schoolId) {
-    const s = game.season;
-    let w = 0, l = 0;
-    if (!s) return { w, l };
-    Object.values(s.meets).forEach((meet) => {
-      if (!meet.results) return;
-      ['M', 'W'].forEach((g) => {
-        const res = meet.results[g];
-        if (!res || !res.teamScores) return;
-        const mine = res.teamScores.find((t) => t.schoolId === schoolId);
-        if (!mine) return;
-        w += res.teamScores.length - mine.place;
-        l += mine.place - 1;
-      });
-    });
-    return { w, l };
   }
 
   function nationalRanks(game, schoolId) {
@@ -108,10 +87,7 @@
 
   function sortedOffers(game) {
     const arr = openOffers(game).slice();
-    const recCache = {};
-    const rec = (sid) => (recCache[sid] || (recCache[sid] = seasonRecord(game, sid)));
-    if (sortKey === 'record') arr.sort((a, b) => rec(b.schoolId).w - rec(a.schoolId).w);
-    else if (sortKey === 'interest') arr.sort((a, b) => (isDirect(game, b) ? 101 : interestOf(b)) - (isDirect(game, a) ? 101 : interestOf(a)));
+    if (sortKey === 'interest') arr.sort((a, b) => (isDirect(game, b) ? 101 : interestOf(b)) - (isDirect(game, a) ? 101 : interestOf(a)));
     else if (sortKey === 'name') arr.sort((a, b) => String(a.schoolName).localeCompare(String(b.schoolName)));
     else arr.sort((a, b) => (b.prestige || 0) - (a.prestige || 0));
     return arr;
@@ -137,7 +113,6 @@
 
   function currentHtml(game) {
     const school = game.getPlayerSchool();
-    const rec = seasonRecord(game, school.id);
     const color = schoolColors(school)[0];
     return `
       <div class="job-current">
@@ -145,7 +120,7 @@
         <div class="job-row-body">
           <div class="job-current-label">Your program</div>
           <div class="job-row-name" style="font-size:15px;">${Utils.escapeHtml(school.name)}</div>
-          <div class="job-row-sub">${school.division || 'DI'} · ${Utils.escapeHtml(school.conference || '')} · ${rec.w}-${rec.l}</div>
+          <div class="job-row-sub">${school.division || 'DI'} · ${Utils.escapeHtml(school.conference || '')}</div>
         </div>
         ${ring(school.prestige, color, 38)}
       </div>`;
@@ -156,7 +131,6 @@
   function rowHtml(game, o, selected) {
     const school = game.getSchool(o.schoolId) || { name: o.schoolName };
     const color = schoolColors(school)[0];
-    const rec = seasonRecord(game, o.schoolId);
     const direct = isDirect(game, o);
     const interest = interestOf(o);
     const chance = direct
@@ -170,7 +144,7 @@
             <div class="job-row-name">${o.kind === 'Dream job' ? '🌟 ' : ''}${Utils.escapeHtml(school.name || o.schoolName)}</div>
             <div class="job-row-sub">
               <span class="rating ${kindClass(o.kind)} job-kind">${Utils.escapeHtml(o.kind || 'Opening')}</span>
-              ${o.division || 'DI'} · ${Utils.escapeHtml(o.conference || '')} · ${rec.w}-${rec.l}
+              ${o.division || 'DI'} · ${Utils.escapeHtml(o.conference || '')}
             </div>
           </div>
           ${chance}
@@ -303,7 +277,6 @@
           <select id="job-sort-sel">
             <option value="prestige" ${sortKey === 'prestige' ? 'selected' : ''}>Program Rating</option>
             <option value="interest" ${sortKey === 'interest' ? 'selected' : ''}>Interest in You</option>
-            <option value="record" ${sortKey === 'record' ? 'selected' : ''}>Team Record</option>
             <option value="name" ${sortKey === 'name' ? 'selected' : ''}>School Name</option>
           </select>
         </div>

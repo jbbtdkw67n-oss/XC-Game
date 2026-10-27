@@ -122,23 +122,19 @@
       (r.label || '').replace(/^Autosave\s+—\s+/, '') || 'Dynasty';
   }
 
-  // W–L for the save browser. A head coach shows their own career record; an
-  // assistant (recruiting coordinator) has no personal W–L, so we show the
-  // program's competitive record — the head coach they serve under, falling
-  // back to the program ledger — instead of a misleading 0-0.
-  function recordString(gameState) {
+  // Team wins for the save browser: meets the head coach's teams have won.
+  // An assistant (recruiting coordinator) shows the head coach they serve
+  // under, falling back to the program's meet-win ledger.
+  function teamWinsOf(gameState) {
     try {
       const coach = (gameState.getHeadCoach && gameState.getHeadCoach()) || gameState.getPlayerCoach();
       const cr = coach && coach.careerRecord;
-      if (cr && (cr.wins || cr.losses)) return `${cr.wins}-${cr.losses}`;
+      if (cr && cr.teamWins) return cr.teamWins;
       const school = gameState.getPlayerSchool && gameState.getPlayerSchool();
       const Legacy = window.XCD.engine.Legacy;
-      if (school && Legacy && Legacy.program) {
-        const prog = Legacy.program(gameState, school.id);
-        if (prog && (prog.wins || prog.losses)) return `${prog.wins}-${prog.losses}`;
-      }
+      if (school && Legacy && Legacy.program) return Legacy.program(gameState, school.id).meetWins || 0;
     } catch (e) { /* fall through */ }
-    return '0-0';
+    return 0;
   }
 
   function buildRecord(gameState, type) {
@@ -154,13 +150,13 @@
       week: gameState.week,
       schoolName: gameState.getPlayerSchool()?.name || '',
       coachName: gameState.getPlayerCoach()?.fullName || '',
-      record: recordString(gameState),
+      teamWins: teamWinsOf(gameState),
       data: gameState.toJSON()
     };
   }
 
   const META_FIELDS = ['slotId', 'dynastyId', 'label', 'dynastyName', 'savedAt',
-    'lastSaveType', 'year', 'week', 'schoolName', 'coachName', 'record'];
+    'lastSaveType', 'year', 'week', 'schoolName', 'coachName', 'teamWins'];
 
   // The index record stored beside a full save: the browser's columns only.
   function buildMeta(record) {

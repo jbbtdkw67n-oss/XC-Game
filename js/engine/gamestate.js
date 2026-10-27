@@ -183,8 +183,8 @@
         gender: gender === 'W' ? 'W' : 'M',
         appearance: (appearance && appearance.skin !== undefined) ? { ...appearance, gender: gender === 'W' ? 'W' : 'M' } : null,
         recruiting: 50, training: 50, peaking: 50, culture: 50,
-        // Coaching philosophies (Update 4). Training philosophy is permanent;
-        // race philosophy can be changed later on the My Program screen.
+        // Coaching philosophies (Update 4). Both can be changed later on the
+        // My Program screen.
         trainingPhilosophy: (D.trainingPhilosophy(trainingPhilosophy) || {}).key || 'balanced',
         racePhilosophy: (D.racePhilosophy(racePhilosophy) || {}).key || 'even',
         schoolId,

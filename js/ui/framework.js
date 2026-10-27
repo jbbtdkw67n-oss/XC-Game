@@ -213,8 +213,8 @@
       if (!meet.distances[g]) return;
       const rec = Courses.recordFor(game, key, g, meet.distances[g]);
       if (rec) {
-        const who = rec.seeded ? '' : ` <span style="color:var(--text-faint);">${Utils.escapeHtml(rec.name)}</span>`;
-        parts.push(`${g === 'M' ? "M" : "W"} ${rec.distanceKey}: <strong>${ft(rec.time)}</strong>${who}`);
+        const who = rec.seeded ? '' : ` ${UI.personName(game, 'ath', rec.athleteId, rec.name, { link: false, size: 18, extra: { gender: g } })}`;
+        parts.push(`${g === 'M' ? "M" : "W"} ${rec.distanceKey}: <strong>${ft(rec.time)}</strong>${rec.year ? ` <span class="cr-year">set ${rec.year}</span>` : ''}${who}`);
       }
     });
     if (!parts.length) return '';

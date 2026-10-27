@@ -247,7 +247,7 @@
           ${myDepartures.map((e) => {
             const a = game.getAthlete(e.athleteId);
             if (!a) return '';
-            return `<div class="attr-row"><span><strong>${Utils.escapeHtml(a.fullName)}</strong> (${a.currentOverall} OVR, ${a.classYear})</span>
+            return `<div class="attr-row"><span>${UI.personName(game, 'ath', a.id, a.fullName, { person: a, link: false })} (${a.currentOverall} OVR, ${a.classYear})</span>
               <span style="color:var(--text-dim);">${Utils.escapeHtml(e.reason)}</span>
               <span>${e.destination ? '→ ' + Utils.escapeHtml(game.getSchool(e.destination)?.name || '?') : (portal.open ? 'Deciding...' : 'Staying')}</span></div>`;
           }).join('')}

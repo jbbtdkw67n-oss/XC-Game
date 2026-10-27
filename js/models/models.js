@@ -206,10 +206,10 @@
         hometown: '',
         almaMater: '',
 
-        // Coaching philosophies (Update 4). Training philosophy is PERMANENT
-        // (chosen at creation, never changes); its effectiveness scales with
-        // the Training rating. Race philosophy CAN be changed anytime and
-        // shapes in-race tactics. Both default sensibly for old saves/AI.
+        // Coaching philosophies (Update 4). Training philosophy's
+        // effectiveness scales with the Training rating; race philosophy
+        // shapes in-race tactics. The player can switch either from My
+        // Program. Both default sensibly for old saves/AI.
         trainingPhilosophy: 'balanced',
         racePhilosophy: 'even',
 
@@ -272,6 +272,7 @@
         hotSeatYears: 0, // consecutive seasons on the Hot Seat (3 → fired, Update 13)
         careerRecord: {
           wins: 0, losses: 0, conferenceTitles: 0, regionalTitles: 0, nationalTitles: 0,
+          teamWins: 0, // meets the coach's team (men's or women's) won outright
           seasons: 0, allAmericans: 0, allConference: 0, indivNatChamps: 0, indivConfChamps: 0,
           nationalsAppearances: 0, bestClassRank: null,
           confCOY: 0, natCOY: 0 // Conference / National Coach of the Year awards

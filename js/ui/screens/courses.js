@@ -15,10 +15,9 @@
   const Utils = window.XCD.core.Utils;
   const D = window.XCD.data;
 
-  const filters = {
-    query: '', division: '', gender: '', state: '', terrain: '',
-    conference: '', season: '', currentOnly: false
-  };
+  // Just a search box, a division picker, and a state picker — every course
+  // shows both its men's and women's records side by side.
+  const filters = { query: '', division: '', state: '' };
 
   const Courses = () => window.XCD.engine.Courses;
   const ft = (t) => window.XCD.engine.Races.formatTime(t);
@@ -49,6 +48,16 @@
     return !!(entry.championship || mt.national || mt.regional || mt.conference);
   }
 
+  // A record holder with their avatar (opens the athlete's profile).
+  function holderTag(game, rec, gender, size = 18) {
+    return UI.personName(game, 'ath', rec.athleteId, rec.name, { size, extra: { gender, schoolId: rec.schoolId } });
+  }
+
+  // "set 2031" — the season a record was set, shown next to every record.
+  function setYear(rec) {
+    return rec && rec.year ? `<span class="cr-year">set ${rec.year}</span>` : '';
+  }
+
   function hasRealRecord(entry) {
     return Object.values(entry.records).some((r) => !r.seeded);
   }
@@ -64,11 +73,10 @@
   function render(container) {
     const game = UI.state.game;
     const all = Courses().list(game);
-
-    // Filter option pools drawn from the courses that actually exist.
+    // State options drawn from the courses that actually exist.
     const states = [...new Set(all.map((e) => e.state).filter(Boolean))]
       .sort((a, b) => stateName(a).localeCompare(stateName(b)));
-    const conferences = [...new Set(all.map((e) => e.conference).filter(Boolean))].sort();
+    if (filters.state && !states.includes(filters.state)) filters.state = '';
 
     container.innerHTML = `
       <div class="screen-header">
@@ -86,7 +94,7 @@
         // course record book; the athlete opens their profile.
         const log = (game.history.courseRecordLog || []).slice(0, 10);
         if (!log.length) return '';
-        return `<div class="card" style="margin-bottom:14px;">
+        return `<div class="card cr-holders" style="margin-bottom:14px;">
           <h2 style="margin:0 0 8px;">🏆 Recent Course Records</h2>
           <div class="table-wrap" style="max-height:230px; overflow-y:auto;"><table class="data">
             <thead><tr><th>Year</th><th>Course</th><th></th><th>Athlete</th><th>School</th><th class="num">Time</th></tr></thead>
@@ -95,7 +103,7 @@
                 <td>${e.year}</td>
                 <td><span class="clickable" data-cr-log-course="${e.courseKey}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(e.courseName)}</span></td>
                 <td>${e.gender} ${e.distanceKey}</td>
-                <td><span class="clickable" data-cr-log-ath="${e.athleteId || ''}" data-cr-log-ath-name="${Utils.escapeHtml(e.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(e.name)}</span></td>
+                <td>${holderTag(game, e, e.gender)}</td>
                 <td style="color:var(--text-dim); font-size:12px;">${Utils.escapeHtml(e.school)}</td>
                 <td class="num"><strong>${ft(e.time)}</strong></td>
               </tr>`).join('')}
@@ -108,31 +116,10 @@
           <option value="">All Divisions</option>
           ${['DI', 'DII', 'DIII'].map((d) => `<option value="${d}" ${filters.division === d ? 'selected' : ''}>${{ DI: 'D1', DII: 'D2', DIII: 'D3' }[d]}</option>`).join('')}
         </select>
-        <select id="cr-gender" class="search-input" style="padding:6px 10px;">
-          <option value="">Men &amp; Women</option>
-          <option value="M" ${filters.gender === 'M' ? 'selected' : ''}>Men</option>
-          <option value="W" ${filters.gender === 'W' ? 'selected' : ''}>Women</option>
-        </select>
-        <select id="cr-terrain" class="search-input" style="padding:6px 10px;">
-          <option value="">All Terrain</option>
-          ${['Flat', 'Rolling', 'Hilly'].map((t) => `<option value="${t}" ${filters.terrain === t ? 'selected' : ''}>${t}</option>`).join('')}
-        </select>
-        <select id="cr-type" class="search-input" style="padding:6px 10px;">
-          <option value="">Champ &amp; Regular</option>
-          <option value="champ" ${filters.season === 'champ' ? 'selected' : ''}>Championship</option>
-          <option value="regular" ${filters.season === 'regular' ? 'selected' : ''}>Regular Season</option>
-        </select>
-        <select id="cr-state" class="search-input" style="padding:6px 10px; max-width:150px;">
+        <select id="cr-state" class="search-input" style="padding:6px 10px; max-width:170px;">
           <option value="">All States</option>
-          ${states.map((s) => `<option value="${s}" ${filters.state === s ? 'selected' : ''}>${Utils.escapeHtml(stateName(s))}</option>`).join('')}
+          ${states.map((st) => `<option value="${st}" ${filters.state === st ? 'selected' : ''}>${Utils.escapeHtml(stateName(st))}</option>`).join('')}
         </select>
-        <select id="cr-conf" class="search-input" style="padding:6px 10px; max-width:170px;">
-          <option value="">All Conferences</option>
-          ${conferences.map((c) => `<option value="${Utils.escapeHtml(c)}" ${filters.conference === c ? 'selected' : ''}>${Utils.escapeHtml(c)}</option>`).join('')}
-        </select>
-        <label style="display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--text-dim); cursor:pointer;">
-          <input type="checkbox" id="cr-current" ${filters.currentOnly ? 'checked' : ''}> Current records only
-        </label>
       </div>
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -140,14 +127,13 @@
           <span id="cr-count" style="color:var(--text-faint); font-size:12px;"></span>
         </div>
         <div style="color:var(--text-faint); font-size:11.5px; margin-bottom:8px;">Click any course to open its full record book and history.</div>
-        <div id="cr-table"></div>
+        <div id="cr-table" class="cr-holders"></div>
       </div>`;
 
     const tableEl = container.querySelector('#cr-table');
     const countEl = container.querySelector('#cr-count');
 
     function apply() {
-      const g = filters.gender;
       const q = filters.query.trim().toLowerCase();
       const rows = all.filter((e) => {
         if (q && !(`${e.name} ${e.city} ${stateName(e.state)} ${e.conference || ''}`.toLowerCase().includes(q))) return false;
@@ -156,15 +142,6 @@
           if (divs.length && !e.divisions[filters.division]) return false;
         }
         if (filters.state && e.state !== filters.state) return false;
-        if (filters.terrain && D.courseTerrain(e.hilliness) !== filters.terrain) return false;
-        if (filters.conference && (e.conference || '') !== filters.conference) return false;
-        if (filters.season === 'champ' && !isChampionshipCourse(e)) return false;
-        if (filters.season === 'regular' && !(e.meetTypes || {}).invite) return false;
-        if (filters.currentOnly && !hasRealRecord(e)) return false;
-        if (g) {
-          const rec = signatureRecord(game, e, g);
-          if (!rec) return false;
-        }
         return true;
       });
       countEl.textContent = `${rows.length} of ${all.length}`;
@@ -173,9 +150,9 @@
         const rec = signatureRecord(game, e, gender);
         if (!rec) return '<span style="color:var(--text-faint);">—</span>';
         const holder = rec.seeded ? '<span style="color:var(--text-faint);">historic</span>'
-          : Utils.escapeHtml(rec.name);
-        return `<strong>${ft(rec.time)}</strong> <span style="color:var(--text-faint); font-size:11px;">${rec.distanceKey}</span><br>
-          <span style="color:var(--text-dim); font-size:11.5px;">${holder}</span>`;
+          : holderTag(game, rec, gender);
+        return `<strong>${ft(rec.time)}</strong> <span style="color:var(--text-faint); font-size:11px;">${rec.distanceKey}</span> ${setYear(rec)}<br>
+          <span style="font-size:11.5px;">${holder}</span>`;
       };
 
       const columns = [
@@ -186,8 +163,8 @@
         { key: 'altitude', label: 'Altitude', sortValue: (e) => e.altitudeFt || 0, render: (e) => D.courseAltitude(e.altitudeFt) },
         { key: 'type', label: 'Type', render: (e) => courseTypeLabel(e) }
       ];
-      if (g !== 'W') columns.push({ key: 'mrec', label: "Men's Record", numeric: true, sortValue: (e) => { const r = signatureRecord(game, e, 'M'); return r ? -r.time : 1; }, render: (e) => recCell(e, 'M') });
-      if (g !== 'M') columns.push({ key: 'wrec', label: "Women's Record", numeric: true, sortValue: (e) => { const r = signatureRecord(game, e, 'W'); return r ? -r.time : 1; }, render: (e) => recCell(e, 'W') });
+      columns.push({ key: 'mrec', label: "Men's Record", numeric: true, sortValue: (e) => { const r = signatureRecord(game, e, 'M'); return r ? -r.time : 1; }, render: (e) => recCell(e, 'M') });
+      columns.push({ key: 'wrec', label: "Women's Record", numeric: true, sortValue: (e) => { const r = signatureRecord(game, e, 'W'); return r ? -r.time : 1; }, render: (e) => recCell(e, 'W') });
 
       UI.renderSortableTable(tableEl, {
         columns,
@@ -204,8 +181,7 @@
             </div>
           </div>
           <div class="m-sub" style="margin-top:4px;">
-            ${(() => { const r = signatureRecord(game, e, 'M'); return r ? `M ${r.distanceKey}: <strong>${ft(r.time)}</strong>${r.seeded ? '' : ' — ' + Utils.escapeHtml(r.name)}` : ''; })()}<br>
-            ${(() => { const r = signatureRecord(game, e, 'W'); return r ? `W ${r.distanceKey}: <strong>${ft(r.time)}</strong>${r.seeded ? '' : ' — ' + Utils.escapeHtml(r.name)}` : ''; })()}
+            ${['M', 'W'].map((gd) => { const r = signatureRecord(game, e, gd); return r ? `<div>${gd} ${r.distanceKey}: <strong>${ft(r.time)}</strong> ${setYear(r)}${r.seeded ? '' : ' — ' + holderTag(game, r, gd)}</div>` : ''; }).join('')}
           </div>`
       });
     }
@@ -215,19 +191,21 @@
     container.querySelectorAll('[data-cr-log-course]').forEach((el) => {
       el.addEventListener('click', () => UI.showCourseCard(game, el.dataset.crLogCourse));
     });
-    container.querySelectorAll('[data-cr-log-ath]').forEach((el) => {
-      el.addEventListener('click', () => { if (el.dataset.crLogAth || el.dataset.crLogAthName) UI.openAthlete(game, el.dataset.crLogAth, el.dataset.crLogAthName); });
+    // Record holders anywhere on the page (recent log + the course table)
+    // open the athlete — without also opening the course row underneath.
+    container.querySelectorAll('.cr-holders').forEach((zone) => {
+      zone.addEventListener('click', (ev) => {
+        const hit = ev.target.closest('[data-ath]');
+        if (!hit || !zone.contains(hit)) return;
+        ev.stopPropagation();
+        if (hit.dataset.ath || hit.dataset.athName) UI.openAthlete(game, hit.dataset.ath, hit.dataset.athName);
+      }, true);
     });
 
     const bind = (id, ev, fn) => { const el = container.querySelector(id); if (el) el.addEventListener(ev, fn); };
     bind('#cr-search', 'input', (e) => { filters.query = e.target.value; apply(); });
     bind('#cr-div', 'change', (e) => { filters.division = e.target.value; apply(); });
-    bind('#cr-gender', 'change', (e) => { filters.gender = e.target.value; apply(); });
-    bind('#cr-terrain', 'change', (e) => { filters.terrain = e.target.value; apply(); });
-    bind('#cr-type', 'change', (e) => { filters.season = e.target.value; apply(); });
     bind('#cr-state', 'change', (e) => { filters.state = e.target.value; apply(); });
-    bind('#cr-conf', 'change', (e) => { filters.conference = e.target.value; apply(); });
-    bind('#cr-current', 'change', (e) => { filters.currentOnly = e.target.checked; apply(); });
   }
 
   /* ================================================================ *
@@ -259,14 +237,14 @@
       if (!rec) return `<div class="stat-tile"><div class="label">${label}</div><div class="value">—</div></div>`;
       const holder = rec.seeded
         ? '<span style="color:var(--text-faint);">Historic best</span>'
-        : `<span class="clickable" data-ath="${rec.athleteId || ''}" data-ath-name="${Utils.escapeHtml(rec.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(rec.name)}</span>`;
+        : holderTag(game, rec, gender, 26);
       const school = rec.schoolId
         ? `<span class="clickable" data-school="${rec.schoolId}" style="cursor:pointer;">${Utils.escapeHtml(rec.school)}</span>`
         : Utils.escapeHtml(rec.school || '—');
       return `
         <div class="card" style="padding:12px;">
           <div style="font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-faint);">${label} — ${rec.distanceKey}</div>
-          <div style="font-size:26px; font-weight:800; margin:2px 0;">${ft(rec.time)}</div>
+          <div style="font-size:26px; font-weight:800; margin:2px 0;">${ft(rec.time)} ${setYear(rec)}</div>
           <div style="font-size:13px;">${holder}</div>
           <div style="color:var(--text-dim); font-size:12px;">${school}</div>
           <div style="color:var(--text-faint); font-size:11.5px; margin-top:2px;">${Utils.escapeHtml(rec.meet || '')}${rec.year ? ` · ${rec.year}` : ''}</div>
@@ -279,13 +257,12 @@
       const rec = entry.records[`${gender}-${dk}`];
       if (!rec) return '';
       const holder = rec.seeded ? '<span style="color:var(--text-faint);">Historic best</span>'
-        : `<span class="clickable" data-ath="${rec.athleteId || ''}" data-ath-name="${Utils.escapeHtml(rec.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(rec.name)}</span>`;
+        : holderTag(game, rec, gender);
       return `<tr>
         <td>${dk}</td>
-        <td class="num"><strong>${ft(rec.time)}</strong></td>
+        <td class="num"><strong>${ft(rec.time)}</strong> ${setYear(rec)}</td>
         <td>${holder}</td>
         <td style="color:var(--text-dim); font-size:12px;">${rec.seeded ? '—' : Utils.escapeHtml(rec.school)}</td>
-        <td style="color:var(--text-faint); font-size:11.5px;">${rec.year || ''}</td>
       </tr>`;
     }).join('');
 
@@ -293,7 +270,7 @@
       <div class="card" style="padding:12px; margin-bottom:12px;">
         <h3>${gender === 'M' ? "Men's" : "Women's"} Records by Distance</h3>
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>Dist</th><th class="num">Time</th><th>Athlete</th><th>School</th><th>Year</th></tr></thead>
+          <thead><tr><th>Dist</th><th class="num">Time</th><th>Athlete</th><th>School</th></tr></thead>
           <tbody>${distRows(gender, dists)}</tbody></table></div>
       </div>` : '';
 
@@ -313,7 +290,7 @@
             <tbody>${hist.map((r) => `
               <tr>
                 <td>${r.year}</td>
-                <td><span class="clickable" data-ath="${r.athleteId || ''}" data-ath-name="${Utils.escapeHtml(r.name)}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(r.name)}</span></td>
+                <td>${holderTag(game, r, gender)}</td>
                 <td><span class="${r.schoolId ? 'clickable' : ''}" ${r.schoolId ? `data-school="${r.schoolId}" style="cursor:pointer;"` : ''}>${Utils.escapeHtml(r.school)}</span></td>
                 <td class="num">${ft(r.time)}</td>
                 <td style="color:var(--text-dim); font-size:12px;">${Utils.escapeHtml(r.meet || '')}</td>
@@ -362,17 +339,16 @@
     UI.showModal(`
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
       <h2 style="margin:0 0 2px;">🏆 Course Records Held</h2>
-      <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">${Utils.escapeHtml(name || '')} — ${held.length} record${held.length > 1 ? 's' : ''} across ${courses} course${courses > 1 ? 's' : ''}.</div>
+      <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">${UI.personName(game, 'ath', athleteId, name || '', { size: 22, link: false })} — ${held.length} record${held.length > 1 ? 's' : ''} across ${courses} course${courses > 1 ? 's' : ''}.</div>
       <div class="card" style="padding:12px;">
         <div class="table-wrap" style="max-height:360px; overflow-y:auto;"><table class="data">
-          <thead><tr><th>Course</th><th>Location</th><th></th><th class="num">Time</th><th>Set</th></tr></thead>
+          <thead><tr><th>Course</th><th>Location</th><th></th><th class="num">Time</th></tr></thead>
           <tbody>${held.map((h) => `
             <tr class="clickable" data-course="${h.courseKey}" style="cursor:pointer;">
               <td><strong>${Utils.escapeHtml(h.courseName)}</strong></td>
               <td style="color:var(--text-dim); font-size:12px;">${Utils.escapeHtml([h.city, stateName(h.state)].filter(Boolean).join(', '))}</td>
               <td>${h.gender} ${h.distanceKey}</td>
-              <td class="num"><strong>${ft(h.time)}</strong></td>
-              <td style="color:var(--text-faint); font-size:11.5px;">${h.year}</td>
+              <td class="num"><strong>${ft(h.time)}</strong> ${setYear(h)}</td>
             </tr>`).join('')}
           </tbody></table></div>
       </div>

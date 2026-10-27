@@ -310,8 +310,8 @@
   ];
 
   /*
-   * Training Philosophy (Update 4, Part 2). A permanent identity chosen at
-   * coach creation — it can NEVER change. It is separate from the coach's four
+   * Training Philosophy (Update 4, Part 2). An identity chosen at coach
+   * creation; the player can switch it later from My Program. It is separate from the coach's four
    * ratings: its effectiveness scales with the coach's Training attribute
    * (higher Training = better execution), but it is never "upgraded" directly.
    *

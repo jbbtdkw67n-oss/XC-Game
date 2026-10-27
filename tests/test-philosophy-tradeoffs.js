@@ -66,6 +66,24 @@ async function run() {
   const after = await page.evaluate(() => [...document.querySelectorAll('.tradeoffs')].map((b) => b.textContent).join(' '));
   ok(/Strongest finishing kick/.test(after), 'switching race philosophy shows the new strengths');
 
+  // Both philosophies are switchable, each list of choices sits ABOVE its
+  // strengths/weaknesses, and the old "change any time" note is gone.
+  const layout = await page.evaluate(() => {
+    const follows = (a, b) => !!(a && b && (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING));
+    const blocks = [...document.querySelectorAll('.tradeoffs')];
+    const tBtn = document.querySelector('[data-train-philo]');
+    const rBtn = document.querySelector('[data-race-philo]');
+    return {
+      trainButtons: document.querySelectorAll('[data-train-philo]').length,
+      trainAbove: follows(tBtn, blocks[0]),
+      raceAbove: follows(rBtn, blocks[1]) && follows(blocks[0], rBtn),
+      oldText: /change any time|permanent, scales/i.test(document.querySelector('#screen-container').textContent)
+    };
+  });
+  ok(layout.trainButtons >= 2, 'training philosophy must be switchable on My Program');
+  ok(layout.trainAbove && layout.raceAbove, 'philosophy choices must sit above their strengths/weaknesses: ' + JSON.stringify(layout));
+  ok(!layout.oldText, 'the "change any time" / "permanent" note must be gone');
+
   ok(errors.length === 0, 'page errors: ' + errors.slice(0, 4).join(' | '));
 
   await browser.close();

@@ -62,7 +62,7 @@ async function run() {
   ok(shape.hasDecline, 'popup needs a Turn Down Offers button');
   ok(shape.continueDisabled, 'Take/Apply is disabled until an offer is selected');
   ok(shape.hasSort, 'popup needs a sort control');
-  ok(shape.recordShown, 'rows must show a W-L record');
+  ok(!shape.recordShown, 'rows must not show a W-L record (removed by request)');
 
   // 3) Sorting by Program Rating must be descending by prestige.
   const sortOk = await page.evaluate(() => {

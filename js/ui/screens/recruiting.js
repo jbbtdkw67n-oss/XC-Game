@@ -378,7 +378,7 @@
           <h2>Your Class (${myCommits.length})</h2>
           ${myCommits.length ? myCommits.map((r) => `
             <div class="attr-row clickable" data-rec="${r.id}" style="cursor:pointer; padding:6px 0;">
-              <span>${stars(r.starRating)} <strong>${Utils.escapeHtml(r.fullName)}</strong> <span style="color:var(--text-dim);">(${r.gender})</span></span>
+              <span>${stars(r.starRating)} ${UI.personName(game, 'ath', r.id, r.fullName, { person: r, link: false })} <span style="color:var(--text-dim);">(${r.gender})</span></span>
               <span>${r.signed ? '<span style="color:var(--success);">Signed</span>' : '<span style="color:var(--warning);">Verbal</span>'}</span>
             </div>`).join('') : `<div style="color:var(--text-dim);">No commitments yet. Offer ${D.offerTerms(school).plural} and build relationships.</div>`}
         </div>
@@ -387,7 +387,7 @@
           <div style="max-height:420px; overflow-y:auto;">
             ${national.map((r) => `
               <div class="attr-row clickable" data-rec="${r.id}" style="cursor:pointer; padding:5px 0;">
-                <span>${stars(r.starRating)} ${Utils.escapeHtml(r.fullName)}</span>
+                <span>${stars(r.starRating)} ${UI.personName(game, 'ath', r.id, r.fullName, { person: r, link: false })}</span>
                 <span style="color:var(--text-dim); font-size:12px;">→ ${Utils.escapeHtml(game.getSchool(r.committedTo)?.name || '?')} (Wk ${r.commitWeek ?? '—'})</span>
               </div>`).join('') || '<div style="color:var(--text-dim);">Nobody has committed yet this cycle.</div>'}
           </div>

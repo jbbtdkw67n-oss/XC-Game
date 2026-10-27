@@ -358,6 +358,55 @@
   };
 
   /*
+   * Resolve the richest person object for an avatar: the live athlete or
+   * coach when they still exist (so they wear today's kit), otherwise the
+   * preserved alumni / Hall of Fame / registry record, otherwise a bare
+   * { name, gender, schoolId } — the face is seeded from the name, so it
+   * is the same person on every screen either way.
+   */
+  UI.resolvePerson = function (game, kind, id, name, extra = {}) {
+    const g = game || (UI.state && UI.state.game);
+    if (g) {
+      if (kind === 'coach') {
+        const live = id && g.getCoach && g.getCoach(id);
+        if (live) return live;
+        const H = g.history || {};
+        const reg = (H.coachRegistry || []).find((r) => (id && r.coachId === id) || (!id && r.name === name)) ||
+          (H.playerCareers || []).find((r) => r.name === name);
+        if (reg) return reg;
+      } else {
+        const live = id && ((g.getAthlete && g.getAthlete(id)) || ((g.world && g.world.recruits) || {})[id]);
+        if (live) return live;
+        const H = g.history || {};
+        const rec = (H.alumni || []).find((r) => id ? r.athleteId === id : r.name === name) ||
+          (H.hallOfFame || []).find((r) => id ? r.athleteId === id : r.name === name);
+        if (rec) return rec;
+      }
+    }
+    return Object.assign({ name, role: kind === 'coach' ? 'Head' : undefined }, extra);
+  };
+
+  /*
+   * A person's name everywhere it is listed: avatar + name in one consistent
+   * type style (.person-name). `kind` is 'ath' | 'coach'; when `link` is set
+   * the name carries the data-ath / data-coach hooks every screen already
+   * wires to the profile openers.
+   */
+  UI.personName = function (game, kind, id, name, opts = {}) {
+    if (!name) return '';
+    const Utils = window.XCD.core.Utils;
+    const person = opts.person || UI.resolvePerson(game, kind, id, name, opts.extra || {});
+    const size = opts.size || 20;
+    const outfit = kind === 'coach' ? 'polo' : 'jersey';
+    const link = opts.link !== false;
+    const hook = !link ? ''
+      : kind === 'coach'
+        ? ` data-coach="${id || ''}" data-coach-name="${Utils.escapeHtml(name)}"`
+        : ` data-ath="${id || ''}" data-ath-name="${Utils.escapeHtml(name)}"`;
+    return `<span class="person-name${link ? ' clickable' : ''}"${hook}>${UI.avatar(person, { size, outfit })}<span class="pn-text">${opts.prefix || ''}${Utils.escapeHtml(name)}</span></span>`;
+  };
+
+  /*
    * A tiny two-tone team-color swatch (Update 13) — the program's primary and
    * secondary colors as a split disc, shown next to a school's mascot.
    */

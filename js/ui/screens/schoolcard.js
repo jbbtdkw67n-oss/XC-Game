@@ -156,7 +156,6 @@
           ${row('NCAA Appearances', prog.ncaaAppearances || 0)}
           ${row('Best NCAA Finish', prog.bestFinish ? Utils.ordinal(prog.bestFinish) : '—')}
           ${row('All-Americans', prog.allAmericans || 0)}
-          ${row('All-Time Record', `${prog.wins || 0}-${prog.losses || 0}`)}
           ${row('Program Titles (M/W)', `${(hs.nationalTitlesM || 0) + (hs.conferenceTitlesM || 0)} / ${(hs.nationalTitlesW || 0) + (hs.conferenceTitlesW || 0)}`)}
           ${(() => {
             // Course Records (Program History): total set, currently held, and

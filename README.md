@@ -14,6 +14,35 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 14.3 — Faces Everywhere, Team Wins & Summer Breakouts
+
+- **No more win-loss records.** The dual-meet W–L ledger is gone from every
+  screen — coach profiles, My Program, program history/records/statistics,
+  school cards, GOAT lists, leaderboards (Win% columns removed), the coach
+  registry, the dashboard, the Available Jobs popup, and the save lists.
+- **Team wins.** Coaches now track **team wins** — meets their men's or
+  women's team won outright. Shown on every coach profile, on My Program, and
+  on the Load Dynasty / Save screens where the W–L used to be. (Counting
+  starts with this version for existing saves.)
+- **An avatar beside every name.** History (Champions, Awards incl. Coach of
+  the Year, Records, GOAT lists, Leaderboards, Legends, Hall of Fame), program
+  history and records, Course Records, the championship-team card, the coaching
+  tree, the offseason report, and more. Names share one type style
+  (`.person-name`) everywhere. Champions and Awards page eight seasons at a
+  time, and their collapsed conference/regional lists render when opened.
+- **Course Records cleanup.** Only search, division, and state filters remain
+  (the gender, terrain, type, conference, and current-only filters are gone) —
+  every course shows its men's and women's records side by side, and every
+  record shows the year it was set.
+- **Switchable training philosophy.** Like race philosophy, the training
+  (coaching) philosophy can be changed any time on My Program. Each
+  philosophy's choices now sit above its Strengths / Weaknesses.
+- **Bigger offseason progression.** Summer growth is far more substantial and
+  still driven by Work Ethic (a steep curve): 90+ grinders with headroom can
+  jump +4/+5 overall, average workers gain +1/+2, low-effort athletes little.
+  A per-summer cap prevents freak +15 jumps. Athletes reach their potential a
+  year sooner, so world talent settles around ~50 overall instead of ~46.
+
 ## Version 14.2 — Update 20: The Newsroom, Season Predictions & Expectations
 
 A media-and-accountability pass: the News screen becomes a proper newsroom,
@@ -971,8 +1000,8 @@ real heritage, and profiles are reachable from nearly everywhere.
   conferences (via transfers/realignment) all coexist; nothing is ever
   overwritten. Athlete profiles show the full accolade ledger and a career
   overall-progression chart, and it all survives graduation in the alumni ledger.
-- **Coach Training Philosophy (permanent).** Chosen at coach creation and never
-  changed — its effectiveness instead scales with the coach's **Training**
+- **Coach Training Philosophy.** Chosen at coach creation (switchable later on
+  My Program as of 14.3) — its effectiveness scales with the coach's **Training**
   rating. Seven real-world-inspired schools: Norwegian Method, High Mileage,
   Polarized, Threshold Focus, Speed Development, Strength Endurance, and
   Balanced. Each is a genuine trade-off (which attributes develop, fatigue,

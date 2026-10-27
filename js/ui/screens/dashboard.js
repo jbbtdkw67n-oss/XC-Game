@@ -68,7 +68,7 @@
           <tbody>
             ${rows.map((e) => `
               <tr class="${e.id ? 'clickable' : ''}" ${e.id ? `data-ath="${e.id}"` : ''}>
-                <td><strong>${Utils.escapeHtml(e.name)}</strong>${e.incoming ? ' <span style="color:var(--text-faint); font-size:10px;" title="Incoming — first summer on campus">NEW</span>' : ''}</td>
+                <td>${UI.personName(game, 'ath', e.id, e.name, { link: false, extra: { gender: e.gender } })}${e.incoming ? ' <span style="color:var(--text-faint); font-size:10px;" title="Incoming — first summer on campus">NEW</span>' : ''}</td>
                 <td>${e.classYear}</td>
                 <td class="num">${e.workEthic}</td>
                 <td>${deltaHtml(e)}</td>
@@ -93,25 +93,6 @@
         tr.addEventListener('click', () => UI.openAthlete(UI.state.game, tr.dataset.ath));
       });
     });
-  }
-
-  // Season W/L from the player's completed meets (dual-meet-style ledger).
-  function seasonRecord(game) {
-    const s = game.season;
-    let w = 0, l = 0;
-    if (!s) return { w, l };
-    Object.values(s.meets).forEach((meet) => {
-      if (!meet.results) return;
-      ['M', 'W'].forEach((g) => {
-        const res = meet.results[g];
-        if (!res || !res.teamScores) return;
-        const mine = res.teamScores.find((t) => t.schoolId === game.playerSchoolId);
-        if (!mine) return;
-        w += res.teamScores.length - mine.place;
-        l += mine.place - 1;
-      });
-    });
-    return { w, l };
   }
 
   // Where the player sits among same-conference programs in the poll.
@@ -243,7 +224,7 @@
     const completed = meets.filter((m) => playerPlace(game, m) != null);
     const upcoming = meets.filter((m) => playerPlace(game, m) == null && m.week >= game.week);
     const recent = completed.slice(-3).reverse();
-    const rec = seasonRecord(game);
+    const meetWins = completed.filter((m) => playerPlace(game, m) === 1).length;
     const csM = confStanding(game, 'M');
     const csW = confStanding(game, 'W');
     // Next opponent: the strongest OTHER program in the next meet's field.
@@ -480,7 +461,7 @@
           <button class="btn small" id="btn-to-schedule">Full Schedule →</button>
         </div>
         <div class="grid cols-4" style="margin-bottom:12px;">
-          <div class="stat-tile"><div class="label">Record (W–L)</div><div class="value">${rec.w}–${rec.l}</div><div class="sub">${completed.length} meet${completed.length === 1 ? '' : 's'} raced</div></div>
+          <div class="stat-tile"><div class="label">Meets Raced</div><div class="value">${completed.length}</div><div class="sub">${meetWins} meet win${meetWins === 1 ? '' : 's'}</div></div>
           <div class="stat-tile"><div class="label">National Rank</div><div class="value">${rm.rank}<span style="font-size:13px; color:var(--text-faint);"> M</span> · ${rw.rank}<span style="font-size:13px; color:var(--text-faint);"> W</span></div><div class="sub">${window.XCD.data.divisionFor(school).label}</div></div>
           <div class="stat-tile"><div class="label">Conf. Standing</div><div class="value">${csM ? '#' + csM.pos : '—'}<span style="font-size:13px; color:var(--text-faint);"> M</span> · ${csW ? '#' + csW.pos : '—'}<span style="font-size:13px; color:var(--text-faint);"> W</span></div><div class="sub">${Utils.escapeHtml(school.conference)}</div></div>
           <div class="stat-tile"><div class="label">Next Opponent</div><div class="value" style="font-size:15px;">${nextOpponent ? (nextOpponent.rank < 999 ? '#' + nextOpponent.rank + ' ' : '') + `<span class="clickable" data-school="${nextOpponent.sid}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(nextOpponent.school.name)}</span>` : '—'}</div><div class="sub">${nextField ? 'Wk ' + nextField.week + ' field' : 'season complete'}</div></div>
