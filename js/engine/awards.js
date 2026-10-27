@@ -561,8 +561,10 @@
           coach.hotSeatYears = 0;
           coach.podiumMissStreak = 0;
           gameState.logNews(`🔥 FIRED: ${school.name} has let you go after too many seasons short of expectations. Your career continues — a program will give you a fresh start next offseason. (Land your own job from the carousel before the season turns to choose where you go.)`);
+          if (window.XCD.engine.Events) window.XCD.engine.Events.emit(gameState, 'career:fired', { schoolId: school.id });
         } else if (onHotSeat) {
           const yrsLeft = Math.max(0, 3 - coach.hotSeatYears);
+          if (window.XCD.engine.Events) window.XCD.engine.Events.emit(gameState, 'career:hotSeat', { year: coach.hotSeatYears, of: 3 });
           gameState.logNews(`🔥 HOT SEAT (Year ${coach.hotSeatYears} of 3): ${school.name} expected more. ${yrsLeft} more season${yrsLeft === 1 ? '' : 's'} on the Hot Seat and the job is gone.`);
         } else if (coach.hotSeat >= 34) {
           gameState.logNews(`🟠 Warm seat: results are trailing expectations at ${school.name}. Boosters are restless.`);

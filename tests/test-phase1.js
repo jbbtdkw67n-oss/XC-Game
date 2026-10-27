@@ -1,7 +1,7 @@
 // Phase 1 test: Update 2 calendar (21 weeks), full-season advance via UI,
 // rollover->dashboard, world conference filter, schedule rendering.
 const { chromium } = require('playwright');
-const { newDynasty, wireErrors, launchOpts } = require('./helpers');
+const { newDynasty, dismissJobOffers, wireErrors, launchOpts } = require('./helpers');
 
 (async () => {
   const browser = await chromium.launch(launchOpts());
@@ -29,6 +29,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     });
     await page.click('#btn-advance-week');
     await page.waitForTimeout(120);
+    await dismissJobOffers(page);
     if (errors.length) break;
   }
   console.log('weeks:', log.map((l) => `${l.week}:${l.meets}m`).join(' '));

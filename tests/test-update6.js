@@ -204,6 +204,9 @@ async function run() {
       school: g.getPlayerSchool().name,
       schools: Object.keys(g.world.schools).length,
       athletes: Object.keys(g.world.athletes).length,
+      // The offseason job market keeps open head chairs vacant until the
+      // rollover carousel (so the player can apply for them).
+      vacantChairs: Object.values(g.world.schools).filter((s) => !(s.coachId && g.world.coaches[s.coachId])).map((s) => s.id),
       canRetire: window.XCD.engine.Careers.canRetire(g)
     };
   });
@@ -265,7 +268,7 @@ async function run() {
       registryHasPlayer: (g.history.coachRegistry || []).some((r) => r.isPlayer),
       schools: Object.keys(g.world.schools).length,
       athletes: Object.keys(g.world.athletes).length,
-      chairs: Object.values(g.world.schools).every((s) => s.coachId && g.world.coaches[s.coachId]),
+      vacantChairs: Object.values(g.world.schools).filter((s) => !(s.coachId && g.world.coaches[s.coachId])).map((s) => s.id),
       asstChairs: Object.values(g.world.schools).every((s) => s.assistantId && g.world.coaches[s.assistantId])
     };
   });
@@ -276,7 +279,9 @@ async function run() {
   ok(post.lineage.includes(pre.coach), 'lineage must remember the retired coach');
   ok(post.registryHasPlayer, 'retired player coach missing from the registry');
   ok(post.schools === pre.schools && post.athletes === pre.athletes, 'the world must not reset');
-  ok(post.chairs && post.asstChairs, 'every chair must stay filled through succession');
+  // Succession may not open any new vacancy (the open market's chairs stay
+  // open until the rollover carousel fills them).
+  ok(post.vacantChairs.every((id) => pre.vacantChairs.includes(id)) && post.asstChairs, 'succession must not leave a new chair empty');
 
   // ---- 8) Continuity + coaching trees: six more seasons ----
   const longRun = await page.evaluate(() => {

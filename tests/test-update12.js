@@ -3,7 +3,7 @@
 // hall of fame, clickable profiles, the mileage +10/-10 quick sets, the
 // regional/pre-nats distance fix, and unpursued transfers.
 const { chromium } = require('playwright');
-const { newDynasty, wireErrors, launchOpts } = require('./helpers');
+const { newDynasty, dismissJobOffers, wireErrors, launchOpts } = require('./helpers');
 
 function assert(cond, msg) { if (!cond) { console.log('FAIL: ' + msg); process.exitCode = 1; throw new Error(msg); } }
 
@@ -23,6 +23,7 @@ function assert(cond, msg) { if (!cond) { console.log('FAIL: ' + msg); process.e
     });
     await page.click('#btn-advance-week');
     await page.waitForTimeout(40);
+    await dismissJobOffers(page);
     if (errors.length) break;
   }
   assert(!errors.length, 'no console errors during two-season sim: ' + errors[0]);

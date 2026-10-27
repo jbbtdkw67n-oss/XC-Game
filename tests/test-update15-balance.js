@@ -221,6 +221,15 @@ const { walkCoachWizard, wireErrors, launchOpts } = require('./helpers');
             };
           }
           g.advanceWeek();
+          // This sim measures recruiting/transfer balance AT a blue blood, so
+          // the athletic director keeps the coach: a podium-miss or Hot Seat
+          // firing (covered by test-update13-features) would otherwise send
+          // the harness to a bottom-15 program for the rest of the run, and
+          // it never job-hunts its way back. Count the overrides instead.
+          if (g.career.pendingFiring) {
+            out.firingsOverridden = (out.firingsOverridden || 0) + 1;
+            g.career.pendingFiring = null;
+          }
         }
 
         // A real player spends their dynasty points every offseason.
@@ -242,6 +251,7 @@ const { walkCoachWizard, wireErrors, launchOpts } = require('./helpers');
           four: census.four, five: census.five, all5: census.all5, classCount: census.total,
           wonTitle,
           prestige: g.getPlayerSchool().prestige,
+          school: g.getPlayerSchool().name,
           coachRec: g.getPlayerCoach().recruiting
         });
         out._census = null;
@@ -286,6 +296,8 @@ const { walkCoachWizard, wireErrors, launchOpts } = require('./helpers');
     console.log(`star-transfer suitors: avg ${avg(sim.suitorSamples).toFixed(1)} (n=${sim.suitorSamples.length})`);
     console.log(`sway: ${sim.swayUses} uses, ${sim.swayBoosts} boosts (${sim.swayUses ? Math.round(sim.swayBoosts / sim.swayUses * 100) : 0}%)`);
     console.log('world:', JSON.stringify(sim.world));
+    console.log(`firings overridden to keep the coach at ${s[0] && s[0].school ? s[0].school : 'the blue blood'}: ${sim.firingsOverridden || 0}`);
+    if (s.some((x) => x.school !== s[0].school)) fail('the harness left its blue blood mid-run: ' + [...new Set(s.map((x) => x.school))].join(' → '));
 
     // The player should reliably land 3-6 transfers per cycle.
     if (avg(transfers) < 2.5 || avg(transfers) > 6.5) fail('avg transfers/season out of the 3-6 target band: ' + avg(transfers).toFixed(2));

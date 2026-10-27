@@ -8,7 +8,8 @@
     "ios:add": "npm run build:www && npx cap add ios",
     "ios:sync": "npm run build:www && npx cap sync ios",
     "ios:open": "npx cap open ios",
-    "test": "node tests/test-update13-features.js"
+    "test": "node scripts/run-tests.js",
+    "test:soak": "node scripts/run-tests.js --soak"
   },
   "dependencies": {
     "@capacitor/core": "^8.4.2",
