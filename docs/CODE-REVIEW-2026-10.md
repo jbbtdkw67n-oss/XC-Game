@@ -48,7 +48,8 @@ is unchanged. Options if it feels too harsh:
 
 **Open — recommended next fixes**
 
-3. **The Load screen reads every save in full.** `SaveManager.listSlots()`
+3. **The Load screen reads every save in full.** *(Fixed by the groundwork pass: see
+   [`EXTENSION-POINTS.md`](EXTENSION-POINTS.md#save-index).)* `SaveManager.listSlots()`
    (`js/engine/savemanager.js:220`) calls `getAll()`, which deserializes every dynasty *and*
    its yearly backup (~65 MB each after two seasons, 164.5 MB after 100 — measured, and only 5 MB under the century test's 170 MB limit) just to show names
    and dates. With three dynasties that's ~400 MB+ of structured-clone work on the main
@@ -68,9 +69,18 @@ is unchanged. Options if it feels too harsh:
 6. **Tests depend on timing.** Several UI tests use fixed `waitForTimeout(40–150)` sleeps
    around async handlers, which is exactly how the autosave race stayed hidden as "flaky".
    Prefer `waitForFunction(() => …)` on the state the test needs.
-7. **`package.json` `"test"` runs a single file.** `npm test` only runs
+7. **`package.json` `"test"` runs a single file.** *(Fixed: `npm test` now runs
+   `scripts/run-tests.js`.)* `npm test` only runs
    `test-update13-features.js`. Add a runner (e.g. `scripts/run-tests.js`) that runs every
    `tests/test-*.js` in parallel and summarizes, with the 100-season soak behind a flag.
+
+### Groundwork shipped
+
+The plumbing for several items below now exists and is behavior-neutral. See
+[`EXTENSION-POINTS.md`](EXTENSION-POINTS.md) for how to build on it:
+settings and difficulty sliders (`Settings`), an event bus and Inbox (`Events`,
+`Inbox`), a sim-until runner (`Sim.advanceUntil`), a save index for the Load screen,
+and the `npm test` runner.
 
 ---
 

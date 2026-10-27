@@ -1560,6 +1560,9 @@
           } else if (rec.starRating >= 4 || choice.sid === player) {
             gameState.logNews(`${'★'.repeat(rec.starRating)} ${rec.fullName} (${rec.hometownState === 'INT' ? rec.country : rec.hometownState}) commits to ${school.name}!`);
           }
+          if (choice.sid === player && window.XCD.engine.Events) {
+            window.XCD.engine.Events.emit(gameState, 'recruit:committed', { recruitId: rec.id, name: rec.fullName, stars: rec.starRating, gender: rec.gender });
+          }
         }
       } else {
         // Flip watch: a clearly better suitor can steal a verbal commit.

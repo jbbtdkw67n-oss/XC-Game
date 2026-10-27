@@ -163,6 +163,7 @@
     gameState.jobOffers = { year: gameState.year, expiresWeek: OFFER_EXPIRY_WEEK, offers };
     const hot = offers.filter((o) => (o.interest || 0) >= 60).length;
     gameState.logNews(`📞 The coaching market opens: ${offers.length} head-coaching ${offers.length === 1 ? 'chair is' : 'chairs are'} open across the country${hot ? ` — ${hot} with genuine interest in you` : ''}.`);
+    if (window.XCD.engine.Events) window.XCD.engine.Events.emit(gameState, 'jobs:marketOpened', { count: offers.length, hot });
   }
 
   function bestRankOf(gameState, sid) {
