@@ -349,8 +349,8 @@
     });
 
     if (pts > 0 && coach) {
-      coach.upgradePoints = (coach.upgradePoints || 0) + pts;
-      gameState.logNews(`📋 COACHING RÉSUMÉ: you earn ${pts} dynasty point${pts > 1 ? 's' : ''} — ${why.join(', ')}. Spend them on ratings or facilities in My Program.`);
+      const got = window.XCD.engine.Coaching.awardPoints(coach, pts);
+      gameState.logNews(`📋 COACHING RÉSUMÉ: you earn ${got} dynasty point${got === 1 ? '' : 's'} — ${why.join(', ')} (×${window.XCD.engine.Coaching.PROGRESSION_RATE} progression). Spend them on ratings or facilities in My Program.`);
     }
 
     // CPU coaches run the same progression (Update 13): they bank upgrade
@@ -415,12 +415,12 @@
     Object.entries(pts).forEach(([sid, p]) => {
       const school = gameState.getSchool(sid);
       const c = school && gameState.getCoach(school.coachId);
-      if (c && !c.isPlayer) c.upgradePoints = (c.upgradePoints || 0) + p;
+      if (c && !c.isPlayer) window.XCD.engine.Coaching.awardPoints(c, p);
       // The staff shares in the season's success: CPU assistants bank a
       // half-share of the program's résumé points toward their own craft.
       const asst = school && school.assistantId && gameState.getCoach(school.assistantId);
       if (asst && !asst.isPlayer && asst.id !== (c && c.id)) {
-        asst.upgradePoints = (asst.upgradePoints || 0) + Math.max(1, Math.round(p / 2));
+        window.XCD.engine.Coaching.awardPoints(asst, Math.max(1, Math.round(p / 2)));
       }
     });
 
@@ -526,7 +526,13 @@
       const Settings = window.XCD.engine.Settings;
       const patience = coach.isPlayer && Settings ? Settings.mult(gameState, 'hotSeatPatience') : 1;
       const limit = coach.isPlayer && Settings ? Settings.hotSeatLimit(gameState) : 3;
-      const heat = underperformance * 55;
+      // Big programs live with a more volatile seat: prestige and a power-
+      // conference profile amplify every swing — a bad year heats the chair
+      // faster, a good one cools it faster (~1.0x at a 60-prestige program,
+      // up to ~1.7x at a blue blood).
+      const big = Utils.clamp((school.prestige - 60) / 40, 0, 1);
+      const volatility = 1 + big * 0.55 + ((school.division || 'DI') === 'DI' && school.conferenceTier === 1 ? 0.15 : 0);
+      const heat = underperformance * 55 * volatility;
       coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(heat > 0 ? heat / patience : heat), 0, 100);
       // Successful seasons reduce Hot Seat pressure GRADUALLY (spec Part 2);
       // a single decent year eases the seat but does not erase years of
@@ -539,7 +545,7 @@
       // for the podium that fell short heats the seat sharply — and the more
       // years it happens in a row, the hotter it gets. Consumed here.
       const podiumPressure = coach._podiumPressure || 0;
-      if (podiumPressure) coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(podiumPressure / patience), 0, 100);
+      if (podiumPressure) coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(podiumPressure * volatility / patience), 0, 100);
       coach._podiumPressure = 0;
 
       // Hot Seat counter (Update 13, Phase 2): once a coach is genuinely on

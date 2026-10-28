@@ -87,7 +87,10 @@
 
   function ensureCalendar(gameState) {
     const world = gameState.world;
-    if (world.meetCalendar && world.meetCalendar.version === CAL_VERSION) return world.meetCalendar;
+    // The calendar is permanent — unless a host program no longer exists
+    // (an older save rebuilt on load), in which case it is laid out afresh.
+    if (world.meetCalendar && world.meetCalendar.version === CAL_VERSION &&
+        world.meetCalendar.entries.every((e) => world.schools[e.hostId])) return world.meetCalendar;
     const rng = new window.XCD.core.SeededRNG(((gameState.seed || 1) + 40493) >>> 0);
     const schools = world.schoolOrder.map((id) => gameState.getSchool(id)).filter(Boolean);
     const entries = [];

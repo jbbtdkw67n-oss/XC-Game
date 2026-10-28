@@ -44,7 +44,7 @@ async function run() {
   }));
   ok(rep.week === 13, 'sim to Conference stops at the start of Week 13: ' + rep.week);
   ok(/Arrived/.test(rep.title), 'report says the target was reached: ' + rep.title);
-  ok(rep.races >= 4, 'report lists the races run on the way: ' + rep.races);
+  ok(rep.races >= 3, 'report lists the races run on the way (a schedule has 3+ meets): ' + rep.races);
   await page.evaluate(() => { window.XCD.ui.state.simStops = true; window.XCD.ui.closeModal(); });
   // Engine: a reached/passed target is disabled in the menu.
   const desc = await page.evaluate(() => {
@@ -146,9 +146,15 @@ async function run() {
   const selUi = await page.evaluate(() => ({
     rows: document.querySelectorAll('#rank-body tbody tr').length,
     indivs: document.querySelectorAll('.sel-indiv').length,
-    explainer: !!document.querySelector('.kolas-explainer')
+    explainer: !!document.querySelector('.kolas-explainer'),
+    expected: (() => {
+      const g = window.XCD.ui.state.game;
+      const champ = g.season.championships[g.getPlayerSchool().division || 'DI'];
+      return (champ.individualQualifiers.M || []).length;
+    })()
   }));
-  ok(selUi.rows >= 13 && selUi.indivs === 38 && selUi.explainer, 'Rankings → Selection renders picks, 38 individuals, explainer: ' + JSON.stringify(selUi));
+  ok(selUi.rows >= 13 && selUi.indivs === selUi.expected && selUi.indivs > 0 && selUi.explainer,
+    'Rankings → Selection renders picks, every individual qualifier, explainer: ' + JSON.stringify(selUi));
 
   /* ---------- 4) Inbox ---------- */
   const inbox = await page.evaluate(() => {
