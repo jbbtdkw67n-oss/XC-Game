@@ -33,7 +33,6 @@
     { key: 'hotSeatPatience',       type: 'slider', group: 'difficulty', label: 'Hot Seat patience',       min: 0.5, max: 2,   step: 0.05, def: 1 },
     { key: 'cpuDevelopment',        type: 'slider', group: 'difficulty', label: 'CPU athlete development', min: 0.5, max: 1.5, step: 0.05, def: 1 },
     { key: 'prestigeVolatility',    type: 'slider', group: 'difficulty', label: 'Prestige volatility',     min: 0.5, max: 1.5, step: 0.05, def: 1 },
-    { key: 'godMode',               type: 'flag',   group: 'sandbox',    label: 'God Mode (edit anything)', def: false },
     { key: 'theme',                 type: 'choice', group: 'display',    label: 'Theme', options: ['dark', 'light', 'system'], def: 'dark' },
     { key: 'textScale',             type: 'slider', group: 'display',    label: 'Text size',               min: 0.85, max: 1.3, step: 0.05, def: 1 }
   ];
@@ -92,6 +91,39 @@
   Settings.reset = function (gameState) {
     gameState.settings = Settings.defaults();
     return gameState.settings;
+  };
+
+  // Hot Seat patience stretches (or shortens) how many seasons on the Hot
+  // Seat — or straight missed podium picks — it takes to get fired. The
+  // default patience of 1.0 is today's three seasons.
+  Settings.hotSeatLimit = function (gameState) {
+    return Math.min(6, Math.max(2, Math.round(3 * Settings.mult(gameState, 'hotSeatPatience'))));
+  };
+
+  // One-tap difficulty presets for the settings screen. Each lists only the
+  // difficulty sliders; anything not listed stays at its default.
+  Settings.PRESETS = {
+    rookie:  { label: 'Rookie',  icon: '🌱', desc: 'Patient bosses, weaker CPU recruiting, fewer injuries.',
+      values: { recruitingCompetition: 0.75, injuryRate: 0.6, hotSeatPatience: 1.6, cpuDevelopment: 0.85, prestigeVolatility: 0.8 } },
+    normal:  { label: 'Normal',  icon: '⚖️', desc: 'The game as designed.',
+      values: { recruitingCompetition: 1, injuryRate: 1, hotSeatPatience: 1, cpuDevelopment: 1, prestigeVolatility: 1 } },
+    veteran: { label: 'Veteran', icon: '🔥', desc: 'Sharper CPU staffs, more injuries, shorter leash.',
+      values: { recruitingCompetition: 1.2, injuryRate: 1.25, hotSeatPatience: 0.8, cpuDevelopment: 1.15, prestigeVolatility: 1.1 } },
+    legend:  { label: 'Legend',  icon: '💀', desc: 'Every rival at full strength. One bad stretch and you are gone.',
+      values: { recruitingCompetition: 1.45, injuryRate: 1.5, hotSeatPatience: 0.6, cpuDevelopment: 1.35, prestigeVolatility: 1.3 } }
+  };
+
+  Settings.applyPreset = function (gameState, key) {
+    const p = Settings.PRESETS[key];
+    if (!p) return false;
+    Object.entries(p.values).forEach(([k, v]) => Settings.set(gameState, k, v));
+    return true;
+  };
+
+  // The preset the current difficulty sliders match, or null (custom).
+  Settings.currentPreset = function (gameState) {
+    return Object.keys(Settings.PRESETS).find((k) =>
+      Object.entries(Settings.PRESETS[k].values).every(([key, v]) => Settings.get(gameState, key) === v)) || null;
   };
 
   Settings.isDefault = function (gameState) {

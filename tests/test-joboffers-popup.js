@@ -131,12 +131,15 @@ async function run() {
   }));
   ok(afterDecline.school === beforeDecline, 'turning down offers must keep the player at the current school');
   ok(afterDecline.market === null, 'turning down offers closes the market for this cycle');
+  ok(await page.evaluate(() => { const g = window.XCD.ui.state.game; return g.jobSearchClosedYear === g.year; }),
+    'turning down offers closes the job search so new openings cannot rebuild the board');
   ok(afterDecline.modalGone, 'turning down offers closes the popup');
 
   // 5b) Restore the market and take the job.
   await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     g.jobOffers = window.__market;
+    g.jobSearchClosedYear = null; // reopen the cycle for the take-a-job half of the test
     window.XCD.ui.showJobOffersPopup(g);
   });
   await page.waitForSelector(`.job-row[data-job="${move.targetId}"]`);

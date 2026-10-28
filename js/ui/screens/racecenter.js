@@ -348,6 +348,53 @@
       </div>`;
   }
 
+  // Pack-gap color, relative to the field in that race: the tightest
+  // quarter of packs is gold, the next quarter green, the loosest red.
+  function gapTone(gap, res) {
+    const gaps = ((res && res.teamScores) || []).map((t) => t.gap).filter((g) => typeof g === 'number').sort((a, b) => a - b);
+    if (gaps.length < 4) return 'ok';
+    const pct = gaps.filter((g) => g < gap).length / gaps.length;
+    return pct < 0.25 ? 'tight' : pct < 0.5 ? 'good' : pct < 0.75 ? 'ok' : 'loose';
+  }
+
+  /*
+   * Pack Report: how tightly the player's five scorers ran together — the
+   * 1–5 gap, their average time, where that pack ranks in the field, and a
+   * strip placing each scorer between the team's 1st and 5th runner.
+   */
+  function packReportHtml(game, res) {
+    const R = Races();
+    const mine = R.packStats(res, game.playerSchoolId);
+    if (!mine) return '';
+    const ft = R.formatTime;
+    const fg = R.formatGap;
+    const scorers = res.finishers.filter((f) => f.schoolId === game.playerSchoolId).slice(0, 5);
+    const ranked = (res.teamScores || []).filter((t) => typeof t.gap === 'number').sort((a, b) => a.gap - b.gap);
+    const packRank = ranked.findIndex((t) => t.schoolId === game.playerSchoolId) + 1;
+    const best = R.tightestPack(res);
+    const winner = res.teamScores[0];
+    const span = Math.max(0.1, mine.gap);
+    const dots = scorers.length === 5 ? scorers.map((f, i) => {
+      const pct = ((f.time - scorers[0].time) / span) * 100;
+      return `<span class="pack-dot" style="left:${pct.toFixed(1)}%;" title="${Utils.escapeHtml(f.name)} — ${ft(f.time)} (${Utils.ordinal(f.place)})">${i + 1}</span>`;
+    }).join('') : '';
+    return `
+      <div class="pack-report">
+        <h3>🧩 Pack Report</h3>
+        <div class="pack-stats">
+          <div class="pack-stat ${gapTone(mine.gap, res)}"><div class="v">${fg(mine.gap)}</div><div class="l">1–5 gap</div></div>
+          <div class="pack-stat"><div class="v">${ft(mine.avg)}</div><div class="l">Top-5 average</div></div>
+          <div class="pack-stat"><div class="v">${packRank ? '#' + packRank : '—'}<small>/${ranked.length}</small></div><div class="l">Pack in field</div></div>
+        </div>
+        ${dots ? `<div class="pack-strip" aria-label="Scorers between your 1st and 5th runner"><div class="pack-line"></div>${dots}</div>
+        <div class="pack-strip-ends"><span>${ft(scorers[0].time)}</span><span>${ft(scorers[4].time)}</span></div>` : ''}
+        <div class="pack-note">
+          ${best ? `Tightest pack: <strong>${Utils.escapeHtml(game.getSchool(best.schoolId)?.name || '?')}</strong> (${fg(best.gap)})` : ''}
+          ${winner && typeof winner.gap === 'number' && winner.schoolId !== game.playerSchoolId ? ` · Winners ${Utils.escapeHtml(game.getSchool(winner.schoolId)?.name || '?')}: ${fg(winner.gap)}` : ''}
+        </div>
+      </div>`;
+  }
+
   function showFinal(game, meet, container) {
     const res = meet.results[activeGender];
     const track = container.querySelector('#race-track');
@@ -367,7 +414,7 @@
         : ' <span title="Qualified for Nationals — at-large bid" style="color:var(--accent); font-weight:700; font-size:10.5px;">🎟 AL</span>';
     };
     const indivQualBadge = (f) => (isRegional && f.nationalsIndividual && !f.nationalsTeamQualifier)
-      ? ' <span title="Qualified for Nationals as an individual" style="color:var(--accent); font-weight:700; font-size:10.5px;">🎟 IQ</span>'
+      ? (f.nationalsIndividualAtLarge ? ' <span title="Qualified for Nationals as a national at-large individual" style="color:var(--accent); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 IQ·AL</span>' : '') || ' <span title="Qualified for Nationals as an individual (first 4 from non-qualifying teams, top 25)" style="color:var(--accent); font-weight:700; font-size:10.5px;">🎟 IQ</span>'
       : '';
 
     const winner = res.finishers[0];
@@ -432,10 +479,12 @@
         </table>
       </div>`;
 
-    board.innerHTML = `<h3>Final Team Scores</h3>` + res.teamScores.slice(0, 15).map((t) => `
+    const fg = Races().formatGap;
+    board.innerHTML = `<h3>Final Team Scores</h3>
+      <div class="attr-row team-score-head"><span>Team</span><span>Pts · <span title="1–5 gap: the time between a team's 1st and 5th scorer">1–5 gap</span></span></div>` + res.teamScores.slice(0, 15).map((t) => `
       <div class="attr-row clickable" data-school="${t.schoolId}" style="padding:3px 0; cursor:pointer;">
         <span style="${t.schoolId === game.playerSchoolId ? 'color:var(--accent-hover); font-weight:700;' : ''}">${t.place}. ${Utils.escapeHtml(game.getSchool(t.schoolId)?.name || '?')}${teamBidBadge(t)}</span>
-        <span>${t.points}</span>
+        <span>${t.points}${typeof t.gap === 'number' ? ` <span class="pack-gap-chip ${gapTone(t.gap, res)}">${fg(t.gap)}</span>` : ''}</span>
       </div>`).join('') + (isRegional && res.teamScores.some((t) => t.nationalsBid) ? `
       <div style="color:var(--text-faint); font-size:11px; margin-top:6px;">🎟 <strong style="color:var(--success);">NQ</strong> auto bid · <strong style="color:var(--accent);">AL</strong> at-large · <strong style="color:var(--accent);">IQ</strong> individual → Nationals</div>` : '');
 
@@ -451,7 +500,7 @@
     wire(track); wire(board);
 
     const mySplits = res.splits && res.finishers.filter((f) => f.schoolId === game.playerSchoolId).slice(0, 7);
-    teams.innerHTML = mySplits && mySplits.length ? `<h3>Your Splits (per ${(res.distanceM / 1000 / Races().SEGMENTS).toFixed(2)}km leg)</h3>` +
+    teams.innerHTML = packReportHtml(game, res) + (mySplits && mySplits.length ? `<h3>Your Splits (per ${(res.distanceM / 1000 / Races().SEGMENTS).toFixed(2)}km leg)</h3>` +
       mySplits.map((f) => {
         const sp = res.splits[f.athleteId];
         if (!sp) return '';
@@ -460,8 +509,18 @@
           <div style="font-size:12.5px;">${UI.personName(game, 'ath', f.athleteId, f.name, { link: false, size: 18 })} — ${ft(f.time)} (${Utils.ordinal(f.place)})</div>
           <div style="font-size:11px; color:var(--text-faint);">${legs.map((l) => ft(l)).join(' · ')}</div>
         </div>`;
-      }).join('') : '<h3>Team Scores Locked</h3>';
+      }).join('') : '<h3>Team Scores Locked</h3>');
+
+    // The national meet is in the books: this is the one moment the
+    // offseason Available Jobs popup appears (once per offseason).
+    if (meet.type === 'national' && UI.state.jobsAfterBroadcast) {
+      setTimeout(() => {
+        if (!UI.state.jobsAfterBroadcast || UI.state.currentScreen !== 'racecenter') return;
+        UI.state.jobsAfterBroadcast = false;
+        if (UI.maybeShowJobOffers) UI.maybeShowJobOffers(game);
+      }, 1400);
+    }
   }
 
-  UI.screens.racecenter = { render, projectedScore, liveOrderAt, playerTeamPanel };
+  UI.screens.racecenter = { render, projectedScore, liveOrderAt, playerTeamPanel, packReportHtml, gapTone };
 })();

@@ -5,7 +5,7 @@
  * always correct; bump CACHE_VERSION whenever shipped files change to make
  * installed players pick up a new build.
  */
-const CACHE_VERSION = 'xcd-v10';
+const CACHE_VERSION = 'xcd-v11';
 
 const ASSETS = [
   './',
@@ -55,6 +55,7 @@ const ASSETS = [
   './js/ui/avatar.js',
   './js/ui/coachwizard.js',
   './js/ui/tutorial.js',
+  './js/ui/simmenu.js',
   './js/ui/screens/playercard.js',
   './js/ui/screens/coachcard.js',
   './js/ui/screens/schoolcard.js',
@@ -75,6 +76,8 @@ const ASSETS = [
   './js/ui/screens/joboffers.js',
   './js/ui/screens/shop.js',
   './js/ui/screens/saves.js',
+  './js/ui/screens/inbox.js',
+  './js/ui/screens/settings.js',
   './js/main.js'
 ];
 

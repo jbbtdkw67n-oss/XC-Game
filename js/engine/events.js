@@ -17,13 +17,13 @@
  * future Inbox screen has a history to show.
  *
  * Inbox: a capped, saved list of player-facing items built from events by
- * INBOX_RULES. Nothing renders it yet — the Dashboard/News still carry the
- * same information — so adding it changes no behavior.
+ * INBOX_RULES, rendered by the Inbox screen (js/ui/screens/inbox.js) and
+ * the Dashboard's Inbox card.
  *
  *   Inbox.items(game) / Inbox.unread(game) / Inbox.markRead(game, id)
  *   Inbox.push(game, item) for ad-hoc entries.
  *
- * Event types emitted today (payload fields in parentheses):
+ * Event types emitted (payload fields in parentheses):
  *   week:advanced     (year, week)                         gamestate.advanceWeek
  *   season:started    (year)                               gamestate.advanceWeek (rollover)
  *   race:completed    (meetId, name, places{M,W})          gamestate.advanceWeek (player meets)
@@ -32,6 +32,12 @@
  *   jobs:marketOpened (count, hot)                         careers.js
  *   career:hotSeat    (year, of)                           awards.js (player)
  *   career:fired      (schoolId)                           awards.js (player)
+ *   staff:assistantLeft (name, school, kind)               careers.js (player's staff)
+ *   recruit:decommitted (recruitId, name, stars, to)       recruiting.js (from the player)
+ *   recruit:signingDay  (offered)                          gamestate.advanceWeek
+ *   portal:opened       (count, mine[], mineCount)         portal.js
+ *   nationals:selection ({M, W} bid status)                races.js (field set)
+ *   jobs:newOpening     (schoolId, name, division)         careers.js evolveJobMarket
  */
 (function () {
   const Utils = window.XCD.core.Utils;
@@ -93,27 +99,83 @@
   // screen: where the future Inbox's action button navigates.
   const INBOX_RULES = {
     'athlete:injured': (p) => ({
-      priority: p.weeks >= 4 ? 3 : 2, screen: 'roster',
+      priority: p.weeks >= 4 ? 3 : 2, screen: 'roster', icon: '🩹',
       title: `Injury: ${p.name}`,
       body: `${p.injury || 'Injury'} — out about ${p.weeks} week${p.weeks === 1 ? '' : 's'}.`
     }),
     'recruit:committed': (p) => ({
-      priority: 2, screen: 'recruiting',
+      priority: 2, screen: 'recruiting', icon: '✍️',
       title: `${'★'.repeat(p.stars || 0)} ${p.name} commits`,
       body: 'A verbal commitment to your program.'
     }),
     'jobs:marketOpened': (p) => ({
-      priority: 3, screen: 'dashboard',
+      priority: 3, screen: 'jobs', icon: '📞',
       title: 'The coaching market is open',
       body: `${p.count} open head-coaching chair${p.count === 1 ? '' : 's'}${p.hot ? ` — ${p.hot} with real interest in you` : ''}.`
     }),
     'career:hotSeat': (p) => ({
-      priority: 3, screen: 'school',
+      priority: 3, screen: 'school', icon: '🔥',
       title: `Hot Seat — year ${p.year} of ${p.of}`,
       body: 'The administration expects more next season.'
     }),
+    'race:completed': (p) => {
+      const ord = (n) => (n ? Utils.ordinal(n) : '—');
+      const best = Math.min(p.places.M || 99, p.places.W || 99);
+      return {
+        priority: 1, screen: 'schedule', icon: best === 1 ? '🏆' : '🏁',
+        title: `${p.name}: ${best === 1 ? 'a team win!' : 'results are in'}`,
+        body: `Men ${ord(p.places.M)} · Women ${ord(p.places.W)}`
+      };
+    },
+    'season:started': (p) => ({
+      priority: 3, screen: 'dashboard', icon: '📅',
+      title: `The ${p.year} season begins`,
+      body: 'Week 1 is season setup: review progression, finalize the roster and schedule, settle your staff, then confirm.'
+    }),
+    'staff:assistantLeft': (p) => ({
+      priority: 3, screen: 'school', icon: '📣',
+      title: `Your assistant ${p.name} is leaving`,
+      body: p.kind === 'retired' ? 'Retiring after a long career. Hire a replacement from the pool on My Program.'
+        : `Off to ${p.school || 'a new job'}. Hire a replacement from the pool on My Program.`
+    }),
+    'recruit:decommitted': (p) => ({
+      priority: 2, screen: 'recruiting', icon: '💔',
+      title: `${'★'.repeat(p.stars || 0)} ${p.name} decommits`,
+      body: p.to ? `Flipped to ${p.to}.` : 'Recruitment reopened — there may still be time to win them back.'
+    }),
+    'recruit:signingDay': (p) => ({
+      priority: 3, screen: 'recruiting', icon: '✍️',
+      title: 'Signing Day is this week',
+      body: p.offered ? `${p.offered} recruit${p.offered === 1 ? '' : 's'} still hold${p.offered === 1 ? 's' : ''} your offer. Make your final pushes before the class signs.`
+        : 'The class signs when this week advances. Make your final offers now.'
+    }),
+    'portal:opened': (p) => ({
+      priority: p.mineCount ? 2 : 1, screen: 'portal', icon: '🔄',
+      title: 'The transfer portal is open',
+      body: `${p.count} athletes entered${p.mineCount ? ` — including ${p.mineCount} of yours${p.mine && p.mine.length ? ` (${p.mine.slice(0, 3).join(', ')}${p.mineCount > 3 ? '…' : ''})` : ''}` : ''}.`
+    }),
+    'nationals:selection': (p) => {
+      const line = (g, st) => {
+        const who = g === 'M' ? 'Men' : 'Women';
+        if (!st) return null;
+        if (st.bid === 'auto') return `${who}: automatic bid`;
+        if (st.bid === 'atlarge') return `${who}: at-large (${st.points} Kolas pt${st.points === 1 ? '' : 's'})`;
+        return `${who}: ${st.bubble ? `first team out (${st.points} pts)` : 'out'}${st.individuals ? ` · ${st.individuals} individual${st.individuals === 1 ? '' : 's'}` : ''}`;
+      };
+      const inAny = (p.M && p.M.bid) || (p.W && p.W.bid);
+      return {
+        priority: 2, screen: 'rankings:selection', icon: '🎟',
+        title: inAny ? 'Selection: you are going to Nationals' : 'Selection: the NCAA field is set',
+        body: [line('M', p.M), line('W', p.W)].filter(Boolean).join(' · ')
+      };
+    },
+    'jobs:newOpening': (p) => ({
+      priority: 1, screen: 'dashboard', icon: '📞',
+      title: `New opening: ${p.name}`,
+      body: `A ${p.division} head-coaching search begins — it's on the job market board.`
+    }),
     'career:fired': () => ({
-      priority: 3, screen: 'dashboard',
+      priority: 3, screen: 'jobs', icon: '🚪',
       title: 'You have been let go',
       body: 'Land a new job from the carousel before the season turns, or a rebuilding program will hire you.'
     })
@@ -146,9 +208,22 @@
     return !!it;
   };
   Inbox.markAllRead = function (gameState) { Inbox.items(gameState).forEach((i) => { i.read = true; }); };
+  Inbox.remove = function (gameState, id) {
+    const list = Inbox.items(gameState);
+    const i = list.findIndex((x) => x.id === id);
+    if (i >= 0) list.splice(i, 1);
+    return i >= 0;
+  };
+  Inbox.clearRead = function (gameState) {
+    gameState.inbox = Inbox.items(gameState).filter((i) => !i.read);
+  };
 
-  // Built-in subscriber: turn rule-matched events into inbox items.
+  // Built-in subscriber: turn rule-matched events into inbox items. A new
+  // season files away last season's leftovers (marked read, still listed).
   Events.on('*', (gameState, evt) => {
+    if (evt.type === 'season:started') {
+      Inbox.items(gameState).forEach((i) => { if (i.year < gameState.year) i.read = true; });
+    }
     const rule = INBOX_RULES[evt.type];
     if (!rule) return;
     Inbox.push(gameState, Object.assign({ eventType: evt.type }, rule(evt.payload)));

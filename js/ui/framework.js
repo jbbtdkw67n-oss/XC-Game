@@ -392,6 +392,7 @@
    */
   const NAV_ITEMS = [
     { id: 'dashboard', label: 'Dashboard', icon: '🏠', mobile: true, short: 'Home' },
+    { id: 'inbox', label: 'Inbox', icon: '📥' },
     { id: 'schedule', label: 'Schedule', icon: '📅' },
     { id: 'racecenter', label: 'Race Center', icon: '📺' },
     { id: 'rankings', label: 'Rankings', icon: '🏅' },
@@ -405,13 +406,69 @@
     { id: 'world', label: 'World', icon: '🌎' },
     { id: 'news', label: 'News', icon: '📰' },
     { id: 'shop', label: 'Shop', icon: '🛒' },
+    { id: 'settings', label: 'Settings', icon: '⚙️' },
     { id: 'saves', label: 'Save / Load', icon: '💾' }
   ];
 
   UI.navigate = function (screenId) {
+    const leaving = UI.state.currentScreen;
     UI.state.currentScreen = screenId;
     UI.renderShell();
+    // Leaving the nationals broadcast is the moment the (once-per-offseason)
+    // Available Jobs popup appears, if the replay hadn't already shown it.
+    if (leaving === 'racecenter' && screenId !== 'racecenter' && UI.state.jobsAfterBroadcast && UI.state.game) {
+      UI.state.jobsAfterBroadcast = false;
+      if (UI.maybeShowJobOffers) UI.maybeShowJobOffers(UI.state.game);
+    }
   };
+
+  // Unread count chip for the Inbox nav entry.
+  function navBadge(game, id) {
+    if (id !== 'inbox' || !window.XCD.engine.Inbox) return '';
+    const n = window.XCD.engine.Inbox.unread(game).length;
+    return n ? `<span class="nav-badge">${n > 99 ? '99+' : n}</span>` : '';
+  }
+
+  // True when the player's team races this week (a meet, or a nationals bid).
+  function racingNowFor(game) {
+    const s = game.season;
+    return !!(s && (s.playerMeetByWeek[game.week] ||
+      (game.week === s.nationalWeek && (s.nationalsFieldIds.M?.includes(game.playerSchoolId) || s.nationalsFieldIds.W?.includes(game.playerSchoolId)))));
+  }
+
+  // The Week 1 checklist gates advancing and simming (Section 15).
+  function week1Ready(game) {
+    if (game.week1Complete && !game.week1Complete()) {
+      UI.toast('Week 1 is the season-setup phase — complete the checklist on the Dashboard to unlock Week 2.', 'error');
+      UI.navigate('dashboard');
+      return false;
+    }
+    return true;
+  }
+
+  async function autoSave(game) {
+    try {
+      await window.XCD.engine.SaveManager.autoSave(game);
+    } catch (err) {
+      UI.toast('Autosave failed: ' + err.message, 'error');
+    }
+  }
+
+  /*
+   * Offseason job market (Available Jobs popup): shown ONCE, right after the
+   * national meet is simulated. When that advance cut to the nationals
+   * broadcast, the popup waits for the replay to finish (or for the player to
+   * leave the Race Center) instead of covering the race.
+   */
+  function offerJobsAfter(game, cutToRace) {
+    if (!UI.jobOffersPending || !UI.jobOffersPending(game)) return false;
+    if (cutToRace && UI.state.currentScreen === 'racecenter') {
+      UI.state.jobsAfterBroadcast = true;
+      return false;
+    }
+    return UI.maybeShowJobOffers(game);
+  }
+  UI.offerJobsAfter = offerJobsAfter;
 
   UI.renderShell = function () {
     const game = UI.state.game;
@@ -419,6 +476,8 @@
     const staleSheet = document.getElementById('more-sheet');
     if (staleSheet) staleSheet.remove(); // sheets never outlive a navigation
     UI.closeModal(); // modals belong to the screen that opened them
+    if (UI.closeSimMenu) UI.closeSimMenu();
+    if (UI.applyDisplaySettings) UI.applyDisplaySettings(game);
     if (!game) {
       UI.screens.menu.render(root);
       return;
@@ -436,7 +495,7 @@
           <div class="school-tag">${Utils.escapeHtml(school.name)} • ${Utils.escapeHtml(school.conference)}</div>
           ${NAV_ITEMS.map((n) => `
             <button class="nav-item ${UI.state.currentScreen === n.id ? 'active' : ''}" data-nav="${n.id}">
-              <span class="icon">${n.icon}</span>${n.label}
+              <span class="icon">${n.icon}</span>${n.label}${navBadge(game, n.id)}
             </button>`).join('')}
           <div class="sidebar-footer">v${window.XCD.VERSION}</div>
         </nav>
@@ -473,17 +532,16 @@
             })()}
             <div class="topbar-actions">
               ${(() => {
-                const s = game.season;
-                const racingNow = s && (s.playerMeetByWeek[game.week] ||
-                  (game.week === s.nationalWeek && (s.nationalsFieldIds.M?.includes(game.playerSchoolId) || s.nationalsFieldIds.W?.includes(game.playerSchoolId))));
-                return racingNow ? '' : `<button class="btn" id="btn-sim-race" title="Simulate weeks until your next race day" aria-label="Sim to race">⏩${mobile ? '' : ' Sim to Race'}</button>`;
+                const unread = window.XCD.engine.Inbox ? window.XCD.engine.Inbox.unread(game).length : 0;
+                return `<button class="btn inbox-btn ${UI.state.currentScreen === 'inbox' ? 'active' : ''}" id="btn-inbox" title="Inbox${unread ? ` — ${unread} unread` : ''}" aria-label="Inbox${unread ? `, ${unread} unread` : ''}">📥${unread ? `<span class="count-badge">${unread > 99 ? '99+' : unread}</span>` : ''}</button>`;
               })()}
+              <div class="sim-group">
+                ${racingNowFor(game) ? '' : `<button class="btn" id="btn-sim-race" title="Simulate weeks until your next race day" aria-label="Sim to race">⏩${mobile ? '' : ' Sim to Race'}</button>`}
+                <button class="btn sim-caret" id="btn-sim-menu" title="Sim to a date — stops when something needs you" aria-haspopup="true" aria-label="Sim to a date">${racingNowFor(game) ? (mobile ? '⏩▾' : '⏩ Sim to… ▾') : '▾'}</button>
+              </div>
               <button class="btn primary" id="btn-advance-week">${(() => {
-                const s = game.season;
-                if (!s) return mobile ? 'Advance ▸' : 'Advance Week ▸';
-                const racing = s.playerMeetByWeek[game.week] ||
-                  (game.week === s.nationalWeek && (s.nationalsFieldIds.M?.includes(game.playerSchoolId) || s.nationalsFieldIds.W?.includes(game.playerSchoolId)));
-                return racing ? (mobile ? '🏁 Race ▸' : '🏁 Race & Advance ▸') : (mobile ? 'Advance ▸' : 'Advance Week ▸');
+                if (!game.season) return mobile ? 'Advance ▸' : 'Advance Week ▸';
+                return racingNowFor(game) ? (mobile ? '🏁 Race ▸' : '🏁 Race & Advance ▸') : (mobile ? 'Advance ▸' : 'Advance Week ▸');
               })()}</button>
             </div>
           </div>
@@ -510,7 +568,7 @@
             <div class="sheet-grid">
               ${moreNav.map((n) => `
                 <button class="sheet-item ${UI.state.currentScreen === n.id ? 'active' : ''}" data-sheet-nav="${n.id}">
-                  <span class="icon">${n.icon}</span>${n.label}
+                  <span class="icon">${n.icon}</span>${n.label}${navBadge(game, n.id)}
                 </button>`).join('')}
             </div>
           </div>`;
@@ -549,11 +607,7 @@
       }
       // Week 1 Administrative Phase (spec Part 2, Section 15): Week 2 stays
       // locked until the season-setup checklist is complete.
-      if (game.week1Complete && !game.week1Complete()) {
-        UI.toast('Week 1 is the season-setup phase — complete the checklist on the Dashboard to unlock Week 2.', 'error');
-        UI.navigate('dashboard');
-        return;
-      }
+      if (!week1Ready(game)) return;
       const weekBefore = game.week;
       game.advanceWeek();
       // If our team just raced, cut straight to the broadcast.
@@ -570,63 +624,26 @@
       }
       UI.renderShell();
       UI.toast(`Advanced to ${Utils.formatDate(game.week, game.year)}`, 'success', 1800);
-      // Offseason job market (Available Jobs popup): once the season is over
-      // and offers are on the table, prompt the player to take a new job or
-      // stay put — but not on the advance that just cut to the nationals
-      // broadcast, nor on a fresh-season rollover.
-      if (!cutToRace && !rolledOver && UI.maybeShowJobOffers) UI.maybeShowJobOffers(game);
+      offerJobsAfter(game, cutToRace);
       // Save only after the new week is on screen: the write can take a
       // while (rollover saves are big), and rendering after it would yank the
       // player back here if they had already navigated to another screen.
-      try {
-        await window.XCD.engine.SaveManager.autoSave(game);
-      } catch (err) {
-        UI.toast('Autosave failed: ' + err.message, 'error');
-      }
+      await autoSave(game);
     });
 
+    // ⏩ Sim to Race: advance to the next race week and run the race, then
+    // cut to the broadcast. Only real decisions (the job market opening, a
+    // firing) interrupt it — the full Sim menu has the richer stop list.
     const simBtn = document.getElementById('btn-sim-race');
     if (simBtn) {
-      simBtn.addEventListener('click', async () => {
-        // The Week 1 checklist gates simming forward too (Section 15).
-        if (game.week1Complete && !game.week1Complete()) {
-          UI.toast('Week 1 is the season-setup phase — complete the checklist on the Dashboard first.', 'error');
-          UI.navigate('dashboard');
-          return;
-        }
-        // Advance until a week in which our team raced (guard: ~1.2 years),
-        // stopping at a new season's Week 1 for the administrative phase.
-        let raced = false;
-        let rolledOver = false;
-        let offersPending = false;
-        for (let i = 0; i < 26 && !raced && !rolledOver && !offersPending; i++) {
-          const wk = game.week;
-          const s = game.season;
-          const hadMeet = s && (s.playerMeetByWeek[wk] ||
-            (wk === s.nationalWeek && (s.nationalsFieldIds.M?.includes(game.playerSchoolId) || s.nationalsFieldIds.W?.includes(game.playerSchoolId))));
-          game.advanceWeek();
-          if (game.week < wk) rolledOver = true;
-          if (hadMeet) raced = true;
-          // Stop at the offseason job market so the Available Jobs popup isn't
-          // skipped past when simming through the offseason.
-          if (!raced && game.seasonPhase === 'Offseason' && game.jobOffers &&
-              !game.jobOffers.popupSeen && (game.jobOffers.offers || []).some((o) => !o.rejected)) {
-            offersPending = true;
-          }
-        }
-        if (raced) UI.state.currentScreen = 'racecenter';
-        if (rolledOver) UI.state.currentScreen = 'dashboard'; // new seasons start at home
-        UI.renderShell();
-        UI.toast(`Simulated ahead to ${Utils.formatDate(game.week, game.year)}`, 'success', 2200);
-        if (offersPending && UI.maybeShowJobOffers) UI.maybeShowJobOffers(game);
-        // Save after rendering, for the same reason as Advance Week above.
-        try {
-          await window.XCD.engine.SaveManager.autoSave(game);
-        } catch (err) {
-          UI.toast('Autosave failed: ' + err.message, 'error');
-        }
-      });
+      simBtn.addEventListener('click', () => UI.simTo(game, 'nextRace', {
+        runRace: true, stopOn: ['jobs:marketOpened', 'career:fired']
+      }));
     }
+    const simMenuBtn = document.getElementById('btn-sim-menu');
+    if (simMenuBtn) simMenuBtn.addEventListener('click', (e) => { e.stopPropagation(); UI.toggleSimMenu(game, simMenuBtn); });
+    const inboxBtn = document.getElementById('btn-inbox');
+    if (inboxBtn) inboxBtn.addEventListener('click', () => UI.navigate('inbox'));
 
     const container = document.getElementById('screen-container');
     const screen = UI.screens[UI.state.currentScreen] || UI.screens.dashboard;

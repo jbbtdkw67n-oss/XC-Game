@@ -33,6 +33,7 @@ node tests/test-update12.js    # Update 12 (Living History & Legacy): GOAT lists
 node tests/test-update13-features.js # Update 13 (Balance/Coach Progression/Training): Double Threshold workout, Sway action + gating, elite-coach recruit motivation, role-aware reputation tiers, Reset Ideal Training (phase-appropriate), Build-phase advice/eval alignment, facility decay + floor, Hot Seat 3-season firing, philosophy fatigue relief, mileage scaling M75/W60, GOAT division weighting
 node tests/test-groundwork.js       # Groundwork: settings (neutral defaults, clamping, save round-trip), events + inbox, Sim.advanceUntil targets/stops, save index (fast listing, legacy backfill, rename, delete)
 node tests/test-racecenter-speed.js # Race Center replay: 1×/2×/4× highlight matches the real playback rate (clock runs 2×/4× as fast), survives Replay + Men/Women switch
+node tests/test-roadmap-features.js # Sim-to-date menu + report, pack stats, Kolas at-large + DI individual qualifying (4/regional, top 25, +2 at-large), Inbox, one-time job popup, settings presets/theme/text size, injuryRate 0, no God Mode
 node tests/test-sw-precache.js     # Offline install: sw.js precaches every script/stylesheet index.html loads (no browser needed)
 ```
 

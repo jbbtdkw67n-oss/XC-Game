@@ -521,7 +521,13 @@
       const actualPct = Math.min(mPct, wPct) * 0.7 + Math.max(mPct, wPct) * 0.3;
       const underperformance = (actualPct - expectedPct) * pressure; // positive = worse than expected
 
-      coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(underperformance * 55), 0, 100);
+      // Difficulty: Hot Seat patience softens (or sharpens) how fast the
+      // player's seat heats up, and how many hot seasons the AD tolerates.
+      const Settings = window.XCD.engine.Settings;
+      const patience = coach.isPlayer && Settings ? Settings.mult(gameState, 'hotSeatPatience') : 1;
+      const limit = coach.isPlayer && Settings ? Settings.hotSeatLimit(gameState) : 3;
+      const heat = underperformance * 55;
+      coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(heat > 0 ? heat / patience : heat), 0, 100);
       // Successful seasons reduce Hot Seat pressure GRADUALLY (spec Part 2);
       // a single decent year eases the seat but does not erase years of
       // failure outright.
@@ -533,7 +539,7 @@
       // for the podium that fell short heats the seat sharply — and the more
       // years it happens in a row, the hotter it gets. Consumed here.
       const podiumPressure = coach._podiumPressure || 0;
-      if (podiumPressure) coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(podiumPressure), 0, 100);
+      if (podiumPressure) coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(podiumPressure / patience), 0, 100);
       coach._podiumPressure = 0;
 
       // Hot Seat counter (Update 13, Phase 2): once a coach is genuinely on
@@ -549,23 +555,23 @@
       // handed is itself a firing offense (user request): three straight
       // seasons picked for the podium and falling short ends a tenure, for the
       // player and the CPU alike, independent of the general hot-seat clock.
-      const podiumFired = (coach.podiumMissStreak || 0) >= 3;
+      const podiumFired = (coach.podiumMissStreak || 0) >= limit;
 
       // The player CAN now be let go (user request). Their dynasty doesn't end
       // — a rebuilding program gives them a fresh start next offseason — but a
       // sustained failure to meet expectations costs them the job, with clear,
       // escalating warnings so they always know exactly where they stand.
       if (coach.isPlayer) {
-        if (coach.hotSeatYears >= 3 || podiumFired) {
+        if (coach.hotSeatYears >= limit || podiumFired) {
           gameState.career.pendingFiring = { fromId: school.id, year: gameState.year };
           coach.hotSeatYears = 0;
           coach.podiumMissStreak = 0;
           gameState.logNews(`🔥 FIRED: ${school.name} has let you go after too many seasons short of expectations. Your career continues — a program will give you a fresh start next offseason. (Land your own job from the carousel before the season turns to choose where you go.)`);
           if (window.XCD.engine.Events) window.XCD.engine.Events.emit(gameState, 'career:fired', { schoolId: school.id });
         } else if (onHotSeat) {
-          const yrsLeft = Math.max(0, 3 - coach.hotSeatYears);
-          if (window.XCD.engine.Events) window.XCD.engine.Events.emit(gameState, 'career:hotSeat', { year: coach.hotSeatYears, of: 3 });
-          gameState.logNews(`🔥 HOT SEAT (Year ${coach.hotSeatYears} of 3): ${school.name} expected more. ${yrsLeft} more season${yrsLeft === 1 ? '' : 's'} on the Hot Seat and the job is gone.`);
+          const yrsLeft = Math.max(0, limit - coach.hotSeatYears);
+          if (window.XCD.engine.Events) window.XCD.engine.Events.emit(gameState, 'career:hotSeat', { year: coach.hotSeatYears, of: limit });
+          gameState.logNews(`🔥 HOT SEAT (Year ${coach.hotSeatYears} of ${limit}): ${school.name} expected more. ${yrsLeft} more season${yrsLeft === 1 ? '' : 's'} on the Hot Seat and the job is gone.`);
         } else if (coach.hotSeat >= 34) {
           gameState.logNews(`🟠 Warm seat: results are trailing expectations at ${school.name}. Boosters are restless.`);
         }

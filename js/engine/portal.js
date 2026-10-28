@@ -589,6 +589,14 @@
     });
 
     gameState.portal = { year: gameState.year, entries, open: true };
+    const mineIn = entries.filter((e) => e.fromSchoolId === gameState.playerSchoolId);
+    if (window.XCD.engine.Events) {
+      window.XCD.engine.Events.emit(gameState, 'portal:opened', {
+        count: entries.length,
+        mine: mineIn.map((e) => (gameState.world.athletes[e.athleteId] || {}).fullName).filter(Boolean).slice(0, 6),
+        mineCount: mineIn.length
+      });
+    }
     // The player's transfer-points budget for this window (Update 15).
     const pp = ensurePlayerPoints(gameState);
     if (pp && pp.titleBonus) {

@@ -5,13 +5,16 @@ lists features and optimizations for later. This page covers the plumbing that
 shipped first, so those features can be built without touching the save format
 or the weekly loop again.
 
-Everything here is **behavior-neutral**: settings default to "no change", nothing
-renders the Inbox yet, and no button calls the sim runner. A dynasty plays exactly
-as before. `tests/test-groundwork.js` covers every piece.
+This plumbing shipped first and is now wired into the game (v14.4): the ⚙️
+Settings screen edits the settings and the engine reads every difficulty slider,
+the 📥 Inbox screen renders the inbox, and the ⏩ Sim to… menu calls the sim
+runner. At default settings a dynasty plays exactly as before.
+`tests/test-groundwork.js` covers the plumbing and `tests/test-roadmap-features.js`
+the features built on it.
 
 | Module | Global | Feeds these roadmap items |
 |---|---|---|
-| `js/engine/settings.js` | `XCD.engine.Settings` | Difficulty sliders, God Mode, light theme, text size |
+| `js/engine/settings.js` | `XCD.engine.Settings` | Difficulty sliders, light theme, text size |
 | `js/engine/events.js` | `XCD.engine.Events`, `XCD.engine.Inbox` | Inbox, sim stop conditions, achievements, media moments |
 | `js/engine/sim.js` | `XCD.engine.Sim` | Sim to a date/event |
 | `js/engine/savemanager.js` (index) | — | Fast Load screen; split-record saves |
@@ -27,26 +30,29 @@ hand-edited or newer saves can't push a slider out of range.
 
 ```js
 const S = XCD.engine.Settings;
-S.get(game, 'godMode');          // false
+S.get(game, 'theme');            // 'dark'
 S.mult(game, 'injuryRate');      // 1 (sliders are multipliers; 1 = today's balance)
 S.set(game, 'injuryRate', 1.5);  // clamped + snapped to the slider step
 S.isDefault(game);               // false
 ```
 
-**To wire a difficulty slider**, multiply the existing number at its hook point.
-At the default of 1.0 the result is identical to today:
+Every difficulty slider is wired. At the default of 1.0 the result is identical
+to before:
 
-| Setting | Hook point |
+| Setting | Where the engine reads it |
 |---|---|
-| `injuryRate` | the injury chance in `rollInjury` (`js/engine/training.js`) |
-| `hotSeatPatience` | divide the hot-seat gain and lengthen the podium streak in `coachFirings` (`js/engine/awards.js`) and `evaluate` (`js/engine/predictions.js`) |
-| `recruitingCompetition` | CPU recruiting effort in `Recruiting.processWeek` (`js/engine/recruiting.js`) |
-| `cpuDevelopment` | CPU athletes' dev points in `devPoints` (`js/engine/training.js`) |
-| `prestigeVolatility` | the yearly `delta` in `Prestige.yearlyUpdate` (`js/engine/prestige.js`) |
+| `injuryRate` | scales the whole injury chance in `rollInjury` (`js/engine/training.js`); 0 = no injuries. The roll is always drawn so the RNG stream is unchanged |
+| `hotSeatPatience` | divides the player's hot-seat gain and podium pressure, and sets the firing clock via `Settings.hotSeatLimit` (2–6 seasons) in `coachFirings` (`js/engine/awards.js`) |
+| `recruitingCompetition` | CPU staffs' weekly recruiting points in `makeEcon` (`js/engine/recruiting.js`) |
+| `cpuDevelopment` | CPU athletes' weekly dev points (`processAthlete`) and summer growth (`offseasonDevelopment`) in `js/engine/training.js` |
+| `prestigeVolatility` | the yearly `delta` (and its clamp) in `Prestige.yearlyUpdate` (`js/engine/prestige.js`) |
+
+`Settings.PRESETS` (rookie / normal / veteran / legend) and `Settings.applyPreset`
+/ `currentPreset` drive the preset buttons. Display settings are applied by
+`UI.applyDisplaySettings` (`data-theme` on `<html>`, `--ui-zoom` for text size).
 
 **To add a setting**, append to `SCHEMA`. Old saves pick up the default automatically.
-**A settings screen** can render straight from `SCHEMA`: `label`, `min`/`max`/`step`,
-`options` and `group` (`difficulty` / `sandbox` / `display`) are all there.
+The settings screen (`js/ui/screens/settings.js`) renders straight from `SCHEMA`.
 
 ## Events and the Inbox
 
@@ -74,6 +80,12 @@ Events emitted today:
 | `jobs:marketOpened` | `count, hot` | `Careers.generateOffers` |
 | `career:hotSeat` | `year, of` | `Awards.coachFirings` (player) |
 | `career:fired` | `schoolId` | `Awards.coachFirings` (player) |
+| `staff:assistantLeft` | `name, school, kind` | `careers.js` (player's staff) |
+| `recruit:decommitted` | `recruitId, name, stars, to` | `recruiting.js` (from the player) |
+| `recruit:signingDay` | `offered` | `advanceWeek`, at the start of Signing Day week |
+| `portal:opened` | `count, mine, mineCount` | `portal.js` |
+| `nationals:selection` | `M, W` (bid status) | `races.js`, when the field is set |
+| `jobs:newOpening` | `schoolId, name, division` | `Careers.evolveJobMarket` |
 
 **To emit a new event**, call `Events.emit` next to the matching `logNews`. Keep
 payloads small, plain and id-based: they are saved.
@@ -82,7 +94,9 @@ payloads small, plain and id-based: they are saved.
 through `Events.INBOX_RULES`. Each rule maps an event to
 `{ priority 1–3, title, body, screen }`. Use `Inbox.items / unread / markRead /
 markAllRead / push`. A future Inbox screen lists `Inbox.items(game)` and navigates
-to `item.screen`. A Dashboard badge is `Inbox.unread(game).length`.
+to `item.screen` (`'screen'`, `'screen:tab'`, or `'jobs'` for the Available Jobs
+picker). The Inbox screen (`js/ui/screens/inbox.js`) adds live decisions from
+`UI.inboxDecisions(game)` on top. A new season marks last season's items read.
 
 **Achievements** would be an `Events.on('*')` subscriber that checks a catalog
 against the event plus game state, the same shape as the empty `Store` catalog.
@@ -105,10 +119,11 @@ XCD.engine.Sim.advanceUntil(game, 'regionals', {
   `Sim.defaultStopWhen` applies: a 4+ week injury on your roster, the job market
   opening, or a firing. Short injuries happen about once a week and don't interrupt.
 
-**To build the menu**: a dropdown of `Sim.TARGETS` (each has a `label`). On select,
-call `advanceUntil`, then autosave and `renderShell()` once. If `reason === 'event'`,
-show `events[0]` (or open the Inbox). The ⏩ Sim to Race button could later become
-`advanceUntil(game, 'nextRace')` plus one more advance to run the race.
+**The menu** (`js/ui/simmenu.js`) lists `Sim.TARGETS` with `Sim.describeTarget`
+(week, weeks away, or why it's unavailable) and calls `UI.simTo(game, target)`, which
+runs `advanceUntil`, autosaves, and shows the Sim Report. The ⏩ Sim to Race button is
+`UI.simTo(game, 'nextRace', { runRace: true })`: it stops only for the job market or a
+firing. Default stops now also include `staff:assistantLeft`.
 
 ## Save index
 

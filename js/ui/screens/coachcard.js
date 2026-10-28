@@ -65,9 +65,11 @@
             // Hot Seat counter (Update 13): three consecutive Hot Seat seasons
             // and the job is gone — surface the clock so it's never a surprise.
             const yrs = coach.hotSeatYears || 0;
+            const S = window.XCD.engine.Settings;
+            const limit = coach.isPlayer && S ? S.hotSeatLimit(UI.state.game) : 3;
             const clock = (st.key === 'hot' && yrs >= 1)
-              ? ` <span style="color:var(--danger); font-weight:600;">— Year ${yrs} of 3</span>` : '';
-            return `<div class="sub" title="${st.desc} Three straight seasons on the Hot Seat ends the tenure.">Job security: <span style="color:${color}; font-weight:600;">${st.icon} ${st.label}</span>${clock}</div>`;
+              ? ` <span style="color:var(--danger); font-weight:600;">— Year ${yrs} of ${limit}</span>` : '';
+            return `<div class="sub" title="${st.desc} ${limit} straight seasons on the Hot Seat ends the tenure.">Job security: <span style="color:${color}; font-weight:600;">${st.icon} ${st.label}</span>${clock}</div>`;
           })() : ''}
         </div>
         <div style="text-align:right;">

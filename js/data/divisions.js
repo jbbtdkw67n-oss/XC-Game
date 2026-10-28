@@ -41,7 +41,13 @@
         nationalsFieldSize: 31,
         autoQualifiersPerRegional: 2,
         atLargeTeams: 13,
+        // Individuals (real NCAA DI): from each of the 9 regionals, the first
+        // 4 finishers whose teams did not qualify advance — each must place
+        // in the regional's top 25 — plus 2 national at-large individuals,
+        // the highest regional placers who missed that cut. 38 in all.
         individualQualifiersPerRegional: 4,
+        individualTopCutoff: 25,
+        individualAtLarge: 2,
         allAmericans: 40,
         allConference: 14,
         nationalsDistanceM: { M: 10000, W: 6000 }
