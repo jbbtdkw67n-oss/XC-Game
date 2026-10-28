@@ -508,6 +508,11 @@
             const idx = D_ORDER.indexOf(athlete.classYear);
             // Five seasons run Freshman → Graduate (class index 0 → 4).
             athlete.classYear = D_ORDER[Math.min(idx + 1, 4)];
+            // Leaders are made over a career: every returner grows a little,
+            // and a captain grows into the role fastest.
+            const wasCaptain = school.id === this.playerSchoolId && this.culture &&
+              (this.culture.captains[rosterKey === 'rosterM' ? 'M' : 'W'] || []).includes(athId);
+            athlete.leadership = Utils.clamp((athlete.leadership ?? 50) + rng.int(1, 4) + (wasCaptain ? 3 : 0), 0, 99);
             athlete.eligibilityRemaining = Math.max(0, athlete.eligibilityRemaining - 1);
             survivors.push(athId);
           });

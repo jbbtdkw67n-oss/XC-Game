@@ -15,6 +15,9 @@
     alumniCenter: ['Alumni Center', 'Fundraising: bigger booster pushes and a faster-refilling facilities fund, scaled by program success and school size.'],
     travel: ['Travel Program', 'Travel budget: a bigger program means a bigger hard travel budget every season — more meets, farther away. Upgrades apply to this season too.']
   };
+  const FACILITY_ICONS = {
+    trainingCenter: '🏟', weightRoom: '🏋️', rehabCenter: '🩺', indoorTrack: '🏃', alumniCenter: '🎓', travel: '🚌'
+  };
   const facilityLevel = (school, key) => key === 'travel'
     ? window.XCD.engine.MeetCalendar.travelRating(school) : school.facilities[key];
 
@@ -750,126 +753,143 @@
           <div style="color:var(--text-dim); font-size:13px;">Training at elevation builds bigger aerobic engines — a steady lift to <strong>Stamina</strong> and <strong>Lactate Threshold</strong>. The tradeoff: the thin air taxes recovery, so athletes fatigue faster and workload must be managed more carefully.</div>
         </div>` : ''}
 
-      ${UI.sectionLabel('Staff & Facilities')}
-      <div class="grid cols-2">
-        <div class="card">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-            <h2 style="margin:0;">${UI.avatar(coach, { size: 30, outfit: 'suit' })} ${coach.role === 'Assistant' ? 'Assistant Coach' : 'Head Coach'} — ${Utils.escapeHtml(coach.fullName)}</h2>
-            <div style="display:flex; gap:6px;">
-              ${window.XCD.engine.Careers.canRetire(game) ? '<button class="btn small" id="btn-retire-coach" title="Retire this coach — the dynasty continues with a successor you create">🏁 Retire</button>' : ''}
-              <button class="btn small" id="btn-coach-profile">Full Profile</button>
+      ${UI.sectionLabel('Coaching Staff')}
+      ${(() => {
+        // Staff cards: you and your counterpart, side by side.
+        const partnerId = coach.role === 'Assistant' ? school.coachId : school.assistantId;
+        const partner = partnerId && partnerId !== coach.id ? game.getCoach(partnerId) : null;
+        const isHead = coach.role !== 'Assistant';
+        const card = (c, role, you, actions) => `
+          <div class="staff-card ${you ? 'you' : ''}">
+            <div class="staff-top">
+              ${UI.avatar(c, { size: 52, outfit: 'suit' })}
+              <div class="staff-id">
+                <div class="staff-role">${role}${you ? ' · You' : ''}${c.interim ? ' · <span style="color:var(--warning);">Interim</span>' : ''}</div>
+                <div class="staff-name ${you ? '' : 'clickable'}" ${you ? '' : 'id="btn-partner-coach"'}>${Utils.escapeHtml(c.fullName)}</div>
+                <div class="staff-sub">${Utils.escapeHtml(c.archetype || '')} · Age ${c.age} · Year ${(c.yearsAtSchool || 0) + 1}</div>
+              </div>
+              <div class="staff-ovr">${UI.ratingBadge(c.overallRating)}<span>OVR</span></div>
             </div>
+            ${actions ? `<div class="staff-actions">${actions}</div>` : ''}
+          </div>`;
+        const mine = card(coach, isHead ? 'Head Coach' : 'Assistant Coach', true, [
+          '<button class="btn small" id="btn-coach-profile">Full Profile</button>',
+          window.XCD.engine.Careers.canRetire(game) ? '<button class="btn small" id="btn-retire-coach" title="Retire this coach — the dynasty continues with a successor you create">🏁 Retire</button>' : ''
+        ].join(''));
+        // A head coach must ALWAYS be able to reach the staff panel — even
+        // when the seat is empty — so a departed coordinator can never leave
+        // the program stuck without an assistant (which blocks the season).
+        const other = partner
+          ? card(partner, partner.role === 'Assistant' ? 'Assistant Coach' : 'Head Coach', false,
+              isHead ? '<button class="btn small" id="btn-manage-staff" title="Compare assistant candidates and reshape your staff">Manage Staff</button>' : '')
+          : (isHead ? `
+            <div class="staff-card vacant">
+              <div class="staff-role">Assistant Coach</div>
+              <div class="staff-name" style="color:var(--warning);">⚠️ Vacant</div>
+              <div class="staff-sub">Hire a coordinator — recruiting, development and chemistry all lean on the staff.</div>
+              <div class="staff-actions"><button class="btn small primary" id="btn-manage-staff" title="Hire an assistant from the candidate pool">Hire Assistant</button></div>
+            </div>` : '');
+        return `<div class="staff-grid">${mine}${other}</div>`;
+      })()}
+
+      <div class="grid cols-2" style="margin-top:16px;">
+        <div class="card">
+          <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
+            <h2 style="margin:0;">Your Ratings</h2>
+            <span class="pts-pill ${coach.upgradePoints ? 'has' : ''}" title="Dynasty Points — earned through success. Spend on coach ratings below, or on facility upgrades.">🏆 ${coach.upgradePoints || 0} dynasty point${coach.upgradePoints === 1 ? '' : 's'}</span>
           </div>
-          <div style="color:var(--text-dim); font-size:13px; margin:6px 0;">
-            Age ${coach.age} • ${Utils.escapeHtml(coach.archetype || '')} • Year ${coach.yearsAtSchool + 1} at ${Utils.escapeHtml(school.name)} • Overall ${coach.overallRating}
+          <div class="rep-line" title="National reputation — separate from school prestige. Feeds recruiting, the portal, and job offers.">
+            <span>${repLevel.icon} <strong>${repLevel.label}</strong></span>
+            <span class="rep-num">${Math.round(coach.reputation || 0)}<small>/99 reputation</small></span>
           </div>
-          ${(() => {
-            // Show the counterpart on the staff: the head coach you serve under
-            // as an assistant, or your recruiting coordinator as a head coach.
-            const partnerId = coach.role === 'Assistant' ? school.coachId : school.assistantId;
-            const partner = partnerId && partnerId !== coach.id ? game.getCoach(partnerId) : null;
-            const isHead = coach.role !== 'Assistant';
-            // Assistant-coach vacancy fix: a head coach must ALWAYS be able to
-            // reach the staff panel — even when the seat is empty — so a
-            // departed coordinator can never leave the program permanently
-            // stuck without an assistant (which would block the season).
-            if (!partner) {
-              if (!isHead) return '';
-              return `<div style="font-size:12.5px; margin:0 0 10px; color:var(--warning);">
-                ⚠️ Assistant Coach: <strong>Vacant</strong>
-                <button class="btn small primary" id="btn-manage-staff" style="margin-left:6px;" title="Hire an assistant from the candidate pool">Hire Assistant</button>
-              </div>`;
-            }
-            const partnerRole = partner.role === 'Assistant' ? 'Assistant Coach' : 'Head Coach';
-            return `<div style="font-size:12.5px; margin:0 0 10px;">
-              ${partnerRole}: <span class="clickable" id="btn-partner-coach" style="cursor:pointer; color:var(--accent-hover);">${UI.avatar(partner, { size: 22, outfit: 'suit' })} ${Utils.escapeHtml(partner.fullName)}</span>
-              <span style="color:var(--text-faint);"> • ${Utils.escapeHtml(partner.archetype || '')} • Overall ${partner.overallRating}${partner.interim ? ' • <span style="color:var(--warning);">interim</span>' : ''}</span>
-              ${isHead ? ' <button class="btn small" id="btn-manage-staff" style="margin-left:6px;" title="Compare assistant candidates and reshape your staff">Manage Staff</button>' : ''}
-            </div>`;
-          })()}
-          <div style="font-size:12.5px; margin-bottom:12px;">
-            <span title="National reputation — separate from school prestige. Feeds recruiting, the portal, and job offers.">${repLevel.icon} <strong>${repLevel.label}</strong> (${Math.round(coach.reputation || 0)}/99)</span>
-            ${tendencies.length ? `<span style="color:var(--text-dim);"> • ${tendencies.join(' • ')}</span>` : ''}
-            <span style="color:var(--text-dim);"> • ${coach.careerRecord.teamWins || 0} career team win${coach.careerRecord.teamWins === 1 ? '' : 's'}</span>
-          </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <span style="font-size:13px;" title="Dynasty Points — earned through success. Spend on coach ratings below, or on facility upgrades.">🏆 Dynasty Points: <strong style="color:${coach.upgradePoints ? 'var(--gold)' : 'var(--text-dim)'};">${coach.upgradePoints || 0}</strong></span>
-            <span style="font-size:11.5px; color:var(--text-faint);">1 pt = +1 rating · ${window.XCD.engine.Finances.FACILITY_POINT_COST} pts = a facility upgrade</span>
-          </div>
+          ${tendencies.length || coach.careerRecord ? `<div class="chip-row">${tendencies.map((t) => `<span class="soft-chip">${Utils.escapeHtml(t)}</span>`).join('')}<span class="soft-chip">${coach.careerRecord.teamWins || 0} career team win${coach.careerRecord.teamWins === 1 ? '' : 's'}</span></div>` : ''}
+          <div class="rating-list">
           ${COACH_ATTRS.map(([key, label, hint]) => `
-            <div class="attr-row" style="margin-bottom:6px;" title="${hint}">
-              <span class="attr-name" style="min-width:90px;">${label}</span>
-              <div style="flex:1; margin:0 10px;">${UI.meter(coach[key])}</div>
+            <div class="rating-row" title="${hint}">
+              <span class="rating-name">${label}</span>
+              <div class="rating-bar">${UI.meter(coach[key])}</div>
               ${UI.ratingBadge(coach[key])}
-              <button class="btn small" data-coach-upg="${key}" style="margin-left:8px;"
+              <button class="btn small" data-coach-upg="${key}"
                 ${(coach.upgradePoints || 0) > 0 && coach[key] < 99 ? '' : `disabled title="${coach[key] >= 99 ? 'Maxed out' : 'Earn dynasty points via titles, All-Americans, top classes, and beating expectations'}"`}>+1</button>
             </div>`).join('')}
-          <div style="font-size:12px; color:var(--text-faint); margin-top:6px;">
-            Earn dynasty points with conference/regional/national titles, individual champions,
-            All-Americans, top-10 recruiting classes, and beating preseason expectations. Spend them
-            on these ratings or on facility upgrades (right).
           </div>
+          <div class="fine-print">
+            1 point = +1 rating · ${window.XCD.engine.Finances.FACILITY_POINT_COST} points = a facility upgrade. Earn them with titles, individual
+            champions, All-Americans, top-10 recruiting classes, and beating preseason expectations.
+          </div>
+        </div>
+
+        <div class="card">
           ${(() => {
             const D = window.XCD.data;
             const tp = D.trainingPhilosophy(coach.trainingPhilosophy);
             const rp = D.racePhilosophy(coach.racePhilosophy);
-            // Choice buttons for a philosophy list, shown ABOVE its strengths
-            // and weaknesses so the trade-offs read as "what you just picked".
+            // Choice pills shown ABOVE their strengths and weaknesses so the
+            // trade-offs read as "what you just picked".
             const choices = (list, current, attr) => `
-              <div style="display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px;">
+              <div class="philo-choices">
                 ${list.map((x) => `
                   <button class="btn small ${current === x.key ? 'primary' : ''}" ${attr}="${x.key}"
                     title="${[x.desc].concat((x.pros || []).map((t) => '+ ' + t), (x.cons || []).map((t) => '− ' + t)).join('\n').replace(/&amp;/g, '&').replace(/"/g, '&quot;')}">${x.icon} ${x.label}</button>`).join('')}
               </div>`;
             return `
-            <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
-              <div style="font-size:12.5px;"><strong>${tp.icon} Training Philosophy:</strong> ${tp.label}
-                <span style="color:var(--text-faint);"> • scales with your Training rating (${coach.training})</span></div>
-              <div style="font-size:12px; color:var(--text-dim); margin:3px 0 8px;">${tp.desc}</div>
+              <h2 style="margin:0 0 10px;">Philosophy</h2>
+              <div class="philo-head"><span class="philo-kicker">Training</span><strong>${tp.icon} ${tp.label}</strong><span class="philo-note">scales with Training (${coach.training})</span></div>
+              <div class="philo-desc">${tp.desc}</div>
               ${choices(D.TRAINING_PHILOSOPHIES, coach.trainingPhilosophy, 'data-train-philo')}
               ${UI.philosophyTradeoffs(tp)}
-              <div style="font-size:12.5px; margin:14px 0 5px;"><strong>${rp.icon} Race Philosophy:</strong> ${rp.label}</div>
-              <div style="font-size:12px; color:var(--text-dim); margin-bottom:8px;">${rp.desc}</div>
+              <div class="philo-head" style="margin-top:16px;"><span class="philo-kicker">Race</span><strong>${rp.icon} ${rp.label}</strong></div>
+              <div class="philo-desc">${rp.desc}</div>
               ${choices(D.RACE_PHILOSOPHIES, coach.racePhilosophy, 'data-race-philo')}
-              ${UI.philosophyTradeoffs(rp)}
-            </div>`;
+              ${UI.philosophyTradeoffs(rp)}`;
           })()}
-        </div>
-
-        <div class="card">
-          <h2>Facilities — Overall ${school.facilitiesOverall}</h2>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <span style="font-size:13px; color:var(--text-dim);">Facilities Fund: <strong style="color:var(--text);">$${school.budget.facilitiesFund.toLocaleString()}</strong></span>
-            <button class="btn small primary" id="btn-fundraise" ${game.fundraisedYear === game.year ? 'disabled title="Boosters already gave this year"' : ''}>💰 Fundraise</button>
-          </div>
-          ${(() => {
-            const ptCost = window.XCD.engine.Finances.FACILITY_POINT_COST;
-            const pts = coach.upgradePoints || 0;
-            return Object.entries(FACILITY_LABELS).map(([key, [label, effect]]) => {
-              const level = facilityLevel(school, key);
-              const cost = window.XCD.engine.Finances.upgradeCost(level);
-              const afford = school.budget.facilitiesFund >= cost && level < 99;
-              const canPts = pts >= ptCost && level < 99;
-              return `
-              <div class="attr-row" style="margin-bottom:6px;" title="${effect}">
-                <span class="attr-name" style="min-width:110px; cursor:help;">${label}</span>
-                <div style="flex:1; margin:0 8px;">${UI.meter(level)}</div>
-                <span style="font-weight:700; font-size:12.5px; min-width:22px;">${level}</span>
-                <button class="btn small" data-upg="${key}" ${afford ? '' : `disabled title="${level >= 99 ? 'World-class' : 'Costs $' + cost.toLocaleString()}"`}
-                  style="margin-left:8px;" title="Upgrade +${window.XCD.engine.Finances.UPGRADE_STEP} for $${cost.toLocaleString()} — ${effect}">▲ $${Math.round(cost / 1000)}k</button>
-                <button class="btn small" data-upg-pts="${key}" ${canPts ? '' : `disabled title="${level >= 99 ? 'World-class' : 'Needs ' + ptCost + ' dynasty points'}"`}
-                  style="margin-left:4px;" title="Upgrade +${window.XCD.engine.Finances.UPGRADE_STEP} for ${ptCost} dynasty points — ${effect}">▲ ${ptCost}🏆</button>
-              </div>`;
-            }).join('');
-          })()}
-          <div style="font-size:12px; color:var(--text-faint); margin-top:6px;">
-            Upgrade with booster money (<strong>$</strong>) or with <strong>🏆 dynasty points</strong> — your choice.
-            Every facility has a real training implication (hover a name). Fundraising scales with
-            program success and school size (${window.XCD.engine.Finances.schoolSizeLabel(school).toLowerCase()}),
-            amplified by the Alumni Center. The fund also refills yearly — faster when you win.
-          </div>
         </div>
       </div>
+
+      ${UI.sectionLabel('Facilities')}
+      ${(() => {
+        const F = window.XCD.engine.Finances;
+        const ptCost = F.FACILITY_POINT_COST;
+        const pts = coach.upgradePoints || 0;
+        const tiles = Object.entries(FACILITY_LABELS).map(([key, [label, effect]]) => {
+          const level = facilityLevel(school, key);
+          const cost = F.upgradeCost(level);
+          const afford = school.budget.facilitiesFund >= cost && level < 99;
+          const canPts = pts >= ptCost && level < 99;
+          const extra = key === 'travel' ? `<div class="fac-extra">This season: <strong>$${(school.budget.travel || 0).toLocaleString()}</strong> travel budget</div>` : '';
+          return `
+            <div class="fac-tile">
+              <div class="fac-head">
+                <span class="fac-icon">${FACILITY_ICONS[key] || '🏛'}</span>
+                <span class="fac-name">${label}</span>
+                <span class="fac-level ${level >= 85 ? 'elite' : level >= 65 ? 'good' : level >= 45 ? 'avg' : 'low'}">${level}</span>
+              </div>
+              ${UI.meter(level, level >= 65 ? 'green' : level >= 45 ? '' : 'yellow')}
+              <div class="fac-effect">${effect}</div>
+              ${extra}
+              <div class="fac-actions">
+                <button class="btn small" data-upg="${key}" ${afford ? '' : `disabled title="${level >= 99 ? 'World-class' : 'Costs $' + cost.toLocaleString()}"`}
+                  title="Upgrade +${F.UPGRADE_STEP} for $${cost.toLocaleString()}">▲ $${Math.round(cost / 1000)}k</button>
+                <button class="btn small" data-upg-pts="${key}" ${canPts ? '' : `disabled title="${level >= 99 ? 'World-class' : 'Needs ' + ptCost + ' dynasty points'}"`}
+                  title="Upgrade +${F.UPGRADE_STEP} for ${ptCost} dynasty points">▲ ${ptCost} 🏆</button>
+              </div>
+            </div>`;
+        }).join('');
+        return `
+          <div class="grid cols-3" style="margin-bottom:12px;">
+            <div class="stat-tile"><div class="label">Facilities Overall</div><div class="value">${school.facilitiesOverall}</div><div class="sub">${Utils.ratingGrade(school.facilitiesOverall)} · ${F.schoolSizeLabel(school)}</div></div>
+            <div class="stat-tile"><div class="label">Facilities Fund</div><div class="value">$${Math.round(school.budget.facilitiesFund / 1000)}k</div><div class="sub">$${school.budget.facilitiesFund.toLocaleString()} to spend</div></div>
+            <div class="stat-tile fund-tile"><div class="label">Boosters</div>
+              <button class="btn primary" id="btn-fundraise" ${game.fundraisedYear === game.year ? 'disabled title="Boosters already gave this year"' : ''}>💰 ${game.fundraisedYear === game.year ? 'Given this year' : 'Fundraise'}</button>
+              <div class="sub">Once a year · scales with success</div></div>
+          </div>
+          <div class="fac-grid">${tiles}</div>
+          <div class="fine-print" style="margin-top:8px;">
+            Upgrade with booster money (<strong>$</strong>) or <strong>🏆 dynasty points</strong> — your choice; each step is +${F.UPGRADE_STEP}.
+            Every facility has a real training implication. Fundraising scales with program success and school size
+            (${F.schoolSizeLabel(school).toLowerCase()}), amplified by the Alumni Center, and the fund refills yearly — faster when you win.
+          </div>`;
+      })()}
 
       ${UI.sectionLabel('Budget & History')}
       <div class="grid cols-2">

@@ -2103,3 +2103,63 @@ html[data-theme="light"] .card { box-shadow: var(--shadow-card); }
   .sb-meet-head { flex-direction: column; }
   .sb-meet-act { text-align: left; }
 }
+
+/* Roster: captain leadership summary */
+.lead-card { display: flex; gap: 12px; align-items: center; padding: 10px 14px; }
+.lead-score { flex: none; width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; font-weight: 800; font-size: 18px; background: var(--bg-inset); border: 1px solid var(--border); }
+.lead-score.strong { color: var(--success); border-color: rgba(52, 201, 142, 0.45); }
+.lead-score.ok { color: var(--warning); }
+.lead-score.weak { color: var(--text-dim); }
+.lead-title { font-weight: 700; font-size: 13.5px; }
+.lead-sub { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+
+/* ---------- My Program: staff & facilities ---------- */
+.staff-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.staff-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow-card); }
+.staff-card.you { border-color: rgba(61, 139, 253, 0.45); }
+.staff-card.vacant { border-style: dashed; }
+.staff-top { display: flex; gap: 12px; align-items: center; }
+.staff-id { flex: 1; min-width: 0; }
+.staff-role { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
+.staff-name { font-size: 17px; font-weight: 700; margin-top: 2px; }
+.staff-name.clickable { color: var(--accent-hover); cursor: pointer; }
+.staff-sub { font-size: 12.5px; color: var(--text-dim); margin-top: 2px; }
+.staff-ovr { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.staff-ovr span { font-size: 10px; color: var(--text-faint); font-weight: 700; letter-spacing: 0.06em; }
+.staff-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.pts-pill { font-size: 12.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--bg-inset); border: 1px solid var(--border); color: var(--text-dim); white-space: nowrap; }
+.pts-pill.has { color: var(--gold); border-color: rgba(212, 160, 23, 0.45); }
+.rep-line { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; padding: 8px 10px; border-radius: 10px; background: var(--bg-inset); margin-bottom: 8px; }
+.rep-num { font-weight: 800; font-size: 16px; }
+.rep-num small { font-size: 11px; color: var(--text-faint); font-weight: 500; margin-left: 2px; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.soft-chip { font-size: 11.5px; padding: 3px 9px; border-radius: 999px; background: var(--bg-inset); border: 1px solid var(--border); color: var(--text-dim); }
+.rating-list { display: flex; flex-direction: column; gap: 6px; }
+.rating-row { display: grid; grid-template-columns: 96px 1fr auto auto; gap: 10px; align-items: center; }
+.rating-name { font-size: 13px; color: var(--text-dim); }
+.fine-print { font-size: 12px; color: var(--text-faint); margin-top: 10px; line-height: 1.5; }
+.philo-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 13.5px; }
+.philo-kicker { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
+.philo-note { font-size: 11.5px; color: var(--text-faint); }
+.philo-desc { font-size: 12.5px; color: var(--text-dim); margin: 4px 0 8px; line-height: 1.45; }
+.philo-choices { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.fac-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.fac-tile { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: var(--shadow-card); }
+.fac-head { display: flex; align-items: center; gap: 8px; }
+.fac-icon { font-size: 18px; }
+.fac-name { flex: 1; font-weight: 700; font-size: 14px; }
+.fac-level { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.fac-level.elite { color: var(--success); }
+.fac-level.good { color: var(--accent-hover); }
+.fac-level.avg { color: var(--text); }
+.fac-level.low { color: var(--warning); }
+.fac-effect { font-size: 12px; color: var(--text-dim); line-height: 1.45; flex: 1; }
+.fac-extra { font-size: 12px; color: var(--text-dim); }
+.fac-actions { display: flex; gap: 6px; }
+.fac-actions .btn { flex: 1; }
+.fund-tile .btn { margin-top: 6px; width: 100%; }
+@media (max-width: 1000px) { .fac-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) {
+  .staff-grid, .fac-grid { grid-template-columns: 1fr; }
+  .rating-row { grid-template-columns: 80px 1fr auto auto; gap: 8px; }
+}

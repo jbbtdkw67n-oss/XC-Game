@@ -20,6 +20,18 @@
     const squadSize = activeGender === 'M' ? rl.M : rl.W;
     const cutMode = canManage && game.week === 1 && rl.limit !== Infinity && squadSize > rl.limit;
 
+    // Captain leadership (the squad's two captains, averaged) and what it buys.
+    const captIds = (game.culture && game.culture.captains[activeGender]) || [];
+    const capts = captIds.map((id) => game.getAthlete(id)).filter((a) => a && a.schoolId === school.id);
+    const lead = capts.length ? Math.round(capts.reduce((t, a) => t + (a.leadership || 0), 0) / capts.length) : null;
+    const leadPerks = lead == null ? 'Name up to two captains (juniors and older) — strong leaders lift the whole squad.'
+      : [
+        'Team chemistry',
+        lead > 65 ? `underclassmen develop faster (+${Math.round(Math.min(1, (lead - 65) / 30) * 10)}% freshmen)` : '',
+        lead >= 75 ? 'picks up struggling teammates' : '',
+        lead > 70 ? `race-day edge (bigger in the postseason)` : ''
+      ].filter(Boolean).join(' · ');
+
     container.innerHTML = `
       <div class="screen-header">
         ${UI.screenTitle('Roster', `${Utils.escapeHtml(game.getPlayerSchool().name)} · ${game.year} season`)}
@@ -29,6 +41,13 @@
             <button id="tab-w" class="${activeGender === 'W' ? 'active' : ''}">Women</button>
           </div>
           <input class="search-input" id="roster-search" placeholder="Search runners...">
+        </div>
+      </div>
+      <div class="card lead-card" style="margin-bottom:14px;">
+        <div class="lead-score ${lead >= 75 ? 'strong' : lead >= 60 ? 'ok' : 'weak'}">${lead == null ? '—' : lead}</div>
+        <div>
+          <div class="lead-title">Captain Leadership${capts.length ? ' — ' + capts.map((a) => Utils.escapeHtml(a.lastName)).join(' & ') : ''}</div>
+          <div class="lead-sub">${leadPerks}</div>
         </div>
       </div>
       ${cutMode ? `

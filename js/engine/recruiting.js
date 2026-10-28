@@ -261,7 +261,7 @@
       major: rng.choice(D.MAJORS),
 
       academics: rng.gaussianRange(62, 16, 25, 99),
-      leadership: rng.gaussianRange(45, 15, 15, 99),
+      leadership: rng.gaussianRange(57, 14, 20, 99),
       confidence: rng.gaussianRange(58, 15, 15, 99),
       consistency: rng.gaussianRange(55, 14, 15, 99),
       workEthic: rng.gaussianRange(62, 14, 20, 99),

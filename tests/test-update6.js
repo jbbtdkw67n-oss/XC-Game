@@ -105,8 +105,11 @@ async function run() {
       if (elite.filter((d) => window.XCD.data.WORKOUTS[d].hard).length <= 1) eliteTapers++;
     }
     // Elite staffs rehearse championships late in the regular season.
-    g.week = CAL.MEET_WEEKS[CAL.MEET_WEEKS.length - 2] - 1;
-    const eliteSharp = TE.aiPlan(g, mk(85, 85, 'elite-x'));
+    // (Real Schedules: an off week for the coach's own program.)
+    g.week = CAL.CONFERENCE_WEEK - 4;
+    const MC = window.XCD.engine.MeetCalendar;
+    const off = Object.values(g.world.schools).find((s) => !MC.schoolRacesWeek(g, s.id, g.week));
+    const eliteSharp = TE.aiPlan(g, Object.assign(mk(85, 85, 'elite-x'), { schoolId: off && off.id }));
     g.week = wk;
     return { poorHammers, eliteTapers, eliteUsesSim: eliteSharp.includes('racesim') };
   });

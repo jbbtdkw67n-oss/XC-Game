@@ -181,7 +181,7 @@
       major: rng.choice(D.MAJORS),
 
       academics: academicsBase,
-      leadership: rng.gaussianRange(classYear === 'Senior' || classYear === 'Graduate' ? 62 : 48, 15, 15, 99),
+      leadership: rng.gaussianRange(classYear === 'Senior' || classYear === 'Graduate' ? 72 : classYear === 'Junior' ? 66 : 60, 13, 20, 99),
       confidence: rng.gaussianRange(58, 15, 15, 99),
       consistency: rng.gaussianRange(58, 14, 15, 99),
       workEthic: rng.gaussianRange(62, 14, 20, 99),

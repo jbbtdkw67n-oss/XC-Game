@@ -669,6 +669,10 @@
       if (teamForm[schoolId]) total *= 1 + teamForm[schoolId];
       const chem = gameState.getSchool(schoolId)?.chemistry?.[gender];
       if (chem !== undefined) total *= 1 + (55 - chem) * 0.0002;
+      // A strong captain steadies the team on race day — a small edge that
+      // grows at championships (up to ~0.3%, ~0.45% in the postseason).
+      const capLead = gameState.getSchool(schoolId)?.captainLeadership?.[gender];
+      if (capLead > 70 && !individual) total *= 1 - Math.min(25, capLead - 70) * 0.00012 * (isChampMeet ? 1.5 : 1);
       const tactic = tacticFor(schoolId);
       // Day form: consistent runners have narrower swings. Even-pace and
       // pack-running staffs damp the swing further (steadier team scoring).

@@ -731,6 +731,31 @@
     return S ? S.mult(gameState, key) : 1;
   }
 
+  // Why a CPU program's injury is news to the player (or null if it isn't).
+  function notableInjury(gameState, athlete, school) {
+    const r = gameState.rankings;
+    if (!r) return null;
+    const g = athlete.gender === 'W' ? 'W' : 'M';
+    const div = school.division || 'DI';
+    const short = (D.DIVISION_SHORT || {})[div] || div;
+    const mine = gameState.getPlayerSchool && gameState.getPlayerSchool();
+    const rival = !!(mine && mine.conference === school.conference);
+    // Only the player's own division (and conference rivals) — not every
+    // ranked program in the country.
+    if (!rival && mine && (mine.division || 'DI') !== div) return null;
+    const indiv = (r.individuals && r.individuals[g] || []).find((x) => x.athleteId === athlete.id);
+    if (indiv && indiv.rank <= 25) return `#${indiv.rank} ${short} individual`;
+    const team = (r[g] || []).find((x) => x.schoolId === school.id);
+    const roster = (g === 'M' ? school.rosterM : school.rosterW)
+      .map((id) => gameState.world.athletes[id]).filter(Boolean)
+      .sort((a, b) => b.currentOverall - a.currentOverall);
+    const slot = roster.findIndex((a) => a.id === athlete.id) + 1;
+    if (slot < 1 || slot > 3) return null;
+    if (team && team.rank <= 25) return `No. ${slot} runner for the #${team.rank} ${short} ${g === 'M' ? 'men' : 'women'}`;
+    if (rival) return `conference rival's No. ${slot} runner`;
+    return null;
+  }
+
   function rollInjury(athlete, school, planMeta, mMeta, rng, philoInjuryMult = 1, rateMult = 1) {
     // Rebalanced (Update 6, Phase 2). Injury risk is now driven far more
     // strongly by how much a runner is being pushed: severe fatigue,
@@ -1033,7 +1058,11 @@
     if (!isPlayerSchool) dev *= settingMult(gameState, 'cpuDevelopment');
     if (culture) {
       dev *= 0.88 + culture.chemistry / 450; // 0.88–1.10
-      if (athlete.classYear === 'Freshman' && culture.captainLeadership >= 75) dev *= 1.10;
+      // Strong captains bring the young runners along: underclassmen develop
+      // faster under a real leader (up to +10% for freshmen, +6% sophomores).
+      const lead = Math.max(0, (culture.captainLeadership || 0) - 65) / 30; // 0 at 65, 1 at 95
+      if (athlete.classYear === 'Freshman') dev *= 1 + Math.min(1, lead) * 0.10;
+      else if (athlete.classYear === 'Sophomore') dev *= 1 + Math.min(1, lead) * 0.06;
     }
     dev *= 0.94 + (school.teamMorale ?? 65) / 1100; // ~0.96–1.03 by team morale
     dev *= philo.devMult; // the coach's training philosophy, executed to skill
@@ -1160,6 +1189,12 @@
         gameState.logNews(`Injury: ${athlete.fullName} — ${injury.type}, out ~${injury.totalWeeks} week${injury.totalWeeks > 1 ? 's' : ''}.`);
         const Events = window.XCD.engine.Events;
         if (Events) Events.emit(gameState, 'athlete:injured', { athleteId: athlete.id, name: athlete.fullName, weeks: injury.totalWeeks, injury: injury.type });
+      } else if (injury.totalWeeks >= 2 && gameState.week <= CAL.NATIONAL_WEEK) {
+        // Around the league: injuries hit every program, and the ones that
+        // matter to the player — a ranked runner, a ranked team's front
+        // runner, a conference rival's best — make the news.
+        const note = notableInjury(gameState, athlete, school);
+        if (note) gameState.logNews(`🩹 ${school.name}: ${athlete.fullName} (${note}) — ${injury.type}, out ~${injury.totalWeeks} weeks.`);
       }
       // Permanent career ledger + long-term toll of repeated major injuries.
       recordCareerInjury(gameState, athlete, injury, isPlayerSchool);
@@ -1175,6 +1210,8 @@
     if (culture && athlete.morale < 62) {
       if (culture.asstMotivation >= 75) moraleShift += 1;
       else if (culture.asstMotivation <= 35 && rng.bool(0.5)) moraleShift -= 1;
+      // A strong captain picks teammates up when they're down.
+      if (culture.captainLeadership >= 75 && rng.bool(culture.captainLeadership >= 85 ? 0.8 : 0.5)) moraleShift += 1;
     }
     athlete.morale = Utils.clamp(athlete.morale + moraleShift, 0, 100);
 
@@ -1240,10 +1277,11 @@
       ? Math.round(Utils.average(captains.map((a) => a.leadership)))
       : 45;
 
+    // Strong captains carry real weight in the locker room.
     const chemistry = Math.round(Utils.clamp(
-      Utils.average(roster.map((a) => a.morale)) * 0.40 +
+      Utils.average(roster.map((a) => a.morale)) * 0.35 +
       Utils.average(roster.map((a) => a.workEthic ?? 60)) * 0.20 +
-      captainLeadership * 0.25 +
+      captainLeadership * 0.30 +
       (coach ? coach.culture : 50) * 0.15 +
       (asst ? (asst.culture - 55) * 0.06 : 0), // the assistant's locker-room touch
       0, 100));
@@ -1287,6 +1325,9 @@
         baseMeta.phaseFit = !!(phase.fit && phase.fit(baseMeta));
         const culture = squadCulture(gameState, school, gender, coach);
         school.chemistry[gender] = culture.chemistry;
+        // Captain leadership rides into race day (see Races.simulateRace).
+        school.captainLeadership = school.captainLeadership || {};
+        school.captainLeadership[gender] = culture.captainLeadership;
 
         roster.forEach((id) => {
           const athlete = gameState.world.athletes[id];
