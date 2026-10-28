@@ -15,7 +15,7 @@
   /*
    * The standard year — Update 2 (Part 5):
    *   Wk 1-3   Summer Training
-   *   Wk 4-12  Regular Season (meets 4/6/8/10/12 — one bye between each)
+   *   Wk 4-12  Regular Season (every program races its own 3-7 meet schedule)
    *   Wk 13    Conference · Wk 14 Regionals · Wk 15 Nationals (no byes)
    *   Wk 16-21 Offseason (awards, portal, signing day, development)
    * All numbers live in XCD.data.CALENDAR — nothing downstream hardcodes them.
@@ -687,7 +687,7 @@
       Object.values(obj.world.athletes).forEach((a) => { athletes[a.id] = new M.Athlete(a); });
       const recruits = {};
       Object.values(obj.world.recruits || {}).forEach((r) => { recruits[r.id] = new M.Recruit(r); });
-      gs.world = { schools, coaches, athletes, recruits, schoolOrder: obj.world.schoolOrder, seed: obj.world.seed };
+      gs.world = { schools, coaches, athletes, recruits, schoolOrder: obj.world.schoolOrder, seed: obj.world.seed, meetCalendar: obj.world.meetCalendar };
 
       // New real programs (e.g. the American Rivers Conference in Division
       // III) join older dynasties: any real school missing from the world is
@@ -820,10 +820,14 @@
       if (gs.week > WEEKS_PER_YEAR) gs.week = WEEKS_PER_YEAR;
       // A season built under a different calendar is rebuilt so every week
       // reference is valid (results already banked in history are kept).
-      if (!gs.season || gs.season.year !== gs.year ||
+      // A Week 1 save from before Real Schedules is rebuilt too: nothing has
+      // raced yet, so the new calendar and budgets apply this season.
+      const preCalendarWeek1 = gs.season && gs.week === 1 && !gs.season.calendarVersion;
+      if (!gs.season || gs.season.year !== gs.year || preCalendarWeek1 ||
           gs.season.nationalWeek !== window.XCD.engine.Races.NATIONAL_WEEK) {
         const seasonRng = new window.XCD.core.SeededRNG((gs.seed + gs.year * 977) >>> 0);
         window.XCD.engine.Races.newSeason(gs, seasonRng);
+        if (preCalendarWeek1 && gs.rankings) gs.capturePreseasonRanks();
       }
       if (!gs.rankings) window.XCD.engine.Rankings.compute(gs);
       if (!Object.keys(recruits).length) {

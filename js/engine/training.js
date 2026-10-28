@@ -80,6 +80,14 @@
   // Weeks in which meets run (invites + championship rounds).
   const MEET_WEEKS = new Set([...CAL.MEET_WEEKS, CAL.CONFERENCE_WEEK, CAL.REGIONAL_WEEK, CAL.NATIONAL_WEEK]);
 
+  // Does this coach's program race this week? Regular-season schedules are
+  // per program (Real Schedules), so the taper follows the team's own meets.
+  function racesThisWeek(gameState, coach) {
+    const MC = window.XCD.engine.MeetCalendar;
+    if (MC && coach && coach.schoolId && gameState.season) return MC.schoolRacesWeek(gameState, coach.schoolId, gameState.week);
+    return MEET_WEEKS.has(gameState.week);
+  }
+
   // AI weekly plans: the calendar picks the template, the coach's identity
   // nudges the emphasis.
   // AI templates now use scheduled rest days as a real tool (Update 3):
@@ -140,7 +148,7 @@
       if (avgFatigue >= 62 && craft >= 45) return AI_TEMPLATES.recovery.slice();
       return AI_TEMPLATES.taper.slice();
     }
-    if (MEET_WEEKS.has(week)) {
+    if (racesThisWeek(gameState, coach)) {
       // Conservative / development-minded staffs rest more before meets.
       const restful = coach && (coach.archetype === 'Developer' ||
         (coach.hasTendency && coach.hasTendency('conservative')));
@@ -173,7 +181,7 @@
     // week to absorb the work. Better staffs notice at a lower threshold.
     const recoveryTrigger = craft >= 65 ? 60 : craft >= 45 ? 66 : 76;
     if (avgFatigue >= recoveryTrigger) return AI_TEMPLATES.recovery.slice();
-    if (week >= CAL.MEET_WEEKS[Math.max(0, CAL.MEET_WEEKS.length - 2)] - 1) {
+    if (week >= CAL.CONFERENCE_WEEK - 4) { // the late-season sharpening block
       if (craft < 45) return (coachRoll(coach, week, 29) < 0.5 ? AI_TEMPLATES.sharpen : AI_TEMPLATES.build).slice();
       if (craft >= 65) return AI_TEMPLATES.sharpsim.slice();         // rehearses the championship
       return AI_TEMPLATES.sharpen.slice();
@@ -206,7 +214,7 @@
     // Championship taper: poor staffs still under-taper, but no longer march
     // into nationals at ~full volume (Update X CPU fitness buff).
     else if (week >= CAL.CONFERENCE_WEEK) m = Math.round(m * (craft < 45 ? 0.78 : 0.62));
-    else if (MEET_WEEKS.has(week)) m = Math.round(m * 0.85);         // race-week trim
+    else if (racesThisWeek(gameState, coach)) m = Math.round(m * 0.85); // race-week trim
     return Utils.clamp(m, D.MILEAGE.MIN, D.MILEAGE.MAX);
   }
 

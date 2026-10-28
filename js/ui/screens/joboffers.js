@@ -387,24 +387,26 @@
     if (!game.jobOffers || !openOffers(game).length) return false;
     game.jobOffers.popupSeen = true;
     game.jobPopupYear = game.year; // once per offseason, whatever happens to the board
-    UI.state.jobsAfterBroadcast = false;
     sortKey = 'prestige';
     selectedId = null;
     render(game);
     return true;
   };
 
-  // True when the one-time popup for this offseason is still owed.
+  // True when the one-time popup for this offseason is still owed. The market
+  // opens in the awards week (16), but the popup holds until the advance into
+  // Week 17 so the nationals results can be looked over first.
   UI.jobOffersPending = function (game) {
     if (!game || game.seasonPhase !== 'Offseason') return false;
+    if (game.week <= window.XCD.data.CALENDAR.AWARDS_WEEK) return false;
     if (game.jobPopupYear === game.year) return false;
     if (!game.jobOffers || game.jobOffers.popupSeen) return false;
     return openOffers(game).length > 0;
   };
 
   /*
-   * Show the picker ONCE per offseason: right after the national meet is
-   * simulated (the awards week, when the market opens). Turning the offers
+   * Show the picker ONCE per offseason: on the advance from the awards week
+   * (16, when the market opens) into Week 17. Turning the offers
    * down, taking a job, or choosing "Decide later" all count as having seen
    * it — new openings that surface later in the offseason go to the Inbox
    * and the Dashboard's job market instead of re-opening the popup.

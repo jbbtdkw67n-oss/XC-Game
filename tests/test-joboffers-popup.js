@@ -21,6 +21,10 @@ async function run() {
     const hasOffers = () => g.seasonPhase === 'Offseason' && g.jobOffers &&
       (g.jobOffers.offers || []).some((o) => !o.rejected);
     while (guard++ < 40 && !hasOffers()) g.advanceWeek();
+    // The market opens in the awards week (16); the popup is owed from Week 17.
+    const owedEarly = window.XCD.ui.jobOffersPending(g);
+    if (hasOffers() && g.week === window.XCD.data.CALENDAR.AWARDS_WEEK) g.advanceWeek();
+    if (owedEarly) return { ok: false, owedEarly };
     return { ok: hasOffers(), week: g.week, phase: g.seasonPhase, offers: g.jobOffers ? g.jobOffers.offers.length : 0 };
   });
   ok(reached.ok, 'the offseason job market must open with offers: ' + JSON.stringify(reached));

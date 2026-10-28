@@ -56,17 +56,15 @@ async function run() {
     const season = g.season;
     const p = season.preNationals;
     const meet = p && season.meets[p.meetId];
-    const opts = window.XCD.engine.Scheduling.buildOptions(g);
-    const wk = (opts.weeks || []).find((w) => w.week === (p && p.week));
     return {
       exists: !!p,
       isElite: !!(meet && meet.elite && meet.preNationals),
-      isOption: !!(wk && wk.options.some((o) => o.meetId === (p && p.meetId))),
+      isOption: !!(p && (season.byWeek[p.week] || []).includes(p.meetId)),
       week: p && p.week
     };
   });
   ok(pn.exists && pn.isElite, 'Pre-Nationals must be a normal Week 10 elite meet');
-  ok(pn.isOption, 'Pre-Nationals must appear as a selectable schedule option');
+  ok(pn.isOption, 'Pre-Nationals must be on the Week 10 calendar');
 
   // ---- 4) Complete the checklist through the real UI ----
   await page.click('[data-nav="dashboard"]');
@@ -83,7 +81,7 @@ async function run() {
   // Schedule: finalize on the Schedule screen.
   await page.click('[data-nav="schedule"]');
   await page.waitForSelector('#btn-finalize-schedule');
-  const preLock = await page.evaluate(() => document.body.textContent.includes('Race Schedule Selection'));
+  const preLock = await page.evaluate(() => document.body.textContent.includes('Schedule Builder'));
   await page.click('#btn-finalize-schedule');
   await page.waitForTimeout(150);
   const postLock = await page.evaluate(() => {
@@ -91,7 +89,7 @@ async function run() {
     const text = document.body.textContent;
     return {
       finalized: g.week1.scheduleFinalized,
-      selectionGone: !text.includes('Race Schedule Selection'),
+      selectionGone: !text.includes('Schedule Builder'),
       lockedNote: text.includes('Schedule Finalized'),
       selectBlocked: !window.XCD.engine.Scheduling.select(g, g.season.raceWeeks[0], null).ok,
       pnSelectBlocked: !window.XCD.engine.Scheduling.select(g, g.season.preNationals.week, g.season.preNationals.meetId).ok

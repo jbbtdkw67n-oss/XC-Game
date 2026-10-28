@@ -12,8 +12,11 @@
     weightRoom: ['Weight Room', 'Injury prevention: strong bodies break down less under the same load.'],
     rehabCenter: ['Rehab Center', 'Recovery: faster weekly fatigue recovery, shorter injury layoffs, and less fitness lost while hurt.'],
     indoorTrack: ['Indoor Track', 'Sharpness: speed sessions and race simulations pay out more, and Speed develops faster from speed work.'],
-    alumniCenter: ['Alumni Center', 'Fundraising: bigger booster pushes and a faster-refilling facilities fund, scaled by program success and school size.']
+    alumniCenter: ['Alumni Center', 'Fundraising: bigger booster pushes and a faster-refilling facilities fund, scaled by program success and school size.'],
+    travel: ['Travel Program', 'Travel budget: a bigger program means a bigger hard travel budget every season — more meets, farther away. Upgrades apply to this season too.']
   };
+  const facilityLevel = (school, key) => key === 'travel'
+    ? window.XCD.engine.MeetCalendar.travelRating(school) : school.facilities[key];
 
   const COACH_ATTRS = [
     ['recruiting', 'Recruiting', 'Recruiting effectiveness: weekly points and pull with prospects.'],
@@ -843,7 +846,7 @@
             const ptCost = window.XCD.engine.Finances.FACILITY_POINT_COST;
             const pts = coach.upgradePoints || 0;
             return Object.entries(FACILITY_LABELS).map(([key, [label, effect]]) => {
-              const level = school.facilities[key];
+              const level = facilityLevel(school, key);
               const cost = window.XCD.engine.Finances.upgradeCost(level);
               const afford = school.budget.facilitiesFund >= cost && level < 99;
               const canPts = pts >= ptCost && level < 99;
@@ -873,7 +876,7 @@
         <div class="card">
           <h2>Budget — $${b.total.toLocaleString()}</h2>
           <div class="attr-row"><span class="attr-name">Recruiting</span><span>$${b.recruiting.toLocaleString()}</span></div>
-          <div class="attr-row"><span class="attr-name">Travel</span><span>$${b.travel.toLocaleString()}</span></div>
+          <div class="attr-row"><span class="attr-name">Travel (${game.year} hard budget)</span><span>$${b.travel.toLocaleString()}</span></div>
           <div class="attr-row"><span class="attr-name">Scholarships</span><span>$${b.scholarships.toLocaleString()}</span></div>
           <div class="attr-row"><span class="attr-name">NIL Fund</span><span>$${b.nil.toLocaleString()}</span></div>
           <div class="attr-row"><span class="attr-name">Facilities Fund</span><span>$${b.facilitiesFund.toLocaleString()}</span></div>

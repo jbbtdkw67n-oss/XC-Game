@@ -121,26 +121,28 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   if (!(pre.m > 50) || !pre.hasRank1) fail('preseason individual rankings not populated: ' + JSON.stringify(pre));
   console.log('preseason individuals: ' + JSON.stringify(pre));
 
-  // ---- 6) Custom scheduling: prestige gate + rest, then sims cleanly ----
+  // ---- 6) Real Schedules: elite access gate + an off week ----
   const sched = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     const S = window.XCD.engine.Scheduling;
-    S.buildOptions(g);
-    const weeks = g.season.playerSchedule.weeks;
-    // find an elite option and confirm gating matches prestige
+    const MC = window.XCD.engine.MeetCalendar;
+    const me = g.getPlayerSchool();
+    // Elite access follows Team Power / prestige / a top-25 ranking.
     let gateOk = true, eliteSeen = false;
-    weeks.forEach((w) => w.options.forEach((o) => {
-      if (o.tier === 'Elite') { eliteSeen = true; if (o.eligible !== (g.getPlayerSchool().prestige >= o.prestigeReq)) gateOk = false; }
-    }));
-    // rest an editable week
-    const editable = weeks.find((w) => !w.locked);
-    const rest = editable ? S.select(g, editable.week, null) : { ok: false };
-    const restedWeek = editable ? editable.week : null;
-    const isRest = restedWeek ? !g.season.playerMeetByWeek[restedWeek] : false;
+    MC.regularMeets(g.season).filter((m) => m.tier === 'elite').forEach((m) => {
+      eliteSeen = true;
+      const want = MC.powerOf(g, me.id) >= MC.CFG.powerReq(m.elite) ||
+        me.prestige >= S.eliteRequirement(m) || ((MC.bestRank(g, me.id) || 99) <= 25);
+      if (MC.access(g, me, m).ok !== want) gateOk = false;
+    });
+    // Take an off week on one of the player's scheduled weekends.
+    const week = Object.keys(g.season.playerMeetByWeek).map(Number).find((w) => w >= 4 && w <= 12);
+    const rest = week ? S.select(g, week, null) : { ok: false };
+    const isRest = week ? !g.season.playerMeetByWeek[week] : false;
     return { eliteSeen, gateOk, restOk: rest.ok, isRest };
   });
-  if (!sched.gateOk) fail('elite meet eligibility does not match prestige gate');
-  if (!sched.restOk || !sched.isRest) fail('resting a scheduled week failed');
+  if (!sched.gateOk) fail('elite meet access does not match the Team Power / prestige / ranking gate');
+  if (!sched.restOk || !sched.isRest) fail('taking an off week failed');
   console.log('scheduling: ' + JSON.stringify(sched));
 
   // ---- 7) Champions + Awards pages across divisions (no crashes) ----

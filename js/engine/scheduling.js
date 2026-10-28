@@ -113,6 +113,8 @@
   function buildOptions(gameState) {
     const season = gameState.season;
     if (!season) return null;
+    // Real Schedules seasons are built by the MeetCalendar schedule builder.
+    if (season.calendarVersion) return null;
     const school = gameState.getPlayerSchool();
     const prestige = school ? school.prestige : 50;
     const pid = gameState.playerSchoolId;
@@ -206,6 +208,7 @@
   function select(gameState, week, meetId) {
     const season = gameState.season;
     if (!season) return { ok: false, message: 'No active season.' };
+    if (season.calendarVersion) return window.XCD.engine.MeetCalendar.selectMeet(gameState, week, meetId);
     // Week 1 Administrative Phase (spec Part 2, Section 15): the schedule is
     // set during Week 1 and then finalized for the season — permanently.
     if (gameState.scheduleLocked && gameState.scheduleLocked()) {

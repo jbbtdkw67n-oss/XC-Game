@@ -38,7 +38,7 @@
       The remaining bids go one at a time: the best remaining team from <em>each</em> region is considered, and the one with the most
       <strong>Kolas points</strong> — wins this season over teams already in the field — gets the bid. The field grows, points are recounted,
       and the next team from that region steps up. Beat qualifiers early in the season and the points pile up.
-      ${division === 'DI' ? '<br><strong>Individuals:</strong> the first 4 finishers from non-qualifying teams at each regional advance if they place in the top 25, and 2 more go as national at-large picks — the best regional placers who just missed (38 in all).' : ''}</div>`;
+      <br><strong>Individuals:</strong> every top-10 finisher at each regional goes to Nationals — individually when their team missed the field — plus ${window.XCD.data.divisionFor(division).championship.individualAtLarge || 0} national at-large picks: the best regional placers just outside the top 10.</div>`;
 
     if (sel) {
       const pts = (n) => `<span class="kolas-pts">${n}</span>`;
@@ -92,7 +92,7 @@
                 <span class="sel-indiv-name">${athName(x.athleteId)} <small>${name(x.schoolId)}</small></span>
                 <span class="sel-indiv-reg">${Utils.escapeHtml(x.region || '')}${al ? ' · <strong>at-large</strong>' : ''}</span></div>`;
               return `<h3 style="margin-top:14px;">🏃 Individual qualifiers <span style="color:var(--text-faint); font-weight:500; font-size:12px;">${ind.auto.length + ind.atLarge.length} total</span></h3>
-                <div style="color:var(--text-dim); font-size:12px; margin-bottom:6px;">First ${ind.perRegional} per regional from non-qualifying teams${ind.cutoff ? `, inside the top ${ind.cutoff}` : ''}${ind.atLarge.length ? `, plus ${ind.atLarge.length} national at-large` : ''}.</div>
+                <div style="color:var(--text-dim); font-size:12px; margin-bottom:6px;">${ind.perRegional ? `First ${ind.perRegional} per regional from non-qualifying teams${ind.cutoff ? `, inside the top ${ind.cutoff}` : ''}` : `Every top-${ind.cutoff || 10} regional finisher from a non-qualifying team`}${ind.atLarge.length ? `, plus ${ind.atLarge.length} national at-large` : ''}.</div>
                 <div class="sel-indivs">${ind.atLarge.map((x) => row(x, true)).join('')}${ind.auto.map((x) => row(x, false)).join('')}</div>`;
             })() : ''}
           </div>

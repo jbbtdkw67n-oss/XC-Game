@@ -516,15 +516,8 @@
   }
 
   UI.navigate = function (screenId) {
-    const leaving = UI.state.currentScreen;
     UI.state.currentScreen = screenId;
     UI.renderShell();
-    // Leaving the nationals broadcast is the moment the (once-per-offseason)
-    // Available Jobs popup appears, if the replay hadn't already shown it.
-    if (leaving === 'racecenter' && screenId !== 'racecenter' && UI.state.jobsAfterBroadcast && UI.state.game) {
-      UI.state.jobsAfterBroadcast = false;
-      if (UI.maybeShowJobOffers) UI.maybeShowJobOffers(UI.state.game);
-    }
   };
 
   // Unread count chip for the Inbox nav entry.
@@ -560,17 +553,13 @@
   }
 
   /*
-   * Offseason job market (Available Jobs popup): shown ONCE, right after the
-   * national meet is simulated. When that advance cut to the nationals
-   * broadcast, the popup waits for the replay to finish (or for the player to
-   * leave the Race Center) instead of covering the race.
+   * Offseason job market (Available Jobs popup): shown ONCE, on the advance
+   * from the awards week into Week 17 — the week after nationals is left free
+   * to look over the results. Never over a race broadcast.
    */
   function offerJobsAfter(game, cutToRace) {
     if (!UI.jobOffersPending || !UI.jobOffersPending(game)) return false;
-    if (cutToRace && UI.state.currentScreen === 'racecenter') {
-      UI.state.jobsAfterBroadcast = true;
-      return false;
-    }
+    if (cutToRace && UI.state.currentScreen === 'racecenter') return false;
     return UI.maybeShowJobOffers(game);
   }
   UI.offerJobsAfter = offerJobsAfter;
