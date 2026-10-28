@@ -33,7 +33,6 @@
     { key: 'hotSeatPatience',       type: 'slider', group: 'difficulty', label: 'Hot Seat patience',       min: 0.5, max: 2,   step: 0.05, def: 1 },
     { key: 'cpuDevelopment',        type: 'slider', group: 'difficulty', label: 'CPU athlete development', min: 0.5, max: 1.5, step: 0.05, def: 1 },
     { key: 'prestigeVolatility',    type: 'slider', group: 'difficulty', label: 'Prestige volatility',     min: 0.5, max: 1.5, step: 0.05, def: 1 },
-    { key: 'godMode',               type: 'flag',   group: 'sandbox',    label: 'God Mode (edit anything)', def: false },
     { key: 'theme',                 type: 'choice', group: 'display',    label: 'Theme', options: ['dark', 'light', 'system'], def: 'dark' },
     { key: 'textScale',             type: 'slider', group: 'display',    label: 'Text size',               min: 0.85, max: 1.3, step: 0.05, def: 1 }
   ];

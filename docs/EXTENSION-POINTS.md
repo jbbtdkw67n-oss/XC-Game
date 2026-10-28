@@ -14,7 +14,7 @@ the features built on it.
 
 | Module | Global | Feeds these roadmap items |
 |---|---|---|
-| `js/engine/settings.js` | `XCD.engine.Settings` | Difficulty sliders, God Mode, light theme, text size |
+| `js/engine/settings.js` | `XCD.engine.Settings` | Difficulty sliders, light theme, text size |
 | `js/engine/events.js` | `XCD.engine.Events`, `XCD.engine.Inbox` | Inbox, sim stop conditions, achievements, media moments |
 | `js/engine/sim.js` | `XCD.engine.Sim` | Sim to a date/event |
 | `js/engine/savemanager.js` (index) | — | Fast Load screen; split-record saves |
@@ -30,7 +30,7 @@ hand-edited or newer saves can't push a slider out of range.
 
 ```js
 const S = XCD.engine.Settings;
-S.get(game, 'godMode');          // false
+S.get(game, 'theme');            // 'dark'
 S.mult(game, 'injuryRate');      // 1 (sliders are multipliers; 1 = today's balance)
 S.set(game, 'injuryRate', 1.5);  // clamped + snapped to the slider step
 S.isDefault(game);               // false
@@ -50,7 +50,6 @@ to before:
 `Settings.PRESETS` (rookie / normal / veteran / legend) and `Settings.applyPreset`
 / `currentPreset` drive the preset buttons. Display settings are applied by
 `UI.applyDisplaySettings` (`data-theme` on `<html>`, `--ui-zoom` for text size).
-God Mode is `js/ui/godmode.js`: `UI.godButton(game, kind, id)` in a profile header.
 
 **To add a setting**, append to `SCHEMA`. Old saves pick up the default automatically.
 The settings screen (`js/ui/screens/settings.js`) renders straight from `SCHEMA`.

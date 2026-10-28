@@ -26,12 +26,11 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     const out = {
       freshDefault: S.isDefault(g),
       multDefault: S.mult(g, 'injuryRate'),
-      flagDefault: S.get(g, 'godMode')
+      choiceDefault: S.get(g, 'theme')
     };
     out.clampHi = S.set(g, 'injuryRate', 9);
     out.snapped = S.set(g, 'hotSeatPatience', 1.2300001);
     out.badChoice = S.set(g, 'theme', 'neon');
-    out.flagCoerced = S.set(g, 'godMode', 'yes');
     let threw = false;
     try { S.set(g, 'noSuchKey', 1); } catch (e) { threw = true; }
     out.unknownThrows = threw;
@@ -46,11 +45,10 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     return out;
   });
   console.log('settings:', JSON.stringify(settings));
-  ok(settings.freshDefault && settings.multDefault === 1 && settings.flagDefault === false, 'a new dynasty starts on neutral default settings');
+  ok(settings.freshDefault && settings.multDefault === 1 && settings.choiceDefault === 'dark', 'a new dynasty starts on neutral default settings');
   ok(settings.clampHi === 2, 'sliders clamp to their max');
   ok(settings.snapped === 1.25, 'sliders snap to their step');
   ok(settings.badChoice === 'dark', 'an invalid choice falls back to the default');
-  ok(settings.flagCoerced === false, 'flags only accept true');
   ok(settings.unknownThrows, 'unknown setting keys are rejected');
   ok(settings.roundTrip, 'settings survive a save round-trip');
   ok(settings.oldSaveDefault, 'pre-groundwork saves load with defaults and empty logs');

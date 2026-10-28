@@ -1,15 +1,14 @@
 /*
  * Settings screen (Code Review Oct 2026 §4) — rendered straight from
- * Settings.SCHEMA: difficulty sliders with one-tap presets, God Mode, and
- * display preferences (theme + text size).
+ * Settings.SCHEMA: difficulty sliders with one-tap presets, and display
+ * preferences (theme + text size).
  *
  * Difficulty sliders are multipliers read by the engine (1.0 = the game as
  * designed): recruitingCompetition (recruiting.js), injuryRate and
  * cpuDevelopment (training.js), hotSeatPatience (awards.js), and
  * prestigeVolatility (prestige.js). Display settings apply instantly via
  * UI.applyDisplaySettings and are mirrored to localStorage so the main menu
- * opens in the last theme used. God Mode adds ✏️ Edit buttons to athlete,
- * program and coach profiles (js/ui/godmode.js).
+ * opens in the last theme used.
  */
 (function () {
   const UI = window.XCD.ui;
@@ -27,7 +26,6 @@
   };
   const GROUP_TITLES = {
     difficulty: { icon: '🎚', title: 'Difficulty', sub: '1.00× is the game as designed. Changes apply from the next week simmed.' },
-    sandbox: { icon: '🪄', title: 'Sandbox', sub: 'Break the rules on purpose.' },
     display: { icon: '🎨', title: 'Display', sub: 'How the game looks on this device.' }
   };
 
@@ -108,7 +106,6 @@
     S().ensure(game);
     const schema = S().SCHEMA;
     const preset = S().currentPreset(game);
-    const godMode = S().get(game, 'godMode');
     const theme = S().get(game, 'theme');
 
     const difficulty = schema.filter((s) => s.group === 'difficulty');
@@ -142,18 +139,6 @@
             </div>
             ${sliderHtml(game, schema.find((s) => s.key === 'textScale'))}
             <div class="set-preview">Preview — <strong>Week ${game.week}</strong> · the quick brown fox runs 4:32 per mile.</div>
-          </div>
-          <div class="card set-card ${godMode ? 'god-on' : ''}">
-            ${groupHead('sandbox')}
-            <label class="switch-row">
-              <span><strong>God Mode</strong><small>Adds ✏️ Edit to every athlete, program and coach profile: ratings, potential, health, prestige, budgets, facilities, coach ratings and the Hot Seat.</small></span>
-              <span class="switch"><input type="checkbox" id="set-godMode" ${godMode ? 'checked' : ''}><span class="switch-track"></span></span>
-            </label>
-            ${godMode ? `<div class="god-quick">
-              <button class="btn small" id="god-my-program">✏️ Edit my program</button>
-              <button class="btn small" id="god-me">✏️ Edit my coach</button>
-              <button class="btn small" id="god-heal">🩹 Heal my roster</button>
-            </div>` : ''}
           </div>
         </div>
       </div>`;
@@ -192,26 +177,12 @@
         render(container);
       });
     });
-    container.querySelector('#set-godMode').addEventListener('change', (e) => {
-      S().set(game, 'godMode', e.target.checked);
-      UI.toast(e.target.checked ? 'God Mode on — look for ✏️ Edit on profiles.' : 'God Mode off.', 'info', 2200);
-      save(game);
-      render(container);
-    });
     container.querySelector('#set-reset').addEventListener('click', () => {
       S().reset(game);
       UI.applyDisplaySettings(game);
       UI.toast('Every setting is back to its default.', 'success', 1800);
       save(game);
       render(container);
-    });
-    const w = (id, fn) => { const el = container.querySelector(id); if (el) el.addEventListener('click', fn); };
-    w('#god-my-program', () => UI.godEditSchool && UI.godEditSchool(game, game.getPlayerSchool()));
-    w('#god-me', () => UI.godEditCoach && UI.godEditCoach(game, game.getPlayerCoach()));
-    w('#god-heal', () => {
-      const n = UI.godHealRoster ? UI.godHealRoster(game) : 0;
-      UI.toast(n ? `${n} athlete${n === 1 ? '' : 's'} healed and rested.` : 'Everyone is already healthy.', 'success');
-      save(game);
     });
   }
 

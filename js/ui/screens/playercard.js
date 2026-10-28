@@ -337,7 +337,6 @@
         <div style="text-align:right;">
           <div style="font-size:30px; font-weight:800;">${athlete.currentOverall}</div>
           <div style="font-size:12px; color:var(--text-dim);">OVERALL (POT ${athlete.potential})</div>
-          ${UI.godButton ? UI.godButton(game, 'ath', athlete.id) : ''}
         </div>
       </div>
 

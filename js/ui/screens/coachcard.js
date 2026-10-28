@@ -75,7 +75,6 @@
         <div style="text-align:right;">
           <div style="font-size:26px; font-weight:800;">${Math.round(coach.reputation || 0)}</div>
           <div style="font-size:12px; color:var(--text-dim);">CAREER PRESTIGE</div>
-          ${UI.godButton && !retired ? UI.godButton(UI.state.game, 'coach', coach.id) : ''}
         </div>
       </div>
 

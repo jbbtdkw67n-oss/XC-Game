@@ -1,7 +1,7 @@
 // Feature test (Oct 2026 roadmap): the Available Jobs popup appears once per
 // offseason (after nationals), Sim to a date menu + report, the Inbox screen,
-// Settings (difficulty wired into the engine, presets, theme, text size, God
-// Mode), real NCAA selection (Kolas at-large teams + DI individual rules), and
+// Settings (difficulty wired into the engine, presets, theme, text size),
+// real NCAA selection (Kolas at-large teams + DI individual rules), and
 // pack stats in race results.
 const { chromium } = require('playwright');
 const { newDynasty, wireErrors, launchOpts } = require('./helpers');
@@ -216,7 +216,7 @@ async function run() {
   }).catch((e) => ({ err: String(e) }));
   ok(rt.popupYear && rt.closed, 'job popup + closed-search state survive a save round-trip: ' + JSON.stringify(rt));
 
-  /* ---------- 6) Settings: difficulty wired, presets, display, God Mode ---------- */
+  /* ---------- 6) Settings: difficulty wired, presets, display ---------- */
   await page.evaluate(() => window.XCD.ui.navigate('settings'));
   await page.waitForSelector('.preset-row');
   await page.click('[data-preset="legend"]');
@@ -245,21 +245,16 @@ async function run() {
     return fresh;
   });
   ok(inj === 0, 'injuryRate 0 stops new injuries: ' + inj);
-  // God Mode: edit an athlete from their profile.
+  // God Mode was removed: no Sandbox card, no ✏️ Edit on profiles.
   await page.evaluate(() => window.XCD.ui.renderShell());
-  await page.click('#set-godMode');
-  const before = await page.evaluate(() => {
-    const g = window.XCD.ui.state.game; const a = g.getRoster(g.playerSchoolId, 'M')[0];
-    window.XCD.ui.showPlayerCard(a, g); return { id: a.id, ovr: a.currentOverall };
+  const noGod = await page.evaluate(() => {
+    const g = window.XCD.ui.state.game;
+    const sandbox = !!document.querySelector('#set-godMode');
+    window.XCD.ui.showPlayerCard(g.getRoster(g.playerSchoolId, 'M')[0], g);
+    return { sandbox, editBtn: !!document.querySelector('.god-btn'), schema: window.XCD.engine.Settings.SCHEMA.some((x) => x.key === 'godMode') };
   });
-  await page.click('.god-btn');
-  await page.waitForSelector('.god-editor');
-  await page.evaluate(() => ['vo2Max', 'runningEconomy', 'stamina', 'lactateThreshold', 'speed'].forEach((k) => {
-    const el = document.querySelector(`[data-god-field="${k}"]`); el.value = '95'; el.dispatchEvent(new Event('input'));
-  }));
-  await page.click('#god-save');
-  const after = await page.evaluate((id) => window.XCD.ui.state.game.getAthlete(id).currentOverall, before.id);
-  ok(after > before.ovr && after >= 85, `God Mode edit raises the overall (${before.ovr} → ${after})`);
+  ok(!noGod.sandbox && !noGod.editBtn && !noGod.schema, 'God Mode is gone from settings and profiles: ' + JSON.stringify(noGod));
+  await page.evaluate(() => window.XCD.ui.closeModal());
   await page.evaluate(() => { const g = window.XCD.ui.state.game; window.XCD.engine.Settings.reset(g); window.XCD.ui.applyDisplaySettings(g); });
 
   await browser.close();
@@ -268,7 +263,7 @@ async function run() {
     console.log('FAIL\n' + problems.join('\n'));
     process.exit(1);
   }
-  console.log('PASS — sim menu + report, pack stats, Kolas + DI individual selection, Inbox, one-time job popup, settings/God Mode');
+  console.log('PASS — sim menu + report, pack stats, Kolas + DI individual selection, Inbox, one-time job popup, settings');
 }
 
 run().catch((e) => { console.log('FAIL', e); process.exit(1); });

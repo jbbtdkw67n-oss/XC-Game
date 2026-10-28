@@ -56,7 +56,6 @@ const ASSETS = [
   './js/ui/coachwizard.js',
   './js/ui/tutorial.js',
   './js/ui/simmenu.js',
-  './js/ui/godmode.js',
   './js/ui/screens/playercard.js',
   './js/ui/screens/coachcard.js',
   './js/ui/screens/schoolcard.js',

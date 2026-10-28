@@ -35,9 +35,6 @@ Home Screen** — it installs as a full-screen, offline-capable app. See
   athlete development and prestige volatility — with Rookie / Normal /
   Veteran / Legend presets. All are wired into the engine; Normal plays
   exactly as before.
-- **God Mode.** Adds ✏️ Edit to athlete, program and coach profiles: ratings,
-  potential, morale, fatigue, healing, prestige, facilities, recruiting
-  budget, coach ratings, reputation and the Hot Seat.
 - **Light theme and text size**, per dynasty (the menu remembers the last look).
 - **Real NCAA at-large selection (Kolas).** The top 2 per regional qualify
   automatically; at-large bids then go one at a time to whichever region's
