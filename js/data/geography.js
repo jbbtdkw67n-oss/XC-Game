@@ -63,7 +63,7 @@
     'Mideast':        ['Centennial', 'ODAC', 'C2C'],
     'Great Lakes':    ['NCAC', 'MIAA (DIII)'],
     'Midwest':        ['WIAC', 'MIAC'],
-    'Central':        ['CCIW', 'UAA'],
+    'Central':        ['CCIW', 'UAA', 'American Rivers'],
     'South/Southeast':['SCAC', 'SAA']
   };
 
@@ -368,7 +368,10 @@
     'Springfield': 'Springfield', 'Babson': 'Wellesley', 'Wheaton (MA)': 'Norton', 'Catholic': 'Washington',
     'Susquehanna': 'Selinsgrove', 'Juniata': 'Huntingdon', 'Elizabethtown': 'Elizabethtown', 'Moravian': 'Bethlehem',
     'Scranton': 'Scranton', 'Pomona': 'Claremont', 'Trinity (CT)': 'Hartford', 'Hamilton': 'Clinton',
-    'Connecticut College': 'New London'
+    'Connecticut College': 'New London',
+    'Wartburg': 'Waverly', 'Luther': 'Decorah', 'Loras': 'Dubuque', 'Coe': 'Cedar Rapids',
+    'Central (IA)': 'Pella', 'Simpson': 'Indianola', 'Dubuque': 'Dubuque', 'Buena Vista': 'Storm Lake',
+    'Nebraska Wesleyan': 'Lincoln'
   };
 
   /*

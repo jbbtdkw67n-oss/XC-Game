@@ -131,6 +131,7 @@
       windMph: c.windMph != null ? c.windMph : null,
       rain: !!c.rain,
       dry: !c.rain,
+      ground: c.ground || (c.rain ? 'Soft' : 'Firm'),
       hilliness: c.hilliness,
       altitude: c.altitude || 'Low'
     };

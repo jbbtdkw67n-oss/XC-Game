@@ -68,7 +68,7 @@
         <div class="card" style="margin:0 0 10px; ${isMine ? 'border-left:3px solid var(--accent);' : ''}">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
             <h3 style="margin:0;">${divBadge(mdiv)} ${Utils.escapeHtml(m.name)} <span style="color:var(--text-faint); font-weight:400; font-size:12px;">Wk ${m.week} · ${gender === 'M' ? "Men's" : "Women's"} ${dist}</span></h3>
-            <span style="color:var(--text-faint); font-size:11.5px;">${Utils.escapeHtml(ci.location || '')} · ${ci.hillinessLabel} · ${window.XCD.data.altitudeClass(ci)} alt</span>
+            <span style="color:var(--text-faint); font-size:11.5px;">${Utils.escapeHtml(ci.location || '')} · ${ci.hillinessLabel} · ${window.XCD.data.altitudeClass(ci)} alt · ${UI.meetSpeedTag(m)}</span>
           </div>
           <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:6px;">
             <div style="flex:1; min-width:180px;">
@@ -212,8 +212,8 @@
         return hostHtml ? `<div style="color:var(--text-dim); font-size:12.5px; line-height:1.5;">${hostHtml}<div>⛰ ${altClass} altitude</div></div>` : '';
       })()}
       <div style="color:var(--text-dim); font-size:13px; margin-bottom:10px;">
-        Week ${meet.week} • ${meet.conditions.tempF}°F${meet.conditions.windMph != null ? ` • Wind ${meet.conditions.windMph} mph` : ''}${meet.conditions.rain ? ' • Rain' : ''} •
-        Hills ${meet.conditions.hilliness}/100 (${window.XCD.data.hillinessLabel ? window.XCD.data.hillinessLabel(meet.conditions.hilliness) : ''}) • ${meet.conditions.altitude} altitude
+        Week ${meet.week} • ${UI.weatherText(meet.conditions)} •
+        Hills ${meet.conditions.hilliness}/100 (${window.XCD.data.hillinessLabel ? window.XCD.data.hillinessLabel(meet.conditions.hilliness) : ''}) • ${meet.conditions.altitude} altitude • ${UI.meetSpeedTag(meet)}
       </div>
       ${UI.meetCourseRecordLine ? UI.meetCourseRecordLine(game, meet) : ''}
       <div class="pill-tabs" style="display:flex; gap:6px; margin-bottom:14px;">
@@ -321,7 +321,7 @@
         ? `${(meet.type === 'national' ? (meet.fieldByGender?.M || []) : meet.schoolIds).length || '~31'} teams`
         : '';
       const conditions = meet
-        ? `${meet.conditions.tempF}°F${meet.conditions.rain ? ' 🌧' : ''} · hills ${meet.conditions.hilliness}`
+        ? `${meet.conditions.tempF}°F${meet.conditions.ground === 'Muddy' ? ' 🌧 mud' : meet.conditions.rain ? ' 🌧' : ''} · hills ${meet.conditions.hilliness} · ${window.XCD.data.courseSpeed(meet.conditions.hilliness, meet.conditions.altitudeFt ?? meet.conditions.altitude).label}`
         : '';
       // Where the meet is held (Realism Update): host + real city (or, for the
       // national championship, the authentic venue).

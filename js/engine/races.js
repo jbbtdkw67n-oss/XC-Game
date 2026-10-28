@@ -53,6 +53,13 @@
       championships: {} // division -> { nationalsMeetId, fieldIds, individualQualifiers }
     };
 
+    // This season's weather (year-to-year variation): every season brings its
+    // own autumn — a warm or cool fall, a wet or dry one, a windy or calm one.
+    // It shifts every meet's race-day forecast, so the same course runs
+    // faster some years and slower in others. The terrain never changes.
+    season.weather = seasonWeather(rng);
+    activeSeasonWeather = season.weather;
+
     const schoolIds = gameState.world.schoolOrder.slice();
     const playerDivision = (gameState.getPlayerSchool() && gameState.getPlayerSchool().division) || 'DI';
 
@@ -328,6 +335,51 @@
     return season;
   }
 
+  /* ---------------- Race-day weather ---------------- */
+  // The season's weather pattern. tempShift moves every forecast warmer or
+  // cooler; wetChance is how often a meet gets rain; windShift adds (or
+  // removes) wind across the board.
+  let activeSeasonWeather = null;
+  function seasonWeather(rng) {
+    const tempShift = Utils.clamp(Math.round(rng.gaussian(0, 4)), -9, 9);
+    const wetChance = Utils.clamp(Math.round((0.18 + rng.gaussian(0, 0.08)) * 100) / 100, 0.04, 0.40);
+    const windShift = Utils.clamp(Math.round(rng.gaussian(0, 2)), -3, 5);
+    const parts = [];
+    if (tempShift >= 3) parts.push('warm'); else if (tempShift <= -3) parts.push('cold');
+    if (wetChance >= 0.25) parts.push('wet'); else if (wetChance <= 0.11) parts.push('dry');
+    if (windShift >= 3) parts.push('windy');
+    return { tempShift, wetChance, windShift, label: parts.length ? `A ${parts.join(', ')} fall` : 'A typical fall' };
+  }
+
+  // One meet's race-day forecast: temperature, wind, rain and the footing it
+  // leaves (firm, soft, or muddy). Fixed when the schedule is built.
+  function raceDayWeather(rng, tempBase, week, sw) {
+    const w = sw || activeSeasonWeather || { tempShift: 0, wetChance: 0.18, windShift: 0 };
+    const rain = rng.bool(w.wetChance);
+    return {
+      tempF: Math.round(tempBase + w.tempShift + rng.int(-10, 12) - (week - 5) * 1.1),
+      windMph: Utils.clamp(Math.round(Math.abs(rng.gaussian(5 + w.windShift, 4))), 0, 28),
+      rain,
+      ground: rain ? (rng.bool(0.4) ? 'Muddy' : 'Soft') : 'Firm'
+    };
+  }
+
+  // A course's fixed terrain. The canonical course data wins, and once a
+  // course is in this dynasty's record book its stored profile is the source
+  // of truth, so a course races on identical terrain every season.
+  function courseTerrain(gameState, cm) {
+    if (!cm) return null;
+    let hilliness = cm.hilliness;
+    let altitudeFt = cm.altitudeFt;
+    const book = gameState.history && gameState.history.courseRecords;
+    const entry = book && cm.course && book[D.courseSlug(cm.course)];
+    if (entry && !D.isNamedCourse(entry.key)) {
+      if (entry.hilliness != null) hilliness = entry.hilliness;
+      if (entry.altitudeFt != null) altitudeFt = entry.altitudeFt;
+    }
+    return { hilliness, altitudeFt };
+  }
+
   /*
    * Pre-Nationals (Update 20): a Division I elite meet on the NCAA DI
    * Championship course, contested in Week 10. It is no longer an
@@ -382,12 +434,12 @@
     // week; the player can still swap into/out of it on the Schedule screen.
     field.forEach((id) => invitedSet.add(id));
 
+    const pnMeta = diCourse && diCourse.courseMeta;
     const conditions = {
-      tempF: Math.round((diCourse ? diCourse.tempBase : host.weather.tempBase) + rng.int(-8, 8) - (week - 5) * 1.1),
-      windMph: Utils.clamp(Math.round(Math.abs(rng.gaussian(5, 4))), 0, 24),
+      ...raceDayWeather(rng, diCourse ? diCourse.tempBase : host.weather.tempBase, week, season.weather),
       hilliness: diCourse ? diCourse.hilliness : rng.int(30, 80),
       altitude: diCourse ? diCourse.altitude : host.weather.altitude,
-      rain: rng.bool(0.18)
+      altitudeFt: pnMeta && pnMeta.altitudeFt != null ? pnMeta.altitudeFt : undefined
     };
     const meet = {
       id: Utils.generateId('meet'),
@@ -472,22 +524,21 @@
       base.courseMeta = window.XCD.engine.Courses.homeCourseMeta(host);
     }
     const cm = base.courseMeta;
+    const terrain = courseTerrain(gameState, cm);
     return {
       id: Utils.generateId('meet'),
       ...base,
       distances,
       conditions: {
-        tempF: Math.round(host.weather.tempBase + rng.int(-10, 12) - (base.week - 5) * 1.1),
-        // Race-day wind, stamped alongside the record so the conditions a
-        // course record was set in are part of the record book.
-        windMph: Utils.clamp(Math.round(Math.abs(rng.gaussian(5, 4))), 0, 24),
-        hilliness: cm && cm.hilliness !== undefined
-          ? Utils.clamp(cm.hilliness + rng.int(-4, 4), 5, 95)
-          : rng.int(10, 85),
-        altitude: cm && cm.altitudeFt !== undefined
-          ? D.altitudeCategory(cm.altitudeFt)
+        // Race-day weather changes every meet and every season (wind, rain,
+        // footing and temperature are stamped alongside a course record).
+        ...raceDayWeather(rng, host.weather.tempBase, base.week),
+        // The course itself never changes: the same hills every year.
+        hilliness: terrain && terrain.hilliness !== undefined ? terrain.hilliness : rng.int(10, 85),
+        altitude: terrain && terrain.altitudeFt !== undefined
+          ? D.altitudeCategory(terrain.altitudeFt)
           : host.weather.altitude,
-        rain: rng.bool(0.18)
+        altitudeFt: terrain && terrain.altitudeFt !== undefined ? terrain.altitudeFt : undefined
       },
       results: { M: null, W: null }
     };
@@ -567,16 +618,25 @@
       if (a.preferredClimate === 'Cold') cold *= 0.5;
       mult += Utils.clamp(cold, 0, 0.02);
     }
-    if (c.rain) mult += 0.004 * (1.3 - weatherSkill);
+    // Rain and footing (year-to-year weather): a wet course is slower, and a
+    // muddy one far slower — worst on hills, where every climb turns to
+    // sludge. Tough, consistent runners lose the least.
+    const ground = c.ground || (c.rain ? 'Soft' : 'Firm');
+    if (ground === 'Muddy') mult += (0.010 + (c.hilliness || 0) * 0.00008) * (1.3 - weatherSkill);
+    else if (ground === 'Soft' || c.rain) mult += (0.004 + (c.hilliness || 0) * 0.00003) * (1.3 - weatherSkill);
+
+    // Wind: anything beyond a breeze costs time on an open course (the field
+    // runs into it for half the race); pack runners shelter, but everyone pays.
+    if ((c.windMph || 0) > 8) mult += Utils.clamp((c.windMph - 8) * 0.0007, 0, 0.014);
 
     // Course profile (Course Hilliness System): flat courses race genuinely
     // fast, rolling courses a touch slower, hilly courses significantly
     // slower — and hill specialists (built through Hills training) with
     // strong endurance lose far less of that time, so they outperform
     // expectations on hard courses. Centered near "rolling" (40), so a flat
-    // 15-hilliness course is a PR track and an 85 is a war of attrition.
+    // 10-hilliness course is a PR course and an 85 is a war of attrition.
     const hillSkill = (hillAbility(a) * 0.7 + a.stamina * 0.3) / 100;
-    mult += (c.hilliness - 40) * 0.00028 * (1.45 - hillSkill);
+    mult += (c.hilliness - 40) * 0.00042 * (1.45 - hillSkill);
 
     // Difficult terrain (Update 5, Part 7): a genuinely hilly course is an
     // adverse condition all its own, and mentally tough runners lose
@@ -591,12 +651,18 @@
     // A big aerobic engine copes best, athletes from programs that TRAIN at
     // altitude carry a much smaller penalty, and altitude-trained runners
     // racing at sea level cash in a modest performance bonus.
+    // The cost climbs with the course's real elevation (above ~1,000 ft), so
+    // a 7,000 ft course is far slower than a 4,000 ft one and sea-level
+    // courses are the fast ones.
     const homeAlt = (gameState.getSchool(a.schoolId) || { weather: {} }).weather.altitude || 'Low';
     const altAdapt = homeAlt === 'High' ? 0.30 : homeAlt === 'Medium' ? 0.60 : 1;
-    if (c.altitude === 'High') mult += 0.024 * (1.5 - a.vo2Max / 100) * altAdapt;
-    else if (c.altitude === 'Medium') mult += 0.009 * (1.5 - a.vo2Max / 100) * altAdapt;
-    else if (homeAlt === 'High') mult -= 0.004;   // live high, race low
-    else if (homeAlt === 'Medium') mult -= 0.0015;
+    const altFt = typeof c.altitudeFt === 'number' ? c.altitudeFt : (D.ALTITUDE_FT_FOR[c.altitude] || 600);
+    const thinAir = Math.max(0, altFt - 1000) / 1000 * 0.0055;
+    if (thinAir > 0) mult += thinAir * (1.5 - a.vo2Max / 100) * altAdapt;
+    if (c.altitude !== 'High' && c.altitude !== 'Medium') {
+      if (homeAlt === 'High') mult -= 0.004;        // live high, race low
+      else if (homeAlt === 'Medium') mult -= 0.0015;
+    }
 
     // Confidence (Update 5, Part 7): current belief in one's running is a
     // meaningful, dynamic race-day edge — a runner riding a wave of PRs
@@ -1145,6 +1211,38 @@
   }
 
   function distKey(distanceM) { return `${distanceM / 1000}K`; }
+
+  /*
+   * True 1 km splits from a runner's stored race splits. The sim runs the
+   * race in SEGMENTS equal-distance legs (an 8K's are 0.67 km, a 10K's
+   * 0.83 km) at a steady pace within each leg, so the clock at every whole
+   * kilometre is read off the leg that contains it. Returns
+   *   [{ km, at, split }] — `at` the elapsed time at that mark, `split` the
+   *   time for that kilometre. A distance that isn't a whole number of km
+   *   ends with its short final leg (km = the full distance in km).
+   */
+  function kmSplits(cum, distanceM) {
+    if (!Array.isArray(cum) || !cum.length || !distanceM) return [];
+    const n = cum.length;
+    const segM = distanceM / n;
+    const timeAt = (m) => {
+      if (m >= distanceM) return cum[n - 1];
+      const pos = m / segM;
+      const i = Math.floor(pos);
+      const start = i === 0 ? 0 : cum[i - 1];
+      return start + (cum[i] - start) * (pos - i);
+    };
+    const marks = [];
+    for (let m = 1000; m < distanceM - 1e-6; m += 1000) marks.push(m);
+    marks.push(distanceM);
+    let prev = 0;
+    return marks.map((m) => {
+      const at = Math.round(timeAt(m) * 10) / 10;
+      const out = { km: Math.round(m / 10) / 100, at, split: Math.round((at - prev) * 10) / 10 };
+      prev = at;
+      return out;
+    });
+  }
 
   function formatTime(sec) {
     const m = Math.floor(sec / 60);
@@ -2053,7 +2151,9 @@
     kolasPoints,
     kolasBoard,
     raceRating,
+    conditionsMultiplier,
     formatTime,
+    kmSplits,
     distKey,
     isRaceWeek,
     racedPreNationals,

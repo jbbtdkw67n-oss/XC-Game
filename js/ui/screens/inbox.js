@@ -9,7 +9,9 @@
  *   2. The saved Inbox (game.inbox) — items filled by the event bus
  *      (engine/events.js INBOX_RULES): injuries, commits and decommits, race
  *      results, the portal, Selection Day, the job market, the Hot Seat.
- *      Filterable, mark-read, and each one jumps to the screen it's about.
+ *      Filterable, mark-read, clearable (one item, the read ones, or every
+ *      notification the current filter shows), and each one jumps to the
+ *      screen it's about.
  *
  * The Dashboard shows a compact version (UI.inboxDashboardCard) and the top
  * bar / sidebar carry the unread count.
@@ -121,6 +123,7 @@
       <div class="inbox-item-actions">
         ${it.screen ? `<button class="btn small" data-inbox-open="${it.id}">Open ▸</button>` : ''}
         ${it.read ? '' : `<button class="btn small ghost" data-inbox-read="${it.id}" title="Mark read" aria-label="Mark read">✓</button>`}
+        <button class="btn small ghost inbox-dismiss" data-inbox-dismiss="${it.id}" title="Clear this notification" aria-label="Clear this notification">✕</button>
       </div>
     </div>`;
   }
@@ -158,6 +161,7 @@
           <span class="phase-pill">${unread} unread · ${items.length} total</span>
           <button class="btn" id="inbox-read-all" ${unread ? '' : 'disabled'}>✓ Mark all read</button>
           <button class="btn" id="inbox-clear" ${items.some((i) => i.read) ? '' : 'disabled'} title="Remove every read item">🧹 Clear read</button>
+          <button class="btn danger" id="inbox-clear-all" ${list.length ? '' : 'disabled'} title="${filter === 'all' ? 'Remove every notification' : 'Remove every notification this filter shows'}">🗑 ${filter === 'all' ? 'Clear all' : 'Clear shown'}</button>
         </div>
       </div>
       <div class="card inbox-now ${live.length ? '' : 'calm'}">
@@ -182,7 +186,34 @@
     if (readAll) readAll.addEventListener('click', () => { Inbox().markAllRead(game); UI.renderShell(); });
     const clear = container.querySelector('#inbox-clear');
     if (clear) clear.addEventListener('click', () => { Inbox().clearRead(game); UI.renderShell(); });
+    const clearAll = container.querySelector('#inbox-clear-all');
+    if (clearAll) clearAll.addEventListener('click', () => confirmClear(game, list.length));
     wireCommon(container, game, () => UI.renderShell());
+  }
+
+  // Clear every notification the current filter shows (all of them on the
+  // All filter) after a quick confirm. The "Needs you now" list is live game
+  // state, so it is never cleared — only handled.
+  function confirmClear(game, count) {
+    const scope = filter === 'all' ? null : FILTERS.find((f) => f.key === filter);
+    const ids = new Set(filtered(game).map((i) => i.id));
+    UI.showModal(`
+      <h2>🗑 Clear ${scope ? `${Utils.escapeHtml(scope.label)} notifications` : 'your Inbox'}?</h2>
+      <p style="color:var(--text-dim); font-size:13.5px; line-height:1.5;">
+        ${count} notification${count === 1 ? '' : 's'} will be removed${scope ? ' from this filter' : ''}. Anything under
+        <strong>Needs you now</strong> stays until you handle it.
+      </p>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
+        <button class="btn" data-modal-close>Cancel</button>
+        <button class="btn danger" id="inbox-clear-confirm">Clear ${count}</button>
+      </div>`, (modal) => {
+      modal.querySelector('#inbox-clear-confirm').addEventListener('click', () => {
+        const n = Inbox().clearAll(game, scope ? (i) => ids.has(i.id) : null);
+        UI.closeModal();
+        UI.renderShell();
+        UI.toast(`Cleared ${n} notification${n === 1 ? '' : 's'}.`);
+      });
+    });
   }
 
   // Shared wiring for the full screen and the Dashboard card.
@@ -192,6 +223,9 @@
     });
     root.querySelectorAll('[data-inbox-read]').forEach((b) => {
       b.addEventListener('click', (e) => { e.stopPropagation(); Inbox().markRead(game, b.dataset.inboxRead); refresh(); });
+    });
+    root.querySelectorAll('[data-inbox-dismiss]').forEach((b) => {
+      b.addEventListener('click', (e) => { e.stopPropagation(); Inbox().remove(game, b.dataset.inboxDismiss); refresh(); });
     });
     const open = (id) => {
       const it = Inbox().items(game).find((x) => x.id === id);
@@ -218,7 +252,10 @@
       <div class="card inbox-card" style="margin-bottom:16px;">
         <div class="inbox-card-head">
           <h2 style="margin:0;">📥 Inbox${unread.length ? ` <span class="count-badge static">${unread.length}</span>` : ''}</h2>
-          <button class="btn small" data-inbox-go="inbox">Open Inbox ▸</button>
+          <div style="display:flex; gap:6px;">
+            ${unread.length ? '<button class="btn small ghost" data-inbox-card-clear title="Clear every unread notification shown here">🗑 Clear</button>' : ''}
+            <button class="btn small" data-inbox-go="inbox">Open Inbox ▸</button>
+          </div>
         </div>
         ${live.length ? `<div class="inbox-decisions">${live.slice(0, 3).map(decisionHtml).join('')}</div>` : ''}
         ${top.length ? `<div class="inbox-mini">${top.map((it) => itemHtml(game, it)).join('')}</div>` : ''}
@@ -226,7 +263,10 @@
   };
   UI.wireInboxCard = function (root, game) {
     const card = root.querySelector('.inbox-card');
-    if (card) wireCommon(card, game, () => UI.renderShell());
+    if (!card) return;
+    wireCommon(card, game, () => UI.renderShell());
+    const clear = card.querySelector('[data-inbox-card-clear]');
+    if (clear) clear.addEventListener('click', () => { Inbox().clearAll(game, (i) => !i.read); UI.renderShell(); });
   };
 
   UI.screens.inbox = { render, decisions };

@@ -70,6 +70,26 @@
     if (e.key === 'Escape') UI.closeModal();
   });
 
+  /* ---------------- Course speed & race-day weather ---------------- */
+  // A course's speed tag (fixed terrain: hills + elevation) — Fast / Average
+  // / Slow — and a one-line race-day forecast (changes every meet and year).
+  UI.courseSpeedTag = function (hilliness, altitude) {
+    const sp = window.XCD.data.courseSpeed(hilliness, altitude);
+    return `<span class="speed-tag ${sp.key}" title="Course speed: ${sp.label} (terrain and elevation — the same every year)">${sp.icon ? sp.icon + ' ' : ''}${sp.label} course</span>`;
+  };
+  UI.meetSpeedTag = function (meet) {
+    const c = (meet && meet.conditions) || {};
+    return UI.courseSpeedTag(c.hilliness, typeof c.altitudeFt === 'number' ? c.altitudeFt : c.altitude);
+  };
+  UI.weatherText = function (c) {
+    if (!c) return '';
+    const bits = [`${c.tempF}°F`];
+    if (c.windMph != null) bits.push(`Wind ${c.windMph} mph`);
+    if (c.ground === 'Muddy') bits.push('Rain · muddy');
+    else if (c.ground === 'Soft' || c.rain) bits.push('Rain · soft');
+    return bits.join(' • ');
+  };
+
   /* ---------------- Rating badge helper ---------------- */
   UI.ratingBadge = function (value) {
     // Attributes are stored as fractional values internally (for simulation
@@ -386,29 +406,49 @@
   };
 
   /* ---------------- Screen routing ----------------
-   * `mobile` marks the screens pinned to the phone's bottom tab bar (the
-   * weekly rhythm: home → team → training → recruiting); everything else
-   * lives one tap away in the "More" sheet. `short` is the tab-bar label.
+   * Screens are grouped so the menu reads as a few short sections instead of
+   * one long list: the week (what to do now), the team, the program's
+   * standing in the wider world, and the game itself. `mobile` marks the
+   * screens pinned to the phone's bottom tab bar (the weekly rhythm: home →
+   * team → training → recruiting); everything else lives one tap away in the
+   * "More" sheet, under the same section headings. `short` is the tab-bar
+   * label.
    */
-  const NAV_ITEMS = [
-    { id: 'dashboard', label: 'Dashboard', icon: '🏠', mobile: true, short: 'Home' },
-    { id: 'inbox', label: 'Inbox', icon: '📥' },
-    { id: 'schedule', label: 'Schedule', icon: '📅' },
-    { id: 'racecenter', label: 'Race Center', icon: '📺' },
-    { id: 'rankings', label: 'Rankings', icon: '🏅' },
-    { id: 'roster', label: 'Roster', icon: '👟', mobile: true, short: 'Team' },
-    { id: 'training', label: 'Training', icon: '📋', mobile: true, short: 'Train' },
-    { id: 'recruiting', label: 'Recruiting', icon: '🎯', mobile: true, short: 'Recruit' },
-    { id: 'portal', label: 'Portal', icon: '🔄' },
-    { id: 'school', label: 'My Program', icon: '🏫' },
-    { id: 'history', label: 'History', icon: '🏛' },
-    { id: 'courses', label: 'Course Records', icon: '🏁' },
-    { id: 'world', label: 'World', icon: '🌎' },
-    { id: 'news', label: 'News', icon: '📰' },
-    { id: 'shop', label: 'Shop', icon: '🛒' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' },
-    { id: 'saves', label: 'Save / Load', icon: '💾' }
+  const NAV_GROUPS = [
+    { id: 'week', label: 'This Week' },
+    { id: 'team', label: 'Team' },
+    { id: 'program', label: 'Program' },
+    { id: 'league', label: 'League' },
+    { id: 'game', label: 'Game' }
   ];
+  const NAV_ITEMS = [
+    { id: 'dashboard', label: 'Dashboard', icon: '🏠', group: 'week', mobile: true, short: 'Home' },
+    { id: 'inbox', label: 'Inbox', icon: '📥', group: 'week' },
+    { id: 'schedule', label: 'Schedule', icon: '📅', group: 'week' },
+    { id: 'racecenter', label: 'Race Center', icon: '📺', group: 'week' },
+    { id: 'roster', label: 'Roster', icon: '👟', group: 'team', mobile: true, short: 'Team' },
+    { id: 'training', label: 'Training', icon: '📋', group: 'team', mobile: true, short: 'Train' },
+    { id: 'recruiting', label: 'Recruiting', icon: '🎯', group: 'team', mobile: true, short: 'Recruit' },
+    { id: 'portal', label: 'Portal', icon: '🔄', group: 'team' },
+    { id: 'school', label: 'My Program', icon: '🏫', group: 'program' },
+    { id: 'shop', label: 'Shop', icon: '🛒', group: 'program' },
+    { id: 'rankings', label: 'Rankings', icon: '🏅', group: 'league' },
+    { id: 'news', label: 'News', icon: '📰', group: 'league' },
+    { id: 'history', label: 'History', icon: '🏛', group: 'league' },
+    { id: 'courses', label: 'Course Records', icon: '🏁', group: 'league' },
+    { id: 'world', label: 'World', icon: '🌎', group: 'league' },
+    { id: 'settings', label: 'Settings', icon: '⚙️', group: 'game' },
+    { id: 'saves', label: 'Save / Load', icon: '💾', group: 'game' }
+  ];
+  UI.NAV_GROUPS = NAV_GROUPS;
+  UI.NAV_ITEMS = NAV_ITEMS;
+
+  // Items split into their sections, in menu order (empty sections dropped).
+  function navSections(items) {
+    return NAV_GROUPS
+      .map((g) => ({ ...g, items: items.filter((n) => n.group === g.id) }))
+      .filter((g) => g.items.length);
+  }
 
   UI.navigate = function (screenId) {
     const leaving = UI.state.currentScreen;
@@ -493,10 +533,14 @@
         <nav id="sidebar">
           <div class="brand">XC <span>Dynasty</span></div>
           <div class="school-tag">${Utils.escapeHtml(school.name)} • ${Utils.escapeHtml(school.conference)}</div>
-          ${NAV_ITEMS.map((n) => `
-            <button class="nav-item ${UI.state.currentScreen === n.id ? 'active' : ''}" data-nav="${n.id}">
-              <span class="icon">${n.icon}</span>${n.label}${navBadge(game, n.id)}
-            </button>`).join('')}
+          ${navSections(NAV_ITEMS).map((g) => `
+            <div class="nav-section" role="group" aria-label="${g.label}">
+              <div class="nav-section-label">${g.label}</div>
+              ${g.items.map((n) => `
+              <button class="nav-item ${UI.state.currentScreen === n.id ? 'active' : ''}" data-nav="${n.id}">
+                <span class="icon">${n.icon}</span>${n.label}${navBadge(game, n.id)}
+              </button>`).join('')}
+            </div>`).join('')}
           <div class="sidebar-footer">v${window.XCD.VERSION}</div>
         </nav>
         <nav id="bottombar" aria-label="Main navigation">
@@ -564,13 +608,14 @@
         sheet.innerHTML = `
           <div class="sheet-panel">
             <div class="sheet-grip"></div>
-            <div class="sheet-title">All Screens</div>
-            <div class="sheet-grid">
-              ${moreNav.map((n) => `
-                <button class="sheet-item ${UI.state.currentScreen === n.id ? 'active' : ''}" data-sheet-nav="${n.id}">
-                  <span class="icon">${n.icon}</span>${n.label}${navBadge(game, n.id)}
-                </button>`).join('')}
-            </div>
+            ${navSections(moreNav).map((g) => `
+              <div class="sheet-title">${g.label}</div>
+              <div class="sheet-grid">
+                ${g.items.map((n) => `
+                  <button class="sheet-item ${UI.state.currentScreen === n.id ? 'active' : ''}" data-sheet-nav="${n.id}">
+                    <span class="icon">${n.icon}</span>${n.label}${navBadge(game, n.id)}
+                  </button>`).join('')}
+              </div>`).join('')}
           </div>`;
         sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.remove(); });
         sheet.querySelectorAll('[data-sheet-nav]').forEach((b) => {

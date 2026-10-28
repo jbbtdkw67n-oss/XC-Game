@@ -34,6 +34,7 @@ node tests/test-update13-features.js # Update 13 (Balance/Coach Progression/Trai
 node tests/test-groundwork.js       # Groundwork: settings (neutral defaults, clamping, save round-trip), events + inbox, Sim.advanceUntil targets/stops, save index (fast listing, legacy backfill, rename, delete)
 node tests/test-racecenter-speed.js # Race Center replay: 1×/2×/4× highlight matches the real playback rate (clock runs 2×/4× as fast), survives Replay + Men/Women switch
 node tests/test-roadmap-features.js # Sim-to-date menu + report, pack stats, Kolas at-large + DI individual qualifying (4/regional, top 25, +2 at-large), Inbox, one-time job popup, settings presets/theme/text size, injuryRate 0, no God Mode
+node tests/test-update21.js        # Inbox clear (one / filter / all), true 1 km splits, Pack Report w/o pack-in-field, sectioned menu, Week 1 card on top + gone when done, no Trophy Case / Coach's Desk, fixed course terrain + yearly weather + fast/slow courses, American Rivers Conference (DIII) incl. filters + save backfill
 node tests/test-sw-precache.js     # Offline install: sw.js precaches every script/stylesheet index.html loads (no browser needed)
 ```
 

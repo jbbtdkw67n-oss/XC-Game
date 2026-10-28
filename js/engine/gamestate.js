@@ -689,6 +689,24 @@
       Object.values(obj.world.recruits || {}).forEach((r) => { recruits[r.id] = new M.Recruit(r); });
       gs.world = { schools, coaches, athletes, recruits, schoolOrder: obj.world.schoolOrder, seed: obj.world.seed };
 
+      // New real programs (e.g. the American Rivers Conference in Division
+      // III) join older dynasties: any real school missing from the world is
+      // built with a full roster and staff. They race from the next season
+      // built (the current schedule is left alone). Idempotent. Custom
+      // leagues are skipped: they rename and re-conference real programs on
+      // purpose, so a "missing" name there is a choice, not a gap.
+      const WG = window.XCD.engine.WorldGenerator;
+      if (WG && WG.generateMissingSchools && !obj.customLeague) {
+        const added = WG.generateMissingSchools(Object.values(schools).map((s) => s.name), (obj.seed || 1) >>> 0);
+        if (added.order.length) {
+          Object.assign(schools, added.schools);
+          Object.assign(coaches, added.coaches);
+          Object.assign(athletes, added.athletes);
+          gs.world.schoolOrder = (gs.world.schoolOrder || []).concat(added.order);
+          gs.__addedSchools = added.order.map((id) => added.schools[id]);
+        }
+      }
+
       // Real hometowns (Realism Update): rewrite any procedurally-generated
       // fictional hometown left in an older save with a real town in the SAME
       // state, so no fictional place survives anywhere. State/region are
@@ -824,6 +842,11 @@
         if (r.hsPB === undefined) r.hsPB = window.XCD.engine.Recruiting.generateHsPB(pbRng, r);
       });
 
+      if (gs.__addedSchools) {
+        const confs = [...new Set(gs.__addedSchools.map((sc) => sc.conference))];
+        gs.logNews(`🏛 New programs join the NCAA: ${gs.__addedSchools.map((sc) => sc.name).join(', ')} (${confs.join(', ')}). They take the line from the next season.`);
+        delete gs.__addedSchools;
+      }
       // Tell the player when their dynasty was upgraded into the multi-division world.
       if (obj.__migratedDivisions) {
         gs.logNews('🏛 Your dynasty has joined the new three-division NCAA: Division II and Division III programs now compete alongside you, with their own conferences, regionals, and championships. Your program, roster, and history carried over intact.');

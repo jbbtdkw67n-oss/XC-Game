@@ -161,6 +161,7 @@
           <div style="color:var(--text-faint); font-size:11px;">${Utils.escapeHtml(locationOf(e))}</div>` },
         { key: 'terrain', label: 'Terrain', sortValue: (e) => e.hilliness, render: (e) => `${D.courseTerrain(e.hilliness)} <span style="color:var(--text-faint); font-size:11px;">${e.hilliness}</span>` },
         { key: 'altitude', label: 'Altitude', sortValue: (e) => e.altitudeFt || 0, render: (e) => D.courseAltitude(e.altitudeFt) },
+        { key: 'speed', label: 'Speed', sortValue: (e) => ({ fast: 0, average: 1, slow: 2 }[D.courseSpeed(e.hilliness, e.altitudeFt).key]), render: (e) => UI.courseSpeedTag(e.hilliness, e.altitudeFt) },
         { key: 'type', label: 'Type', render: (e) => courseTypeLabel(e) }
       ];
       columns.push({ key: 'mrec', label: "Men's Record", numeric: true, sortValue: (e) => { const r = signatureRecord(game, e, 'M'); return r ? -r.time : 1; }, render: (e) => recCell(e, 'M') });
@@ -177,7 +178,7 @@
         mobileCard: (e) => `
           <div class="m-head">
             <div class="m-title">${e.championship ? '🏆 ' : ''}${Utils.escapeHtml(e.name)}
-              <div class="m-sub">${Utils.escapeHtml(locationOf(e))} • ${D.courseTerrain(e.hilliness)} • ${D.courseAltitude(e.altitudeFt)} altitude</div>
+              <div class="m-sub">${Utils.escapeHtml(locationOf(e))} • ${D.courseTerrain(e.hilliness)} • ${D.courseAltitude(e.altitudeFt)} altitude • ${UI.courseSpeedTag(e.hilliness, e.altitudeFt)}</div>
             </div>
           </div>
           <div class="m-sub" style="margin-top:4px;">
@@ -225,7 +226,7 @@
       const bits = [];
       if (c.windMph != null) bits.push(`Wind ${c.windMph} mph`);
       if (c.tempF != null) bits.push(`${c.tempF}°F`);
-      bits.push(c.dry === false || c.rain ? 'Wet' : 'Dry');
+      bits.push(c.ground === 'Muddy' ? 'Muddy' : c.dry === false || c.rain ? 'Wet' : 'Dry');
       return `<div style="color:var(--text-faint); font-size:11px; margin-top:2px;">${bits.join(' · ')}</div>`;
     };
 
@@ -304,7 +305,7 @@
       <h2 style="margin:0 0 2px;">${entry.championship ? '🏆 ' : ''}${Utils.escapeHtml(entry.name)}</h2>
       <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">
         📍 ${Utils.escapeHtml(locationOf(entry))} • ${D.courseTerrain(entry.hilliness)} terrain (${entry.hilliness}/100) •
-        ${D.courseAltitude(entry.altitudeFt)} altitude${entry.conference ? ' • ' + Utils.escapeHtml(entry.conference) : ''}
+        ${D.courseAltitude(entry.altitudeFt)} altitude • ${UI.courseSpeedTag(entry.hilliness, entry.altitudeFt)}${entry.conference ? ' • ' + Utils.escapeHtml(entry.conference) : ''}
         ${isChampionshipCourse(entry) ? ' • <span style="color:var(--accent);">Championship course</span>' : ''}
       </div>
 

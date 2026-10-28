@@ -70,8 +70,8 @@
           : '';
       })()}
       <div style="color:var(--text-dim); font-size:13px; margin-bottom:10px;">
-        ${gDist(meet, activeGender)} • ${meet.conditions.tempF}°F${meet.conditions.windMph != null ? ` • Wind ${meet.conditions.windMph} mph` : ''}${meet.conditions.rain ? ' • Rain' : ''} •
-        Hills ${meet.conditions.hilliness}/100 • ${meet.conditions.altitude} altitude • Week ${meet.week}, ${game.season.year}
+        ${gDist(meet, activeGender)} • ${UI.weatherText(meet.conditions)} •
+        Hills ${meet.conditions.hilliness}/100 • ${meet.conditions.altitude} altitude • ${UI.meetSpeedTag(meet)} • Week ${meet.week}, ${game.season.year}
       </div>
       ${UI.meetCourseRecordLine ? UI.meetCourseRecordLine(game, meet) : ''}
       <div class="race-layout">
@@ -359,8 +359,8 @@
 
   /*
    * Pack Report: how tightly the player's five scorers ran together — the
-   * 1–5 gap, their average time, where that pack ranks in the field, and a
-   * strip placing each scorer between the team's 1st and 5th runner.
+   * 1–5 gap, their average time, and a strip placing each scorer between the
+   * team's 1st and 5th runner.
    */
   function packReportHtml(game, res) {
     const R = Races();
@@ -369,8 +369,6 @@
     const ft = R.formatTime;
     const fg = R.formatGap;
     const scorers = res.finishers.filter((f) => f.schoolId === game.playerSchoolId).slice(0, 5);
-    const ranked = (res.teamScores || []).filter((t) => typeof t.gap === 'number').sort((a, b) => a.gap - b.gap);
-    const packRank = ranked.findIndex((t) => t.schoolId === game.playerSchoolId) + 1;
     const best = R.tightestPack(res);
     const winner = res.teamScores[0];
     const span = Math.max(0.1, mine.gap);
@@ -384,7 +382,6 @@
         <div class="pack-stats">
           <div class="pack-stat ${gapTone(mine.gap, res)}"><div class="v">${fg(mine.gap)}</div><div class="l">1–5 gap</div></div>
           <div class="pack-stat"><div class="v">${ft(mine.avg)}</div><div class="l">Top-5 average</div></div>
-          <div class="pack-stat"><div class="v">${packRank ? '#' + packRank : '—'}<small>/${ranked.length}</small></div><div class="l">Pack in field</div></div>
         </div>
         ${dots ? `<div class="pack-strip" aria-label="Scorers between your 1st and 5th runner"><div class="pack-line"></div>${dots}</div>
         <div class="pack-strip-ends"><span>${ft(scorers[0].time)}</span><span>${ft(scorers[4].time)}</span></div>` : ''}
@@ -500,14 +497,14 @@
     wire(track); wire(board);
 
     const mySplits = res.splits && res.finishers.filter((f) => f.schoolId === game.playerSchoolId).slice(0, 7);
-    teams.innerHTML = packReportHtml(game, res) + (mySplits && mySplits.length ? `<h3>Your Splits (per ${(res.distanceM / 1000 / Races().SEGMENTS).toFixed(2)}km leg)</h3>` +
+    teams.innerHTML = packReportHtml(game, res) + (mySplits && mySplits.length ? `<h3>Your Splits (per km)</h3>` +
       mySplits.map((f) => {
         const sp = res.splits[f.athleteId];
         if (!sp) return '';
-        const legs = sp.map((c, i) => i === 0 ? c : c - sp[i - 1]);
-        return `<div style="margin-bottom:8px;">
+        const kms = Races().kmSplits(sp, res.distanceM);
+        return `<div class="km-splits" style="margin-bottom:8px;">
           <div style="font-size:12.5px;">${UI.personName(game, 'ath', f.athleteId, f.name, { link: false, size: 18 })} — ${ft(f.time)} (${Utils.ordinal(f.place)})</div>
-          <div style="font-size:11px; color:var(--text-faint);">${legs.map((l) => ft(l)).join(' · ')}</div>
+          <div style="font-size:11px; color:var(--text-faint);">${kms.map((k) => `<span class="km-split" title="${Number.isInteger(k.km) ? `${k.km} km` : `${k.km} km finish`} — ${ft(k.at)} elapsed">${Number.isInteger(k.km) ? `${k.km}k` : 'Fin'} ${ft(k.split)}</span>`).join(' · ')}</div>
         </div>`;
       }).join('') : '<h3>Team Scores Locked</h3>');
 
