@@ -21,6 +21,7 @@
  * the Dashboard's Inbox card.
  *
  *   Inbox.items(game) / Inbox.unread(game) / Inbox.markRead(game, id)
+ *   Inbox.remove(game, id) / Inbox.clearRead(game) / Inbox.clearAll(game)
  *   Inbox.push(game, item) for ad-hoc entries.
  *
  * Event types emitted (payload fields in parentheses):
@@ -216,6 +217,15 @@
   };
   Inbox.clearRead = function (gameState) {
     gameState.inbox = Inbox.items(gameState).filter((i) => !i.read);
+  };
+  // Clear notifications: every saved item, or only those matching `pred`
+  // (the Inbox screen clears whatever its current filter shows). The live
+  // "Needs you now" decisions are computed from the game state, so they
+  // stay until handled. Returns how many were removed.
+  Inbox.clearAll = function (gameState, pred) {
+    const before = Inbox.items(gameState).length;
+    gameState.inbox = pred ? Inbox.items(gameState).filter((i) => !pred(i)) : [];
+    return before - gameState.inbox.length;
   };
 
   // Built-in subscriber: turn rule-matched events into inbox items. A new

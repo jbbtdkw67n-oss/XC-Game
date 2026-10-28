@@ -243,7 +243,9 @@
     'DePauw': 76, 'Wabash': 72, 'Hope': 66, 'North Central (IL)': 60,
     'UW-La Crosse': 58, 'RPI': 88, 'WPI': 86, 'Dickinson': 82, 'Gettysburg': 80,
     'Franklin & Marshall': 82, 'Vassar': 90, 'Skidmore': 80, 'Union': 82,
-    'Macalester': 88, 'Grand Valley': 60
+    'Macalester': 88, 'Grand Valley': 60,
+    'Wartburg': 68, 'Luther': 72, 'Coe': 72, 'Central (IA)': 66, 'Loras': 62,
+    'Simpson': 62, 'Nebraska Wesleyan': 64, 'Buena Vista': 56, 'Dubuque': 54
   };
 
   D.CLASS_YEARS = ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate'];
@@ -825,6 +827,31 @@
     if (src.altitude) return src.altitude;
     return 'Low';
   };
+
+  /*
+   * Course speed (fast vs slow courses). A course's speed is its fixed
+   * terrain — hills and elevation — never the day's weather: flat, low-lying
+   * courses are the fast ones (PR courses), and genuinely hilly or
+   * high-altitude courses are slow. Race times follow this directly in the
+   * race engine; the label is what every screen shows.
+   *   → { key: 'fast' | 'average' | 'slow', label, icon }
+   */
+  D.COURSE_SPEED = {
+    fast: { key: 'fast', label: 'Fast', icon: '⚡' },
+    average: { key: 'average', label: 'Average', icon: '' },
+    slow: { key: 'slow', label: 'Slow', icon: '🐢' }
+  };
+  D.courseSpeed = function (hilliness, altitude) {
+    const h = hilliness == null ? 45 : hilliness;
+    const alt = typeof altitude === 'number' ? D.altitudeCategory(altitude) : (altitude || 'Low');
+    if (alt === 'High' || h >= 55 || (alt === 'Medium' && h >= 42)) return D.COURSE_SPEED.slow;
+    if (alt === 'Low' && h < 30) return D.COURSE_SPEED.fast;
+    return D.COURSE_SPEED.average;
+  };
+
+  // Representative elevation (ft) for a bare Low / Medium / High category, for
+  // older meets that only stored the category.
+  D.ALTITUDE_FT_FOR = { Low: 600, Medium: 4200, High: 6600 };
 
   /*
    * Pre-Nationals (Update 3; reworked Update 20). Division I only, a

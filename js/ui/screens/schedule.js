@@ -68,7 +68,7 @@
         <div class="card" style="margin:0 0 10px; ${isMine ? 'border-left:3px solid var(--accent);' : ''}">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
             <h3 style="margin:0;">${divBadge(mdiv)} ${Utils.escapeHtml(m.name)} <span style="color:var(--text-faint); font-weight:400; font-size:12px;">Wk ${m.week} · ${gender === 'M' ? "Men's" : "Women's"} ${dist}</span></h3>
-            <span style="color:var(--text-faint); font-size:11.5px;">${Utils.escapeHtml(ci.location || '')} · ${ci.hillinessLabel} · ${window.XCD.data.altitudeClass(ci)} alt</span>
+            <span style="color:var(--text-faint); font-size:11.5px;">${Utils.escapeHtml(ci.location || '')} · ${ci.hillinessLabel} · ${window.XCD.data.altitudeClass(ci)} alt · ${UI.meetSpeedTag(m)}</span>
           </div>
           <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:6px;">
             <div style="flex:1; min-width:180px;">
@@ -185,14 +185,14 @@
           <div class="card" style="padding:12px;">
             <h3>Team Scores</h3>
             <div class="table-wrap" style="max-height:340px; overflow-y:auto;">
-              <table class="data"><thead><tr><th>Pl</th><th>Team</th><th class="num">Pts</th><th>Scorers</th><th class="num" title="1–5 gap: the time between a team's 1st and 5th scorer">1–5 Gap</th></tr></thead>
+              <table class="data"><thead><tr><th class="col-rank">Pl</th><th class="col-grow">Team</th><th class="num">Pts</th><th>Scorers</th><th class="num" title="1–5 gap: the time between a team's 1st and 5th scorer">1–5 Gap</th></tr></thead>
               <tbody>${teamRows}</tbody></table>
             </div>
           </div>
           <div class="card" style="padding:12px;">
             <h3>Individuals — ${res.finishers.length}${res.finisherCount > res.finishers.length ? ` of ${res.finisherCount} recorded` : ' finishers'}${res.dnfs && res.dnfs.length ? ` • ${res.dnfs.length} DNF` : ''}</h3>
             <div class="table-wrap" style="max-height:340px; overflow-y:auto;">
-              <table class="data"><thead><tr><th>Pl</th><th>Runner</th><th>School</th><th class="num">Time</th></tr></thead>
+              <table class="data"><thead><tr><th class="col-rank">Pl</th><th class="col-grow">Runner</th><th>School</th><th class="num">Time</th></tr></thead>
               <tbody>${indivRows}</tbody></table>
             </div>
           </div>
@@ -212,8 +212,8 @@
         return hostHtml ? `<div style="color:var(--text-dim); font-size:12.5px; line-height:1.5;">${hostHtml}<div>⛰ ${altClass} altitude</div></div>` : '';
       })()}
       <div style="color:var(--text-dim); font-size:13px; margin-bottom:10px;">
-        Week ${meet.week} • ${meet.conditions.tempF}°F${meet.conditions.windMph != null ? ` • Wind ${meet.conditions.windMph} mph` : ''}${meet.conditions.rain ? ' • Rain' : ''} •
-        Hills ${meet.conditions.hilliness}/100 (${window.XCD.data.hillinessLabel ? window.XCD.data.hillinessLabel(meet.conditions.hilliness) : ''}) • ${meet.conditions.altitude} altitude
+        Week ${meet.week} • ${UI.weatherText(meet.conditions)} •
+        Hills ${meet.conditions.hilliness}/100 (${window.XCD.data.hillinessLabel ? window.XCD.data.hillinessLabel(meet.conditions.hilliness) : ''}) • ${meet.conditions.altitude} altitude • ${UI.meetSpeedTag(meet)}
       </div>
       ${UI.meetCourseRecordLine ? UI.meetCourseRecordLine(game, meet) : ''}
       <div class="pill-tabs" style="display:flex; gap:6px; margin-bottom:14px;">
@@ -321,7 +321,7 @@
         ? `${(meet.type === 'national' ? (meet.fieldByGender?.M || []) : meet.schoolIds).length || '~31'} teams`
         : '';
       const conditions = meet
-        ? `${meet.conditions.tempF}°F${meet.conditions.rain ? ' 🌧' : ''} · hills ${meet.conditions.hilliness}`
+        ? `${meet.conditions.tempF}°F${meet.conditions.ground === 'Muddy' ? ' 🌧 mud' : meet.conditions.rain ? ' 🌧' : ''} · hills ${meet.conditions.hilliness} · ${window.XCD.data.courseSpeed(meet.conditions.hilliness, meet.conditions.altitudeFt ?? meet.conditions.altitude).label}`
         : '';
       // Where the meet is held (Realism Update): host + real city (or, for the
       // national championship, the authentic venue).
@@ -455,23 +455,23 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>Season Schedule — ${season.year}</h1>
+        ${UI.screenTitle('Schedule', `${season.year} season · Men ${rankM ? '#' + rankM : '—'} · Women ${rankW ? '#' + rankW : '—'}`)}
         <div class="actions">
-          <span class="phase-pill" style="padding:5px 14px;">Men ${rankM ? '#' + rankM : '—'} · Women ${rankW ? '#' + rankW : '—'}</span>
           ${game.lastPlayerMeetId && game.season.meets[game.lastPlayerMeetId]?.results.M
             ? '<button class="btn primary" id="btn-race-center">📺 Race Center (last meet)</button>' : ''}
         </div>
       </div>
+      ${UI.sectionLabel('Your Season')}
       ${scheduleHtml}
       <div class="card">
         <div class="table-wrap desktop-only"><table class="data">
-          <thead><tr><th>Week</th><th>Meet</th><th>Field</th><th>Conditions</th><th>Result</th></tr></thead>
+          <thead><tr><th class="col-rank">Week</th><th class="col-grow">Meet</th><th>Field</th><th>Conditions</th><th>Result</th></tr></thead>
           <tbody>${rows}</tbody>
         </table></div>
         <div class="card-list mobile-only">${meetCards}</div>
         <div style="color:var(--text-faint); font-size:12px; margin-top:8px;">Tap a completed meet for full results.</div>
       </div>
-      ${previewHtml}`;
+      ${previewHtml ? UI.sectionLabel('Around the Nation') + previewHtml : ''}`;
 
     container.querySelectorAll('[data-meet]').forEach((tr) => {
       tr.addEventListener('click', () => {

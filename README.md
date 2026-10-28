@@ -14,6 +14,64 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 14.6 — One Clean Look Across Every Screen
+
+- **Every screen title is its menu label** (Dashboard, Schedule, Training,
+  Portal, Race Center, …) with a muted context line beneath — the season, a
+  count, the meet's name — and no stray emoji.
+- **Section labels** (the same small uppercase style as the sidebar) group the
+  long screens: the Dashboard (This Week · Program · Season · Squad · Latest
+  News), My Program, Schedule and Training. A section with nothing in it this
+  week hides itself.
+- **Cleaner columns everywhere.** Rank-style columns stay narrow, the name
+  column takes the slack, numbers right-align in tabular figures, and headers
+  share one style. The poll folds its movement arrow into the Rank column; the
+  Recruiting board loses its blank first column; Save / Load actions no longer
+  run off the edge (they stack on phones).
+- **Awards and Champions, rebuilt.** History → Awards, History → Champions and
+  News → Awards share one set of honor tiles (label, avatar or team colors,
+  name, school): Men and Women side by side, All-Americans as numbered cards,
+  and the regional / conference results as tidy tables (one row per
+  region or conference) instead of crowded right-aligned lines.
+- **Player profile tidy-up:** the fatigue / sharpness / morale / fitness bars
+  use the stat-tile label style, side-by-side panels line up, and labels no
+  longer wrap mid-word.
+
+## Version 14.5 — Fast & Slow Courses, Weather, 1 km Splits & the American Rivers
+
+- **Fast and slow courses.** Every course has a fixed speed — **⚡ Fast**,
+  **Average** or **🐢 Slow** — set by its terrain: flat, low-altitude courses
+  are the fast ones; genuinely hilly or high-altitude courses are slow. Home
+  courses now span flat PR courses to hilly grinds, and the speed tag shows on
+  the Schedule, Race Center, Dashboard and Course Records (with a sortable
+  Speed column). Times differ clearly from course to course: elevation counts
+  by the foot, so a 7,000 ft course is far slower than a 4,000 ft one.
+- **Course terrain stays the same every year.** A course races on identical
+  hills and elevation every season (the old ±4 yearly hill wobble is gone, and
+  a course already in your record book keeps its stored profile).
+- **Weather changes year to year — and it matters.** Each season brings its own
+  autumn (warm or cold, wet or dry, windy or calm), shifting every meet's
+  forecast. Wind beyond a breeze, rain, and **mud** (worst on the hills) now
+  slow times, alongside heat and cold. The footing (firm / soft / muddy) shows
+  in the forecast and in the conditions stamped on a course record.
+- **True 1 km splits.** Race Center splits are per kilometre (1k, 2k, … — a
+  partial final leg shows as the finish) instead of the old 0.67/0.83 km legs.
+- **Clear Inbox notifications.** A ✕ on every item, **🗑 Clear all** (or
+  **Clear shown** for the current filter, with a confirm), and a Clear button
+  on the Dashboard's Inbox card. "Needs you now" decisions stay until handled.
+- **The American Rivers Conference joins Division III**: Wartburg, Luther,
+  Loras, Coe, Central (IA), Simpson, Dubuque, Buena Vista and Nebraska
+  Wesleyan — real campus cities, the DIII Central region, its own conference
+  championship and awards, and every division/conference filter (World,
+  History leaderboards, Rankings, News). Existing dynasties gain the
+  conference on load; it races from the next season.
+- **Cleaner menu.** The sidebar and the phone's More sheet are grouped into
+  This Week · Team · Program · League · Game.
+- **Dashboard cleanup.** The Week 1 season-setup checklist sits at the very top
+  of the Dashboard all of Week 1 and disappears once setup is confirmed. The
+  Trophy Case tile and the Coach's Desk card are gone, and the Pack Report
+  drops the broken "Pack in field" stat.
+
 ## Version 14.4 — Sim to a Date, the Inbox, Difficulty & Real NCAA Selection
 
 - **Sim to a date.** The ⏩ menu in the top bar (the ▾ beside Sim to Race)
@@ -47,8 +105,8 @@ Home Screen** — it installs as a full-screen, offline-capable app. See
   25 — plus 2 national at-large individuals (the best regional placers who
   missed the cut): 38 per gender. Marked 🎟 IQ / IQ·AL in the results.
 - **Pack stats.** Every team score carries its 1–5 gap and top-5 average.
-  Race Center adds a **Pack Report** (gap, average, pack rank in the field,
-  and a strip placing each scorer); result tables show a 1–5 Gap column,
+  Race Center adds a **Pack Report** (gap, average, and a strip placing each
+  scorer); result tables show a 1–5 Gap column,
   colored against the rest of the field.
 - **Fix: the Available Jobs popup appears once.** It opens right after the
   national meet (when the broadcast ends, or when you leave the Race Center)

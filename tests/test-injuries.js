@@ -75,11 +75,17 @@ async function run() {
   const comeback = await page.evaluate((athId) => {
     const g = window.XCD.ui.state.game;
     const a = g.world.athletes[athId];
+    // Isolate the comeback curve: a brand-new injury rolled mid-rebuild is
+    // legitimate game behavior, but it isn't what this check measures.
+    const S = window.XCD.engine.Settings;
+    const injuryRate = S.get(g, 'injuryRate');
+    S.set(g, 'injuryRate', 0);
     a.injury.weeksRemaining = 1;
     g.advanceWeek();
     const atReturn = { health: a.health, window: a.recentInjuryWeeks, injury: a.injury };
     let weeksToFull = 0;
     while (a.health === 'Recovering' && weeksToFull < 12) { g.advanceWeek(); weeksToFull++; }
+    S.set(g, 'injuryRate', injuryRate);
     return { atReturn, weeksToFull, finalHealth: a.health };
   }, layoff.id);
   ok(comeback.atReturn.health === 'Recovering', 'athletes must NOT return at peak form — expected Recovering, got ' + comeback.atReturn.health);

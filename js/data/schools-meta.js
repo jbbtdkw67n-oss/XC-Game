@@ -137,7 +137,8 @@
     'MIT': { colors: ['#750014', '#8a8b8c'], mascot: 'Engineerunners' },
     'Williams': { colors: ['#4c2c92', '#ffd100'], mascot: 'Ephrunners' },
     'Carleton': { colors: ['#002d62', '#ffffff'], mascot: 'Knightowls' },
-    'Pomona': { colors: ['#00449c', '#f47920'], mascot: 'Sagehens' }
+    'Pomona': { colors: ['#00449c', '#f47920'], mascot: 'Sagehens' },
+    'Wartburg': { colors: ['#f2a900', '#000000'], mascot: 'Knightriders' }
   };
 
   // Fallback palette: distinct, UI-safe [primary, secondary] pairs. Chosen so

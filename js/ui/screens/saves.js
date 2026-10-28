@@ -18,7 +18,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>Save / Load</h1>
+        ${UI.screenTitle('Save / Load', 'Autosaves every week')}
         <div class="actions">
           <button class="btn primary" id="btn-save-now">💾 Save Game</button>
           <button class="btn" id="btn-export">📤 Export JSON</button>
@@ -35,17 +35,17 @@
         </div>
         ${slots.length ? `
           <div class="table-wrap"><table class="data">
-            <thead><tr><th>Dynasty</th><th>School</th><th>Coach</th><th class="num">Team Wins</th><th>Year</th><th>Last Saved</th><th></th></tr></thead>
+            <thead><tr><th class="col-grow">Dynasty</th><th>School</th><th class="hide-mobile">Coach</th><th class="num hide-mobile">Team Wins</th><th>Season</th><th class="hide-mobile">Last Saved</th><th class="col-actions"></th></tr></thead>
             <tbody>
               ${slots.map((s) => `
                 <tr>
-                  <td><strong>${Utils.escapeHtml(s.dynastyName)}</strong>${(game && s.dynastyId === game.dynastyId) ? ' <span style="color:var(--accent);font-size:11px;">(current)</span>' : ''}</td>
+                  <td class="col-grow"><strong>${Utils.escapeHtml(s.dynastyName)}</strong>${(game && s.dynastyId === game.dynastyId) ? ' <span style="color:var(--accent);font-size:11px;">(current)</span>' : ''}</td>
                   <td>${Utils.escapeHtml(s.schoolName)}</td>
-                  <td>${Utils.escapeHtml(s.coachName)}</td>
-                  <td class="num">${s.teamWins != null ? s.teamWins : '—'}</td>
+                  <td class="hide-mobile">${Utils.escapeHtml(s.coachName)}</td>
+                  <td class="num hide-mobile">${s.teamWins != null ? s.teamWins : '—'}</td>
                   <td>Wk ${s.week}, ${s.year}</td>
-                  <td>${new Date(s.savedAt).toLocaleString()}<span style="color:var(--text-faint); font-size:11px;">${s.isAuto ? ' · auto' : ' · manual'}</span></td>
-                  <td style="text-align:right; white-space:nowrap;">
+                  <td class="hide-mobile">${new Date(s.savedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}<span style="color:var(--text-faint); font-size:11px;">${s.isAuto ? ' · auto' : ' · manual'}</span></td>
+                  <td class="col-actions">
                     <button class="btn small" data-load="${s.dynastyId}">Load</button>
                     <button class="btn small" data-rename="${s.dynastyId}" title="Rename dynasty">Rename</button>
                     <button class="btn small danger" data-del="${s.dynastyId}">Delete</button>

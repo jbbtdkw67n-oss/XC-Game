@@ -80,7 +80,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>🏁 Course Records</h1>
+        ${UI.screenTitle('Course Records', 'Every course keeps its own record book')}
       </div>
       <div class="card" style="margin-bottom:14px; color:var(--text-dim); font-size:12.5px;">
         Every course keeps its own record book. Because courses differ dramatically — terrain, altitude,
@@ -97,7 +97,7 @@
         return `<div class="card cr-holders" style="margin-bottom:14px;">
           <h2 style="margin:0 0 8px;">🏆 Recent Course Records</h2>
           <div class="table-wrap" style="max-height:230px; overflow-y:auto;"><table class="data">
-            <thead><tr><th>Year</th><th>Course</th><th></th><th>Athlete</th><th>School</th><th class="num">Time</th></tr></thead>
+            <thead><tr><th class="col-rank">Year</th><th>Course</th><th></th><th class="col-grow">Athlete</th><th>School</th><th class="num">Time</th></tr></thead>
             <tbody>${log.map((e) => `
               <tr>
                 <td>${e.year}</td>
@@ -161,6 +161,7 @@
           <div style="color:var(--text-faint); font-size:11px;">${Utils.escapeHtml(locationOf(e))}</div>` },
         { key: 'terrain', label: 'Terrain', sortValue: (e) => e.hilliness, render: (e) => `${D.courseTerrain(e.hilliness)} <span style="color:var(--text-faint); font-size:11px;">${e.hilliness}</span>` },
         { key: 'altitude', label: 'Altitude', sortValue: (e) => e.altitudeFt || 0, render: (e) => D.courseAltitude(e.altitudeFt) },
+        { key: 'speed', label: 'Speed', sortValue: (e) => ({ fast: 0, average: 1, slow: 2 }[D.courseSpeed(e.hilliness, e.altitudeFt).key]), render: (e) => UI.courseSpeedTag(e.hilliness, e.altitudeFt) },
         { key: 'type', label: 'Type', render: (e) => courseTypeLabel(e) }
       ];
       columns.push({ key: 'mrec', label: "Men's Record", numeric: true, sortValue: (e) => { const r = signatureRecord(game, e, 'M'); return r ? -r.time : 1; }, render: (e) => recCell(e, 'M') });
@@ -177,7 +178,7 @@
         mobileCard: (e) => `
           <div class="m-head">
             <div class="m-title">${e.championship ? '🏆 ' : ''}${Utils.escapeHtml(e.name)}
-              <div class="m-sub">${Utils.escapeHtml(locationOf(e))} • ${D.courseTerrain(e.hilliness)} • ${D.courseAltitude(e.altitudeFt)} altitude</div>
+              <div class="m-sub">${Utils.escapeHtml(locationOf(e))} • ${D.courseTerrain(e.hilliness)} • ${D.courseAltitude(e.altitudeFt)} altitude • ${UI.courseSpeedTag(e.hilliness, e.altitudeFt)}</div>
             </div>
           </div>
           <div class="m-sub" style="margin-top:4px;">
@@ -225,7 +226,7 @@
       const bits = [];
       if (c.windMph != null) bits.push(`Wind ${c.windMph} mph`);
       if (c.tempF != null) bits.push(`${c.tempF}°F`);
-      bits.push(c.dry === false || c.rain ? 'Wet' : 'Dry');
+      bits.push(c.ground === 'Muddy' ? 'Muddy' : c.dry === false || c.rain ? 'Wet' : 'Dry');
       return `<div style="color:var(--text-faint); font-size:11px; margin-top:2px;">${bits.join(' · ')}</div>`;
     };
 
@@ -270,7 +271,7 @@
       <div class="card" style="padding:12px; margin-bottom:12px;">
         <h3>${gender === 'M' ? "Men's" : "Women's"} Records by Distance</h3>
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>Dist</th><th class="num">Time</th><th>Athlete</th><th>School</th></tr></thead>
+          <thead><tr><th class="col-rank">Dist</th><th class="num">Time</th><th class="col-grow">Athlete</th><th>School</th></tr></thead>
           <tbody>${distRows(gender, dists)}</tbody></table></div>
       </div>` : '';
 
@@ -286,7 +287,7 @@
         <div class="card" style="padding:12px; margin-bottom:12px;">
           <h3>${gender === 'M' ? "Men's" : "Women's"} Record History — ${sig.distanceKey}</h3>
           <div class="table-wrap" style="max-height:240px; overflow-y:auto;"><table class="data">
-            <thead><tr><th>Year</th><th>Athlete</th><th>School</th><th class="num">Time</th><th>Meet</th></tr></thead>
+            <thead><tr><th class="col-rank">Year</th><th>Athlete</th><th>School</th><th class="num">Time</th><th class="col-grow">Meet</th></tr></thead>
             <tbody>${hist.map((r) => `
               <tr>
                 <td>${r.year}</td>
@@ -304,7 +305,7 @@
       <h2 style="margin:0 0 2px;">${entry.championship ? '🏆 ' : ''}${Utils.escapeHtml(entry.name)}</h2>
       <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">
         📍 ${Utils.escapeHtml(locationOf(entry))} • ${D.courseTerrain(entry.hilliness)} terrain (${entry.hilliness}/100) •
-        ${D.courseAltitude(entry.altitudeFt)} altitude${entry.conference ? ' • ' + Utils.escapeHtml(entry.conference) : ''}
+        ${D.courseAltitude(entry.altitudeFt)} altitude • ${UI.courseSpeedTag(entry.hilliness, entry.altitudeFt)}${entry.conference ? ' • ' + Utils.escapeHtml(entry.conference) : ''}
         ${isChampionshipCourse(entry) ? ' • <span style="color:var(--accent);">Championship course</span>' : ''}
       </div>
 
@@ -342,7 +343,7 @@
       <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">${UI.personName(game, 'ath', athleteId, name || '', { size: 22, link: false })} — ${held.length} record${held.length > 1 ? 's' : ''} across ${courses} course${courses > 1 ? 's' : ''}.</div>
       <div class="card" style="padding:12px;">
         <div class="table-wrap" style="max-height:360px; overflow-y:auto;"><table class="data">
-          <thead><tr><th>Course</th><th>Location</th><th></th><th class="num">Time</th></tr></thead>
+          <thead><tr><th class="col-grow">Course</th><th>Location</th><th></th><th class="num">Time</th></tr></thead>
           <tbody>${held.map((h) => `
             <tr class="clickable" data-course="${h.courseKey}" style="cursor:pointer;">
               <td><strong>${Utils.escapeHtml(h.courseName)}</strong></td>

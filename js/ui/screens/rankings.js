@@ -14,11 +14,7 @@
   let activeDiv = null; // null | 'DI' | 'DII' | 'DIII'
 
   function arrow(r) {
-    if (!r.prevRank) return '<span style="color:var(--text-faint);">·</span>';
-    const d = r.prevRank - r.rank;
-    if (d > 0) return `<span style="color:var(--success);">▲${d}</span>`;
-    if (d < 0) return `<span style="color:var(--danger);">▼${-d}</span>`;
-    return '<span style="color:var(--text-faint);">—</span>';
+    return UI.rankMove(r.rank, r.prevRank);
   }
 
   /*
@@ -68,7 +64,7 @@
           <div>
             <h3>🎟 At-large picks, in order</h3>
             <div class="table-wrap"><table class="data">
-              <thead><tr><th>Pick</th><th>Team</th><th class="hide-mobile">Regional</th><th class="num" title="Wins over teams already in the field">Kolas</th><th class="num" title="Losses to teams in the field">L</th></tr></thead>
+              <thead><tr><th class="col-rank">Pick</th><th class="col-grow">Team</th><th class="hide-mobile">Regional</th><th class="num" title="Wins over teams already in the field">Kolas</th><th class="num" title="Losses to teams in the field">L</th></tr></thead>
               <tbody>${sel.atLarge.map((p) => `<tr class="clickable" data-school="${p.schoolId}" ${mineStyle(p.schoolId)}>
                 <td>#${p.pick}</td><td><strong>${name(p.schoolId)}</strong></td>
                 <td class="hide-mobile" style="color:var(--text-dim); font-size:12px;">${Utils.ordinal(p.regionalPlace)} · ${Utils.escapeHtml(p.region || '')}</td>
@@ -76,7 +72,7 @@
             </table></div>
             ${sel.firstOut.length ? `<h3 style="margin-top:14px;">😬 First teams out</h3>
             <div class="table-wrap"><table class="data">
-              <thead><tr><th>Team</th><th class="hide-mobile">Regional</th><th class="num">Kolas</th><th class="num">L</th></tr></thead>
+              <thead><tr><th class="col-grow">Team</th><th class="hide-mobile">Regional</th><th class="num">Kolas</th><th class="num">L</th></tr></thead>
               <tbody>${sel.firstOut.map((p) => `<tr class="clickable" data-school="${p.schoolId}" ${mineStyle(p.schoolId)}>
                 <td>${name(p.schoolId)}</td><td class="hide-mobile" style="color:var(--text-dim); font-size:12px;">${Utils.ordinal(p.regionalPlace)} · ${Utils.escapeHtml(p.region || '')}</td>
                 <td class="num">${pts(p.points)}</td><td class="num">${p.losses}</td></tr>`).join('')}</tbody>
@@ -127,7 +123,7 @@
       <div style="color:var(--text-dim); font-size:12.5px; margin:6px 0 10px;">Projected field = the current poll's top ${board.size}. Kolas points = wins this season over those teams. Final bids are decided after regionals.</div>
       ${resume}
       <div class="table-wrap"><table class="data">
-        <thead><tr><th>Poll</th><th>Team</th><th class="num" title="Wins over projected-field teams">Kolas</th><th class="num">L</th><th></th></tr></thead>
+        <thead><tr><th class="col-rank">Poll</th><th class="col-grow">Team</th><th class="num" title="Wins over projected-field teams">Kolas</th><th class="num">L</th><th></th></tr></thead>
         <tbody>${board.rows.map((r) => `<tr class="clickable" data-school="${r.schoolId}" ${mineStyle(r.schoolId)}>
           <td>#${r.rank}</td><td><strong>${name(r.schoolId)}</strong></td>
           <td class="num"><span class="kolas-pts">${r.points}</span></td><td class="num">${r.losses}</td>
@@ -147,7 +143,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>Rankings</h1>
+        ${UI.screenTitle('Rankings', `Week ${game.week}, ${game.year}`)}
         <div class="actions">
           <div class="pill-tabs">
             <button data-tab="national" class="${activeTab === 'national' ? 'active' : ''}">National</button>
@@ -183,12 +179,12 @@
       body.innerHTML = `
         <h2>National Coach Rankings</h2>
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>Rank</th><th>Coach</th><th class="hide-mobile">School</th><th class="hide-mobile">Style</th><th class="num">Natl Titles</th><th class="num">Conf Titles</th><th class="num hide-mobile">Best Poll</th><th class="num">Score</th></tr></thead>
+          <thead><tr><th class="col-rank">Rank</th><th class="col-grow">Coach</th><th class="hide-mobile">School</th><th class="hide-mobile">Style</th><th class="num">Natl Titles</th><th class="num">Conf Titles</th><th class="num hide-mobile">Best Poll</th><th class="num">Score</th></tr></thead>
           <tbody>
             ${rows.map((r) => `
               <tr class="clickable" data-coach="${r.coachId}" ${r.isPlayer ? 'style="background:var(--accent-soft);"' : ''}>
-                <td>#${r.rank}</td>
-                <td>${UI.avatar(game.getCoach(r.coachId) || { name: r.name }, { size: 22, outfit: 'suit' })} <strong>${Utils.escapeHtml(r.name)}</strong>${r.isPlayer ? ' <span style="color:var(--accent);">(You)</span>' : ''}</td>
+                <td class="col-rank"><strong>#${r.rank}</strong></td>
+                <td class="col-grow">${UI.avatar(game.getCoach(r.coachId) || { name: r.name }, { size: 22, outfit: 'suit' })} <strong>${Utils.escapeHtml(r.name)}</strong>${r.isPlayer ? ' <span style="color:var(--accent);">(You)</span>' : ''}</td>
                 <td class="hide-mobile">${Utils.escapeHtml(r.school)}</td>
                 <td class="hide-mobile" style="font-size:12px; color:var(--text-dim);">${Utils.escapeHtml(r.personality)}</td>
                 <td class="num">${r.natTitles}</td>
@@ -216,12 +212,12 @@
       body.innerHTML = list.length ? `
         ${preseason ? '<div style="color:var(--text-dim); font-size:12.5px; margin-bottom:10px;">📊 <strong>Preseason projections</strong> — favorites by returning ability, fitness, and expected development. Real rankings publish once racing begins.</div>' : ''}
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>Rank</th><th>Runner</th><th class="hide-mobile">Class</th><th>School</th><th class="num">${preseason ? 'Projection' : 'Best Pace/km'}</th><th class="num hide-mobile">${preseason ? '' : 'Wins'}</th></tr></thead>
+          <thead><tr><th class="col-rank">Rank</th><th class="col-grow">Runner</th><th class="hide-mobile">Class</th><th>School</th><th class="num">${preseason ? 'Projection' : 'Best Pace/km'}</th><th class="num hide-mobile">${preseason ? '' : 'Wins'}</th></tr></thead>
           <tbody>
             ${list.map((r) => `
               <tr class="clickable" data-ath="${r.athleteId}" ${r.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
-                <td>#${r.rank}</td>
-                <td>${UI.avatar(game.getAthlete(r.athleteId) || { name: r.name, gender: activeGender }, { size: 22 })} <strong>${r.generational ? '⭐ ' : ''}${Utils.escapeHtml(r.name)}</strong></td>
+                <td class="col-rank"><strong>#${r.rank}</strong></td>
+                <td class="col-grow">${UI.avatar(game.getAthlete(r.athleteId) || { name: r.name, gender: activeGender }, { size: 22 })} <strong>${r.generational ? '⭐ ' : ''}${Utils.escapeHtml(r.name)}</strong></td>
                 <td class="hide-mobile">${r.classYear}</td>
                 <td class="clickable-school" data-school="${r.schoolId}" style="cursor:pointer;">${Utils.escapeHtml(r.school)}</td>
                 <td class="num">${preseason ? r.proj : window.XCD.engine.Races.formatTime(r.pace)}</td>
@@ -256,13 +252,12 @@
       body.innerHTML = `
         <h2>${heading} — Week ${R.computedWeek}</h2>
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>Rank</th><th></th><th>Team</th><th class="hide-mobile">Conference</th><th class="hide-mobile">Region</th><th class="num">Score</th></tr></thead>
+          <thead><tr><th class="col-rank">Rank</th><th class="col-grow">Team</th><th class="hide-mobile">Conference</th><th class="hide-mobile">Region</th><th class="num">Score</th></tr></thead>
           <tbody>
             ${rows.map((r, i) => `
               <tr class="clickable" data-school="${r.schoolId}" ${r.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
-                <td>#${activeTab === 'national' ? r.rank : i + 1}${activeTab !== 'national' ? ` <span style="color:var(--text-faint); font-size:11px;">(div #${r.rank})</span>` : ''}</td>
-                <td>${arrow(r)}</td>
-                <td><strong>${Utils.escapeHtml(r.name)}</strong>${UI.isMobile() ? `<div style="font-size:11px; color:var(--text-faint); font-weight:400;">${Utils.escapeHtml(r.conference)}</div>` : ''}</td>
+                <td class="col-rank"><strong>#${activeTab === 'national' ? r.rank : i + 1}</strong>${arrow(r)}${activeTab !== 'national' ? ` <span style="color:var(--text-faint); font-size:11px;">div #${r.rank}</span>` : ''}</td>
+                <td class="col-grow"><strong>${Utils.escapeHtml(r.name)}</strong>${UI.isMobile() ? `<div style="font-size:11px; color:var(--text-faint); font-weight:400;">${Utils.escapeHtml(r.conference)}</div>` : ''}</td>
                 <td class="hide-mobile">${Utils.escapeHtml(r.conference)}</td>
                 <td class="hide-mobile">${Utils.escapeHtml(r.ncaaRegion || r.region)}</td>
                 <td class="num">${r.score}</td>

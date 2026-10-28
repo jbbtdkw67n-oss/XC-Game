@@ -39,7 +39,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>History</h1>
+        ${UI.screenTitle('History', 'Your career and the record of the sport')}
         <div class="actions">
           <div class="pill-tabs">
             <button data-tab="career" class="${activeTab === 'career' ? 'active' : ''}">My Career</button>
@@ -122,7 +122,7 @@
           return `
             <h3 style="margin-top:12px;">${year} ${champ ? `— Natl champs: ${Utils.escapeHtml(champ.M?.team || '?')} (M), ${Utils.escapeHtml(champ.W?.team || '?')} (W)` : ''}</h3>
             ${rows.length ? `<div class="table-wrap"><table class="data">
-              <thead><tr><th>Wk</th><th>Meet</th><th></th><th class="num">Place</th><th class="num">Field</th></tr></thead>
+              <thead><tr><th class="col-rank">Wk</th><th class="col-grow">Meet</th><th></th><th class="num">Place</th><th class="num">Field</th></tr></thead>
               <tbody>${rows.map((r) => `
                 <tr><td>${r.week}</td><td>${Utils.escapeHtml(r.meet)}</td><td>${r.gender}</td>
                 <td class="num">${Utils.ordinal(r.place)}</td><td class="num">${r.teams}</td></tr>`).join('')}
@@ -574,10 +574,10 @@
       const sid = schoolId || (Object.values(game.world.schools).find((s) => s.name === schoolName) || {}).id;
       return sid ? Legacy.coachForSchoolYear(game, sid, year) : '';
     };
-    const coachTag = (name, coachId) => name
-      ? ` <span style="color:var(--text-faint); font-size:11.5px;">🧢 ${UI.personName(game, 'coach', coachId, name, { size: 18 })}</span>`
-      : '';
     const athTag = (id, name, gender, schoolId) => UI.personName(game, 'ath', id, name, { extra: { gender, schoolId } });
+    // A coach's name as a quiet, clickable line under a champion tile.
+    const coachLine = (name, coachId) => name
+      ? `Coach <span class="clickable" data-coach="${coachId || ''}" data-coach-name="${Utils.escapeHtml(name)}">${Utils.escapeHtml(name)}</span>` : '';
     let years = [...new Set([...Object.keys(natl), ...Object.keys(conf), ...Object.keys(regional)])].sort((a, b) => b - a);
     if (champYear) years = years.filter((y) => String(y).includes(champYear));
     const ft = window.XCD.engine.Races.formatTime;
@@ -585,9 +585,9 @@
     const lazyDetails = (summary, renderFn) => {
       lazy.push(renderFn);
       return `
-          <details style="margin-top:10px;" data-lazy="${lazy.length - 1}">
-            <summary style="cursor:pointer; color:var(--text-dim); font-size:13px;">${summary}</summary>
-            <div class="lazy-body" style="margin-top:8px;"></div>
+          <details class="honor-details" data-lazy="${lazy.length - 1}">
+            <summary>${summary}</summary>
+            <div class="lazy-body" style="margin-top:10px;"></div>
           </details>`;
     };
 
@@ -602,18 +602,22 @@
     const cards = years.map((year) => {
         const n = natl[year] || {};
         // National team + individual champions for the selected division.
-        const natBlock = ['M', 'W'].map((g) => {
+        const natCol = (g) => {
           const rec = n[natKey(champDiv, g)];
           if (!rec) return '';
           const teamCoach = coachFor(rec.team, year, rec.coach, rec.teamId);
-          const indivCoach = coachFor(rec.individualSchool, year, rec.individualCoach, rec.individualSchoolId);
+          const timeTxt = rec.individualTime ? ' · ' + ft(rec.individualTime) : '';
           return `
-            <div class="attr-row" style="flex-wrap:wrap; gap:6px;">
-              <span>🏆 ${g === 'M' ? "Men's" : "Women's"} National Champions:
-                <strong class="clickable-school" data-school="${rec.teamId || ''}" style="cursor:pointer; color:var(--accent-hover);">${Utils.escapeHtml(rec.team)}</strong>${coachTag(teamCoach, rec.coachId)}</span>
-              <span style="color:var(--text-dim);">🥇 ${athTag(rec.individualId, rec.individual, g, rec.individualSchoolId)} (<span class="${rec.individualSchoolId ? 'clickable' : ''}" ${rec.individualSchoolId ? `data-school="${rec.individualSchoolId}" style="cursor:pointer;"` : ''}>${Utils.escapeHtml(rec.individualSchool)}</span>)${rec.individualTime ? ' — ' + ft(rec.individualTime) : ''}${coachTag(indivCoach)}</span>
+            <div class="honor-col">
+              <div class="mini-label">${g === 'M' ? 'Men' : 'Women'}</div>
+              <div class="honor-row">
+                ${UI.honorTeam(game, '🏆 Team Champion', rec.team, rec.teamId, coachLine(teamCoach, rec.coachId))}
+                ${UI.honorAthlete(game, '🥇 Individual Champion', { athleteId: rec.individualId, name: rec.individual, school: rec.individualSchool, schoolId: rec.individualSchoolId }, g,
+                  `${Utils.escapeHtml(rec.individualSchool || '')}${timeTxt}`)}
+              </div>
             </div>`;
-        }).join('');
+        };
+        const natBlock = (natCol('M') || natCol('W')) ? `<div class="honor-cols">${natCol('M')}${natCol('W')}</div>` : '';
 
         // Regional champions in this division (Archive fix): every region's
         // team champion — with the coach responsible — plus the individual
@@ -628,29 +632,26 @@
             return (schoolDiv[r[`${rg}-${g}`]] || 'DI') === champDiv;
           }))
           .sort();
-        const regBlock = regionNames.length ? lazyDetails(`Regional Champions (${regionNames.length} regions)`, () =>
-          regionNames.map((rg) => {
-            const teamLine = (g) => {
-              const m = rm[`${champDiv}:${rg}-${g}`];
-              const nameOnly = r[`${rg}-${g}`];
-              const champName = m ? m.school : nameOnly;
-              if (!champName) return '';
-              if (!m && (schoolDiv[champName] || 'DI') !== champDiv) return '';
-              const coach = coachFor(champName, year, m && m.coach, m && m.schoolId);
-              return `<div style="font-size:12.5px;">${g}: <strong>${Utils.escapeHtml(champName)}</strong>${coachTag(coach, m && m.coachId)}</div>`;
-            };
-            const indivLine = (g) => {
-              const rec = ri[`${rg}-${g}`];
-              if (!rec) return '';
-              if ((schoolDiv[rec.school] || 'DI') !== champDiv) return '';
-              return `<div style="color:var(--text-faint); font-size:11.5px;">🥇${g}: ${athTag(rec.athleteId, rec.name, g)} (${Utils.escapeHtml(rec.school)})${rec.coach ? coachTag(rec.coach) : ''}</div>`;
-            };
-            return `
-            <div class="attr-row" style="align-items:flex-start;">
-              <span class="attr-name">🗺 ${Utils.escapeHtml(rg)}</span>
-              <span style="text-align:right;">${teamLine('M')}${teamLine('W')}${indivLine('M')}${indivLine('W')}</span>
-            </div>`;
-          }).join('')) : '';
+        const regBlock = regionNames.length ? lazyDetails(`Regional Champions (${regionNames.length} regions)`, () => {
+          const teamCell = (rg, g) => {
+            const m = rm[`${champDiv}:${rg}-${g}`];
+            const champName = m ? m.school : r[`${rg}-${g}`];
+            if (!champName || (!m && (schoolDiv[champName] || 'DI') !== champDiv)) return '<span style="color:var(--text-faint);">—</span>';
+            const coach = coachFor(champName, year, m && m.coach, m && m.schoolId);
+            return `<strong>${Utils.escapeHtml(champName)}</strong>${coach ? `<div class="cell-sub">${coachLine(coach, m && m.coachId)}</div>` : ''}`;
+          };
+          const indivCell = (rg, g) => {
+            const rec = ri[`${rg}-${g}`];
+            if (!rec || (schoolDiv[rec.school] || 'DI') !== champDiv) return '<span style="color:var(--text-faint);">—</span>';
+            return `${athTag(rec.athleteId, rec.name, g)}<div class="cell-sub">${Utils.escapeHtml(rec.school)}</div>`;
+          };
+          return `<div class="table-wrap"><table class="data">
+            <thead><tr><th>Region</th><th>Men</th><th>Women</th><th class="hide-mobile">Men's Individual</th><th class="hide-mobile">Women's Individual</th></tr></thead>
+            <tbody>${regionNames.map((rg) => `<tr>
+              <td><strong>${Utils.escapeHtml(rg)}</strong></td><td>${teamCell(rg, 'M')}</td><td>${teamCell(rg, 'W')}</td>
+              <td class="hide-mobile">${indivCell(rg, 'M')}</td><td class="hide-mobile">${indivCell(rg, 'W')}</td></tr>`).join('')}</tbody>
+          </table></div>`;
+        }) : '';
 
         // Conference champions in this division, grouped by conference.
         const c = conf[year] || {};
@@ -659,29 +660,30 @@
         const confNames = [...new Set(Object.keys(c).map((k) => k.slice(0, k.lastIndexOf('-'))))]
           .filter((name) => (confDiv[name] || 'DI') === champDiv)
           .sort();
-        const confBlock = confNames.length ? lazyDetails(`Conference Champions (${confNames.length})`, () =>
-          confNames.map((name) => {
-            const teamLine = (g) => {
-              const champName = c[`${name}-${g}`];
-              if (!champName) return '';
-              const m = cm[`${name}-${g}`];
-              const coach = coachFor(champName, year, m && m.coach, m && m.schoolId);
-              return `<div style="font-size:12.5px;">${g}: <strong>${Utils.escapeHtml(champName)}</strong>${coachTag(coach, m && m.coachId)}</div>`;
-            };
-            const indivLine = (g) => {
-              const rec = ci[`${name}-${g}`];
-              if (!rec) return '';
-              return `<div style="color:var(--text-faint); font-size:11.5px;">🥇${g}: ${athTag(rec.athleteId, rec.name, g)}</div>`;
-            };
-            return `
-            <div class="attr-row" style="align-items:flex-start;">
-              <span class="attr-name">${Utils.escapeHtml(name)}</span>
-              <span style="text-align:right;">${teamLine('M')}${teamLine('W')}${indivLine('M')}${indivLine('W')}</span>
-            </div>`;
-          }).join('')) : '';
+        const confBlock = confNames.length ? lazyDetails(`Conference Champions (${confNames.length})`, () => {
+          const teamCell = (name, g) => {
+            const champName = c[`${name}-${g}`];
+            if (!champName) return '<span style="color:var(--text-faint);">—</span>';
+            const m = cm[`${name}-${g}`];
+            const coach = coachFor(champName, year, m && m.coach, m && m.schoolId);
+            return `<strong>${Utils.escapeHtml(champName)}</strong>${coach ? `<div class="cell-sub">${coachLine(coach, m && m.coachId)}</div>` : ''}`;
+          };
+          const indivCell = (name, g) => {
+            const rec = ci[`${name}-${g}`];
+            return rec ? athTag(rec.athleteId, rec.name, g) : '<span style="color:var(--text-faint);">—</span>';
+          };
+          return `<div class="table-wrap"><table class="data">
+            <thead><tr><th>Conference</th><th>Men</th><th>Women</th><th class="hide-mobile">Men's Individual</th><th class="hide-mobile">Women's Individual</th></tr></thead>
+            <tbody>${confNames.map((name) => `<tr>
+              <td><strong>${Utils.escapeHtml(name)}</strong></td><td>${teamCell(name, 'M')}</td><td>${teamCell(name, 'W')}</td>
+              <td class="hide-mobile">${indivCell(name, 'M')}</td><td class="hide-mobile">${indivCell(name, 'W')}</td></tr>`).join('')}</tbody>
+          </table></div>`;
+        }) : '';
 
         if (!natBlock && !confBlock && !regBlock) return '';
-        return `<div class="card" style="margin-bottom:16px;"><h2>${year} — ${window.XCD.data.divisionFor(champDiv).label}</h2>${natBlock}${regBlock}${confBlock}</div>`;
+        return `<div class="card" style="margin-bottom:16px;">
+          <div class="card-title"><h2>${year} Champions</h2><span class="phase-pill">${window.XCD.data.divisionFor(champDiv).label}</span></div>
+          ${natBlock}${regBlock}${confBlock}</div>`;
       });
     const populated = cards.filter(Boolean);
     const body = !years.length ? '<div class="card" style="color:var(--text-dim);">No championships match the current filters.</div>'
@@ -750,9 +752,9 @@
     const lazyDetails = (summary, renderFn) => {
       lazy.push(renderFn);
       return `
-          <details style="margin-top:12px;" data-lazy="${lazy.length - 1}">
-            <summary style="cursor:pointer; color:var(--text-dim); font-size:13px;">${summary}</summary>
-            <div class="lazy-body" style="margin-top:8px;"></div>
+          <details class="honor-details" data-lazy="${lazy.length - 1}">
+            <summary>${summary}</summary>
+            <div class="lazy-body" style="margin-top:10px;"></div>
           </details>`;
     };
 
@@ -764,45 +766,60 @@
         <input type="text" id="award-year" class="search-input" placeholder="Filter year…" value="${Utils.escapeHtml(awardYear)}" style="max-width:170px;">
       </div>`;
 
-    const nameSpan = (x, gender) => x ? `${UI.personName(game, 'ath', x.athleteId, x.name, { extra: { gender } })} <span style="color:var(--text-dim);">— ${Utils.escapeHtml(x.school)}</span>` : '';
-    const coachSpan = (x) => x ? `${UI.personName(game, 'coach', x.coachId, x.name)} <span style="color:var(--text-dim);">— ${Utils.escapeHtml(x.school)}</span>` : '';
-    const nameList = (list, gender, max) => `<span class="person-list" style="font-size:12px;">${list.slice(0, max).map((x) => UI.personName(game, 'ath', x.athleteId, x.name, { size: 18, extra: { gender } })).join('')}${list.length > max ? '<span style="color:var(--text-faint);">…</span>' : ''}</span>`;
+    const nameCell = (x, gender) => x ? `${UI.personName(game, 'ath', x.athleteId, x.name, { size: 18, extra: { gender } })}<div class="cell-sub">${Utils.escapeHtml(x.school || '')}</div>` : '<span style="color:var(--text-faint);">—</span>';
+    const coachCell = (x) => x ? `${UI.personName(game, 'coach', x.coachId, x.name, { size: 18 })}<div class="cell-sub">${Utils.escapeHtml(x.school || '')}</div>` : '<span style="color:var(--text-faint);">—</span>';
+    // A short, numbered All-America list in the same player cards as News.
+    const teamList = (list, gender, max, label) => {
+      if (!list || !list.length) return '';
+      const cards = list.slice(0, max).map((x, i) => UI.playerCardHtml
+        ? UI.playerCardHtml(game, x, { rank: i + 1, gender })
+        : UI.personName(game, 'ath', x.athleteId, x.name, { extra: { gender } })).join('');
+      return `<div class="mini-label">${label} (${list.length})</div>
+        <div class="pcard-grid">${cards}</div>
+        ${list.length > max ? `<div class="honor-more">+ ${list.length - max} more — the full team is on News → Awards.</div>` : ''}`;
+    };
 
     const cards = years.map((year) => {
         // Prefer the per-division slate; fall back to legacy top-level M/W.
         const slate = ((A[year].divisions || {})[awardDiv]) || (awardDiv === 'DI' ? A[year] : null);
         if (!slate) return '';
-        const natBlock = (gender) => {
+        const natCol = (gender) => {
           const g = slate[gender];
           if (!g) return '';
           return `
-            <h3 style="margin-top:10px;">${gender === 'M' ? 'Men' : 'Women'}</h3>
-            ${g.runnerOfYear ? `<div class="attr-row"><span class="attr-name">Runner of the Year</span><span>${nameSpan(g.runnerOfYear, gender)}</span></div>` : ''}
-            ${g.freshmanOfYear ? `<div class="attr-row"><span class="attr-name">Freshman of the Year</span><span>${nameSpan(g.freshmanOfYear, gender)}</span></div>` : ''}
-            ${g.coachOfYear ? `<div class="attr-row"><span class="attr-name">Coach of the Year</span><span>${coachSpan(g.coachOfYear)}</span></div>` : ''}
-            ${g.allAmericans && g.allAmericans.length ? `<div class="attr-row" style="align-items:flex-start;"><span class="attr-name" style="flex:0 0 auto;">All-Americans</span>${nameList(g.allAmericans, gender, 10)}</div>` : ''}
-            ${g.academicAllAmericans && g.academicAllAmericans.length ? `<div class="attr-row" style="align-items:flex-start;"><span class="attr-name" style="flex:0 0 auto;">Academic All-Americans</span>${nameList(g.academicAllAmericans, gender, 5)}</div>` : ''}`;
+            <div class="honor-col">
+              <div class="mini-label">${gender === 'M' ? 'Men' : 'Women'}</div>
+              <div class="honor-row stack">
+                ${UI.honorAthlete(game, 'Runner of the Year', g.runnerOfYear, gender)}
+                ${UI.honorAthlete(game, 'Freshman of the Year', g.freshmanOfYear, gender)}
+                ${UI.honorCoach(game, 'Coach of the Year', g.coachOfYear)}
+              </div>
+              ${teamList(g.allAmericans, gender, 6, 'All-Americans')}
+              ${teamList(g.academicAllAmericans, gender, 4, 'Academic All-Americans')}
+            </div>`;
         };
+        const natBlock = (slate.M || slate.W) ? `<div class="honor-cols">${natCol('M')}${natCol('W')}</div>` : '';
 
-        // Conference awards for every conference in this division.
+        // Conference awards for every conference in this division: one row
+        // per conference, the same columns every time.
         const confs = slate.conferences || {};
         const confNames = Object.keys(confs).sort();
-        const confBlock = confNames.length ? lazyDetails(`Conference Awards (${confNames.length})`, () =>
-          confNames.map((conf) => {
-            const cb = confs[conf];
-            const line = (gender) => {
-              const g = cb[gender]; if (!g) return '';
-              const bits = [];
-              if (g.runnerOfYear) bits.push(`<div>RoY: ${nameSpan(g.runnerOfYear, gender)}</div>`);
-              if (g.freshmanOfYear) bits.push(`<div>FoY: ${nameSpan(g.freshmanOfYear, gender)}</div>`);
-              if (g.coachOfYear) bits.push(`<div>CoY: ${coachSpan(g.coachOfYear)}</div>`);
-              return bits.length ? `<div style="font-size:12px; color:var(--text-dim); margin:4px 0 0 8px;"><span style="color:var(--text-faint);">${gender === 'M' ? 'Men' : 'Women'}</span>${bits.join('')}</div>` : '';
-            };
-            return `<div style="margin-bottom:10px;"><strong style="font-size:12.5px;">${Utils.escapeHtml(conf)}</strong>${line('M')}${line('W')}</div>`;
-          }).join('')) : '';
+        const confBlock = confNames.length ? lazyDetails(`Conference Awards (${confNames.length})`, () => `
+          <div class="table-wrap"><table class="data">
+            <thead><tr><th>Conference</th><th>Men's Runner of the Year</th><th>Women's Runner of the Year</th><th class="hide-mobile">Men's Coach</th><th class="hide-mobile">Women's Coach</th></tr></thead>
+            <tbody>${confNames.map((conf) => {
+              const cb = confs[conf] || {};
+              const M = cb.M || {}; const W = cb.W || {};
+              return `<tr><td><strong>${Utils.escapeHtml(conf)}</strong></td>
+                <td>${nameCell(M.runnerOfYear, 'M')}</td><td>${nameCell(W.runnerOfYear, 'W')}</td>
+                <td class="hide-mobile">${coachCell(M.coachOfYear)}</td><td class="hide-mobile">${coachCell(W.coachOfYear)}</td></tr>`;
+            }).join('')}</tbody>
+          </table></div>`) : '';
 
         if (!slate.M && !slate.W && !confNames.length) return '';
-        return `<div class="card" style="margin-bottom:16px;"><h2>${year} Awards — ${window.XCD.data.divisionFor(awardDiv).label}</h2>${natBlock('M')}${natBlock('W')}${confBlock}</div>`;
+        return `<div class="card" style="margin-bottom:16px;">
+          <div class="card-title"><h2>${year} Awards</h2><span class="phase-pill">${window.XCD.data.divisionFor(awardDiv).label}</span></div>
+          ${natBlock}${confBlock}</div>`;
       });
     const populated = cards.filter(Boolean);
     const body = !years.length ? '<div class="card" style="color:var(--text-dim);">Awards are handed out after each NCAA Championships.</div>'

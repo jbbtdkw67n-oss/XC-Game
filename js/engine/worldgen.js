@@ -446,6 +446,28 @@
     return { schools, coaches, athletes, schoolOrder, seed };
   }
 
+  // One complete program: the school, its head coach and assistant, and full
+  // rosters, added into the `out` maps (schools / coaches / athletes / order).
+  function buildProgram(rng, raw, division, rosterMin, rosterMax, out) {
+    const school = buildSchool(rng, raw, division);
+    const coach = buildCoach(rng, school, false);
+    school.coachId = coach.id;
+    const assistant = buildCoach(rng, school, false, 'Assistant');
+    school.assistantId = assistant.id;
+    assistant.mentorName = coach.fullName;
+    assistant.mentorId = coach.id;
+    assistant.workedFor = [{ name: coach.fullName, school: school.name, year: null }];
+    out.coaches[assistant.id] = assistant;
+    out.coaches[coach.id] = coach;
+    const rM = rng.int(rosterMin, rosterMax);
+    const rW = rng.int(rosterMin, rosterMax);
+    for (let i = 0; i < rM; i++) { const a = buildAthlete(rng, school, 'M'); out.athletes[a.id] = a; school.rosterM.push(a.id); }
+    for (let i = 0; i < rW; i++) { const a = buildAthlete(rng, school, 'W'); out.athletes[a.id] = a; school.rosterW.push(a.id); }
+    out.schools[school.id] = school;
+    out.order.push(school.id);
+    return school;
+  }
+
   /*
    * Build only the Division II and III worlds (Update 3 save migration):
    * existing DI-only dynasties gain the lower divisions so all three
@@ -455,33 +477,38 @@
     const rng = new window.XCD.core.SeededRNG((seed ^ 0xD22D33) >>> 0);
     const rosterMin = options.rosterMin ?? 14;
     const rosterMax = options.rosterMax ?? 14;
-    const schools = {};
-    const coaches = {};
-    const athletes = {};
-    const order = [];
-
+    const out = { schools: {}, coaches: {}, athletes: {}, order: [] };
     [['DII', D.RAW_SCHOOLS_DII || []], ['DIII', D.RAW_SCHOOLS_DIII || []]].forEach(([division, raws]) => {
       if (!D.divisionFor(division).active) return;
+      raws.forEach((raw) => buildProgram(rng, raw, division, rosterMin, rosterMax, out));
+    });
+    return out;
+  }
+
+  /*
+   * Programs added to the real-school database after a dynasty began (e.g.
+   * the American Rivers Conference joining Division III). Builds every real
+   * school whose name isn't already in the world, so older saves gain them
+   * with full rosters and staffs; they join the schedule, conference meets
+   * and every filter from the next season built. Idempotent: a world that
+   * already has every school returns empty maps.
+   */
+  function generateMissingSchools(existingNames, seed, options = {}) {
+    const have = new Set(existingNames || []);
+    const rng = new window.XCD.core.SeededRNG(((seed || 1) ^ 0x5C0075) >>> 0);
+    const rosterMin = options.rosterMin ?? 14;
+    const rosterMax = options.rosterMax ?? 14;
+    const out = { schools: {}, coaches: {}, athletes: {}, order: [] };
+    [['DI', D.RAW_SCHOOLS], ['DII', D.RAW_SCHOOLS_DII || []], ['DIII', D.RAW_SCHOOLS_DIII || []]].forEach(([division, raws]) => {
+      if (!D.divisionFor(division).active) return;
       raws.forEach((raw) => {
-        const school = buildSchool(rng, raw, division);
-        const coach = buildCoach(rng, school, false);
-        school.coachId = coach.id;
-        const assistant = buildCoach(rng, school, false, 'Assistant');
-        school.assistantId = assistant.id;
-        assistant.mentorName = coach.fullName;
-        assistant.mentorId = coach.id;
-        assistant.workedFor = [{ name: coach.fullName, school: school.name, year: null }];
-        coaches[assistant.id] = assistant;
-        coaches[coach.id] = coach;
-        const rM = rng.int(rosterMin, rosterMax);
-        const rW = rng.int(rosterMin, rosterMax);
-        for (let i = 0; i < rM; i++) { const a = buildAthlete(rng, school, 'M'); athletes[a.id] = a; school.rosterM.push(a.id); }
-        for (let i = 0; i < rW; i++) { const a = buildAthlete(rng, school, 'W'); athletes[a.id] = a; school.rosterW.push(a.id); }
-        schools[school.id] = school;
-        order.push(school.id);
+        if (have.has(raw[0])) return;
+        have.add(raw[0]);
+        buildProgram(rng, raw, division, rosterMin, rosterMax, out);
       });
     });
-    return { schools, coaches, athletes, order };
+    assignRivalries(Object.values(out.schools));
+    return out;
   }
 
   /* ================================================================ *
@@ -599,6 +626,7 @@
   window.XCD.engine.WorldGenerator = {
     generate,
     generateLowerDivisions,
+    generateMissingSchools,
     applyCustomLeague,
     buildAthlete,
     buildWalkOn,

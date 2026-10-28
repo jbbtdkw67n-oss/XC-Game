@@ -107,9 +107,15 @@
   D.homeCourseFor = function (school) {
     if (!school) return null;
     const h = hashName(school.name);
-    // A stable, believable terrain: most home courses are gently rolling
-    // (20-64), with the occasional flat or genuinely hilly venue.
-    const hilliness = 20 + (h % 45);
+    // A stable, believable terrain fixed to the program forever (the same
+    // course every season). Home courses span the real range so some are
+    // fast and some are slow: about a quarter are flat PR courses (8-29),
+    // half rolling (30-54), and a quarter genuinely hilly (55-82).
+    const band = h % 4;
+    const within = (h >>> 2) % 1000 / 1000;
+    const hilliness = band === 0 ? Math.round(8 + within * 21)
+      : band === 3 ? Math.round(55 + within * 27)
+      : Math.round(30 + within * 24);
     const altCat = D.altitudeForSchool ? D.altitudeForSchool(school.name, school.state) : (school.weather && school.weather.altitude) || 'Low';
     const altitudeFt = altCat === 'High' ? 5800 + (h % 1600)
       : altCat === 'Medium' ? 3500 + (h % 1400)

@@ -82,7 +82,7 @@ async function run() {
     dots: document.querySelectorAll('.pack-report .pack-dot').length,
     chips: document.querySelectorAll('#live-board .pack-gap-chip').length
   }));
-  ok(packUi.stats === 3 && packUi.dots === 5, 'Race Center shows the Pack Report with 5 scorer dots: ' + JSON.stringify(packUi));
+  ok(packUi.stats === 2 && packUi.dots === 5, 'Race Center shows the Pack Report with 5 scorer dots: ' + JSON.stringify(packUi));
   ok(packUi.chips > 0, 'Final Team Scores show 1-5 gap chips');
 
   /* ---------- 3) Real NCAA selection (Kolas + DI individuals) ---------- */

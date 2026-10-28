@@ -179,7 +179,11 @@
     ['Babson','MA','NEWMAC'],['Wheaton (MA)','MA','NEWMAC'],['Clark (MA)','MA','NEWMAC'],['Emerson','MA','NEWMAC'],
     // Landmark Conference
     ['Catholic','DC','Landmark'],['Susquehanna','PA','Landmark'],['Juniata','PA','Landmark'],['Elizabethtown','PA','Landmark'],
-    ['Moravian','PA','Landmark'],['Scranton','PA','Landmark'],['Goucher','MD','Landmark'],['Drew','NJ','Landmark']
+    ['Moravian','PA','Landmark'],['Scranton','PA','Landmark'],['Goucher','MD','Landmark'],['Drew','NJ','Landmark'],
+    // American Rivers Conference (A-R-C, formerly the IIAC)
+    ['Wartburg','IA','American Rivers'],['Luther','IA','American Rivers'],['Loras','IA','American Rivers'],
+    ['Coe','IA','American Rivers'],['Central (IA)','IA','American Rivers'],['Simpson','IA','American Rivers'],
+    ['Dubuque','IA','American Rivers'],['Buena Vista','IA','American Rivers'],['Nebraska Wesleyan','NE','American Rivers']
   ];
 
   /*
@@ -197,7 +201,7 @@
   D.CONFERENCES_DIII = {
     'WIAC': 1, 'NESCAC': 1, 'NCAC': 1, 'UAA': 1, 'MIAC': 1,
     'SUNYAC': 2, 'MIAA (DIII)': 2, 'CCIW': 2, 'ODAC': 2, 'Centennial': 2,
-    'Liberty League': 2, 'Little East': 2, 'NEWMAC': 2,
+    'Liberty League': 2, 'Little East': 2, 'NEWMAC': 2, 'American Rivers': 2,
     'SCAC': 3, 'Empire 8': 3, 'SAA': 3, 'Skyline': 3, 'C2C': 3, 'Landmark': 3
   };
 
