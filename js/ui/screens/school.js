@@ -136,13 +136,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <div>
-          <h1 style="margin-bottom:2px;">${Utils.escapeHtml(school.name)}</h1>
-          <div style="display:flex; align-items:center; gap:8px; font-size:13.5px;">
-            ${UI.kitSwatch(school)}
-            <span style="font-weight:600; color:var(--text);">${Utils.escapeHtml(school.mascot || '')}</span>
-          </div>
-        </div>
+        ${UI.screenTitle('My Program', `<span style="display:inline-flex; align-items:center; gap:8px;">${UI.kitSwatch(school)}<strong style="color:var(--text);">${Utils.escapeHtml(school.name)}</strong> ${Utils.escapeHtml(school.mascot || '')}</span>`)}
         <div class="actions">
           <div class="pill-tabs">
             <button data-stab="overview" class="${activeTab === 'overview' ? 'active' : ''}">Overview</button>
@@ -262,7 +256,7 @@
           each coach accomplished <strong>at this school</strong> — never at other stops (Phases 3 &amp; 8).
         </div>
         ${prog.coaches.length ? `<div class="table-wrap"><table class="data">
-          <thead><tr><th>Coach</th><th>Years</th><th class="num">Titles Here</th><th class="num" title="Regional titles won here">Reg</th><th class="num">NCAA Trips</th><th>Coach of the Year</th><th class="num" title="Program prestige when the tenure ended (current prestige for the sitting coach)">Prestige Reached</th><th>Departure</th></tr></thead>
+          <thead><tr><th class="col-grow">Coach</th><th>Years</th><th class="num">Titles Here</th><th class="num" title="Regional titles won here">Reg</th><th class="num">NCAA Trips</th><th>Coach of the Year</th><th class="num" title="Program prestige when the tenure ended (current prestige for the sitting coach)">Prestige Reached</th><th>Departure</th></tr></thead>
           <tbody>${prog.coaches.slice().reverse().map((c) => {
             const rec = resolveCoachRecord(game, c);
             const sr = rec ? window.XCD.engine.Legacy.coachSchoolRecord(game, rec, school.id)
@@ -735,6 +729,7 @@
       .filter(Boolean);
 
     container.innerHTML = `
+      ${UI.sectionLabel('At a Glance')}
       <div class="grid cols-4" style="margin-bottom:16px;">
         <div class="stat-tile"><div class="label">Prestige</div><div class="value">${school.prestige}</div><div class="sub">${Utils.ratingGrade(school.prestige)} • ${(() => {
           const ph = school.prestigeHistory || [];
@@ -752,6 +747,7 @@
           <div style="color:var(--text-dim); font-size:13px;">Training at elevation builds bigger aerobic engines — a steady lift to <strong>Stamina</strong> and <strong>Lactate Threshold</strong>. The tradeoff: the thin air taxes recovery, so athletes fatigue faster and workload must be managed more carefully.</div>
         </div>` : ''}
 
+      ${UI.sectionLabel('Staff & Facilities')}
       <div class="grid cols-2">
         <div class="card">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
@@ -872,7 +868,8 @@
         </div>
       </div>
 
-      <div class="grid cols-2" style="margin-top:16px;">
+      ${UI.sectionLabel('Budget & History')}
+      <div class="grid cols-2">
         <div class="card">
           <h2>Budget — $${b.total.toLocaleString()}</h2>
           <div class="attr-row"><span class="attr-name">Recruiting</span><span>$${b.recruiting.toLocaleString()}</span></div>

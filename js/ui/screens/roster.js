@@ -22,7 +22,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>Roster</h1>
+        ${UI.screenTitle('Roster', `${Utils.escapeHtml(game.getPlayerSchool().name)} · ${game.year} season`)}
         <div class="actions">
           <div class="pill-tabs">
             <button id="tab-m" class="${activeGender === 'M' ? 'active' : ''}">Men</button>

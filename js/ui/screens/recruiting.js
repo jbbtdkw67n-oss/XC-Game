@@ -320,8 +320,8 @@
       searchKeys: ['firstName', 'lastName', 'hometownState', 'region', 'source'],
       onRowClick: (r) => showRecruitCard(game, r),
       columns: [
-        { key: 'starRating', label: 'Stars', numeric: true, render: (r) => stars(r.starRating) },
-        { key: 'nationalRank', label: 'Natl', numeric: true, render: (r) => `#${r.nationalRank}` },
+        { key: 'starRating', label: 'Stars', numeric: true, align: 'left', render: (r) => stars(r.starRating) },
+        { key: 'nationalRank', label: 'Natl', numeric: true, align: 'left', render: (r) => `#${r.nationalRank}` },
         { key: 'lastName', label: 'Name', render: (r) => `${UI.avatar(r, { size: 24 })} ${r.generational ? '<span title="Generational Recruit">⭐</span> ' : ''}${r.nxn && r.nxn.champion ? '<span title="NXN Champion">👟</span> ' : r.nxn && r.nxn.allAmerican ? '<span title="NXN All-American">🎽</span> ' : ''}<strong>${Utils.escapeHtml(r.fullName)}</strong>${r.source !== 'HS' ? ` <span style="font-size:10px; color:var(--warning);">${r.source}</span>` : ''}` },
         { key: 'hometownState', label: 'From', render: (r) => r.hometownState === 'INT' ? Utils.escapeHtml(r.country) : `${Utils.escapeHtml(r.hometownCity)}, ${r.hometownState}` },
         {
@@ -427,7 +427,7 @@
       <div class="card">
         <h2>Class of ${Number(year) + 1} — ${D.divisionFor(classRankDiv).label} Rankings</h2>
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>Rank</th><th>School</th><th class="num">Signees</th><th class="num">Avg ★</th><th class="num">Natl</th><th class="num">Score</th></tr></thead>
+          <thead><tr><th class="col-rank">Rank</th><th class="col-grow">School</th><th class="num">Signees</th><th class="num">Avg ★</th><th class="num">Natl</th><th class="num">Score</th></tr></thead>
           <tbody>
             ${rows.map((e, i) => `
               <tr ${e.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
@@ -454,7 +454,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>Recruiting</h1>
+        ${UI.screenTitle('Recruiting', `Class of ${R.classYear || game.year + 1}`)}
         <div class="actions">
           <div class="pill-tabs">
             <button data-tab="board" class="${activeTab === 'board' ? 'active' : ''}">My Board</button>

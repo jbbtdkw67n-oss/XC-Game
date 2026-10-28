@@ -60,6 +60,8 @@
     </div>`;
   }
 
+  UI.playerCardHtml = (game, x, opts) => playerCard(game, x, opts);
+
   // A clean, clickable team card. `t` = { schoolId, name, conference }.
   function teamCard(game, t, opts = {}) {
     if (!t) return '';
@@ -167,18 +169,6 @@
     return { nat, confMap, hasNational };
   }
 
-  function awardLine(label, valueHtml) {
-    if (!valueHtml) return '';
-    return `<div class="award-line"><span class="al-label">${label}</span><span class="al-val">${valueHtml}</span></div>`;
-  }
-  function nameLink(x) {
-    if (!x) return '';
-    return `<span class="clk" data-ath="${x.athleteId || ''}" data-ath-name="${Utils.escapeHtml(x.name)}">${Utils.escapeHtml(x.name)}</span> <span style="color:var(--text-faint);">— ${Utils.escapeHtml(x.school)}</span>`;
-  }
-  function coachLink(x) {
-    if (!x) return '';
-    return `<span class="clk" ${x.coachId ? `data-coach="${x.coachId}"` : ''} data-coach-name="${Utils.escapeHtml(x.name)}">${Utils.escapeHtml(x.name)}</span> <span style="color:var(--text-faint);">— ${Utils.escapeHtml(x.school)}</span>`;
-  }
   function teamGrid(game, list, opts) {
     if (!list || !list.length) return '';
     return `<div class="pcard-grid">${list.map((x, i) => playerCard(game, x, Object.assign({ rank: i + 1 }, opts))).join('')}</div>`;
@@ -222,14 +212,14 @@
           const gLabel = g === 'M' ? 'Men' : 'Women';
           const aa = slate.allAmericans || [];
           return `<div class="card" style="margin-bottom:16px;">
-            <h2>${gLabel} — ${divLabel(awardDiv)}</h2>
-            <div class="award-slate">
-              ${awardLine('Runner of the Year', nameLink(slate.runnerOfYear))}
-              ${awardLine('Freshman of the Year', nameLink(slate.freshmanOfYear))}
-              ${awardLine('Coach of the Year', coachLink(slate.coachOfYear))}
+            <div class="card-title"><h2>${gLabel}</h2><span class="phase-pill">${divLabel(awardDiv)}</span></div>
+            <div class="honor-row">
+              ${UI.honorAthlete(game, 'Runner of the Year', slate.runnerOfYear, g)}
+              ${UI.honorAthlete(game, 'Freshman of the Year', slate.freshmanOfYear, g)}
+              ${UI.honorCoach(game, 'Coach of the Year', slate.coachOfYear)}
             </div>
-            ${aa.length ? `<div class="news-section-label">🇺🇸 All-America Team (${aa.length})</div>${teamGrid(game, aa, { gender: g })}` : ''}
-            ${slate.academicAllAmericans && slate.academicAllAmericans.length ? `<div class="news-section-label">🎓 Academic All-Americans</div>${teamGrid(game, slate.academicAllAmericans, { gender: g, rank: null })}` : ''}
+            ${aa.length ? `<div class="mini-label">All-America Team (${aa.length})</div>${teamGrid(game, aa, { gender: g })}` : ''}
+            ${slate.academicAllAmericans && slate.academicAllAmericans.length ? `<div class="mini-label">Academic All-Americans</div>${teamGrid(game, slate.academicAllAmericans, { gender: g, rank: null })}` : ''}
           </div>`;
         }).join('');
       }
@@ -244,13 +234,13 @@
           const gLabel = g === 'M' ? 'Men' : 'Women';
           const allConf = slate.allConference || [];
           return `<div class="card" style="margin-bottom:16px;">
-            <h2>${gLabel} — ${Utils.escapeHtml(awardConf)}</h2>
-            <div class="award-slate">
-              ${awardLine('Runner of the Year', nameLink(slate.runnerOfYear))}
-              ${awardLine('Freshman of the Year', nameLink(slate.freshmanOfYear))}
-              ${awardLine('Coach of the Year', coachLink(slate.coachOfYear))}
+            <div class="card-title"><h2>${gLabel}</h2><span class="phase-pill">${Utils.escapeHtml(awardConf)}</span></div>
+            <div class="honor-row">
+              ${UI.honorAthlete(game, 'Runner of the Year', slate.runnerOfYear, g)}
+              ${UI.honorAthlete(game, 'Freshman of the Year', slate.freshmanOfYear, g)}
+              ${UI.honorCoach(game, 'Coach of the Year', slate.coachOfYear)}
             </div>
-            ${allConf.length ? `<div class="news-section-label">🏅 All-Conference Team (${allConf.length})</div>${teamGrid(game, allConf, { gender: g })}` : ''}
+            ${allConf.length ? `<div class="mini-label">All-Conference Team (${allConf.length})</div>${teamGrid(game, allConf, { gender: g })}` : ''}
           </div>`;
         }).join('') || `<div class="card" style="color:var(--text-dim);">No ${Utils.escapeHtml(awardConf)} honors recorded for this season yet.</div>`;
       }
@@ -293,9 +283,9 @@
       const contenders = (gs.contenders || []).map((c, i) => playerCard(game, c, { rank: i + 1, showClass: true, gender: g })).join('');
       return `<div class="card" style="margin-bottom:16px;">
         <h2>${gLabel} — ${divLabel(watchDiv)}</h2>
-        <div class="news-section-label">🏆 Predicted Podium</div>
+        <div class="mini-label">Predicted Podium</div>
         ${podium ? `<div class="pcard-grid">${podium}</div>` : '<div style="color:var(--text-dim);">No teams to project yet.</div>'}
-        <div class="news-section-label">🎯 Title Contenders</div>
+        <div class="mini-label">Title Contenders</div>
         ${contenders ? `<div class="pcard-grid">${contenders}</div>` : '<div style="color:var(--text-dim);">No individual projections yet.</div>'}
       </div>`;
     };
@@ -324,7 +314,7 @@
     const game = UI.state.game;
     container.innerHTML = `
       <div class="screen-header">
-        <h1>News</h1>
+        ${UI.screenTitle('News', `Week ${game.week}, ${game.year}`)}
         <div class="actions">
           <div class="pill-tabs">
             <button data-ntab="news" class="${activeTab === 'news' ? 'active' : ''}">📰 News</button>

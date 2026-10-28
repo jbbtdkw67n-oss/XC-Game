@@ -64,7 +64,7 @@
       return `
         <h3 style="margin-top:14px;">${label}</h3>
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>Athlete</th><th>Class</th><th class="num">Work Ethic</th><th>Overall</th><th>Attribute Gains</th></tr></thead>
+          <thead><tr><th class="col-grow">Athlete</th><th>Class</th><th class="num">Work Ethic</th><th>Overall</th><th>Attribute Gains</th></tr></thead>
           <tbody>
             ${rows.map((e) => `
               <tr class="${e.id ? 'clickable' : ''}" ${e.id ? `data-ath="${e.id}"` : ''}>
@@ -237,7 +237,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>${Utils.escapeHtml(school.name)} Cross Country</h1>
+        ${UI.screenTitle('Dashboard', `${Utils.escapeHtml(school.name)} Cross Country · ${game.year} season`)}
         <div class="actions">
           <span class="phase-pill" style="padding:5px 14px;">
             ${isAsst ? '📋 Asst.' : 'Coach'} ${Utils.escapeHtml(coach.fullName)} — Season ${game.career.seasons + 1}
@@ -247,6 +247,7 @@
             : `<span class="phase-pill" style="padding:5px 14px; color:${seatColor};" title="${seat.desc}">${seat.icon} ${seat.label}</span>`}
         </div>
       </div>
+      ${UI.sectionLabel('This Week')}
       ${(() => {
         // Week 1 Administrative Phase (spec Part 2, Section 15): the season-
         // setup checklist, pinned to the top of the Dashboard all of Week 1.
@@ -307,20 +308,7 @@
         </div>`;
       })()}
 
-      <div class="card" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-        <div>
-          <h3 style="margin:0 0 2px;">🎯 ${game.year} Program Expectations</h3>
-          <div style="color:var(--text-dim); font-size:13px;">${expectations}</div>
-        </div>
-        <div style="text-align:right; font-size:12px; color:var(--text-faint);">
-          ${isAsst
-            ? 'As recruiting coordinator, your classes build your reputation toward a head-coaching job.'
-            : `Job security: <span style="color:${seatColor}; font-weight:600;">${seat.label}</span> — sustained misses put you on the hot seat.`}
-        </div>
-      </div>
-
       ${UI.inboxDashboardCard ? UI.inboxDashboardCard(game) : ''}
-
 
       ${(() => {
         // Offseason Progression Report (spec Part 2, Section 11): shown ahead
@@ -344,6 +332,19 @@
           </div>
         </div>`;
       })()}
+
+      ${UI.sectionLabel('Program')}
+      <div class="card" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div>
+          <h3 style="margin:0 0 2px;">🎯 ${game.year} Program Expectations</h3>
+          <div style="color:var(--text-dim); font-size:13px;">${expectations}</div>
+        </div>
+        <div style="text-align:right; font-size:12px; color:var(--text-faint);">
+          ${isAsst
+            ? 'As recruiting coordinator, your classes build your reputation toward a head-coaching job.'
+            : `Job security: <span style="color:${seatColor}; font-weight:600;">${seat.label}</span> — sustained misses put you on the hot seat.`}
+        </div>
+      </div>
 
       <div class="grid cols-3" style="margin-bottom:16px;">
         <div class="stat-tile">
@@ -430,7 +431,7 @@
               : `Every open chair in the country, all divisions. <strong>Interest</strong> is each school's interest in you — the chance they hire you if you apply. Fail the roll and they go another direction (final for the cycle). The market moves weekly and closes after Week ${game.jobOffers.expiresWeek}.`}
           </div>
           <div class="table-wrap" style="max-height:340px; overflow-y:auto;"><table class="data">
-            <thead><tr><th>School</th><th>Div</th><th class="hide-mobile">Conf</th><th class="num">Prestige</th><th class="num hide-mobile">Budget</th><th class="num hide-mobile">Facilities</th><th class="num hide-mobile">Recent</th><th class="num hide-mobile">Titles</th><th class="num">Interest</th><th></th></tr></thead>
+            <thead><tr><th class="col-grow">School</th><th>Div</th><th class="hide-mobile">Conf</th><th class="num">Prestige</th><th class="num hide-mobile">Budget</th><th class="num hide-mobile">Facilities</th><th class="num hide-mobile">Recent</th><th class="num hide-mobile">Titles</th><th class="num">Interest</th><th></th></tr></thead>
             <tbody>${rows}</tbody>
           </table></div>
           <div style="margin-top:10px; display:flex; gap:8px;">
@@ -440,6 +441,7 @@
         </div>`;
       })() : ''}
 
+      ${UI.sectionLabel('Season')}
       <div class="card" style="margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
           <h2 style="margin:0;">📅 Season Overview — ${game.year}</h2>
@@ -490,13 +492,14 @@
           <button class="btn" id="btn-to-schedule-2">View Schedule →</button>
         </div>` : ''}
 
+      ${UI.sectionLabel('Squad')}
       <div class="grid cols-2">
         ${topRunnersHtml(rosterM, "Men's Team")}
         ${topRunnersHtml(rosterW, "Women's Team")}
       </div>
 
-      <div class="card" style="margin-top:16px;">
-        <h2>Latest News</h2>
+      ${UI.sectionLabel('Latest News')}
+      <div class="card">
         ${game.newsLog.slice(0, 8).map((n) => `
           <div class="news-item">
             <span class="when">Wk ${n.week}, ${n.year}</span>${Utils.escapeHtml(n.text)}

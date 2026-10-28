@@ -80,7 +80,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>🏁 Course Records</h1>
+        ${UI.screenTitle('Course Records', 'Every course keeps its own record book')}
       </div>
       <div class="card" style="margin-bottom:14px; color:var(--text-dim); font-size:12.5px;">
         Every course keeps its own record book. Because courses differ dramatically — terrain, altitude,
@@ -97,7 +97,7 @@
         return `<div class="card cr-holders" style="margin-bottom:14px;">
           <h2 style="margin:0 0 8px;">🏆 Recent Course Records</h2>
           <div class="table-wrap" style="max-height:230px; overflow-y:auto;"><table class="data">
-            <thead><tr><th>Year</th><th>Course</th><th></th><th>Athlete</th><th>School</th><th class="num">Time</th></tr></thead>
+            <thead><tr><th class="col-rank">Year</th><th>Course</th><th></th><th class="col-grow">Athlete</th><th>School</th><th class="num">Time</th></tr></thead>
             <tbody>${log.map((e) => `
               <tr>
                 <td>${e.year}</td>
@@ -271,7 +271,7 @@
       <div class="card" style="padding:12px; margin-bottom:12px;">
         <h3>${gender === 'M' ? "Men's" : "Women's"} Records by Distance</h3>
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>Dist</th><th class="num">Time</th><th>Athlete</th><th>School</th></tr></thead>
+          <thead><tr><th class="col-rank">Dist</th><th class="num">Time</th><th class="col-grow">Athlete</th><th>School</th></tr></thead>
           <tbody>${distRows(gender, dists)}</tbody></table></div>
       </div>` : '';
 
@@ -287,7 +287,7 @@
         <div class="card" style="padding:12px; margin-bottom:12px;">
           <h3>${gender === 'M' ? "Men's" : "Women's"} Record History — ${sig.distanceKey}</h3>
           <div class="table-wrap" style="max-height:240px; overflow-y:auto;"><table class="data">
-            <thead><tr><th>Year</th><th>Athlete</th><th>School</th><th class="num">Time</th><th>Meet</th></tr></thead>
+            <thead><tr><th class="col-rank">Year</th><th>Athlete</th><th>School</th><th class="num">Time</th><th class="col-grow">Meet</th></tr></thead>
             <tbody>${hist.map((r) => `
               <tr>
                 <td>${r.year}</td>
@@ -343,7 +343,7 @@
       <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">${UI.personName(game, 'ath', athleteId, name || '', { size: 22, link: false })} — ${held.length} record${held.length > 1 ? 's' : ''} across ${courses} course${courses > 1 ? 's' : ''}.</div>
       <div class="card" style="padding:12px;">
         <div class="table-wrap" style="max-height:360px; overflow-y:auto;"><table class="data">
-          <thead><tr><th>Course</th><th>Location</th><th></th><th class="num">Time</th></tr></thead>
+          <thead><tr><th class="col-grow">Course</th><th>Location</th><th></th><th class="num">Time</th></tr></thead>
           <tbody>${held.map((h) => `
             <tr class="clickable" data-course="${h.courseKey}" style="cursor:pointer;">
               <td><strong>${Utils.escapeHtml(h.courseName)}</strong></td>

@@ -34,7 +34,7 @@
 
     if (!meet || !meet.results[activeGender]) {
       container.innerHTML = `
-        <div class="screen-header"><h1>Race Center</h1></div>
+        <div class="screen-header">${UI.screenTitle('Race Center', 'No race footage yet')}</div>
         <div class="card" style="color:var(--text-dim);">
           No race footage yet. Advance to a race week — your meet will be
           broadcast here after it runs.
@@ -48,7 +48,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>📺 ${Utils.escapeHtml(meet.name)}</h1>
+        ${UI.screenTitle('Race Center', `<strong style="color:var(--text);">${Utils.escapeHtml(meet.name)}</strong> · Week ${meet.week}, ${game.season.year}`)}
         <div class="actions">
           <div class="pill-tabs">
             <button id="g-m" class="${activeGender === 'M' ? 'active' : ''}">Men</button>
@@ -71,7 +71,7 @@
       })()}
       <div style="color:var(--text-dim); font-size:13px; margin-bottom:10px;">
         ${gDist(meet, activeGender)} • ${UI.weatherText(meet.conditions)} •
-        Hills ${meet.conditions.hilliness}/100 • ${meet.conditions.altitude} altitude • ${UI.meetSpeedTag(meet)} • Week ${meet.week}, ${game.season.year}
+        Hills ${meet.conditions.hilliness}/100 • ${meet.conditions.altitude} altitude • ${UI.meetSpeedTag(meet)}
       </div>
       ${UI.meetCourseRecordLine ? UI.meetCourseRecordLine(game, meet) : ''}
       <div class="race-layout">
@@ -449,7 +449,7 @@
       ${(res.finishers.some((f) => f.cr) || res.finishers.some((f) => f.nr)) ? `<div style="color:var(--text-faint); font-size:11.5px; margin-bottom:6px;">${res.finishers.some((f) => f.cr) ? '<span class="cr-badge">CR</span> Course Record' : ''}${res.finishers.some((f) => f.nr) ? `${res.finishers.some((f) => f.cr) ? ' · ' : ''}<span class="cr-badge nr">NR</span> National Record` : ''}</div>` : ''}
       <div class="table-wrap" style="max-height:420px; overflow-y:auto;">
         <table class="data">
-          <thead><tr><th>Pl</th><th>Runner</th><th>School</th><th class="num">Time</th></tr></thead>
+          <thead><tr><th class="col-rank">Pl</th><th class="col-grow">Runner</th><th>School</th><th class="num">Time</th></tr></thead>
           <tbody>
             ${res.finishers.map((f) => {
               const honored = honor && f.place <= honor.count;

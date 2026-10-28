@@ -96,7 +96,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>World — ${schools.length} Schools</h1>
+        ${UI.screenTitle('World', `${schools.length} schools`)}
         <div class="actions">
           <select class="search-input" id="div-filter" style="min-width:110px;">
             ${['All', 'DI', 'DII', 'DIII'].map((d) => `<option value="${d}" ${d === divisionFilter ? 'selected' : ''}>${d === 'All' ? 'All Divisions' : d}</option>`).join('')}

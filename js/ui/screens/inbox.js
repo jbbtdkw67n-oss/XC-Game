@@ -156,9 +156,8 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>📥 Inbox</h1>
+        ${UI.screenTitle('Inbox', `${unread} unread · ${items.length} total`)}
         <div class="actions">
-          <span class="phase-pill">${unread} unread · ${items.length} total</span>
           <button class="btn" id="inbox-read-all" ${unread ? '' : 'disabled'}>✓ Mark all read</button>
           <button class="btn" id="inbox-clear" ${items.some((i) => i.read) ? '' : 'disabled'} title="Remove every read item">🧹 Clear read</button>
           <button class="btn danger" id="inbox-clear-all" ${list.length ? '' : 'disabled'} title="${filter === 'all' ? 'Remove every notification' : 'Remove every notification this filter shows'}">🗑 ${filter === 'all' ? 'Clear all' : 'Clear shown'}</button>

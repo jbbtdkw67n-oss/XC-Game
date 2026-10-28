@@ -182,7 +182,7 @@
       const lastSummer = game.history.summerPortals &&
         (game.history.summerPortals[game.year] || game.history.summerPortals[game.year - 1]);
       container.innerHTML = `
-        <div class="screen-header"><h1>Transfer Portal</h1></div>
+        <div class="screen-header">${UI.screenTitle('Portal', 'Transfer portal · closed')}</div>
         <div class="card" style="color:var(--text-dim);">
           The portal window opens after nationals (Week ${P.ENTRY_WEEK}) and closes at
           Week ${P.DECISION_WEEK}. ${lastSummary ? `Last cycle: ${lastSummary.entries} entries, ${lastSummary.moved} transfers.` : ''}
@@ -210,7 +210,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>${summer ? '☀️ Summer Transfer Window' : 'Transfer Portal'} — ${portal.open ? 'OPEN' : 'Closed'}</h1>
+        ${UI.screenTitle('Portal', `${summer ? 'Summer transfer window' : 'Transfer portal'} · ${portal.open ? '<strong style="color:var(--success);">Open</strong>' : 'closed'}`)}
         <div class="actions">
           <div class="pill-tabs">
             <button id="g-m" class="${activeGender === 'M' ? 'active' : ''}">Men</button>

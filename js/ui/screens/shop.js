@@ -15,7 +15,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>Shop</h1>
+        ${UI.screenTitle('Shop', 'Gear, expansions and support')}
       </div>
       <div class="shop-hero">
         <h2>The XC Dynasty Shop</h2>

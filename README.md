@@ -14,6 +14,29 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 14.6 — One Clean Look Across Every Screen
+
+- **Every screen title is its menu label** (Dashboard, Schedule, Training,
+  Portal, Race Center, …) with a muted context line beneath — the season, a
+  count, the meet's name — and no stray emoji.
+- **Section labels** (the same small uppercase style as the sidebar) group the
+  long screens: the Dashboard (This Week · Program · Season · Squad · Latest
+  News), My Program, Schedule and Training. A section with nothing in it this
+  week hides itself.
+- **Cleaner columns everywhere.** Rank-style columns stay narrow, the name
+  column takes the slack, numbers right-align in tabular figures, and headers
+  share one style. The poll folds its movement arrow into the Rank column; the
+  Recruiting board loses its blank first column; Save / Load actions no longer
+  run off the edge (they stack on phones).
+- **Awards and Champions, rebuilt.** History → Awards, History → Champions and
+  News → Awards share one set of honor tiles (label, avatar or team colors,
+  name, school): Men and Women side by side, All-Americans as numbered cards,
+  and the regional / conference results as tidy tables (one row per
+  region or conference) instead of crowded right-aligned lines.
+- **Player profile tidy-up:** the fatigue / sharpness / morale / fitness bars
+  use the stat-tile label style, side-by-side panels line up, and labels no
+  longer wrap mid-word.
+
 ## Version 14.5 — Fast & Slow Courses, Weather, 1 km Splits & the American Rivers
 
 - **Fast and slow courses.** Every course has a fixed speed — **⚡ Fast**,

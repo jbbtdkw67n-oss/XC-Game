@@ -21,8 +21,7 @@ async function run() {
   await page.evaluate(() => window.XCD.ui.navigate('dashboard'));
   await page.waitForSelector('.week1-card');
   const w1 = await page.evaluate(() => {
-    const header = document.querySelector('#screen-container .screen-header');
-    const first = header && header.nextElementSibling;
+    const first = document.querySelector('#screen-container .card');
     return {
       onTop: !!(first && first.classList.contains('week1-card')),
       trophy: /Trophy Case/.test(document.querySelector('#screen-container').textContent),

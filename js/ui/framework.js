@@ -70,6 +70,62 @@
     if (e.key === 'Escape') UI.closeModal();
   });
 
+  /* ---------------- Clean screen kit ---------------- */
+  // A screen title: the menu label (so every screen reads the same as the
+  // sidebar), plus an optional muted context line (the season, a count, the
+  // meet's name). `label` is trusted HTML-free text; `sub` may hold markup.
+  UI.screenTitle = function (label, sub) {
+    return `<div class="screen-title"><h1>${Utils.escapeHtml(label)}</h1>${sub ? `<div class="screen-sub">${sub}</div>` : ''}</div>`;
+  };
+  // A small uppercase section label (same look as the sidebar's sections).
+  UI.sectionLabel = function (text) {
+    return `<div class="section-label">${Utils.escapeHtml(text)}</div>`;
+  };
+  // A labeled meter: small uppercase label and value over the bar (the same
+  // label style as stat tiles and section labels).
+  UI.meterStat = function (label, value, meterHtml) {
+    return `<div class="meter-stat"><div class="meter-stat-head"><span class="label">${Utils.escapeHtml(label)}</span><span class="v">${value}</span></div>${meterHtml}</div>`;
+  };
+  /* Honor tiles — one look for every award and championship (News → Awards,
+   * History → Awards, History → Champions): a small uppercase label, then the
+   * honoree's avatar (or team colors), name and a muted line beneath. The
+   * whole tile opens the profile. */
+  function honorTile(label, hook, mark, name, sub) {
+    return `<div class="honor-tile">
+      <div class="honor-label">${label}</div>
+      <div class="honor-body"${hook}>${mark}<div class="honor-text"><div class="honor-name">${name}</div>${sub ? `<div class="honor-sub">${sub}</div>` : ''}</div></div>
+    </div>`;
+  }
+  // x = { athleteId, name, school, schoolId }
+  UI.honorAthlete = function (game, label, x, gender, sub) {
+    if (!x || !x.name) return '';
+    const person = UI.resolvePerson ? UI.resolvePerson(game, 'ath', x.athleteId, x.name, { gender, schoolId: x.schoolId }) : { name: x.name, gender };
+    return honorTile(label, ` data-ath="${x.athleteId || ''}" data-ath-name="${Utils.escapeHtml(x.name)}"`,
+      UI.avatar(person, { size: 34, outfit: 'jersey' }), Utils.escapeHtml(x.name),
+      sub != null ? sub : Utils.escapeHtml(x.school || ''));
+  };
+  // x = { coachId, name, school }
+  UI.honorCoach = function (game, label, x, sub) {
+    if (!x || !x.name) return '';
+    const person = UI.resolvePerson ? UI.resolvePerson(game, 'coach', x.coachId, x.name, {}) : { name: x.name };
+    return honorTile(label, ` data-coach="${x.coachId || ''}" data-coach-name="${Utils.escapeHtml(x.name)}"`,
+      UI.avatar(person, { size: 34, outfit: 'polo' }), Utils.escapeHtml(x.name),
+      sub != null ? sub : Utils.escapeHtml(x.school || ''));
+  };
+  UI.honorTeam = function (game, label, schoolName, schoolId, sub) {
+    if (!schoolName) return '';
+    const school = (schoolId && game.getSchool(schoolId)) || { name: schoolName };
+    return honorTile(label, schoolId ? ` data-school="${schoolId}"` : '',
+      UI.kitSwatch ? `<span class="honor-swatch">${UI.kitSwatch(school, 30)}</span>` : '', Utils.escapeHtml(schoolName), sub || '');
+  };
+
+  // Poll movement since last week, as a compact tag for a rank cell.
+  UI.rankMove = function (rank, prevRank) {
+    if (!prevRank || prevRank === rank) return '<span class="rank-move flat">–</span>';
+    const d = prevRank - rank;
+    return d > 0 ? `<span class="rank-move up">▲${d}</span>` : `<span class="rank-move down">▼${-d}</span>`;
+  };
+
   /* ---------------- Course speed & race-day weather ---------------- */
   // A course's speed tag (fixed terrain: hills + elevation) — Fast / Average
   // / Slow — and a one-line race-day forecast (changes every meet and year).
@@ -352,15 +408,24 @@
         return;
       }
 
+      // Clean columns: numbers right-aligned (unless a column asks for
+      // `align: 'left' | 'center'`), and the main name column — `grow: true`,
+      // else the first text column — takes the slack so the rest stay tight.
+      const growCol = config.columns.find((c) => c.grow) || config.columns.find((c) => !c.numeric);
+      const colCls = (c) => [
+        c.numeric && !c.align ? 'num' : '',
+        c.align === 'center' ? 'col-center' : '',
+        c === growCol ? 'col-grow' : ''
+      ].filter(Boolean).join(' ');
       const thead = config.columns.map((c) => {
         const sorted = c.key === state.sortKey ? ` sorted-${state.sortDir}` : '';
-        return `<th class="${c.numeric ? 'num' : ''}${sorted}" data-col="${c.key}">${c.label}</th>`;
+        return `<th class="${colCls(c)}${sorted}" data-col="${c.key}">${c.label}</th>`;
       }).join('');
 
       const tbody = rows.length ? rows.map((row, i) => {
         const tds = config.columns.map((c) => {
           const content = c.render ? c.render(row, i) : Utils.escapeHtml(row[c.key]);
-          return `<td class="${c.numeric ? 'num' : ''}">${content}</td>`;
+          return `<td class="${colCls(c)}">${content}</td>`;
         }).join('');
         return `<tr class="${config.onRowClick ? 'clickable' : ''}" data-row="${i}">${tds}</tr>`;
       }).join('') : `<tr><td colspan="${config.columns.length}" style="color:var(--text-dim); padding:14px; text-align:center;">${config.emptyMessage || 'No results match the current filters.'}</td></tr>`;

@@ -37,7 +37,7 @@
     const avg = (fn) => bothRosters.length ? Math.round(Utils.average(bothRosters.map(fn))) : 0;
     const injured = bothRosters.filter((a) => a.injury);
     container.innerHTML = `
-      <div class="screen-header"><h1>Training</h1></div>
+      <div class="screen-header">${UI.screenTitle('Training', 'Set by the head coach')}</div>
       <div class="card" style="border-left:3px solid var(--accent);">
         <h3>📋 Head Coach Controls Training</h3>
         <p style="color:var(--text-dim);">You are the <strong>recruiting coordinator</strong> at ${Utils.escapeHtml(school.name)}. Weekly training, workouts, mileage, race scheduling, and race strategy are set by head coach
@@ -84,7 +84,7 @@
 
     container.innerHTML = `
       <div class="screen-header">
-        <h1>Weekly Training Planner</h1>
+        ${UI.screenTitle('Training', `Weekly planner · Week ${game.week}`)}
         <div class="actions">
           <div class="pill-tabs">
             <button id="g-m" class="${activeGender === 'M' ? 'active' : ''}">Men</button>
@@ -93,6 +93,7 @@
         </div>
       </div>
 
+      ${UI.sectionLabel('Squad Status')}
       <div class="grid cols-4" style="margin-bottom:16px;">
         <div class="stat-tile"><div class="label">Squad Fitness</div><div class="value">${avgFitness}</div>${UI.meter(avgFitness)}</div>
         <div class="stat-tile"><div class="label">Squad Fatigue</div><div class="value">${avgFatigue}</div>${UI.meter(avgFatigue, avgFatigue > 60 ? 'red' : avgFatigue > 40 ? 'yellow' : 'green')}</div>
@@ -100,6 +101,7 @@
         <div class="stat-tile"><div class="label">Team Morale</div><div class="value">${school.teamMorale ?? '—'}</div><div class="sub">${(window.XCD.engine.Morale.label(school.teamMorale ?? 65)).text} · chem ${school.chemistry?.[activeGender] ?? '—'}</div></div>
       </div>
 
+      ${UI.sectionLabel('Plan & Mileage')}
       <div class="card" style="margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
           <h2 style="margin:0;">This Week's Plan — ${activeGender === 'M' ? "Men's" : "Women's"} Squad</h2>
@@ -144,6 +146,7 @@
         <div id="mileage-hint" style="font-size:12.5px; color:var(--text-dim);"></div>
       </div>
 
+      ${UI.sectionLabel('Athletes')}
       <div class="card" style="margin-bottom:16px;">
         <h2>Squad Monitor</h2>
         ${UI.isMobile() ? `
@@ -193,7 +196,7 @@
         </div>` : `
         <div class="table-wrap"><table class="data">
           <thead><tr>
-            <th>Name</th><th>Class</th><th class="num">OVR</th><th class="num">Δ Season</th>
+            <th class="col-grow">Name</th><th>Class</th><th class="num">OVR</th><th class="num" title="Overall gained this season">+Season</th>
             <th>Fitness</th><th>Fatigue</th><th class="num">Sharp</th><th class="num">Ready</th><th>Morale</th><th>Status</th><th>Load</th><th class="num">Mi/wk</th>
           </tr></thead>
           <tbody>
@@ -207,7 +210,7 @@
               const overVolume = miles > safe;
               return `
               <tr>
-                <td class="clickable" data-ath="${a.id}" style="cursor:pointer;">${UI.avatar(a, { size: 22 })} <strong>${Utils.escapeHtml(a.fullName)}</strong>${a.isWalkOn ? ' <span style="color:var(--text-faint); font-size:10px;">WO</span>' : ''}${a.generational ? ' <span title="Generational Recruit">⭐</span>' : ''}</td>
+                <td class="clickable col-grow" data-ath="${a.id}" style="cursor:pointer;">${UI.avatar(a, { size: 22 })} <strong>${Utils.escapeHtml(a.fullName)}</strong>${a.isWalkOn ? ' <span style="color:var(--text-faint); font-size:10px;">WO</span>' : ''}${a.generational ? ' <span title="Generational Recruit">⭐</span>' : ''}</td>
                 <td>${a.classYear}</td>
                 <td class="num">${UI.ratingBadge(a.currentOverall)}</td>
                 <td class="num" style="color:${(a.seasonDev || 0) > 0 ? 'var(--success)' : 'var(--text-faint)'};">${(a.seasonDev || 0) > 0 ? '+' + a.seasonDev : a.seasonDev || '—'}</td>
@@ -222,7 +225,7 @@
                     ? `<span style="color:var(--warning);" title="Returning from injury — reduced training quality while rebuilding form">Recovering (${Math.max(1, a.recentInjuryWeeks || 1)}w)</span>`
                     : '<span style="color:var(--success);">Healthy</span>'}</td>
                 <td>
-                  <select data-load="${a.id}" class="search-input" style="min-width:92px; padding:4px 8px; font-size:12.5px;" ${a.injury ? 'disabled title="Injured — rehabbing automatically"' : ''}>
+                  <select data-load="${a.id}" class="search-input" style="min-width:84px; padding:4px 8px; font-size:12.5px;" ${a.injury ? 'disabled title="Injured — rehabbing automatically"' : ''}>
                     <option value="normal" ${override === 'normal' ? 'selected' : ''}>Normal</option>
                     <option value="reduced" ${override === 'reduced' ? 'selected' : ''}>Reduced</option>
                     <option value="rest" ${override === 'rest' ? 'selected' : ''}>Rest</option>
@@ -230,7 +233,7 @@
                 </td>
                 <td class="num">
                   <input type="number" data-miles="${a.id}" min="${D.MILEAGE.MIN}" max="${D.MILEAGE.MAX}" value="${miles}"
-                    class="search-input" style="width:64px; padding:4px 6px; font-size:12.5px; ${overVolume ? 'border-color:var(--danger); color:var(--danger);' : miOverride !== undefined ? 'border-color:var(--accent);' : ''}"
+                    class="search-input" style="width:58px; padding:4px 6px; font-size:12.5px; text-align:right; ${overVolume ? 'border-color:var(--danger); color:var(--danger);' : miOverride !== undefined ? 'border-color:var(--accent);' : ''}"
                     title="${overVolume ? `Above what this body can absorb (~${safe} mi) — injury risk climbing fast` : `This runner safely handles ~${safe} mi/wk${miOverride !== undefined ? ' (individual override)' : ''}`}">
                 </td>
               </tr>`;

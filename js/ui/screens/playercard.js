@@ -228,11 +228,11 @@
 
     // Live status meters (fatigue / sharpness / morale / fitness).
     const statusMetersHtml = `
-      <div class="grid cols-4" style="margin-bottom:16px;">
-        <div><h3>Fatigue — ${Math.round(athlete.fatigue)}</h3>${UI.meter(athlete.fatigue, statusColor)}</div>
-        <div><h3>Sharpness — ${Math.round(athlete.sharpness ?? 55)}</h3>${UI.meter(Math.round(athlete.sharpness ?? 55))}</div>
-        <div><h3>Morale — ${Math.round(athlete.morale)}</h3>${UI.meter(athlete.morale, moraleColor)}</div>
-        <div><h3>Fitness — ${Math.round(athlete.fitness)}</h3>${UI.meter(athlete.fitness)}</div>
+      <div class="grid cols-4 meter-stats" style="margin-bottom:16px;">
+        ${UI.meterStat('Fatigue', Math.round(athlete.fatigue), UI.meter(athlete.fatigue, statusColor))}
+        ${UI.meterStat('Sharpness', Math.round(athlete.sharpness ?? 55), UI.meter(Math.round(athlete.sharpness ?? 55)))}
+        ${UI.meterStat('Morale', Math.round(athlete.morale), UI.meter(athlete.morale, moraleColor))}
+        ${UI.meterStat('Fitness', Math.round(athlete.fitness), UI.meter(athlete.fitness))}
       </div>`;
 
     const statusCareerHtml = `
@@ -545,7 +545,7 @@
       <div class="card" style="padding:12px;">
         <h3>The Championship Roster — as they were in ${t.year}</h3>
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>Finish</th><th>Runner</th>${rich ? '<th>Class</th><th class="num">OVR</th><th class="num">Time</th>' : ''}<th>Honors</th></tr></thead>
+          <thead><tr><th class="col-rank">Finish</th><th class="col-grow">Runner</th>${rich ? '<th>Class</th><th class="num">OVR</th><th class="num">Time</th>' : ''}<th>Honors</th></tr></thead>
           <tbody>${roster.map((r) => `
             <tr class="clickable" data-ath="${r.athleteId || ''}" data-ath-name="${Utils.escapeHtml(r.name)}" style="cursor:pointer;">
               <td>${Utils.ordinal(r.place)}</td>

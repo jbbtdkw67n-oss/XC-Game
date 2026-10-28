@@ -111,7 +111,7 @@
     const difficulty = schema.filter((s) => s.group === 'difficulty');
     container.innerHTML = `
       <div class="screen-header">
-        <h1>⚙️ Settings</h1>
+        ${UI.screenTitle('Settings', 'Difficulty and display for this dynasty')}
         <div class="actions">
           <span class="phase-pill">${S().isDefault(game) ? 'All defaults' : preset ? `Difficulty: ${S().PRESETS[preset].label}` : 'Custom difficulty'}</span>
           <button class="btn" id="set-reset" ${S().isDefault(game) ? 'disabled' : ''}>↺ Reset all</button>
