@@ -261,7 +261,7 @@
       major: rng.choice(D.MAJORS),
 
       academics: rng.gaussianRange(62, 16, 25, 99),
-      leadership: rng.gaussianRange(45, 15, 15, 99),
+      leadership: rng.gaussianRange(57, 14, 20, 99),
       confidence: rng.gaussianRange(58, 15, 15, 99),
       consistency: rng.gaussianRange(55, 14, 15, 99),
       workEthic: rng.gaussianRange(62, 14, 20, 99),
@@ -1709,14 +1709,14 @@
       const school = gameState.getSchool(entry.schoolId);
       const coach = school && gameState.getCoach(school.coachId);
       if (coach && !coach.isPlayer) {
-        coach.upgradePoints = (coach.upgradePoints || 0) + 1;
+        window.XCD.engine.Coaching.awardPoints(coach, 1);
         window.XCD.engine.Awards.cpuSpendUpgradePoints(coach, rng);
       }
       // A top-10 class is the recruiting coordinator's résumé line too: the
       // CPU assistant banks the same point and spends it immediately.
       const asst = school && school.assistantId && gameState.getCoach(school.assistantId);
       if (asst && !asst.isPlayer && asst.id !== (coach && coach.id)) {
-        asst.upgradePoints = (asst.upgradePoints || 0) + 1;
+        window.XCD.engine.Coaching.awardPoints(asst, 1);
         window.XCD.engine.Awards.cpuSpendUpgradePoints(asst, rng);
       }
     });
@@ -1743,8 +1743,8 @@
       const coach = gameState.getPlayerCoach();
       // Elite recruiting hauls feed coach progression.
       if (playerRank >= 0 && playerRank < 10 && coach) {
-        coach.upgradePoints = (coach.upgradePoints || 0) + 1;
-        gameState.logNews(`📋 Top-10 ${playerDiv} recruiting class: +1 dynasty point.`);
+        const got = window.XCD.engine.Coaching.awardPoints(coach, 1);
+        gameState.logNews(`📋 Top-10 ${playerDiv} recruiting class: +${got} dynasty point${got === 1 ? '' : 's'}${got ? '' : ' (half a point banked toward the next)'}.`);
       }
       // Building a recruiting reputation is an assistant's whole career arc
       // (Update 5, Part 4): strong classes make them a head-coach candidate.

@@ -44,7 +44,7 @@ async function run() {
   }));
   ok(rep.week === 13, 'sim to Conference stops at the start of Week 13: ' + rep.week);
   ok(/Arrived/.test(rep.title), 'report says the target was reached: ' + rep.title);
-  ok(rep.races >= 4, 'report lists the races run on the way: ' + rep.races);
+  ok(rep.races >= 3, 'report lists the races run on the way (a schedule has 3+ meets): ' + rep.races);
   await page.evaluate(() => { window.XCD.ui.state.simStops = true; window.XCD.ui.closeModal(); });
   // Engine: a reached/passed target is disabled in the menu.
   const desc = await page.evaluate(() => {
@@ -118,8 +118,11 @@ async function run() {
         expectField: rules.nationalsFieldSize, orderOk,
         pointsAll: s.atLarge.every((p) => typeof p.points === 'number' && p.points >= 0),
         indTotal: indivIds.length, indAuto: ind.auto.length, indAL: ind.atLarge.length,
-        top25: ind.auto.every((x) => x.place <= 25),
-        maxPerRegion: Math.max(...Object.values(perRegion)),
+        top10: ind.auto.every((x) => x.place <= 10),
+        // Every top-10 regional finisher is going: with the team or alone.
+        top10All: regionals.every((m) => m.results[gender].finishers.filter((f) => f.place <= 10)
+          .every((f) => fieldSet.has(f.schoolId) || indivIds.includes(f.athleteId))),
+        alPlaces: ind.atLarge.every((x) => x.place > 10),
         noTeamQualifiers: indivIds.every((id) => !fieldSet.has((g.getAthlete(id) || {}).schoolId)),
         // The at-large individuals place no worse than any skipped candidate.
         alFlag: ind.atLarge.every((x) => regionals.some((m) => m.results[gender].finishers.some((f) => f.athleteId === x.athleteId && f.nationalsIndividualAtLarge)))
@@ -132,9 +135,9 @@ async function run() {
     ok(s.field === s.expectField && s.auto === 18 && s.atLarge === 13, `${gender}: DI field = 18 auto + 13 at-large = 31: ` + JSON.stringify(s));
     ok(s.orderOk, `${gender}: at-large picks respect regional finish order (Kolas)`);
     ok(s.pointsAll, `${gender}: every at-large pick records its Kolas points`);
-    ok(s.indTotal === 38 && s.indAuto === 36 && s.indAL === 2, `${gender}: 38 individuals = 36 regional + 2 at-large: ` + JSON.stringify(s));
-    ok(s.top25, `${gender}: automatic individuals placed in their regional top 25`);
-    ok(s.maxPerRegion <= 4, `${gender}: at most 4 automatic individuals per regional`);
+    ok(s.indAL === 6 && s.indTotal === s.indAuto + s.indAL, `${gender}: regional top-10 individuals + 6 at-large: ` + JSON.stringify(s));
+    ok(s.top10 && s.top10All, `${gender}: every regional top-10 finisher qualifies (team or individual)`);
+    ok(s.alPlaces, `${gender}: at-large individuals come from just outside the top 10`);
     ok(s.noTeamQualifiers, `${gender}: no individual qualifier comes from a qualifying team`);
     ok(s.alFlag, `${gender}: at-large individuals are flagged on the regional results`);
   });
@@ -143,9 +146,15 @@ async function run() {
   const selUi = await page.evaluate(() => ({
     rows: document.querySelectorAll('#rank-body tbody tr').length,
     indivs: document.querySelectorAll('.sel-indiv').length,
-    explainer: !!document.querySelector('.kolas-explainer')
+    explainer: !!document.querySelector('.kolas-explainer'),
+    expected: (() => {
+      const g = window.XCD.ui.state.game;
+      const champ = g.season.championships[g.getPlayerSchool().division || 'DI'];
+      return (champ.individualQualifiers.M || []).length;
+    })()
   }));
-  ok(selUi.rows >= 13 && selUi.indivs === 38 && selUi.explainer, 'Rankings → Selection renders picks, 38 individuals, explainer: ' + JSON.stringify(selUi));
+  ok(selUi.rows >= 13 && selUi.indivs === selUi.expected && selUi.indivs > 0 && selUi.explainer,
+    'Rankings → Selection renders picks, every individual qualifier, explainer: ' + JSON.stringify(selUi));
 
   /* ---------- 4) Inbox ---------- */
   const inbox = await page.evaluate(() => {
@@ -170,23 +179,26 @@ async function run() {
   await page.waitForTimeout(80);
   ok(await page.evaluate(() => !document.querySelector('#btn-inbox .count-badge')), 'Mark all read clears the badge');
 
-  /* ---------- 5) Job popup: once, after nationals ---------- */
+  /* ---------- 5) Job popup: once, on the advance from Week 16 to 17 ---------- */
   await unlock();
   await page.evaluate(() => window.XCD.ui.navigate('dashboard'));
   await page.click('#btn-advance-week'); // runs nationals (week 15 -> 16)
   await page.waitForTimeout(150);
   let jp = await page.evaluate(() => ({
-    week: window.XCD.ui.state.game.week, screen: window.XCD.ui.state.currentScreen,
+    week: window.XCD.ui.state.game.week,
     popup: !!document.querySelector('.job-popup'), pending: window.XCD.ui.jobOffersPending(window.XCD.ui.state.game)
   }));
   ok(jp.week === 16, 'advanced into the awards week');
-  if (jp.screen === 'racecenter') {
-    ok(!jp.popup, 'the popup waits for the nationals broadcast');
-    await page.click('#btn-skip');
-    await page.waitForSelector('.job-popup', { timeout: 4000 }).catch(() => {});
-  }
-  jp = await page.evaluate(() => ({ popup: !!document.querySelector('.job-popup'), yr: window.XCD.ui.state.game.jobPopupYear, year: window.XCD.ui.state.game.year }));
-  ok(jp.popup && jp.yr === jp.year, 'the Available Jobs popup appears once nationals is in the books: ' + JSON.stringify(jp));
+  ok(!jp.popup && !jp.pending, 'no popup the week nationals runs — the results come first: ' + JSON.stringify(jp));
+  if (await page.$('#btn-skip')) await page.click('#btn-skip');
+  await page.waitForTimeout(1800);
+  ok(!(await page.$('.job-popup')), 'the popup never covers the nationals broadcast');
+  await unlock();
+  await page.evaluate(() => window.XCD.ui.navigate('dashboard'));
+  await page.click('#btn-advance-week'); // week 16 -> 17
+  await page.waitForSelector('.job-popup', { timeout: 4000 }).catch(() => {});
+  jp = await page.evaluate(() => ({ week: window.XCD.ui.state.game.week, popup: !!document.querySelector('.job-popup'), yr: window.XCD.ui.state.game.jobPopupYear, year: window.XCD.ui.state.game.year }));
+  ok(jp.week === 17 && jp.popup && jp.yr === jp.year, 'the Available Jobs popup appears on the advance into Week 17: ' + JSON.stringify(jp));
   await page.click('#job-later');
   let again = 0;
   for (let i = 0; i < 3; i++) {

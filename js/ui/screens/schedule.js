@@ -121,7 +121,7 @@
         : ' <span title="Qualified for Nationals — at-large bid" style="color:var(--accent); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 AL</span>';
     };
     const indivQualBadge = (f) => (isRegional && f.nationalsIndividual && !f.nationalsTeamQualifier)
-      ? (f.nationalsIndividualAtLarge ? ' <span title="Qualified for Nationals as a national at-large individual" style="color:var(--accent); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 IQ·AL</span>' : '') || ' <span title="Qualified for Nationals as an individual (first 4 from non-qualifying teams, top 25)" style="color:var(--accent); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 IQ</span>'
+      ? (f.nationalsIndividualAtLarge ? ' <span title="Qualified for Nationals as a national at-large individual" style="color:var(--accent); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 IQ·AL</span>' : '') || ' <span title="Qualified for Nationals as an individual (a top-10 regional finish)" style="color:var(--accent); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 IQ</span>'
       : '';
 
     // The full results body for one gender — rebuilt when a tab is clicked.
@@ -262,6 +262,266 @@
     ].filter(Boolean).join(' · ');
   }
 
+  /* ================================================================ *
+   * Schedule Builder (Real Schedules): per-week drop-downs, a hard
+   * travel budget, and a meet browser to chase ranked teams and
+   * conference rivals across every division.
+   * ================================================================ */
+  let sbWeek = null;        // meet browser: selected week
+  let sbDiv = 'all';        // 'all' | 'DI' | 'DII' | 'DIII'
+  let sbRankedOnly = false;
+  let sbRivalsOnly = false;
+  let sbSort = 'strength';  // 'strength' | 'cost' | 'size'
+
+  const money = (n) => '$' + Math.round(n).toLocaleString();
+  const MC = () => window.XCD.engine.MeetCalendar;
+
+  // { schoolId: { div, M, W, best } } for teams ranked in their division's top 25.
+  function rankMap(game) {
+    const out = {};
+    const r = game.rankings;
+    if (!r) return out;
+    ['M', 'W'].forEach((g) => (r[g] || []).forEach((row) => {
+      if (row.rank > 25) return;
+      const o = out[row.schoolId] = out[row.schoolId] || { div: row.division || 'DI' };
+      o[g] = row.rank;
+      o.best = Math.min(o.best || 99, row.rank);
+    }));
+    return out;
+  }
+  const DIV_SHORT = (d) => (window.XCD.data.DIVISION_SHORT || {})[d] || d;
+
+  function rankChip(game, sid, ranks, mine) {
+    const s = game.getSchool(sid);
+    if (!s) return '';
+    const rk = ranks[sid];
+    const rival = mine && s.conference === mine.conference && sid !== mine.id;
+    const rankTxt = rk ? [rk.M && `M#${rk.M}`, rk.W && `W#${rk.W}`].filter(Boolean).join(' ') : '';
+    return `<span class="sb-chip ${rk ? 'ranked' : ''} ${rival ? 'rival' : ''} div-${(s.division || 'DI').toLowerCase()}" data-school="${sid}"
+      title="${Utils.escapeHtml(s.name)} · ${Utils.escapeHtml(s.conference)}${rival ? ' (conference rival)' : ''}">
+      <b>${DIV_SHORT(s.division || 'DI')}</b> ${Utils.escapeHtml(s.name)}${rankTxt ? ` <em>${rankTxt}</em>` : ''}${rival ? ' ⚔️' : ''}</span>`;
+  }
+
+  function travelText(cost) {
+    if (cost.mode === 'home') return '🏠 Home meet · free';
+    return `${cost.mode === 'flight' ? '✈️ Flight' : '🚌 Bus'} · ${cost.miles.toLocaleString()} mi · ${money(cost.total)}`;
+  }
+
+  function fieldStats(game, meet, ranks, mine) {
+    const ids = meet.schoolIds || [];
+    let ranked = 0, rivals = 0, power = 0;
+    ids.forEach((id) => {
+      if (ranks[id]) ranked++;
+      const s = game.getSchool(id);
+      if (s && mine && s.conference === mine.conference && id !== mine.id) rivals++;
+      power += MC().powerOf(game, id);
+    });
+    return { ranked, rivals, avgPower: ids.length ? Math.round(power / ids.length) : 0 };
+  }
+
+  // The option list for one week's drop-down.
+  function weekOptions(game, week, sp) {
+    const season = game.season;
+    const school = game.getPlayerSchool();
+    const curId = season.playerMeetByWeek[week] || null;
+    const cur = curId && season.meets[curId];
+    const curCost = cur ? MC().meetCost(game, school, cur).total : 0;
+    const opts = (season.byWeek[week] || []).map((id) => season.meets[id])
+      .filter((m) => m && m.type === 'invite')
+      .map((m) => {
+        const d = MC().describeMeet(game, m, school);
+        let block = '';
+        if (!d.mine) {
+          if (!d.access.ok) block = '🔒 ' + d.access.reason;
+          else if (!d.room) block = 'Full';
+          else if (d.cost.total > sp.left + curCost) block = '💸 Over budget';
+          else if (!cur && sp.count >= MC().CFG.MAX_MEETS) block = `Max ${MC().CFG.MAX_MEETS} meets`;
+        }
+        return { d, block };
+      })
+      .sort((a, b) => (!!a.block - !!b.block) || (a.d.cost.total - b.d.cost.total));
+    return { opts, curId };
+  }
+
+  function optionLabel(d, block) {
+    const c = d.cost;
+    const trip = c.mode === 'home' ? 'Home · free' : `${c.mode === 'flight' ? '✈️' : '🚌'} ${c.miles} mi · ${money(c.total)}`;
+    return `${d.tierIcon ? d.tierIcon + ' ' : ''}${d.meet.name} — ${trip} · ${d.speed.icon ? d.speed.icon + ' ' : ''}${d.speed.label} · ${d.field}/${d.cap} teams${block ? ' · ' + block : ''}`;
+  }
+
+  function budgetCard(game, sp, editable) {
+    const school = game.getPlayerSchool();
+    const tb = school.travelBudget || {};
+    const pct = sp.budget ? Math.round((sp.spent / sp.budget) * 100) : 0;
+    const mom = tb.momentum || 0;
+    const why = [
+      `Program base (prestige ${school.prestige}, ${Utils.escapeHtml(window.XCD.data.divisionFor(school).label)}): <strong>${money(tb.base || 0)}</strong>`,
+      `Travel Program ${tb.rating || MC().travelRating(school)}: <strong>×${(tb.ratingMult || 1).toFixed(2)}</strong> <span style="color:var(--text-faint);">(upgrade it on My Program)</span>`,
+      `Last season: <strong>${mom >= 0 ? '+' : ''}${Math.round(mom * 100)}%</strong>${(tb.notes || []).length ? ' — ' + tb.notes.map(Utils.escapeHtml).join(' · ') : ''}`,
+      tb.floor && tb.floor >= (tb.total || 0) ? 'The athletic department guarantees enough for a three-meet local schedule.' : ''
+    ].filter(Boolean);
+    return `
+      <div class="sb-budget">
+        <div class="sb-budget-nums">
+          <div><span>Travel budget</span><strong>${money(sp.budget)}</strong></div>
+          <div><span>Planned</span><strong>${money(sp.spent)}</strong></div>
+          <div><span>Left</span><strong style="color:${sp.left < 0 ? 'var(--danger)' : 'var(--success)'};">${money(sp.left)}</strong></div>
+          <div><span>Meets</span><strong style="color:${sp.count < MC().CFG.MIN_MEETS ? 'var(--warning)' : 'var(--text)'};">${sp.count} <small>of ${MC().CFG.MIN_MEETS}–${MC().CFG.MAX_MEETS}</small></strong></div>
+        </div>
+        ${UI.meter(pct, pct > 100 ? 'red' : pct > 85 ? 'yellow' : 'green')}
+        <details class="sb-why"><summary>Why this budget?</summary>${why.map((w) => `<div>${w}</div>`).join('')}
+          <div style="color:var(--text-faint);">Trips are priced by distance: a bus ride (up to 500 miles) is cheap, a flight is not. Hosting is free. ${editable ? 'The budget is a hard cap.' : ''}</div>
+        </details>
+      </div>`;
+  }
+
+  function builderHtml(game, editable) {
+    const season = game.season;
+    const school = game.getPlayerSchool();
+    const sp = MC().playerSpend(game);
+    const ranks = rankMap(game);
+    const rows = MC().WEEKS.map((week) => {
+      const { opts, curId } = weekOptions(game, week, sp);
+      const cur = curId && season.meets[curId];
+      const d = cur ? MC().describeMeet(game, cur, school) : null;
+      const st = cur ? fieldStats(game, cur, ranks, school) : null;
+      const past = game.week > week;
+      const select = `
+        <select class="sb-select" data-sb-week="${week}" ${editable && !past ? '' : 'disabled'} aria-label="Week ${week} meet">
+          <option value="" ${curId ? '' : 'selected'}>😴 Off week — training block</option>
+          ${opts.map(({ d: o, block }) => `<option value="${o.meet.id}" ${o.meet.id === curId ? 'selected' : ''} ${block ? 'disabled' : ''}>${Utils.escapeHtml(optionLabel(o, block))}</option>`).join('')}
+        </select>`;
+      const meta = d ? `
+        <div class="sb-meta">
+          <span class="sb-tier t-${cur.tier}">${d.tierIcon ? d.tierIcon + ' ' : ''}${d.tierLabel}</span>
+          <span>${travelText(d.cost)}</span>
+          ${UI.meetSpeedTag(cur)}
+          <span>📍 ${Utils.escapeHtml(d.course.location || '')}</span>
+          <span>${d.field}/${d.cap} teams${st.ranked ? ` · <strong>${st.ranked} ranked</strong>` : ''}${st.rivals ? ` · ⚔️ ${st.rivals} conference` : ''}</span>
+          <button class="btn small" data-sb-browse="${week}">Field ▸</button>
+        </div>` : `<div class="sb-meta" style="color:var(--text-faint);">${opts.length} meet${opts.length === 1 ? '' : 's'} this weekend <button class="btn small" data-sb-browse="${week}">Browse ▸</button></div>`;
+      return `<div class="sb-week ${cur ? 'racing' : ''}"><div class="sb-wk">Wk ${week}</div><div class="sb-body">${select}${meta}</div></div>`;
+    }).join('');
+    return `
+      <div class="card" id="schedule-builder" style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+          <h2 style="margin:0;">🗓 Schedule Builder</h2>
+          <span style="color:var(--text-dim); font-size:12.5px;">Team Power <strong>${MC().powerOf(game, school.id)}</strong> · Weeks 4–12</span>
+        </div>
+        <div style="color:var(--text-faint); font-size:12px; margin:4px 0 10px;">
+          The CPU has built its schedules — every meet happens on the same weekend every year.
+          Pick ${MC().CFG.MIN_MEETS}–${MC().CFG.MAX_MEETS} meets within your travel budget, then <strong>finalize</strong> (it locks after Week 1).
+          Elite meets take a strong program in any division (Team Power), and every meet holds a seat for you if you can afford it.
+        </div>
+        ${budgetCard(game, sp, editable)}
+        <div class="sb-weeks">${rows}</div>
+        ${editable ? `
+        <div style="border-top:1px solid var(--border); padding-top:10px; margin-top:6px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span style="color:var(--text-dim); font-size:12.5px;">Off weeks bank a training block. Finalizing locks the slate for the season.</span>
+          <button class="btn primary" id="btn-finalize-schedule">🔒 Finalize Schedule</button>
+        </div>` : ''}
+      </div>`;
+  }
+
+  function browserHtml(game, editable) {
+    const season = game.season;
+    const school = game.getPlayerSchool();
+    const ranks = rankMap(game);
+    const weeks = MC().WEEKS.filter((w) => (season.byWeek[w] || []).length);
+    if (!weeks.length) return '';
+    if (!weeks.includes(sbWeek)) sbWeek = weeks.find((w) => w >= game.week) || weeks[0];
+    const sp = MC().playerSpend(game);
+    const curId = season.playerMeetByWeek[sbWeek] || null;
+    const curCost = curId ? MC().meetCost(game, school, season.meets[curId]).total : 0;
+    let list = (season.byWeek[sbWeek] || []).map((id) => season.meets[id]).filter((m) => m && m.type === 'invite')
+      .map((m) => ({ m, d: MC().describeMeet(game, m, school), st: fieldStats(game, m, ranks, school) }));
+    if (sbDiv !== 'all') list = list.filter((x) => x.m.schoolIds.some((id) => (game.getSchool(id) || {}).division === sbDiv));
+    if (sbRankedOnly) list = list.filter((x) => x.st.ranked > 0);
+    if (sbRivalsOnly) list = list.filter((x) => x.st.rivals > 0);
+    list.sort((a, b) => sbSort === 'cost' ? a.d.cost.total - b.d.cost.total
+      : sbSort === 'size' ? b.d.field - a.d.field
+      : (b.st.ranked * 10 + b.st.avgPower) - (a.st.ranked * 10 + a.st.avgPower));
+    const cards = list.map(({ m, d, st }) => {
+      const ids = m.schoolIds.slice().sort((a, b) => ((ranks[a] || {}).best || 99) - ((ranks[b] || {}).best || 99) ||
+        MC().powerOf(game, b) - MC().powerOf(game, a));
+      const shown = ids.filter((id) => (sbDiv === 'all' || (game.getSchool(id) || {}).division === sbDiv) &&
+        (ranks[id] || (game.getSchool(id) || {}).conference === school.conference));
+      const allIds = ids.filter((id) => sbDiv === 'all' || (game.getSchool(id) || {}).division === sbDiv);
+      let action = '';
+      if (d.mine) action = '<span class="sb-on">✓ On your schedule</span>';
+      else if (editable && game.week <= m.week) {
+        const block = !d.access.ok ? '🔒 ' + d.access.reason : !d.room ? 'Full'
+          : d.cost.total > sp.left + curCost ? '💸 Over budget' : (!curId && sp.count >= MC().CFG.MAX_MEETS) ? `Max ${MC().CFG.MAX_MEETS} meets` : '';
+        action = block ? `<span class="sb-block">${Utils.escapeHtml(block)}</span>`
+          : `<button class="btn small primary" data-sb-enter="${m.id}" data-sb-enter-week="${m.week}">${curId ? `Switch to this meet (Wk ${m.week})` : `Enter for Wk ${m.week}`}</button>`;
+      }
+      return `
+        <div class="sb-meet ${d.mine ? 'mine' : ''}">
+          <div class="sb-meet-head">
+            <div>
+              <div class="sb-meet-name">${d.tierIcon ? d.tierIcon + ' ' : ''}${Utils.escapeHtml(m.name)} <span class="sb-tier t-${m.tier}">${d.tierLabel}</span></div>
+              <div class="sb-meet-sub">📍 ${Utils.escapeHtml([d.course.hostName && m.tier !== 'prenats' ? 'Host: ' + d.course.hostName : '', d.course.location].filter(Boolean).join(' · '))}</div>
+              <div class="sb-meet-sub">${travelText(d.cost)} · ${UI.meetSpeedTag(m)} · Hills ${m.conditions.hilliness}/100 · ${window.XCD.data.altitudeClass(m.conditions)} altitude</div>
+              <div class="sb-meet-sub">${d.field}/${d.cap} teams · avg Team Power ${st.avgPower}${st.ranked ? ` · <strong>${st.ranked} ranked</strong>` : ''}${st.rivals ? ` · ⚔️ ${st.rivals} conference rival${st.rivals === 1 ? '' : 's'}` : ''}</div>
+            </div>
+            <div class="sb-meet-act">${action}</div>
+          </div>
+          ${shown.length ? `<div class="sb-chips">${shown.slice(0, 14).map((id) => rankChip(game, id, ranks, school)).join('')}${shown.length > 14 ? `<span class="sb-more">+${shown.length - 14}</span>` : ''}</div>` : ''}
+          <details class="sb-field"><summary>All ${allIds.length} team${allIds.length === 1 ? '' : 's'}${sbDiv !== 'all' ? ' (' + DIV_SHORT(sbDiv) + ')' : ''}</summary>
+            <div class="sb-chips">${allIds.map((id) => rankChip(game, id, ranks, school)).join('')}</div>
+          </details>
+        </div>`;
+    }).join('');
+    return `
+      <div class="card" id="meet-browser" style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+          <h2 style="margin:0;">🔎 Meet Browser</h2>
+          <span style="color:var(--text-faint); font-size:12px;">Who's racing where — chase ranked teams and conference rivals.</span>
+        </div>
+        <div class="pill-tabs" style="margin-bottom:8px;">${weeks.map((w) => `<button data-sb-week-tab="${w}" class="${w === sbWeek ? 'active' : ''}">Wk ${w}${season.playerMeetByWeek[w] ? ' •' : ''}</button>`).join('')}</div>
+        <div class="sb-filters">
+          <div class="pill-tabs">${['all', 'DI', 'DII', 'DIII'].map((dv) => `<button data-sb-div="${dv}" class="${dv === sbDiv ? 'active' : ''}">${dv === 'all' ? 'All divisions' : DIV_SHORT(dv)}</button>`).join('')}</div>
+          <label class="sb-toggle"><input type="checkbox" id="sb-ranked" ${sbRankedOnly ? 'checked' : ''}> Ranked teams</label>
+          <label class="sb-toggle"><input type="checkbox" id="sb-rivals" ${sbRivalsOnly ? 'checked' : ''}> Conference rivals</label>
+          <select id="sb-sort" class="sb-sort" aria-label="Sort meets">
+            <option value="strength" ${sbSort === 'strength' ? 'selected' : ''}>Strongest fields</option>
+            <option value="cost" ${sbSort === 'cost' ? 'selected' : ''}>Cheapest trip</option>
+            <option value="size" ${sbSort === 'size' ? 'selected' : ''}>Biggest fields</option>
+          </select>
+        </div>
+        <div class="sb-meets">${cards || '<div style="color:var(--text-dim); font-size:13px; padding:8px 0;">No meets match these filters this weekend.</div>'}</div>
+      </div>`;
+  }
+
+  function wireBuilder(game, container, rerender) {
+    container.querySelectorAll('[data-sb-week]').forEach((sel) => {
+      sel.addEventListener('change', () => {
+        const r = MC().selectMeet(game, Number(sel.dataset.sbWeek), sel.value || null);
+        UI.toast(r.message, r.ok ? 'success' : 'error');
+        rerender();
+      });
+    });
+    container.querySelectorAll('[data-sb-browse]').forEach((b) => b.addEventListener('click', () => {
+      sbWeek = Number(b.dataset.sbBrowse);
+      rerender();
+      const el = document.getElementById('meet-browser');
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }));
+    container.querySelectorAll('[data-sb-week-tab]').forEach((b) => b.addEventListener('click', () => { sbWeek = Number(b.dataset.sbWeekTab); rerender(); }));
+    container.querySelectorAll('[data-sb-div]').forEach((b) => b.addEventListener('click', () => { sbDiv = b.dataset.sbDiv; rerender(); }));
+    const rk = container.querySelector('#sb-ranked');
+    if (rk) rk.addEventListener('change', () => { sbRankedOnly = rk.checked; rerender(); });
+    const rv = container.querySelector('#sb-rivals');
+    if (rv) rv.addEventListener('change', () => { sbRivalsOnly = rv.checked; rerender(); });
+    const so = container.querySelector('#sb-sort');
+    if (so) so.addEventListener('change', () => { sbSort = so.value; rerender(); });
+    container.querySelectorAll('[data-sb-enter]').forEach((b) => b.addEventListener('click', () => {
+      const r = MC().selectMeet(game, Number(b.dataset.sbEnterWeek), b.dataset.sbEnter);
+      UI.toast(r.message, r.ok ? 'success' : 'error');
+      rerender();
+    }));
+  }
+
   function render(container) {
     const game = UI.state.game;
     const season = game.season;
@@ -273,8 +533,8 @@
       ...season.raceWeeks.map((w) => {
         const meet = season.playerMeetByWeek[w] && season.meets[season.playerMeetByWeek[w]];
         const label = meet
-          ? (meet.elite ? '⭐ Elite Invitational' : typeLabel[meet.type] || 'Invitational')
-          : 'Invitational';
+          ? (meet.preNationals ? '🏆 Pre-Nationals' : meet.elite ? '⭐ Elite Invitational' : typeLabel[meet.type] || 'Invitational')
+          : (season.calendarVersion ? 'Off week' : 'Invitational');
         return { week: w, label };
       }),
       { week: season.conferenceWeek, label: 'Conference' },
@@ -303,7 +563,10 @@
       const done = meet && meet.results.M;
 
       let status;
-      if (!meet) status = `<span style="color:var(--text-faint);">${note || '—'}</span>`;
+      if (!meet && label === 'Off week') {
+        note = '😴 Off week';
+        status = '<span style="color:var(--text-faint);">Training block</span>';
+      } else if (!meet) status = `<span style="color:var(--text-faint);">${note || '—'}</span>`;
       else if (done) {
         status = ['M', 'W'].map((g) => {
           const res = meet.results[g];
@@ -386,8 +649,19 @@
     // Custom race scheduling (Update 4, Part 7 + Section 15): pick which
     // meets to attend during Week 1, gated by prestige — then finalize.
     let scheduleHtml = '';
+    let browserCard = '';
     const Scheduling = window.XCD.engine.Scheduling;
-    if (Scheduling && !locked) {
+    const realSchedule = !!(season.calendarVersion && MC());
+    if (realSchedule) {
+      const editable = !locked && game.controlsScheduling();
+      scheduleHtml = editable ? builderHtml(game, true) : `
+        <div class="card" style="margin-bottom:16px;">
+          <h2 style="margin:0 0 4px;">🔒 Schedule Finalized — ${season.year}</h2>
+          <div style="color:var(--text-dim); font-size:12.5px;">The slate below is locked for the season. Your next schedule is built in Week 1 of next year.</div>
+          ${budgetCard(game, MC().playerSpend(game), false)}
+        </div>`;
+      browserCard = browserHtml(game, editable);
+    } else if (Scheduling && !locked) {
       Scheduling.buildOptions(game);
       const sched = season.playerSchedule;
       const editable = (sched.weeks || []).filter((w) => !w.locked);
@@ -463,6 +737,7 @@
       </div>
       ${UI.sectionLabel('Your Season')}
       ${scheduleHtml}
+      ${browserCard}
       <div class="card">
         <div class="table-wrap desktop-only"><table class="data">
           <thead><tr><th class="col-rank">Week</th><th class="col-grow">Meet</th><th>Field</th><th>Conditions</th><th>Result</th></tr></thead>
@@ -510,10 +785,16 @@
       });
     });
 
+    if (realSchedule) wireBuilder(game, container, () => render(container));
+
     // Finalize (Section 15): permanently lock the season's slate.
     const finalizeBtn = container.querySelector('#btn-finalize-schedule');
     if (finalizeBtn) finalizeBtn.addEventListener('click', () => {
       if (!game.controlsScheduling()) { UI.toast('Only the head coach finalizes the schedule.', 'error'); return; }
+      if (realSchedule) {
+        const v = MC().validatePlayerSchedule(game);
+        if (!v.ok) { UI.toast(v.message, 'error'); return; }
+      }
       game.week1 = game.week1 || window.XCD.engine.GameState.freshWeek1();
       game.week1.scheduleFinalized = true;
       UI.toast('Schedule finalized — the slate is locked for the season.', 'success');

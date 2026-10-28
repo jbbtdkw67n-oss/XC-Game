@@ -11,16 +11,16 @@
   const Utils = window.XCD.core.Utils;
 
   /*
-   * The season — Update 2 (Part 5):
-   *   Wk 1-3 Summer Training (no racing) · Wk 4/6/8/10/12 meets with one
-   *   bye week between each · Wk 13 Conference · Wk 14 Regionals ·
+   * The season — Update 2 (Part 5), Real Schedules:
+   *   Wk 1-3 Summer Training (no racing) · Wk 4-12 regular season, where
+   *   every program races its own 3-7 meet schedule off the persistent meet
+   *   calendar (MeetCalendar) · Wk 13 Conference · Wk 14 Regionals ·
    *   Wk 15 Nationals (no byes between championship rounds) ·
    *   Wk 16-21 Offseason.
    *
-   * Prestigious invitationals (Part 7): on weeks 6/8/10 the elite fields
-   * split into named meets (Nuttycombe, Pre-Nationals, Joe Piane, Roy
-   * Griak, Wisconsin) that carry extra poll weight; everyone else runs
-   * regional invitationals. Weeks 4 and 12 are open invitationals.
+   * Prestigious invitationals (Part 7): the famous named meets (Nuttycombe,
+   * Joe Piane, Roy Griak, …) keep their real weekends and carry extra poll
+   * weight; each division's Pre-Nationals runs Week 10 on its NCAA course.
    *
    * Postseason is division-aware (Part 13): conferences, regionals, and
    * nationals are built per division, while regular-season invitationals
@@ -104,141 +104,27 @@
     season.nationalsVenues = nationalsVenues;
     season.diCourse = diCourse;
 
-    // Groups a set of schools into ~20-team invitationals for one week.
-    function scheduleInvitationals(week, ids, regionalize) {
-      season.byWeek[week] = season.byWeek[week] || [];
-      const buildGroup = (group) => {
-        if (!group.length) return;
-        const host = gameState.getSchool(group[0]);
-        // Custom League (Update 13): if the dynasty supplied its own meet
-        // names, invitationals draw from that pool; otherwise the host names it.
-        const custom = window.XCD.data.customMeetName(season._inviteSeq = (season._inviteSeq || 0) + 1);
-        const meet = buildMeet(gameState, rng, {
-          week,
-          name: custom || `${host.name} Invitational`,
-          hostId: host.id,
-          schoolIds: group,
-          type: 'invite'
-        });
-        season.meets[meet.id] = meet;
-        season.byWeek[week].push(meet.id);
-        if (group.includes(gameState.playerSchoolId)) season.playerMeetByWeek[week] = meet.id;
-      };
-
-      if (regionalize) {
-        // Smaller schools race close to home (Part 7): group by region.
-        const byRegion = {};
-        ids.forEach((id) => {
-          const s = gameState.getSchool(id);
-          (byRegion[s.region] = byRegion[s.region] || []).push(id);
-        });
-        Object.values(byRegion).forEach((regionIds) => {
-          const shuffled = rng.shuffle(regionIds);
-          const meetCount = Math.max(1, Math.ceil(shuffled.length / 20));
-          for (let i = 0; i < meetCount; i++) {
-            buildGroup(shuffled.filter((_, idx) => idx % meetCount === i));
-          }
-        });
-        return;
-      }
-
-      const shuffled = rng.shuffle(ids);
-      const meetCount = Math.max(1, Math.ceil(shuffled.length / 20));
-      for (let i = 0; i < meetCount; i++) {
-        buildGroup(shuffled.filter((_, idx) => idx % meetCount === i));
-      }
-    }
-
-    // --- Regular season ---------------------------------------------
-    const eliteByWeek = {};
-    (D.ELITE_MEETS || []).forEach((m) => {
-      (eliteByWeek[m.week] = eliteByWeek[m.week] || []).push(m);
-    });
-
-    RACE_WEEKS.forEach((week) => {
-      const eliteMeets = eliteByWeek[week];
-      if (!eliteMeets || !eliteMeets.length) {
-        // Open weekends (season opener, last-chance): everyone mixes.
-        scheduleInvitationals(week, schoolIds);
-        return;
-      }
-
-      // Elite weekends (Invitational Balancing): invitations go out on MERIT
-      // — prestige blended with the current poll, so a rapidly improving
-      // top-25-caliber program earns elite invites well before its prestige
-      // catches up — and the invite pool is DEALT across the weekend's named
-      // meets instead of piling every contender into one field. The biggest
-      // meets (highest weight) still draw a larger share of the headliners,
-      // so Nuttycombe occasionally lands nearly every national contender —
-      // but most weekends produce several genuinely competitive meets.
-      const prevRank = {};
-      if (gameState.rankings) {
-        ['M', 'W'].forEach((g) => (gameState.rankings[g] || []).forEach((r) => {
-          prevRank[r.schoolId] = Math.min(prevRank[r.schoolId] || 999, r.rank);
-        }));
-      }
-      const meritOf = (s) => s.prestige + (prevRank[s.id] && prevRank[s.id] <= 40
-        ? (40 - prevRank[s.id]) * 0.9 : 0);
-      const byMerit = schoolIds
-        .map((id) => gameState.getSchool(id))
-        .sort((a, b) => meritOf(b) - meritOf(a));
-      season.byWeek[week] = season.byWeek[week] || [];
-      const invited = new Set();
-
-      // Pre-Nationals is built specially (DI-only, nationals course,
-      // invite/decline) before the generic elite fields on the same week.
-      eliteMeets.filter((em) => em.preNationals).forEach((em) => {
-        buildPreNationals(gameState, rng, week, season, diCourse, invited);
-      });
-
-      const weekElite = eliteMeets.filter((em) => !em.preNationals);
-      if (weekElite.length) {
-        // ~15% of each elite field stays open for lottery invites from
-        // further down the ladder.
-        const lotterySlots = weekElite.map((em) => Math.round(em.size * 0.15));
-        const fields = weekElite.map(() => []);
-        const meritTotal = weekElite.reduce((s, em, i) => s + em.size - lotterySlots[i], 0);
-        let cursor = 0;
-        let placedCount = 0;
-        while (placedCount < meritTotal && cursor < byMerit.length) {
-          const s = byMerit[cursor++];
-          if (invited.has(s.id)) continue;
-          const open = weekElite
-            .map((em, i) => ({ i, cap: em.size - lotterySlots[i] - fields[i].length, w: em.weight || 1 }))
-            .filter((o) => o.cap > 0);
-          if (!open.length) break;
-          // Bigger meets pull harder for each contender, without a monopoly.
-          const pick = open.length === 1 ? open[0]
-            : rng.weightedChoice(open, (o) => Math.pow(o.w, 4) * Math.min(o.cap, 6));
-          fields[pick.i].push(s.id);
-          invited.add(s.id);
-          placedCount++;
-        }
-        const pool = byMerit.filter((s) => !invited.has(s.id));
-        weekElite.forEach((em, i) => {
-          for (let j = 0; j < lotterySlots[i] && pool.length; j++) {
-            const lotto = pool.splice(rng.int(0, Math.min(pool.length - 1, 60)), 1)[0];
-            fields[i].push(lotto.id); invited.add(lotto.id);
-          }
-          if (!fields[i].length) return;
-          const host = gameState.getSchool(fields[i][0]);
-          const meet = buildMeet(gameState, rng, {
-            week,
-            name: em.name,
-            hostId: host.id,
-            schoolIds: fields[i],
-            type: 'invite',
-            elite: em.weight, // extra poll credit for elite fields
-            courseMeta: em    // the famous course's real profile
-          });
-          season.meets[meet.id] = meet;
-          season.byWeek[week].push(meet.id);
-          if (fields[i].includes(gameState.playerSchoolId)) season.playerMeetByWeek[week] = meet.id;
-        });
-      }
-
-      // Everyone not invited runs a regional invitational that weekend.
-      scheduleInvitationals(week, schoolIds.filter((id) => !invited.has(id)), true);
+    // --- Regular season (Real Schedules) -------------------------------
+    // Weeks 4-12 come from the persistent meet calendar: every program
+    // builds its own 3-7 meet schedule within a hard travel budget (the CPU
+    // first, then the player during Week 1). See MeetCalendar.
+    const courseFor = (division) => {
+      const venue = nationalsVenues[division];
+      const host = gameState.getSchool(nationalsHosts[division] || (byDivisionAll[division] || [])[0]);
+      return host ? {
+        hostId: host.id,
+        hilliness: venue ? venue.hilliness : rng.int(30, 80),
+        altitude: venue ? D.altitudeCategory(venue.altitudeFt) : host.weather.altitude,
+        tempBase: host.weather.tempBase,
+        courseMeta: venueCourseMeta(venue)
+      } : null;
+    };
+    season.preNationalsByDiv = {};
+    window.XCD.engine.MeetCalendar.buildRegularSeason(gameState, season, rng, {
+      buildMeet,
+      buildPreNationals: (gs, r, division, cfg) =>
+        buildPreNationals(gs, r, D.PRE_NATIONALS.week, season,
+          division === 'DI' ? diCourse : courseFor(division), division, cfg)
     });
 
     // --- Postseason: built per division (Part 13) --------------------
@@ -389,10 +275,11 @@
    * Schedule screen. The field is dealt on merit (last year's poll blended
    * with prestige); racing it earns a small familiarity edge at Nationals.
    */
-  function buildPreNationals(gameState, rng, week, season, diCourse, invitedSet) {
-    const cfg = D.PRE_NATIONALS;
-    const diIds = gameState.world.schoolOrder.filter((id) => (gameState.getSchool(id).division || 'DI') === 'DI');
-    if (!diIds.length) return;
+  function buildPreNationals(gameState, rng, week, season, diCourse, division, sizes) {
+    division = division || 'DI';
+    const cfg = Object.assign({}, D.PRE_NATIONALS, sizes || {});
+    const diIds = gameState.world.schoolOrder.filter((id) => (gameState.getSchool(id).division || 'DI') === division);
+    if (!diIds.length) return null;
 
     // Standing that earns a place in the field: last year's poll (defending
     // qualifiers / top-25) blended with prestige (traditional powers). First
@@ -400,7 +287,7 @@
     const prevRank = {};
     if (gameState.rankings) {
       ['M', 'W'].forEach((g) => (gameState.rankings[g] || []).forEach((r) => {
-        if ((gameState.getSchool(r.schoolId) || {}).division === 'DI') {
+        if (((gameState.getSchool(r.schoolId) || {}).division || 'DI') === division) {
           prevRank[r.schoolId] = Math.min(prevRank[r.schoolId] || 999, r.rank);
         }
       }));
@@ -430,9 +317,6 @@
       field.push(pick); seen.add(pick);
     }
 
-    // Reserve the field so these programs don't also get a regional meet this
-    // week; the player can still swap into/out of it on the Schedule screen.
-    field.forEach((id) => invitedSet.add(id));
 
     const pnMeta = diCourse && diCourse.courseMeta;
     const conditions = {
@@ -444,11 +328,11 @@
     const meet = {
       id: Utils.generateId('meet'),
       week,
-      name: cfg.name,
+      name: division === 'DI' ? cfg.name : `${D.DIVISION_SHORT[division] || division} ${cfg.name}`,
       hostId: host.id,
       schoolIds: field,
       type: 'invite',
-      division: 'DI',
+      division,
       elite: cfg.pollWeight,
       preNationals: true,
       distances: { M: 8000, W: 6000 }, // Pre-Nationals runs the 8K (men) / 6K (women)
@@ -459,25 +343,30 @@
     season.meets[meet.id] = meet;
     season.byWeek[week] = season.byWeek[week] || [];
     season.byWeek[week].push(meet.id);
-    if (field.includes(gameState.playerSchoolId)) season.playerMeetByWeek[week] = meet.id;
 
-    // `accepted` mirrors the field so the familiarity edge, preview stories,
-    // and morale weighting keep working off the roster that actually races.
-    season.preNationals = {
+    // `accepted` mirrors the invited field so preview stories keep working;
+    // familiarity reads the live meet roster (the schedules settle later).
+    const info = {
       meetId: meet.id,
       week,
+      division,
       hostId: host.id,
       diNationalsHostId: diCourse ? diCourse.hostId : null,
       accepted: field.slice()
     };
+    season.preNationalsByDiv = season.preNationalsByDiv || {};
+    season.preNationalsByDiv[division] = info;
+    if (division === 'DI') season.preNationals = info;
+    return meet;
   }
 
   // Did a school race Pre-Nationals this season (course familiarity)? A team
   // races it when it is in the meet's field — the player's own Schedule-screen
   // choice is reflected there, so this reads the live meet roster.
-  function racedPreNationals(gameState, schoolId) {
+  function racedPreNationals(gameState, schoolId, division) {
     const season = gameState.season;
-    const pn = season && season.preNationals;
+    const pn = season && ((division && season.preNationalsByDiv && season.preNationalsByDiv[division]) ||
+      (!division || division === 'DI' ? season.preNationals : null));
     if (!pn) return false;
     const meet = season.meets[pn.meetId];
     if (meet) return (meet.schoolIds || []).includes(schoolId);
@@ -694,9 +583,11 @@
     // Pre-Nationals course familiarity (Update 3): teams that raced
     // Pre-Nationals know this DI Championship course — a small, non-decisive
     // edge (~0.6% faster). Rewards participation without deciding the race.
-    if (meet.type === 'national' && (meet.division || 'DI') === 'DI') {
-      const pn = gameState.season && gameState.season.preNationals;
-      if (pn && meet.hostId === pn.diNationalsHostId && racedPreNationals(gameState, a.schoolId)) {
+    if (meet.type === 'national') {
+      const div = meet.division || 'DI';
+      const season = gameState.season;
+      const pn = season && ((season.preNationalsByDiv && season.preNationalsByDiv[div]) || (div === 'DI' ? season.preNationals : null));
+      if (pn && meet.hostId === pn.diNationalsHostId && racedPreNationals(gameState, a.schoolId, div)) {
         mult -= D.PRE_NATIONALS.familiarityBonus;
       }
     }
@@ -742,6 +633,10 @@
     });
     (meet.individualEntries && meet.individualEntries[gender] || []).forEach((athId) => {
       const a = gameState.world.athletes[athId];
+      if (a && a.injury && a.schoolId === gameState.playerSchoolId) {
+        // Never silent: a qualifier scratched by injury makes the news.
+        gameState.logNews(`🩹 ${a.fullName} earned an individual spot at ${meet.name} but is scratched with an injury.`);
+      }
       if (a && !a.injury && !entries.some((e) => e.athlete.id === athId)) {
         entries.push({ athlete: a, schoolId: a.schoolId, individual: true });
       }
@@ -774,6 +669,10 @@
       if (teamForm[schoolId]) total *= 1 + teamForm[schoolId];
       const chem = gameState.getSchool(schoolId)?.chemistry?.[gender];
       if (chem !== undefined) total *= 1 + (55 - chem) * 0.0002;
+      // A strong captain steadies the team on race day — a small edge that
+      // grows at championships (up to ~0.3%, ~0.45% in the postseason).
+      const capLead = gameState.getSchool(schoolId)?.captainLeadership?.[gender];
+      if (capLead > 70 && !individual) total *= 1 - Math.min(25, capLead - 70) * 0.00012 * (isChampMeet ? 1.5 : 1);
       const tactic = tacticFor(schoolId);
       // Day form: consistent runners have narrower swings. Even-pace and
       // pack-running staffs damp the swing further (steadier team scoring).
@@ -1718,17 +1617,15 @@
         // not on a qualifying team advance as individuals. These flags are what
         // the Race Center / history screens read to badge qualifiers.
         //
-        // Individual qualifiers (real NCAA rules): at each regional, the first
-        // N finishers whose teams did NOT make the field advance automatically
-        // — but only if they placed inside the regional's top-X cutoff (DI:
-        // first 4, top 25). Then the committee adds national at-large
-        // individuals (DI: 2): the highest regional placers from
-        // non-qualifying teams who missed the automatic cut, compared across
-        // regions by place and then by margin behind their regional winner.
+        // Individual qualifiers: every top-N (10) finisher at a regional goes
+        // to Nationals — with their team when it made the field, otherwise as
+        // an individual. Then the committee adds national at-large
+        // individuals: the best regional placers from non-qualifying teams
+        // just outside that cut, compared across regions by place and then by
+        // margin behind their regional winner.
         const individuals = [];
         const individualSet = new Set();
-        const perRegional = rules.individualQualifiersPerRegional || 0;
-        const cutoff = rules.individualTopCutoff || Infinity;
+        const topN = rules.individualAutoTopN || 10;
         const indivAuto = [];
         const leftovers = [];
         regionalMeets.forEach((meet) => {
@@ -1739,11 +1636,9 @@
               : fieldSet.has(t.schoolId) ? 'atlarge' : null;
           });
           const winTime = res.finishers[0] ? res.finishers[0].time : null;
-          let taken = 0;
           res.finishers.forEach((f) => {
             if (fieldSet.has(f.schoolId) || individualSet.has(f.athleteId)) return;
-            if (taken < perRegional && f.place <= cutoff) {
-              taken++;
+            if (f.place <= topN) {
               individuals.push(f.athleteId);
               individualSet.add(f.athleteId);
               indivAuto.push({ athleteId: f.athleteId, schoolId: f.schoolId, place: f.place, region: meet.region });
@@ -1778,7 +1673,7 @@
         });
         champ.individualQualifiers[gender] = individuals;
         if (champ.selection && champ.selection[gender]) {
-          champ.selection[gender].individuals = { auto: indivAuto, atLarge: indivAtLarge, cutoff: Number.isFinite(cutoff) ? cutoff : null, perRegional };
+          champ.selection[gender].individuals = { auto: indivAuto, atLarge: indivAtLarge, cutoff: topN, perRegional: null };
         }
 
         if (division === playerDivision) {
@@ -1809,7 +1704,7 @@
               .map((id) => gameState.world.athletes[id])
               .filter((a) => a && a.schoolId === gameState.playerSchoolId);
             if (mine.length) {
-              gameState.logNews(`${mine.map((a) => a.fullName).join(' and ')} punch${mine.length === 1 ? 'es' : ''} an individual ticket to the NCAA Championships${mine.some((a) => atLargeIndivSet.has(a.id)) ? ' (a national at-large individual pick)' : ` (among the first ${rules.individualQualifiersPerRegional} from non-qualifying teams at regionals)`}!`);
+              gameState.logNews(`${mine.map((a) => a.fullName).join(' and ')} punch${mine.length === 1 ? 'es' : ''} an individual ticket to the NCAA Championships${mine.some((a) => atLargeIndivSet.has(a.id)) ? ' (a national at-large individual pick)' : ` (a top-${topN} regional finish)`}!`);
             }
           }
         }

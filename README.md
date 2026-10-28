@@ -14,6 +14,48 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 14.7 — Real Schedules, Travel Budgets & Fairer Nationals Bids
+
+- **A real meet calendar.** Weeks 4–12 now have meets every weekend, and each
+  meet runs on the **same week every year**. The famous invitationals keep
+  their real weekends, and a few hundred host programs run an annual home
+  invitational. Hosts are placed so every school has plenty of meets within
+  bus range.
+- **Big meets and small meets.** Every meet has a cap: elite invitationals
+  draw 30–40 teams, small local invites 14–22. The CPU always leaves one seat
+  open, so you can get into any meet you're eligible for and can afford.
+- **Team Power.** A single strength rating (a national percentile from 1 to
+  99) that works the same in every division. The elite invitationals take
+  strong teams from any division, so an exceptional DII or DIII squad can get
+  into Nuttycombe. Division I programs can also get in on prestige or a
+  top-25 ranking. **Pre-Nationals** runs once per division, on that division's
+  NCAA course, and only that division can enter.
+- **Hard travel budgets.** A trip is priced by distance: bus up to 500 miles
+  ($800 + $7/mile), a flight beyond that ($5,000 + $4/mile), plus an entry
+  fee. Hosting your own meet is free. Each program's budget is set by its
+  prestige and its **Travel Program** rating, which you upgrade on My Program
+  like a facility. Last season's results swing it up or down: beating the
+  preseason poll raises it, falling short lowers it, and championships add a
+  boost. Every program can always afford a three-meet local schedule.
+- **The CPU builds its schedules first.** Each program races 3–7 times, based
+  on its budget, its Team Power, and its coach's scheduling style (some CPU
+  coaches race almost every week, others race sparingly). Strong teams fill
+  the big meets; everyone else builds around them.
+- **Schedule Builder (Week 1).** A drop-down for each week shows every meet's
+  cost, distance, bus or flight, whether the course is ⚡ fast or 🐢 slow, and
+  the field size against its cap. A budget bar explains your number, and a
+  **Meet Browser** shows who's racing where. Filter by division, show only
+  meets with ranked teams or conference rivals, and enter a meet with one tap.
+  Finalize 3–7 meets.
+- **Nationals individual bids.** Every top-10 finisher at each regional goes
+  to Nationals, with their team or individually if the team missed the field.
+  At-large individual spots go to the best placers just outside the top 10
+  (DI 6, DII and DIII 5). If an injury scratches a qualifier, it now shows up
+  in the news.
+- **Job offers wait a week.** The Available Jobs popup appears on the advance
+  from Week 16 into Week 17, so you get the awards week to look over the
+  nationals results first.
+
 ## Version 14.6 — One Clean Look Across Every Screen
 
 - **Every screen title is its menu label** (Dashboard, Schedule, Training,
@@ -1189,7 +1231,7 @@ once-in-a-generation recruits — so no two dynasties ever feel the same.
 ### The new season (Part 5)
 
 A full 21-week year: **Summer Training (wk 1-3) → Regular Season (wk 4-12,
-meets at 4/6/8/10/12 with one bye week between every meet) → Conference
+every program racing its own 3-7 meet schedule — see Real Schedules) → Conference
 (wk 13) → NCAA Regionals (wk 14) → NCAA Nationals (wk 15) → Offseason
 (wk 16-21)**. No byes between championship rounds. All numbers live in
 `XCD.data.CALENDAR` — nothing downstream hardcodes the calendar.

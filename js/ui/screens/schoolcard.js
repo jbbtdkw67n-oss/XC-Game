@@ -44,7 +44,7 @@
       ? UI.listGroup(roster.slice(0, 12).map((a) => UI.listRow({
           badge: UI.avatar(a, { size: 40 }),
           title: `${a.generational ? '⭐ ' : ''}${Utils.escapeHtml(a.fullName)}`,
-          sub: `${a.classYear} • ${Utils.escapeHtml(a.hometownState || '')}`,
+          sub: `${a.classYear} • ${Utils.escapeHtml(a.hometownState || '')}${a.injury ? ` • <span style="color:var(--danger);">🩹 ${Utils.escapeHtml(a.injury.type)}, out ~${a.injury.weeksRemaining} wk</span>` : ''}`,
           meta: UI.ratingBadge(a.currentOverall),
           attrs: { ath: a.id }
         })))

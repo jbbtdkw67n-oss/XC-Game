@@ -283,6 +283,21 @@
   }
 
   /* ---------------- Rating progression ---------------- */
+  // Coach progression pace: every coach (player and CPU) develops 1.5x as
+  // fast as the original curve — natural growth and dynasty points alike.
+  const PROGRESSION_RATE = 1.5;
+
+  // Bank dynasty points at the progression pace. Fractions carry over so a
+  // single point is never rounded up into two.
+  function awardPoints(coach, pts) {
+    if (!coach || !(pts > 0)) return 0;
+    const total = (coach.pointCarry || 0) + pts * PROGRESSION_RATE;
+    const whole = Math.floor(total + 1e-9);
+    coach.pointCarry = Math.round((total - whole) * 100) / 100;
+    coach.upgradePoints = (coach.upgradePoints || 0) + whole;
+    return whole;
+  }
+
   function progressRatings(coach, rng, isPlayer) {
     const bump = (key, amt) => { coach[key] = Utils.clamp(coach[key] + amt, 15, 99); };
     const arch = (D.COACH_ARCHETYPES || []).find((a) => a.key === coach.archetype);
@@ -290,21 +305,21 @@
     if (coach.age < 35) {
       // Young coaches improve quickly (player growth flows through
       // upgrade points instead, but craft skills still sharpen).
-      const n = isPlayer ? 1 : 2;
+      const n = isPlayer ? (rng.bool(PROGRESSION_RATE - 1) ? 2 : 1) : 3;
       for (let i = 0; i < n; i++) {
         const pool = isPlayer ? SECONDARY : (rng.bool(0.5) && arch ? [arch.rating] : CORE.concat(SECONDARY));
         bump(rng.choice(pool), 1);
       }
     } else if (coach.age < 50) {
-      if (!isPlayer && rng.bool(0.55)) {
+      if (!isPlayer && rng.bool(Math.min(0.95, 0.55 * PROGRESSION_RATE))) {
         const pool = rng.bool(0.45) && arch ? [arch.rating] : CORE.concat(SECONDARY);
         bump(rng.choice(pool), 1);
-      } else if (isPlayer && rng.bool(0.35)) {
+      } else if (isPlayer && rng.bool(0.35 * PROGRESSION_RATE)) {
         bump(rng.choice(SECONDARY), 1);
       }
     } else if (coach.age < 62) {
       // The plateau: identity is set; craft holds steady.
-      if (!isPlayer && rng.bool(0.15)) bump(rng.choice(SECONDARY), 1);
+      if (!isPlayer && rng.bool(0.15 * PROGRESSION_RATE)) bump(rng.choice(SECONDARY), 1);
     } else {
       // Some coaches decline with age — same rules for everyone.
       const declineChance = 0.18 + Math.max(0, coach.age - 68) * 0.04;
@@ -580,6 +595,8 @@
 
   window.XCD.engine.Coaching = {
     yearlyProgression,
+    awardPoints,
+    PROGRESSION_RATE,
     installInterimAssistant,
     assistantSeatVacant,
     updateReputation,

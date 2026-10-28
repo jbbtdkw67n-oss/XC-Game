@@ -411,7 +411,7 @@
         : ' <span title="Qualified for Nationals — at-large bid" style="color:var(--accent); font-weight:700; font-size:10.5px;">🎟 AL</span>';
     };
     const indivQualBadge = (f) => (isRegional && f.nationalsIndividual && !f.nationalsTeamQualifier)
-      ? (f.nationalsIndividualAtLarge ? ' <span title="Qualified for Nationals as a national at-large individual" style="color:var(--accent); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 IQ·AL</span>' : '') || ' <span title="Qualified for Nationals as an individual (first 4 from non-qualifying teams, top 25)" style="color:var(--accent); font-weight:700; font-size:10.5px;">🎟 IQ</span>'
+      ? (f.nationalsIndividualAtLarge ? ' <span title="Qualified for Nationals as a national at-large individual" style="color:var(--accent); font-weight:700; font-size:10.5px; white-space:nowrap;">🎟 IQ·AL</span>' : '') || ' <span title="Qualified for Nationals as an individual (a top-10 regional finish)" style="color:var(--accent); font-weight:700; font-size:10.5px;">🎟 IQ</span>'
       : '';
 
     const winner = res.finishers[0];
@@ -508,15 +508,6 @@
         </div>`;
       }).join('') : '<h3>Team Scores Locked</h3>');
 
-    // The national meet is in the books: this is the one moment the
-    // offseason Available Jobs popup appears (once per offseason).
-    if (meet.type === 'national' && UI.state.jobsAfterBroadcast) {
-      setTimeout(() => {
-        if (!UI.state.jobsAfterBroadcast || UI.state.currentScreen !== 'racecenter') return;
-        UI.state.jobsAfterBroadcast = false;
-        if (UI.maybeShowJobOffers) UI.maybeShowJobOffers(game);
-      }, 1400);
-    }
   }
 
   UI.screens.racecenter = { render, projectedScore, liveOrderAt, playerTeamPanel, packReportHtml, gapTone };

@@ -34,20 +34,18 @@
       eligibility: { seasons: 5, clockYears: 5 },
       // NCAA Division I qualification (real structure): 9 regional meets, the
       // top 2 teams in each region qualify automatically (18), and 13 at-large
-      // teams are selected on season merit to complete the 31-team field. The
-      // top 4 individuals in each region NOT on a qualifying team advance on
-      // their own (~36 individuals). All-America honors go to the top 40.
+      // teams are selected on season merit to complete the 31-team field.
+      // All-America honors go to the top 40.
       championship: {
         nationalsFieldSize: 31,
         autoQualifiersPerRegional: 2,
         atLargeTeams: 13,
-        // Individuals (real NCAA DI): from each of the 9 regionals, the first
-        // 4 finishers whose teams did not qualify advance — each must place
-        // in the regional's top 25 — plus 2 national at-large individuals,
-        // the highest regional placers who missed that cut. 38 in all.
-        individualQualifiersPerRegional: 4,
-        individualTopCutoff: 25,
-        individualAtLarge: 2,
+        // Individuals: every top-10 finisher at a regional is going to
+        // Nationals — with their team, or on their own when the team missed
+        // the field — plus national at-large individuals: the best regional
+        // placers from non-qualifying teams just outside the top 10.
+        individualAutoTopN: 10,
+        individualAtLarge: 6,
         allAmericans: 40,
         allConference: 14,
         nationalsDistanceM: { M: 10000, W: 6000 }
@@ -76,14 +74,16 @@
       // NCAA Division II qualification (real structure): 8 regional meets, the
       // top 2 teams in each region qualify automatically (16), and at-large
       // selections on season merit complete the 32-team national field. The
-      // top 5 individuals per region not on a qualifying team advance. Division
+      // top 10 finishers at every regional advance (individually if their team
+      // missed), plus national at-large individuals. Division
       // II awards All-America honors to the TOP 40 finishers at the national
       // championship (matches real NCAA DII).
       championship: {
         nationalsFieldSize: 32,
         autoQualifiersPerRegional: 2,
         atLargeTeams: 16,
-        individualQualifiersPerRegional: 5,
+        individualAutoTopN: 10,       // every regional top-10 finisher goes
+        individualAtLarge: 5,
         allAmericans: 40,
         allConference: 10,
         nationalsDistanceM: { M: 10000, W: 6000 }
@@ -111,14 +111,15 @@
       eligibility: { seasons: 5, clockYears: 5 },
       // NCAA Division III qualification (real structure): 8 regional meets, the
       // top 2 teams in each region qualify automatically (16), with at-large
-      // selections completing the 32-team field. The top 5 individuals per
-      // region not on a qualifying team advance. All-America honors go to the
+      // selections completing the 32-team field. Every regional top-10
+      // finisher advances, plus national at-large individuals. All-America honors go to the
       // top 40. Division III men race the 8K championship distance.
       championship: {
         nationalsFieldSize: 32,
         autoQualifiersPerRegional: 2,
         atLargeTeams: 16,
-        individualQualifiersPerRegional: 5,
+        individualAutoTopN: 10,       // every regional top-10 finisher goes
+        individualAtLarge: 5,
         allAmericans: 40,
         allConference: 7,
         nationalsDistanceM: { M: 8000, W: 6000 }

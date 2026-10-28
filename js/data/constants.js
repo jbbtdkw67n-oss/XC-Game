@@ -714,8 +714,8 @@
    * The season calendar — Update 2 (Part 5).
    *
    *   Wk 1-3   Summer Training (3 weeks)
-   *   Wk 4-12  Regular Season (9 weeks): meets at 4/6/8/10/12 with one
-   *            bye week between every meet
+   *   Wk 4-12  Regular Season (9 weeks): every weekend has meets; each
+   *            program races its own 3-7 meet schedule (Real Schedules)
    *   Wk 13    Conference Championships   ┐
    *   Wk 14    NCAA Regionals             ├ no bye weeks between rounds
    *   Wk 15    NCAA Nationals             ┘
@@ -725,7 +725,7 @@
     WEEKS_PER_YEAR: 21,
     SUMMER_WEEKS: 3,
     REGULAR_SEASON_START: 4,
-    MEET_WEEKS: [4, 6, 8, 10, 12],
+    MEET_WEEKS: [4, 5, 6, 7, 8, 9, 10, 11, 12],
     CONFERENCE_WEEK: 13,
     REGIONAL_WEEK: 14,
     NATIONAL_WEEK: 15,

@@ -12,17 +12,34 @@
     return 12000 + level * 1000;
   }
 
+  // The Travel Program (Real Schedules) upgrades like a facility but lives on
+  // school.travelRating — it sizes the season's hard travel budget.
+  const MC = () => window.XCD.engine.MeetCalendar;
+  function levelOf(school, key) {
+    if (key === 'travel') return MC() ? MC().travelRating(school) : (school.travelRating || 50);
+    return key in school.facilities ? school.facilities[key] : null;
+  }
+  function setLevel(gameState, school, key, level) {
+    if (key === 'travel') {
+      school.travelRating = level;
+      // A bigger travel program pays off this season, too.
+      if (MC() && school.travelBudget && school.travelBudget.year === gameState.year) MC().refreshBudget(gameState, school);
+    } else {
+      school.facilities[key] = level;
+    }
+  }
+
   function upgradeFacility(gameState, schoolId, facilityKey) {
     const school = gameState.getSchool(schoolId);
-    if (!school || !(facilityKey in school.facilities)) return { ok: false, message: 'Unknown facility.' };
-    const level = school.facilities[facilityKey];
+    if (!school || levelOf(school, facilityKey) === null) return { ok: false, message: 'Unknown facility.' };
+    const level = levelOf(school, facilityKey);
     if (level >= 99) return { ok: false, message: 'Already world-class.' };
     const cost = upgradeCost(level);
     if (school.budget.facilitiesFund < cost) {
       return { ok: false, message: `Not enough in the facilities fund ($${cost.toLocaleString()} needed).` };
     }
     school.budget.facilitiesFund -= cost;
-    school.facilities[facilityKey] = Utils.clamp(level + UPGRADE_STEP, 0, 99);
+    setLevel(gameState, school, facilityKey, Utils.clamp(level + UPGRADE_STEP, 0, 99));
     return { ok: true, message: `Upgrade complete (+${UPGRADE_STEP}) — $${cost.toLocaleString()} spent.`, cost };
   }
 
@@ -34,15 +51,15 @@
   function upgradeFacilityWithPoints(gameState, schoolId, facilityKey) {
     const school = gameState.getSchool(schoolId);
     const coach = gameState.getPlayerCoach();
-    if (!school || !(facilityKey in school.facilities)) return { ok: false, message: 'Unknown facility.' };
+    if (!school || levelOf(school, facilityKey) === null) return { ok: false, message: 'Unknown facility.' };
     if (!coach) return { ok: false, message: 'No coach.' };
-    const level = school.facilities[facilityKey];
+    const level = levelOf(school, facilityKey);
     if (level >= 99) return { ok: false, message: 'Already world-class.' };
     if ((coach.upgradePoints || 0) < FACILITY_POINT_COST) {
       return { ok: false, message: `Need ${FACILITY_POINT_COST} dynasty points to upgrade this facility.` };
     }
     coach.upgradePoints -= FACILITY_POINT_COST;
-    school.facilities[facilityKey] = Utils.clamp(level + UPGRADE_STEP, 0, 99);
+    setLevel(gameState, school, facilityKey, Utils.clamp(level + UPGRADE_STEP, 0, 99));
     return { ok: true, message: `Upgrade complete (+${UPGRADE_STEP}) — ${FACILITY_POINT_COST} dynasty points spent.` };
   }
 
@@ -115,6 +132,8 @@
     const lastYear = gameState.year - 1;
     const champs = (gameState.history.nationalChampions || {})[lastYear] || {};
     const confChamps = (gameState.history.conferenceChampions || {})[lastYear] || {};
+    // Travel budgets swing on last season vs expectations and titles.
+    if (MC()) MC().updateMomentum(gameState);
 
     Object.values(gameState.world.schools).forEach((school) => {
       // Success money
@@ -160,6 +179,22 @@
           school.facilities[key] = Math.max(DECAY_FLOOR, level - 1);
         }
       });
+
+      // The travel program wears like a building, and CPU programs that
+      // can afford it reinvest when it lags their other facilities.
+      if (MC()) {
+        const tr = MC().travelRating(school);
+        if (tr > DECAY_FLOOR && rng.bool(0.3)) school.travelRating = tr - 1;
+        if (school.id !== gameState.playerSchoolId) {
+          const avgFac = Object.values(school.facilities).reduce((a, b) => a + b, 0) / Math.max(1, Object.keys(school.facilities).length);
+          const cost = upgradeCost(school.travelRating);
+          if (school.travelRating < avgFac - 4 && school.travelRating < 95 &&
+              school.budget.facilitiesFund >= cost && rng.bool(0.5)) {
+            school.budget.facilitiesFund -= cost;
+            school.travelRating = Utils.clamp(school.travelRating + UPGRADE_STEP, 0, 99);
+          }
+        }
+      }
 
       // AI schools invest in their weakest facilities (max 2 projects/year).
       if (school.id !== gameState.playerSchoolId) {

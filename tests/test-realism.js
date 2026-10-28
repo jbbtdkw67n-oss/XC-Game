@@ -69,7 +69,7 @@ const ok = (cond, msg) => { if (!cond) { failures++; console.log('  ✗ ' + msg)
       diAA: D.divisionFor('DI').championship.allAmericans,
       diiiAA: D.divisionFor('DIII').championship.allAmericans,
       diAuto: D.divisionFor('DI').championship.autoQualifiersPerRegional,
-      diIndiv: D.divisionFor('DI').championship.individualQualifiersPerRegional,
+      diIndiv: D.divisionFor('DI').championship.individualAutoTopN,
       diField: D.divisionFor('DI').championship.nationalsFieldSize,
       nau: { prestige: by('Northern Arizona').prestige, city: by('Northern Arizona').city, alt: by('Northern Arizona').weather.altitude },
       byuAlt: by('BYU').weather.altitude,
@@ -101,7 +101,7 @@ const ok = (cond, msg) => { if (!cond) { failures++; console.log('  ✗ ' + msg)
   // 3) Qualification numbers
   ok(data.diField === 31, 'DI national field must be 31 teams');
   ok(data.diAuto === 2, 'DI auto qualifiers must be top 2 per region');
-  ok(data.diIndiv === 4, 'DI individual qualifiers must be top 4 per region');
+  ok(data.diIndiv === 10, 'every regional top-10 finisher qualifies for Nationals');
 
   // 4) DII All-Americans = top 40
   ok(data.diiAA === 40, 'DII All-Americans must be top 40');

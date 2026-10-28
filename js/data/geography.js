@@ -474,4 +474,43 @@
     if (MOUNTAIN_STATES.has(state)) return 'Medium';
     return 'Low';
   };
+  /*
+   * Travel geography (Real Schedules): an approximate center for every state
+   * (weighted toward where its colleges are) and a typical in-state trip
+   * length. Meet travel is priced from the miles between the two states — a
+   * short bus ride to a neighbor, a flight across the country.
+   */
+  D.STATE_COORDS = {
+    AL: [32.8, -86.8], AK: [61.2, -149.9], AZ: [33.6, -111.6], AR: [35.0, -92.4], CA: [36.0, -119.4],
+    CO: [39.6, -105.0], CT: [41.6, -72.7], DE: [39.4, -75.6], DC: [38.9, -77.0], FL: [28.1, -81.6],
+    GA: [33.3, -83.9], HI: [21.3, -157.8], ID: [43.6, -115.5], IL: [41.3, -88.4], IN: [39.9, -86.3],
+    IA: [41.9, -93.4], KS: [38.5, -96.8], KY: [37.8, -85.5], LA: [30.7, -91.5], ME: [44.3, -69.8],
+    MD: [39.1, -76.8], MA: [42.3, -71.6], MI: [42.8, -84.5], MN: [45.0, -93.6], MS: [32.6, -89.7],
+    MO: [38.4, -92.2], MT: [46.6, -110.9], NE: [41.0, -97.4], NV: [37.5, -117.0], NH: [43.2, -71.5],
+    NJ: [40.4, -74.4], NM: [34.6, -106.4], NY: [42.2, -75.5], NC: [35.6, -79.4], ND: [47.4, -99.0],
+    OH: [40.4, -82.7], OK: [35.6, -97.0], OR: [44.6, -122.6], PA: [40.5, -77.6], RI: [41.8, -71.4],
+    SC: [34.0, -81.0], SD: [43.9, -98.4], TN: [35.8, -86.4], TX: [31.0, -97.4], UT: [40.5, -111.9],
+    VT: [44.1, -72.8], VA: [37.8, -77.9], WA: [47.3, -121.6], WV: [38.7, -80.8], WI: [43.9, -89.4],
+    WY: [42.5, -106.8]
+  };
+  // Typical one-way miles for a trip that stays inside the state.
+  const IN_STATE_MILES = {
+    CA: 260, TX: 240, AK: 300, MT: 220, FL: 180, NY: 160,
+    NV: 170, AZ: 150, NM: 160, CO: 140, OR: 150, WY: 170, UT: 120, ID: 170, KS: 150, NE: 160, MN: 140, MI: 150,
+    RI: 40, DE: 50, CT: 50, NJ: 60, MA: 60, VT: 60, NH: 60, MD: 60, DC: 30, HI: 60
+  };
+  D.inStateMiles = (state) => IN_STATE_MILES[state] || 110;
+
+  // One-way road miles between two states (great-circle × a road factor).
+  D.milesBetweenStates = function (a, b) {
+    if (!a || !b) return 400;
+    if (a === b) return D.inStateMiles(a);
+    const p = D.STATE_COORDS[a], q = D.STATE_COORDS[b];
+    if (!p || !q) return 600;
+    const R = 3959, toRad = Math.PI / 180;
+    const dLat = (q[0] - p[0]) * toRad, dLon = (q[1] - p[1]) * toRad;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(p[0] * toRad) * Math.cos(q[0] * toRad) * Math.sin(dLon / 2) ** 2;
+    const crow = 2 * R * Math.asin(Math.sqrt(h));
+    return Math.max(D.inStateMiles(a) * 0.6, Math.round(crow * 1.18));
+  };
 })();

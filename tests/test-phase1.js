@@ -43,8 +43,8 @@ const { newDynasty, dismissJobOffers, wireErrors, launchOpts } = require('./help
   console.log('after year:', JSON.stringify(post));
   if (post.week !== 1 || post.screen !== 'dashboard') errors.push('ROLLOVER did not land on dashboard week 1: ' + JSON.stringify(post));
 
-  // Verify season structure: summer weeks 1-3 empty, meets at 4/6/8/10/12
-  // with byes at 5/7/9/11, championships 13/14/15, offseason 16-21 empty.
+  // Verify season structure: summer weeks 1-3 empty, meets every weekend
+  // 4-12 (Real Schedules), championships 13/14/15, offseason 16-21 empty.
   const structure = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
     const out = {};
@@ -54,8 +54,8 @@ const { newDynasty, dismissJobOffers, wireErrors, launchOpts } = require('./help
   });
   console.log('season meets by week:', JSON.stringify(structure));
   const s = structure.out;
-  [4, 6, 8, 10, 12, 13, 14, 15].forEach((w) => { if (!s[w]) errors.push(`No meets scheduled week ${w}`); });
-  [1, 2, 3, 5, 7, 9, 11, 16, 17, 18, 19, 20, 21].forEach((w) => { if (s[w]) errors.push(`Unexpected meets week ${w}`); });
+  [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].forEach((w) => { if (!s[w]) errors.push(`No meets scheduled week ${w}`); });
+  [1, 2, 3, 16, 17, 18, 19, 20, 21].forEach((w) => { if (s[w]) errors.push(`Unexpected meets week ${w}`); });
   if (structure.elite.length < 5) errors.push('Elite invitationals missing: ' + JSON.stringify(structure.elite));
   if (!structure.elite.some((n) => n.includes('Nuttycombe'))) errors.push('No Nuttycombe on the calendar');
 

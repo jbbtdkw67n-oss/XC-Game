@@ -100,10 +100,10 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     const diOnly = meet && (meet.schoolIds || []).every((id) => g.getSchool(id).division === 'DI');
     const onCourse = p && p.diNationalsHostId === g.season.nationalsHosts.DI;
     const isEliteMeet = !!(meet && meet.elite && meet.preNationals);
-    // It appears as a selectable schedule option in Week 10.
-    const opts = window.XCD.engine.Scheduling.buildOptions(g);
-    const wk = (opts.weeks || []).find((w) => w.week === p.week);
-    const isOption = !!(wk && wk.options.some((o) => o.meetId === p.meetId));
+    // It is on the Week 10 calendar and open to a top DI program.
+    const MC = window.XCD.engine.MeetCalendar;
+    const isOption = (g.season.byWeek[p.week] || []).includes(p.meetId) &&
+      MC.access(g, g.getPlayerSchool(), meet).ok;
     // A top program can enter it, then rest instead — the new mechanic that
     // replaces accepting/declining an invitation.
     const sel = window.XCD.engine.Scheduling.select(g, p.week, p.meetId);
