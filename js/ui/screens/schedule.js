@@ -592,7 +592,7 @@
       // The course is always known; race-day weather only once it's
       // forecast (race week and the week before) or the race is run.
       const conditions = meet
-        ? `${UI.meetSpeedTag(meet)}${UI.weatherKnown(game, meet) ? ` ${meet.conditions.tempF}°F${meet.conditions.ground === 'Muddy' ? ' 🌧 mud' : meet.conditions.rain ? ' 🌧' : ''}` : ''}`
+        ? `${UI.meetSpeedTag(meet)}${UI.weatherKnown(game, meet) ? ` ${meet.conditions.tempF}°F${meet.conditions.snow ? ' ❄️' : meet.conditions.rain ? ' 🌧' : ''}${meet.conditions.ground === 'Muddy' ? ' mud' : ''}` : ''}`
         : '';
       // Where the meet is held (Realism Update): host + real city (or, for the
       // national championship, the authentic venue).

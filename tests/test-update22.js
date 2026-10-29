@@ -48,6 +48,25 @@ async function run() {
   console.log('year-to-year:', JSON.stringify(yr));
   ok(yr.courses > 50 && yr.median >= 12 && yr.unchanged === 0, 'every course\'s race-day temperature swings year to year: ' + JSON.stringify(yr));
 
+  /* ---------- 2b) Weather follows the real regional climate and date ---------- */
+  const clim = await page.evaluate(() => {
+    const D = window.XCD.data;
+    const t = (st, wk, ft) => Math.round(D.raceClimate(st, wk, ft).tempF);
+    return {
+      flWk8: t('FL', 8, 100), mnWk8: t('MN', 8, 900), txWk4: t('TX', 4, 600), wiWk15: t('WI', 15, 900),
+      tempe: t('AZ', 8, 1200), flagstaff: t('AZ', 8, 7000),
+      orRainOct: D.raceClimate('OR', 9).rainChance, orRainSep: D.raceClimate('OR', 5).rainChance,
+      azRain: D.raceClimate('AZ', 9).rainChance,
+      dates: [D.weekDateLabel(4), D.weekDateLabel(13), D.weekDateLabel(15)]
+    };
+  });
+  console.log('climate:', JSON.stringify(clim));
+  ok(clim.flWk8 - clim.mnWk8 >= 12, 'late-September Florida is much warmer than Minnesota: ' + JSON.stringify(clim));
+  ok(clim.txWk4 >= 78 && clim.wiWk15 <= 40, 'late-August Texas is hot, Nationals week in Wisconsin is cold: ' + JSON.stringify(clim));
+  ok(clim.tempe - clim.flagstaff >= 15, 'a high-altitude course is colder than a low one in the same state: ' + JSON.stringify(clim));
+  ok(clim.orRainOct > clim.orRainSep && clim.orRainOct > clim.azRain * 3, 'rain follows the local wet season: ' + JSON.stringify(clim));
+  ok(clim.dates.join('|') === 'Aug 30|Oct 31|Nov 22', 'season weeks map to real dates: ' + clim.dates);
+
   /* ---------- 3) Schedule builder: no weather, compact browser ---------- */
   await page.evaluate(() => window.XCD.ui.navigate('schedule'));
   await page.waitForSelector('#schedule-builder');

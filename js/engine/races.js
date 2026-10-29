@@ -223,32 +223,43 @@
 
   /* ---------------- Race-day weather ---------------- */
   // The season's weather pattern. tempShift moves every forecast warmer or
-  // cooler; wetChance is how often a meet gets rain; windShift adds (or
-  // removes) wind across the board.
+  // cooler than normal; wetMult makes rain more or less common than the
+  // local climate; windShift adds (or removes) wind across the board.
   let activeSeasonWeather = null;
   function seasonWeather(rng) {
-    // Wide enough that a course's race-day temperature can swing 20–30°F
-    // from one autumn to the next.
-    const tempShift = Utils.clamp(Math.round(rng.gaussian(0, 6)), -14, 14);
-    const wetChance = Utils.clamp(Math.round((0.18 + rng.gaussian(0, 0.08)) * 100) / 100, 0.04, 0.40);
+    const tempShift = Utils.clamp(Math.round(rng.gaussian(0, 4)), -10, 10);
+    const wetMult = Utils.clamp(Math.round(rng.gaussian(1, 0.3) * 100) / 100, 0.4, 1.7);
     const windShift = Utils.clamp(Math.round(rng.gaussian(0, 2)), -3, 5);
     const parts = [];
-    if (tempShift >= 8) parts.push('hot'); else if (tempShift >= 3) parts.push('warm');
-    else if (tempShift <= -8) parts.push('frigid'); else if (tempShift <= -3) parts.push('cold');
-    if (wetChance >= 0.25) parts.push('wet'); else if (wetChance <= 0.11) parts.push('dry');
+    if (tempShift >= 7) parts.push('hot'); else if (tempShift >= 3) parts.push('warm');
+    else if (tempShift <= -7) parts.push('frigid'); else if (tempShift <= -3) parts.push('cold');
+    if (wetMult >= 1.3) parts.push('wet'); else if (wetMult <= 0.7) parts.push('dry');
     if (windShift >= 3) parts.push('windy');
-    return { tempShift, wetChance, windShift, label: parts.length ? `A ${parts.join(', ')} fall` : 'A typical fall' };
+    return { tempShift, wetMult, windShift, label: parts.length ? `A ${parts.join(', ')} fall` : 'A typical fall' };
   }
 
-  // One meet's race-day forecast: temperature, wind, rain and the footing it
-  // leaves (firm, soft, or muddy). Fixed when the schedule is built.
-  function raceDayWeather(rng, tempBase, week, sw) {
-    const w = sw || activeSeasonWeather || { tempShift: 0, wetChance: 0.18, windShift: 0 };
-    const rain = rng.bool(w.wetChance);
+  /*
+   * One meet's race-day weather: temperature, wind, rain (snow when it's
+   * cold enough) and the footing it leaves. It starts from the real climate
+   * where the course is, on that week's date — a late-August opener in Texas
+   * is hot, Nationals in Wisconsin the week before Thanksgiving is cold —
+   * then this season's pattern and the day's own weather move it. Fixed when
+   * the schedule is built.
+   *   place: { state, altitudeFt, tempBase } (tempBase is the fallback for
+   *          a course with no known state)
+   */
+  function raceDayWeather(rng, place, week, sw) {
+    const w = sw || activeSeasonWeather || { tempShift: 0, windShift: 0 };
+    const wetMult = w.wetMult ?? (w.wetChance != null ? w.wetChance / 0.18 : 1);
+    const clim = D.raceClimate && place.state ? D.raceClimate(place.state, week, place.altitudeFt) : null;
+    const normal = clim ? clim.tempF : (place.tempBase ?? 60) - (week - 5) * 1.1;
+    const tempF = Math.round(normal + w.tempShift + Utils.clamp(rng.gaussian(0, 7), -18, 18));
+    const rain = rng.bool(Utils.clamp((clim ? clim.rainChance : 0.18) * wetMult, 0.01, 0.6));
     return {
-      tempF: Math.round(tempBase + w.tempShift + rng.int(-12, 14) - (week - 5) * 1.1),
-      windMph: Utils.clamp(Math.round(Math.abs(rng.gaussian(5 + w.windShift, 4))), 0, 28),
+      tempF,
+      windMph: Utils.clamp(Math.round(Math.abs(rng.gaussian(5 + w.windShift + (clim ? clim.windShift : 0), 4))), 0, 28),
       rain,
+      snow: rain && tempF <= 33,
       ground: rain ? (rng.bool(0.4) ? 'Muddy' : 'Soft') : 'Firm'
     };
   }
@@ -323,7 +334,11 @@
 
     const pnMeta = diCourse && diCourse.courseMeta;
     const conditions = {
-      ...raceDayWeather(rng, diCourse ? diCourse.tempBase : host.weather.tempBase, week, season.weather),
+      ...raceDayWeather(rng, {
+        state: (pnMeta && pnMeta.state) || host.state,
+        altitudeFt: pnMeta && pnMeta.altitudeFt != null ? pnMeta.altitudeFt : D.ALTITUDE_FT_FOR[host.weather.altitude],
+        tempBase: diCourse ? diCourse.tempBase : host.weather.tempBase
+      }, week, season.weather),
       hilliness: diCourse ? diCourse.hilliness : rng.int(30, 80),
       altitude: diCourse ? diCourse.altitude : host.weather.altitude,
       altitudeFt: pnMeta && pnMeta.altitudeFt != null ? pnMeta.altitudeFt : undefined
@@ -417,20 +432,26 @@
     }
     const cm = base.courseMeta;
     const terrain = courseTerrain(gameState, cm);
+    const altitudeFt = terrain && terrain.altitudeFt !== undefined ? terrain.altitudeFt : undefined;
     return {
       id: Utils.generateId('meet'),
       ...base,
       distances,
       conditions: {
         // Race-day weather changes every meet and every season (wind, rain,
-        // footing and temperature are stamped alongside a course record).
-        ...raceDayWeather(rng, host.weather.tempBase, base.week),
+        // footing and temperature are stamped alongside a course record),
+        // starting from the real climate where the course is that week.
+        ...raceDayWeather(rng, {
+          state: (cm && cm.state) || host.state,
+          altitudeFt: altitudeFt ?? D.ALTITUDE_FT_FOR[host.weather.altitude],
+          tempBase: host.weather.tempBase
+        }, base.week),
         // The course itself never changes: the same hills every year.
         hilliness: terrain && terrain.hilliness !== undefined ? terrain.hilliness : rng.int(10, 85),
         altitude: terrain && terrain.altitudeFt !== undefined
           ? D.altitudeCategory(terrain.altitudeFt)
           : host.weather.altitude,
-        altitudeFt: terrain && terrain.altitudeFt !== undefined ? terrain.altitudeFt : undefined
+        altitudeFt
       },
       results: { M: null, W: null }
     };

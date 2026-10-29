@@ -25,9 +25,18 @@ Home Screen** — it installs as a full-screen, offline-capable app. See
   trip and the field, not on the forecast. Weather appears only in the week
   before a race and in race week (on the Schedule and Dashboard), and on
   results after the race.
-- **Bigger weather swings from year to year.** Every autumn moves further
-  warmer or colder than before, and each meet's race day has more of its own
-  variation. The same course can be 20–30°F apart from one season to the next.
+- **Real weather for the place and the date.** Each season week is a real
+  weekend: Week 4 is the last weekend of August, conference meets are on
+  Halloween weekend, regionals in mid-November and Nationals the weekend
+  before Thanksgiving. Race-morning weather starts from real fall climate
+  normals for the state the course is in. So late August in Texas is hot,
+  late September in Minnesota is cool, and Nationals in Wisconsin is cold
+  (sometimes snowy). A mountain course is colder than a low one in the same
+  state. Rain follows the local wet season, so Oregon and Washington get wet
+  in October and November and Arizona stays dry. The open Plains run windier.
+- **Weather still varies year to year.** Each autumn runs warmer or colder,
+  wetter or drier than normal, and every race day has its own weather on top,
+  so the same course is often 15–25°F apart from one season to the next.
 - **Hot is slow, cold is fast.** Heat costs time from 60°F up, and more the
   hotter it gets. Cool air below 50°F now speeds everyone up (cold-weather
   runners a little more), so a crisp, cold meet is a PR day. Rain, mud and

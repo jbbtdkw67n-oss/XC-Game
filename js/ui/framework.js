@@ -149,8 +149,9 @@
     if (!c) return '';
     const bits = [`${c.tempF}°F`];
     if (c.windMph != null) bits.push(`Wind ${c.windMph} mph`);
-    if (c.ground === 'Muddy') bits.push('Rain · muddy');
-    else if (c.ground === 'Soft' || c.rain) bits.push('Rain · soft');
+    const precip = c.snow ? 'Snow' : 'Rain';
+    if (c.ground === 'Muddy') bits.push(`${precip} · muddy`);
+    else if (c.ground === 'Soft' || c.rain) bits.push(`${precip} · soft`);
     return bits.join(' • ');
   };
 
