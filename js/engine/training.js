@@ -1460,7 +1460,9 @@
               classYear: a.classYear, workEthic: a.workEthic,
               incoming: (a.yearsOnCampus || 1) <= 1, // signee who just enrolled
               before, after: a.currentOverall,
-              attrs: REPORT_ATTRS.map((k) => ({ key: k, from: snapshot[k], to: a[k] }))
+              // Ratings are stored fractionally (race-day swings move
+              // consistency by tenths) but always shown as whole numbers.
+              attrs: REPORT_ATTRS.map((k) => ({ key: k, from: Math.round(snapshot[k]), to: Math.round(a[k]) }))
                 .filter((r) => r.from !== r.to)
             });
           }

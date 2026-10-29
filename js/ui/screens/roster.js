@@ -32,6 +32,18 @@
         lead > 70 ? `race-day edge (bigger in the postseason)` : ''
       ].filter(Boolean).join(' · ');
 
+    // Race-day Top 7 (Update 24): the Highest Overall preset or the coach's
+    // own picks — the seven who race every meet.
+    const Races = window.XCD.engine.Races;
+    const lineup = Races.playerLineup(game, activeGender);
+    const custom = lineup.mode === 'custom';
+    const lineupChips = lineup.ids.map((id) => {
+      const a = game.getAthlete(id);
+      if (!a) return '';
+      const auto = lineup.filled.has(id);
+      return `<span class="lineup-chip${auto ? ' auto' : ''}" title="${auto ? 'Open spot — filled by the best healthy runner by overall' : 'In the Top 7'}">${Utils.escapeHtml(a.lastName)} <b>${Math.round(a.currentOverall)}</b></span>`;
+    }).join('');
+
     container.innerHTML = `
       <div class="screen-header">
         ${UI.screenTitle('Roster', `${Utils.escapeHtml(game.getPlayerSchool().name)} · ${game.year} season`)}
@@ -51,6 +63,22 @@
           <div class="lead-sub">${leadPerks}</div>
         </div>
       </div>
+      <div class="card lineup-card" style="margin-bottom:14px;">
+        <div class="lineup-head">
+          <div>
+            <div class="lead-title">🏃 Race-Day Top 7</div>
+            <div class="lead-sub">${custom
+              ? 'Your picks race every meet. Tap Top 7 on any runner to swap them in or out — an injured pick is covered by the best healthy runner until they\'re back.'
+              : 'The seven best healthy runners by overall race every meet. Pick Custom, or tap Top 7 on any runner, to choose your own.'}</div>
+          </div>
+          ${canManage ? `
+          <div class="pill-tabs lineup-modes">
+            <button id="lineup-overall" class="${custom ? '' : 'active'}" title="Race the seven best healthy runners by overall">Highest Overall</button>
+            <button id="lineup-custom" class="${custom ? 'active' : ''}" title="Choose your own seven">Custom</button>
+          </div>` : ''}
+        </div>
+        <div class="lineup-chips">${lineupChips || '<span style="color:var(--text-faint); font-size:12px;">No healthy runners available.</span>'}</div>
+      </div>
       ${cutMode ? `
       <div class="card" style="margin-bottom:14px; border-left:3px solid var(--danger);">
         <h3 style="margin:0 0 4px;">✂️ Roster over the Division I limit — ${squadSize}/${rl.limit}</h3>
@@ -65,6 +93,22 @@
       </div>`;
 
     const roster = game.getRoster(school.id, activeGender);
+
+    // The Top 7 toggle: in the lineup (✓), an auto fill-in for an open
+    // custom spot, an injured pick, or out (+).
+    const pickedIds = (game.training.lineup && game.training.lineup[activeGender] && game.training.lineup[activeGender].ids) || [];
+    const lineupButton = (a, long) => {
+      const inSeven = lineup.ids.includes(a.id);
+      const injuredPick = custom && pickedIds.includes(a.id) && !inSeven;
+      if (injuredPick) {
+        return `<button class="btn small" data-lineup="${a.id}" style="border-color:var(--warning); color:var(--warning);" title="Picked, but injured — the best healthy runner races in their place. Tap to remove.">🩼 ${long ? 'Top 7 (injured)' : '7'}</button>`;
+      }
+      if (inSeven) {
+        const auto = lineup.filled.has(a.id);
+        return `<button class="btn small lineup-in${auto ? ' auto' : ''}" data-lineup="${a.id}" title="${auto ? 'Filling an open Top 7 spot by overall — tap to lock them in' : 'Racing in the Top 7 — tap to take them out'}">${auto ? (long ? 'Top 7 (auto)' : 'auto') : (long ? '✓ Top 7' : '✓ 7')}</button>`;
+      }
+      return `<button class="btn small" data-lineup="${a.id}" title="Put ${Utils.escapeHtml(a.fullName)} in the Top 7">${long ? '+ Top 7' : '+'}</button>`;
+    };
 
     // Phone view (Update 14): each athlete is a tappable card — identity,
     // ratings, and the three health meters at a glance; management actions
@@ -85,6 +129,7 @@
         if (isCapt) actions.push(`<button class="btn small" data-capt="${a.id}" style="border-color:var(--gold); color:var(--gold);">⭐ Captain</button>`);
         else if (['Junior', 'Senior', 'Graduate'].includes(a.classYear)) actions.push(`<button class="btn small" data-capt="${a.id}">Make Captain</button>`);
       }
+      if (canManage) actions.push(lineupButton(a, true));
       if (cutMode) actions.push(`<button class="btn small danger" data-cut="${a.id}">✂️ Cut</button>`);
       return `
         <div class="m-head">
@@ -144,6 +189,11 @@
               : `<span style="color:var(--danger);">${Utils.escapeHtml(a.injury ? a.injury.type : a.health)}</span>`
         },
         canManage && {
+          key: 'lineup', label: 'Top 7',
+          sortValue: (a) => (lineup.ids.includes(a.id) ? 2 : 0) + (lineup.filled.has(a.id) ? -1 : 0),
+          render: (a) => lineupButton(a, false)
+        },
+        canManage && {
           key: 'captain', label: 'Capt',
           sortValue: (a) => UI.state.game.culture.captains[activeGender].includes(a.id) ? 1 : 0,
           render: (a) => {
@@ -190,6 +240,16 @@
         });
         return;
       }
+      const lBtn = e.target.closest('[data-lineup]');
+      if (lBtn) {
+        e.stopPropagation();
+        const game = UI.state.game;
+        // Tapping an auto fill-in locks them in as one of the coach's picks.
+        const r = Races.toggleLineup(game, activeGender, lBtn.dataset.lineup);
+        UI.toast(r.message, r.ok ? 'success' : 'error');
+        if (r.ok) render(container);
+        return;
+      }
       const cBtn = e.target.closest('[data-capt]');
       if (cBtn) {
         e.stopPropagation();
@@ -219,6 +279,17 @@
         UI.toast(`🎯 Ideal mileage set for all ${n} runners — each at the most their body can absorb right now. Fine-tune on Training.`, 'success');
       });
     }
+    const setMode = (mode) => {
+      Races.setLineupMode(game, activeGender, mode);
+      UI.toast(mode === 'custom'
+        ? 'Custom Top 7 — tap Top 7 on any runner to swap them in or out.'
+        : 'Top 7 set to the seven highest-overall healthy runners.', 'success');
+      render(container);
+    };
+    const luOverall = container.querySelector('#lineup-overall');
+    if (luOverall) luOverall.addEventListener('click', () => setMode('overall'));
+    const luCustom = container.querySelector('#lineup-custom');
+    if (luCustom) luCustom.addEventListener('click', () => setMode('custom'));
     container.querySelector('#tab-m').addEventListener('click', () => { activeGender = 'M'; render(container); });
     container.querySelector('#tab-w').addEventListener('click', () => { activeGender = 'W'; render(container); });
   }

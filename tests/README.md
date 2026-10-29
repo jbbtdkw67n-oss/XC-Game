@@ -38,6 +38,7 @@ node tests/test-update21.js        # Inbox clear (one / filter / all), true 1 km
 node tests/test-clean-ui.js        # Clean UI: titles = menu labels (no emoji), section labels on long screens, table columns, Save/Load actions fit, honor tiles + tables on History Awards/Champions and News Awards
 node tests/test-sw-precache.js     # Offline install: sw.js precaches every script/stylesheet index.html loads (no browser needed)
 node tests/test-update23.js        # Difficulty-scaled transfer pressure (player only, reasons only), Auto Recruiting works board picks first (offers, stays on board, staff tags, removed picks stay off), one-click ideal mileage, one-line names in the Training squad monitor
+node tests/test-update24.js        # Race-day Top 7 (Highest Overall preset, custom picks, injured-pick cover, cap, save round-trip, Roster card + toggles), transfer desire resets each season, whole-number offseason report, championship-day variance, wide-screen squad monitor, transfer points reset on retirement
 ```
 
 Each script prints `PASS` or `FAIL` with details and exits non-zero on failure.

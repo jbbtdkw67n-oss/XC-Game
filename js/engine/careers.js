@@ -463,6 +463,7 @@
       coach.hotSeatYears = 0; coach.podiumMissStreak = 0;
       newSchool.assistantId = coach.id;
       gameState.playerSchoolId = newSchool.id;
+      window.XCD.engine.Portal.resetPlayerPortal(gameState, oldSchool.id, newSchool.id);
       Legacy.openStint(gameState, coach, newSchool, gameState.year + 1);
       Legacy.linkStaff(gameState, newSchool, gameState.year);
 
@@ -512,6 +513,7 @@
       coach.yearsAtSchool = 0;
       newSchool.assistantId = coach.id;
       gameState.playerSchoolId = newSchool.id;
+      window.XCD.engine.Portal.resetPlayerPortal(gameState, oldSchool.id, newSchool.id);
       Legacy.openStint(gameState, coach, newSchool, gameState.year + 1);
       Legacy.linkStaff(gameState, newSchool, gameState.year);
 
@@ -566,6 +568,7 @@
       coach.hotSeat = 0;
       coach.hotSeatYears = 0; coach.podiumMissStreak = 0;
       gameState.playerSchoolId = newSchool.id;
+      window.XCD.engine.Portal.resetPlayerPortal(gameState, oldSchool.id, newSchool.id);
       Legacy.openStint(gameState, coach, newSchool, gameState.year + 1);
       newSchool.coachChangedYear = gameState.year;
 
@@ -611,6 +614,7 @@
     coach.hotSeat = 0;
     coach.hotSeatYears = 0; coach.podiumMissStreak = 0;
     gameState.playerSchoolId = newSchool.id;
+    window.XCD.engine.Portal.resetPlayerPortal(gameState, oldSchool.id, newSchool.id);
     Legacy.openStint(gameState, coach, newSchool, gameState.year + 1);
     newSchool.coachChangedYear = gameState.year;
 
@@ -1261,6 +1265,10 @@
       s.assistantId = a.id;
     });
 
+    // The predecessor's transfer points and portal pursuits retire with
+    // them — the successor starts the window with their own budget.
+    window.XCD.engine.Portal.resetPlayerPortal(gameState, oldSchool.id, newSchool.id);
+
     // 4) A fresh personal ledger — the dynasty's history is untouched.
     gameState.career = {
       seasons: 0, conferenceTitles: 0, nationalTitles: 0,
@@ -1272,6 +1280,7 @@
     gameState.training.overrides = {};
     gameState.training.mileage = { M: D.MILEAGE.DEFAULT.M, W: D.MILEAGE.DEFAULT.W };
     gameState.training.mileageOverrides = {};
+    gameState.training.lineup = { M: { mode: 'overall', ids: [] }, W: { mode: 'overall', ids: [] } };
     gameState.culture.captains = { M: [], W: [] };
     gameState.recruiting.board = { M: [], W: [] };
     gameState.recruiting.auto = false;
@@ -1379,6 +1388,7 @@
     coach.hotSeatYears = 0; coach.podiumMissStreak = 0;
     coach.reputation = Utils.clamp((coach.reputation || 25) - 5, 1, 99); // a firing stings
     gameState.playerSchoolId = newSchool.id;
+    window.XCD.engine.Portal.resetPlayerPortal(gameState, oldSchool.id, newSchool.id);
     Legacy.openStint(gameState, coach, newSchool, gameState.year);
     newSchool.coachChangedYear = gameState.year;
 

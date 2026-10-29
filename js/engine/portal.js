@@ -30,6 +30,12 @@
   // and unaffected.)
   const PORTAL_ENTRY_SCALE = 0.75;
 
+  // Season-scoped transfer reasons (Update 24): "never races" and "not
+  // developing" judge THIS season, so they only count once it has had time
+  // to happen — the first half of the regular season. Before that a fresh
+  // season starts with a clean slate.
+  const SEASON_JUDGED_WEEK = CAL.REGULAR_SEASON_START + 4;
+
   /* ================================================================ *
    * The Transfer Points system (Update 15) — a Campus-Dynasty-style,
    * skill-based portal.
@@ -119,6 +125,28 @@
       portal.player = { budget: b.budget, base: b.base, titleBonus: b.titleBonus, seasonAdj: b.seasonAdj, allocations: {} };
     }
     return portal.player;
+  }
+
+  /*
+   * A new coach or a new program starts the transfer window fresh (Update
+   * 24). Transfer points belong to the coach and program that earned them,
+   * so when the player retires into a successor, takes another job, or is
+   * let go mid-window, every open pursuit made for the old program is
+   * withdrawn, the new program's own leftover staff pursuits are dropped (the
+   * new coach hasn't put a point on them), and the budget is rebuilt for the
+   * new coach and school the next time it's read.
+   */
+  function resetPlayerPortal(gameState, oldSchoolId, newSchoolId) {
+    const portal = gameState.portal;
+    if (!portal) return;
+    const pursued = new Set(Object.keys((portal.player && portal.player.allocations) || {}));
+    (portal.entries || []).forEach((e) => {
+      if (e.destination || !Array.isArray(e.offers)) return;
+      e.offers = e.offers.filter((sid) =>
+        !(sid === oldSchoolId && pursued.has(e.athleteId)) && sid !== newSchoolId);
+      if (e.cpuPoints) delete e.cpuPoints[newSchoolId];
+    });
+    portal.player = null;
   }
 
   function transferPointsSpent(gameState) {
@@ -393,10 +421,19 @@
 
     // Racing opportunities: good runners who never toe the line leave —
     // and elite ones who rarely race become MORE likely to go each year.
-    const roster = gameState.getRoster(school.id, a.gender).sort((x, y) => y.currentOverall - x.currentOverall);
-    const rank = roster.findIndex((x) => x.id === a.id) + 1;
-    const buried = rank > 7 && a.currentOverall > 45;
-    if ((a.seasonRaces || 0) === 0 && a.currentOverall > 50) {
+    // On the player's roster the depth chart is the coach's own Top 7: a
+    // runner the coach races is never "buried", whatever their overall.
+    const seasonJudged = gameState.week >= SEASON_JUDGED_WEEK;
+    const Races = window.XCD.engine.Races;
+    let buried;
+    if (school.id === gameState.playerSchoolId && Races && Races.playerLineup) {
+      buried = !Races.playerLineup(gameState, a.gender).ids.includes(a.id) && a.currentOverall > 45 && !a.injury;
+    } else {
+      const roster = gameState.getRoster(school.id, a.gender).sort((x, y) => y.currentOverall - x.currentOverall);
+      const rank = roster.findIndex((x) => x.id === a.id) + 1;
+      buried = rank > 7 && a.currentOverall > 45;
+    }
+    if (seasonJudged && (a.seasonRaces || 0) === 0 && a.currentOverall > 50) {
       add(a.currentOverall > 70 ? 30 : 18, R.racing);
     } else if (buried) {
       add(20, R.racing);
@@ -455,7 +492,7 @@
     // who isn't improving starts looking for a staff that will develop them;
     // visible growth is a genuine anchor.
     const seasonGrowth = a.seasonDev || 0;
-    if (seasonGrowth <= 0 && (a.potential - a.currentOverall) > 8 &&
+    if (seasonJudged && seasonGrowth <= 0 && (a.potential - a.currentOverall) > 8 &&
         !['Freshman'].includes(a.classYear)) {
       add(12, R.stagnant);
     } else if (seasonGrowth >= 3) { u -= 6; anchors.push('Consistent development'); }
@@ -1483,8 +1520,31 @@
     }
   }
 
+  /*
+   * A fresh season, a fresh slate (Update 24). Transfer desire is built and
+   * lost within a season: at the rollover every returner's mood and any
+   * frayed bond with the coach or teammates heal most of the way back to a
+   * new-season baseline, so last year's frustrations no longer stack on top
+   * of this year's. Strong bonds are earned over a career and stay as they
+   * are — they keep anchoring runners home.
+   */
+  const FRESH_MORALE = 70;
+  const FRESH_BOND = 60;
+  function seasonFreshStart(gameState) {
+    Object.values(gameState.world.athletes).forEach((a) => {
+      if (!a || a.isRecruit) return;
+      a.morale = Utils.clamp(Math.round(FRESH_MORALE + (a.morale - FRESH_MORALE) * 0.3), 0, 100);
+      ['coachRelationship', 'teamRelationship'].forEach((k) => {
+        const v = a[k] ?? FRESH_BOND;
+        if (v < FRESH_BOND) a[k] = FRESH_BOND + (v - FRESH_BOND) * 0.4;
+      });
+    });
+  }
+
   window.XCD.engine.Portal = {
     processWeek,
+    seasonFreshStart,
+    resetPlayerPortal,
     playerOffer,
     portalAppeal,
     transferRisk,
