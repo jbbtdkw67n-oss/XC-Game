@@ -124,20 +124,22 @@
     return meets.sort((a, b) => a.week - b.week);
   }
 
-  // Race-day conditions advisory (Update 19). Upcoming weather is fixed when
-  // the schedule is built, so the player can plan around it. Extreme heat is
-  // the big one — it drives fades and real DNFs — so a hot forecast warns the
-  // coach to bring fresh legs; frigid, very hilly, and thin-air races get a
-  // lighter heads-up. Returns HTML for the Next Meet card, or '' on a
-  // temperate, unremarkable day.
+  // Race-day conditions advisory (Update 19). Weather is only forecast
+  // close to the race (UI.weatherKnown), so weeks out only the course notes
+  // show. Extreme heat is the big one — slow times, fades and real DNFs —
+  // so a hot forecast warns the coach to bring fresh legs; cold air means
+  // fast times; very hilly and thin-air races get a lighter heads-up.
+  // Returns HTML for the Next Meet card, or '' on an unremarkable day.
   function meetAdvisory(game, meet) {
     const c = meet.conditions || {};
     const notes = [];
-    if (c.tempF >= 90) notes.push({ icon: '🥵', color: 'var(--danger)', text: `Dangerous heat (${c.tempF}°F) — expect fades and a real risk of DNFs. Rest tired legs; readiness matters more than ever.` });
-    else if (c.tempF >= 82) notes.push({ icon: '🌡️', color: 'var(--warning)', text: `Hot day (${c.tempF}°F) — fatigued runners will fade, and a few in the field may not finish. Fresh legs pay off.` });
-    else if (c.tempF <= 25) notes.push({ icon: '🥶', color: 'var(--warning)', text: `Frigid (${c.tempF}°F) — tough on turnover; a gentler warm-up helps.` });
-    if (c.ground === 'Muddy') notes.push({ icon: '🌧️', color: 'var(--warning)', text: 'Rain is turning the course to mud — expect slow times, worst on the hills. Tough, consistent runners hold up best.' });
-    if ((c.windMph || 0) >= 15) notes.push({ icon: '💨', color: 'var(--text-dim)', text: `Windy (${c.windMph} mph) — times will be slow; running in a pack saves energy.` });
+    if (UI.weatherKnown(game, meet)) {
+      if (c.tempF >= 90) notes.push({ icon: '🥵', color: 'var(--danger)', text: `Dangerous heat (${c.tempF}°F) — slow times, fades and a real risk of DNFs. Rest tired legs; readiness matters more than ever.` });
+      else if (c.tempF >= 82) notes.push({ icon: '🌡️', color: 'var(--warning)', text: `Hot day (${c.tempF}°F) — times will be slow, fatigued runners will fade, and a few in the field may not finish. Fresh legs pay off.` });
+      else if (c.tempF <= 40) notes.push({ icon: '🥶', color: 'var(--success)', text: `Cold and crisp (${c.tempF}°F) — fast racing weather; expect quick times.` });
+      if (c.ground === 'Muddy') notes.push({ icon: '🌧️', color: 'var(--warning)', text: 'Rain is turning the course to mud — expect slow times, worst on the hills. Tough, consistent runners hold up best.' });
+      if ((c.windMph || 0) >= 15) notes.push({ icon: '💨', color: 'var(--text-dim)', text: `Windy (${c.windMph} mph) — times will be slow; running in a pack saves energy.` });
+    }
     if (c.hilliness >= 78) notes.push({ icon: '⛰️', color: 'var(--text-dim)', text: `Punishing hills (${c.hilliness}/100) — strong hill runners move up here.` });
     if (c.altitude === 'High') notes.push({ icon: '🫁', color: 'var(--text-dim)', text: `High altitude — thin air taxes everyone but altitude-trained programs.` });
     if (!notes.length) return '';
@@ -485,7 +487,7 @@
           <div>
             <h2 style="margin-bottom:4px;">🏁 Next: ${Utils.escapeHtml(nextMeet.name)} — Week ${nextMeet.week}${nextMeet.week === game.week ? ' (THIS WEEK)' : ''}</h2>
             <span style="color:var(--text-dim); font-size:13px;">
-              ${UI.weatherText(nextMeet.conditions)} · hills ${nextMeet.conditions.hilliness}/100 · ${nextMeet.conditions.altitude} altitude · ${UI.meetSpeedTag(nextMeet)}
+              ${UI.weatherKnown(game, nextMeet) ? UI.weatherText(nextMeet.conditions) : 'Forecast closer to race week'} · hills ${nextMeet.conditions.hilliness}/100 · ${nextMeet.conditions.altitude} altitude · ${UI.meetSpeedTag(nextMeet)}
             </span>
             ${meetAdvisory(game, nextMeet)}
           </div>

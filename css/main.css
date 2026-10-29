@@ -2081,6 +2081,7 @@ html[data-theme="light"] .card { box-shadow: var(--shadow-card); }
 .sb-meet { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--bg-raised); }
 .sb-meet.mine { border-color: var(--success); }
 .sb-meet-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.sb-meet-main { flex: 1; min-width: 0; }
 .sb-meet-name { font-weight: 700; font-size: 14px; }
 .sb-meet-sub { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
 .sb-meet-act { flex: none; text-align: right; }
@@ -2096,11 +2097,14 @@ html[data-theme="light"] .card { box-shadow: var(--shadow-card); }
 .sb-chip.div-diii b { color: #7ed6b0; }
 .sb-more { font-size: 11.5px; color: var(--text-faint); padding: 3px 4px; }
 .sb-field summary { cursor: pointer; font-size: 12px; color: var(--accent-hover); margin-top: 8px; }
+.sb-chips > .sb-field summary { margin-top: 0; padding: 3px 4px; font-size: 11.5px; }
+.sb-chips > .sb-field[open] { flex-basis: 100%; }
+.sb-chips > .sb-field[open] .sb-chips { margin-top: 4px; }
 @media (max-width: 760px) {
   .sb-budget-nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sb-week { flex-direction: column; gap: 4px; }
   .sb-wk { padding-top: 0; }
-  .sb-meet-head { flex-direction: column; }
+  .sb-meet-head { flex-direction: column; gap: 6px; }
   .sb-meet-act { text-align: left; }
 }
 

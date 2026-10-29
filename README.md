@@ -14,6 +14,28 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 14.8 — A Cleaner Schedule Tab, Hidden Forecasts & Cold-Weather PRs
+
+- **A cleaner Meet Browser.** Each meet is now one compact card: the name, a
+  single line with the city, the trip (miles and cost), the course speed and
+  the field size, then up to six ranked teams or conference rivals. Everyone
+  else is behind "+N more". The extra lines (host, hills, altitude, average
+  Team Power) and the long filter labels are gone.
+- **No weather in the schedule creator.** You pick meets on the course, the
+  trip and the field, not on the forecast. Weather appears only in the week
+  before a race and in race week (on the Schedule and Dashboard), and on
+  results after the race.
+- **Bigger weather swings from year to year.** Every autumn moves further
+  warmer or colder than before, and each meet's race day has more of its own
+  variation. The same course can be 20–30°F apart from one season to the next.
+- **Hot is slow, cold is fast.** Heat costs time from 60°F up, and more the
+  hotter it gets. Cool air below 50°F now speeds everyone up (cold-weather
+  runners a little more), so a crisp, cold meet is a PR day. Rain, mud and
+  wind still slow times.
+- **The locked schedule goes to the top.** Once you finalize, the builder and
+  the Meet Browser disappear. Your season schedule is the first card on the
+  Schedule tab, with a one-line travel summary.
+
 ## Version 14.7 — Real Schedules, Travel Budgets & Fairer Nationals Bids
 
 - **A real meet calendar.** Weeks 4–12 now have meets every weekend, and each

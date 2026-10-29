@@ -137,6 +137,14 @@
     const c = (meet && meet.conditions) || {};
     return UI.courseSpeedTag(c.hilliness, typeof c.altitudeFt === 'number' ? c.altitudeFt : c.altitude);
   };
+  // Race-day weather is only forecast close to the race: it shows for this
+  // week's and next week's meets (and after the race), never while a
+  // schedule is being planned weeks out.
+  UI.weatherKnown = function (game, meet) {
+    if (!meet) return false;
+    if (meet.results && (meet.results.M || meet.results.W)) return true;
+    return !!game && meet.week <= game.week + 1;
+  };
   UI.weatherText = function (c) {
     if (!c) return '';
     const bits = [`${c.tempF}°F`];

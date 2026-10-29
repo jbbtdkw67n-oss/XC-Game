@@ -227,11 +227,14 @@
   // removes) wind across the board.
   let activeSeasonWeather = null;
   function seasonWeather(rng) {
-    const tempShift = Utils.clamp(Math.round(rng.gaussian(0, 4)), -9, 9);
+    // Wide enough that a course's race-day temperature can swing 20–30°F
+    // from one autumn to the next.
+    const tempShift = Utils.clamp(Math.round(rng.gaussian(0, 6)), -14, 14);
     const wetChance = Utils.clamp(Math.round((0.18 + rng.gaussian(0, 0.08)) * 100) / 100, 0.04, 0.40);
     const windShift = Utils.clamp(Math.round(rng.gaussian(0, 2)), -3, 5);
     const parts = [];
-    if (tempShift >= 3) parts.push('warm'); else if (tempShift <= -3) parts.push('cold');
+    if (tempShift >= 8) parts.push('hot'); else if (tempShift >= 3) parts.push('warm');
+    else if (tempShift <= -8) parts.push('frigid'); else if (tempShift <= -3) parts.push('cold');
     if (wetChance >= 0.25) parts.push('wet'); else if (wetChance <= 0.11) parts.push('dry');
     if (windShift >= 3) parts.push('windy');
     return { tempShift, wetChance, windShift, label: parts.length ? `A ${parts.join(', ')} fall` : 'A typical fall' };
@@ -243,7 +246,7 @@
     const w = sw || activeSeasonWeather || { tempShift: 0, wetChance: 0.18, windShift: 0 };
     const rain = rng.bool(w.wetChance);
     return {
-      tempF: Math.round(tempBase + w.tempShift + rng.int(-10, 12) - (week - 5) * 1.1),
+      tempF: Math.round(tempBase + w.tempShift + rng.int(-12, 14) - (week - 5) * 1.1),
       windMph: Utils.clamp(Math.round(Math.abs(rng.gaussian(5 + w.windShift, 4))), 0, 28),
       rain,
       ground: rain ? (rng.bool(0.4) ? 'Muddy' : 'Soft') : 'Firm'
@@ -496,16 +499,19 @@
     const c = meet.conditions;
     let mult = 1;
 
-    // Heat & cold: tough, consistent runners handle bad days better.
+    // Temperature: hot days run slow, cold days run fast. Heat costs time
+    // from 60°F up (tough, consistent runners lose the least); cool air
+    // below 50°F speeds everyone up, a little more for cold-weather runners.
     const weatherSkill = (a.mentalToughness * 0.6 + a.consistency * 0.4) / 100;
-    if (c.tempF > 65) {
-      let heat = (c.tempF - 65) * 0.0006 * (1.4 - weatherSkill);
+    if (c.tempF > 60) {
+      let heat = (c.tempF - 60) * 0.0008 * (1.4 - weatherSkill);
       if (a.preferredClimate === 'Warm') heat *= 0.5;
-      mult += Utils.clamp(heat, 0, 0.03);
-    } else if (c.tempF < 38) {
-      let cold = (38 - c.tempF) * 0.0005 * (1.4 - weatherSkill);
-      if (a.preferredClimate === 'Cold') cold *= 0.5;
-      mult += Utils.clamp(cold, 0, 0.02);
+      mult += Utils.clamp(heat, 0, 0.035);
+    } else if (c.tempF < 50) {
+      let cold = (50 - c.tempF) * 0.0004;
+      if (a.preferredClimate === 'Cold') cold *= 1.25;
+      else if (a.preferredClimate === 'Warm') cold *= 0.75;
+      mult -= Utils.clamp(cold, 0, 0.012);
     }
     // Rain and footing (year-to-year weather): a wet course is slower, and a
     // muddy one far slower — worst on hills, where every climb turns to
