@@ -168,13 +168,17 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
   const progOpen = await page.evaluate(() => !!document.querySelector('.modal .player-card-header'));
   await page.evaluate(() => window.XCD.ui.closeModal());
   if (!progOpen) fail('program profile did not open from rankings');
-  await page.click('[data-tab="coaches"]');
-  await page.waitForSelector('[data-coach]');
-  await page.click('[data-coach]');
+  // Coach rankings live in History → Leaderboards (not on the Rankings screen).
+  if (await page.$('[data-tab="coaches"]')) fail('rankings screen should not have a Coaches tab');
+  await page.evaluate(() => window.XCD.ui.navigate('history'));
+  await page.click('[data-tab="boards"]');
+  await page.click('[data-board="coaches"]');
+  await page.waitForSelector('tr.clickable[data-row], .m-card.clickable[data-row]');
+  await page.click('tr.clickable[data-row], .m-card.clickable[data-row]');
   await page.waitForSelector('.modal');
   const coachOpen = await page.evaluate(() => !!document.querySelector('.modal'));
   await page.evaluate(() => window.XCD.ui.closeModal());
-  if (!coachOpen) fail('coach profile did not open from rankings');
+  if (!coachOpen) fail('coach profile did not open from the coach leaderboard');
   console.log('universal navigation: ok');
   if (bail('NAV')) { await browser.close(); process.exit(1); }
 
@@ -194,7 +198,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     UI.navigate('rankings');
   });
   for (let i = 0; i < 2; i++) {
-    for (const t of ['national', 'region', 'conference', 'individual', 'freshman', 'coaches']) {
+    for (const t of ['national', 'region', 'conference', 'individual', 'freshman']) {
       await page.click(`[data-tab="${t}"]`);
       await page.click('#g-w'); await page.click('#g-m');
     }
