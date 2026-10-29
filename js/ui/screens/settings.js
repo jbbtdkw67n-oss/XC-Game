@@ -22,7 +22,8 @@
     injuryRate: { low: 'Rare injuries (0 = none at all)', high: 'Bodies break down far more often' },
     hotSeatPatience: { low: 'Fired after 2 hot seasons', high: 'Up to 6 hot seasons of rope' },
     cpuDevelopment: { low: 'Rival athletes develop slower', high: 'Rival athletes develop faster' },
-    prestigeVolatility: { low: 'Program prestige barely moves', high: 'Prestige swings hard on results' }
+    prestigeVolatility: { low: 'Program prestige barely moves', high: 'Prestige swings hard on results' },
+    transferPressure: { low: 'Your unhappy runners mostly stay', high: 'Benched, injured, or unhappy runners on your roster bolt for the portal' }
   };
   const GROUP_TITLES = {
     difficulty: { icon: '🎚', title: 'Difficulty', sub: '1.00× is the game as designed. Changes apply from the next week simmed.' },

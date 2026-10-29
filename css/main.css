@@ -400,6 +400,11 @@ table.data .col-rank { width: 1%; }
 table.data .col-center { text-align: center; }
 table.data .col-grow { width: 100%; white-space: normal; }
 table.data td.col-actions, table.data th.col-actions { text-align: right; width: 1%; }
+/* Training squad monitor (desktop): every runner's avatar and full name sit
+   on one line, and the load/mileage controls stay compact so the columns
+   line up instead of the name wrapping onto a second row. */
+table.data.squad-table .col-grow { white-space: nowrap; }
+table.data.squad-table .search-input { min-width: 0; }
 table.data td.col-actions .btn + .btn { margin-left: 6px; }
 .rank-move { display: inline-block; min-width: 30px; margin-left: 6px; font-size: 11.5px; font-weight: 600; }
 .rank-move.up { color: var(--success); }

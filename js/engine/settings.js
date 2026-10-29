@@ -19,6 +19,8 @@
  *                           (awards.js coachFirings, predictions.js evaluate)
  *   cpuDevelopment        → CPU weekly dev points (training.js, devPoints)
  *   prestigeVolatility    → the yearly prestige delta (prestige.js)
+ *   transferPressure      → amplifies every transfer reason on the PLAYER's
+ *                           roster (portal.js unhappiness)
  *
  * Settings live on gameState.settings and round-trip with the save; saves
  * from before this module simply load with the defaults.
@@ -33,6 +35,7 @@
     { key: 'hotSeatPatience',       type: 'slider', group: 'difficulty', label: 'Hot Seat patience',       min: 0.5, max: 2,   step: 0.05, def: 1 },
     { key: 'cpuDevelopment',        type: 'slider', group: 'difficulty', label: 'CPU athlete development', min: 0.5, max: 1.5, step: 0.05, def: 1 },
     { key: 'prestigeVolatility',    type: 'slider', group: 'difficulty', label: 'Prestige volatility',     min: 0.5, max: 1.5, step: 0.05, def: 1 },
+    { key: 'transferPressure',      type: 'slider', group: 'difficulty', label: 'Roster transfer pressure', min: 0.5, max: 2, step: 0.05, def: 1 },
     { key: 'theme',                 type: 'choice', group: 'display',    label: 'Theme', options: ['dark', 'light', 'system'], def: 'dark' },
     { key: 'textScale',             type: 'slider', group: 'display',    label: 'Text size',               min: 0.85, max: 1.3, step: 0.05, def: 1 }
   ];
@@ -104,13 +107,13 @@
   // difficulty sliders; anything not listed stays at its default.
   Settings.PRESETS = {
     rookie:  { label: 'Rookie',  icon: '🌱', desc: 'Patient bosses, weaker CPU recruiting, fewer injuries.',
-      values: { recruitingCompetition: 0.75, injuryRate: 0.6, hotSeatPatience: 1.6, cpuDevelopment: 0.85, prestigeVolatility: 0.8 } },
+      values: { recruitingCompetition: 0.75, injuryRate: 0.6, hotSeatPatience: 1.6, cpuDevelopment: 0.85, prestigeVolatility: 0.8, transferPressure: 0.85 } },
     normal:  { label: 'Normal',  icon: '⚖️', desc: 'The game as designed.',
-      values: { recruitingCompetition: 1, injuryRate: 1, hotSeatPatience: 1, cpuDevelopment: 1, prestigeVolatility: 1 } },
-    veteran: { label: 'Veteran', icon: '🔥', desc: 'Sharper CPU staffs, more injuries, shorter leash.',
-      values: { recruitingCompetition: 1.2, injuryRate: 1.25, hotSeatPatience: 0.8, cpuDevelopment: 1.15, prestigeVolatility: 1.1 } },
-    legend:  { label: 'Legend',  icon: '💀', desc: 'Every rival at full strength. One bad stretch and you are gone.',
-      values: { recruitingCompetition: 1.45, injuryRate: 1.5, hotSeatPatience: 0.6, cpuDevelopment: 1.35, prestigeVolatility: 1.3 } }
+      values: { recruitingCompetition: 1, injuryRate: 1, hotSeatPatience: 1, cpuDevelopment: 1, prestigeVolatility: 1, transferPressure: 1 } },
+    veteran: { label: 'Veteran', icon: '🔥', desc: 'Sharper CPU staffs, more injuries, more transfers, shorter leash.',
+      values: { recruitingCompetition: 1.2, injuryRate: 1.25, hotSeatPatience: 0.8, cpuDevelopment: 1.15, prestigeVolatility: 1.1, transferPressure: 1.35 } },
+    legend:  { label: 'Legend',  icon: '💀', desc: 'Every rival at full strength, a restless roster. One bad stretch and you are gone.',
+      values: { recruitingCompetition: 1.45, injuryRate: 1.5, hotSeatPatience: 0.6, cpuDevelopment: 1.35, prestigeVolatility: 1.3, transferPressure: 1.75 } }
   };
 
   Settings.applyPreset = function (gameState, key) {

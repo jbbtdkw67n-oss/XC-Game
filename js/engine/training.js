@@ -1499,6 +1499,38 @@
     gameState.offseasonReport = { year: gameState.year, entries: report };
   }
 
+  /*
+   * Ideal mileage (Update 23): the most volume a runner's body can absorb
+   * right now — their durable limit, less a small cushion because fatigue
+   * and fitness move that limit week to week — trimmed for the season's
+   * phase: a championship taper (conference through nationals) and lighter
+   * offseason maintenance. Every runner gets their own number.
+   */
+  function idealMileage(gameState, athlete) {
+    let m = safeMileage(athlete) - 3;
+    const week = gameState.week;
+    if (week >= CAL.OFFSEASON_START) m *= 0.8;
+    else if (week >= CAL.CONFERENCE_WEEK && week <= CAL.NATIONAL_WEEK) m *= 0.7;
+    return Utils.clamp(Math.round(m), D.MILEAGE.MIN, D.MILEAGE.MAX);
+  }
+
+  // Set every runner (one squad, or both when gender is null) on the
+  // player's roster to their ideal mileage. Returns how many were set.
+  function applyIdealMileage(gameState, gender = null) {
+    const t = gameState.training;
+    t.mileageOverrides = t.mileageOverrides || {};
+    let n = 0;
+    (gender ? [gender] : ['M', 'W']).forEach((g) => {
+      gameState.getRoster(gameState.playerSchoolId, g).forEach((a) => {
+        const v = idealMileage(gameState, a);
+        if (t.mileage && v === t.mileage[g]) delete t.mileageOverrides[a.id];
+        else t.mileageOverrides[a.id] = v;
+        n++;
+      });
+    });
+    return n;
+  }
+
   // Race readiness (used by the race engine, shown in the UI): fitness,
   // freshness, and race sharpness in one number.
   function readiness(athlete) {
@@ -1519,6 +1551,8 @@
     mileageFor,
     mileageMeta,
     safeMileage,
+    idealMileage,
+    applyIdealMileage,
     planMetaFor,
     readiness,
     squadCulture,
