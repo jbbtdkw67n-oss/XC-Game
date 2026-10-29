@@ -614,6 +614,21 @@
     return Utils.clamp(ceil, 20, 99);
   }
 
+  /*
+   * Growth speed from the gap to the effective ceiling (Update 25, Stage 4).
+   * Ordinary gaps (up to ~30) grow exactly as before. Beyond that, a raw
+   * talent — a low overall with a huge ceiling — surges: the bigger the gap,
+   * the faster the climb (up to ~1.75× the old cap), so a 23-overall with
+   * 99 potential can jump ~25-35 overall in a season in a good program. The
+   * surge fades on its own as the gap closes, and growth slows to a crawl in
+   * the final few points below the ceiling. Finding these athletes is a real
+   * recruiting edge — and keeping them (the portal) is the risk.
+   */
+  function gapGrowth(gap) {
+    if (gap <= 30) return Utils.clamp(gap / 24, 0.02, 1.25);
+    return Math.min(2.2, 1.25 + (gap - 30) / 26);
+  }
+
   function devPoints(athlete, coach, school, planMeta, rng) {
     const coachSkill = coach ? (coach.training ?? coach.development ?? 55) : 50;
     // Environment quality sets the athlete's EFFECTIVE ceiling — how much of
@@ -625,7 +640,7 @@
     // Banked injury losses come back separately, so the gap is measured from
     // the runner's healthy level (no double-speed rebuild past the ceiling).
     const gap = ceil - (athlete.currentOverall + injuryDeficitOverall(athlete));
-    const gapFactor = Utils.clamp(gap / 24, 0.02, 1.25);
+    const gapFactor = gapGrowth(gap);
     // Perfect-storm finishing kick: only a near-max potential unlocked by a
     // near-perfect program (effective ceiling ~98-99) gets a boost on the final,
     // otherwise glacial climb — enough that a genuine 99 overall is reachable
@@ -1515,7 +1530,10 @@
           // physical ratings move the overall by 1, so a +4/+5 summer is a
           // ~22-28 point haul — only possible for a grinder with real headroom.
           const gap = a.potential - a.currentOverall;
-          let pts = Utils.clamp(gap * 1.1, 0, 22) * OFFSEASON_DEV_RATE; // headroom drives growth
+          // Headroom drives growth; a raw talent's huge gap keeps paying out
+          // past the ordinary 20-point mark (Update 25, Stage 4).
+          let pts = (Math.min(gap, 20) * 1.1 + Math.max(0, gap - 20) * 0.5) * OFFSEASON_DEV_RATE;
+          pts = Utils.clamp(pts, 0, 45);
           if (gap < 5) pts *= 0.3;                          // the plateau near the ceiling
           // Work Ethic is the LARGEST factor (Section 11): summer is
           // unsupervised, so the grinders separate themselves. The curve is
@@ -1536,8 +1554,10 @@
           pts *= 0.7 + rng.next() * 0.6;
           if (!isPlayerSchool) pts *= settingMult(gameState, 'cpuDevelopment'); // difficulty
           // One summer can't remake a runner: ~30 points is a +5/+6 ceiling,
-          // so stacked late-bloomer multipliers never produce a +15 jump.
-          pts = Math.min(pts, OFFSEASON_MAX_POINTS);
+          // so stacked late-bloomer multipliers never produce a +15 jump —
+          // except a raw talent with a huge gap, whose summer cap stretches
+          // (up to ~45 points, about +8) while the gap lasts.
+          pts = Math.min(pts, OFFSEASON_MAX_POINTS + Math.min(15, Math.max(0, gap - 25) * 0.5));
 
           // Regression: age, injuries, apathy, and burnout take ratings back.
           let loss = 0;
@@ -1692,6 +1712,7 @@
     MAJOR_INJURY_WEEKS,
     loadSpike,
     rampLimit,
+    gapGrowth,
     injuryDeficitOverall,
     philosophyEffect,
     coachCraft,

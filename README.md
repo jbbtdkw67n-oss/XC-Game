@@ -14,6 +14,19 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.3 — Raw Talent Surges
+
+- **Raw talents grow fast.** Development speed has always scaled with the gap
+  between a runner's overall and their ceiling, but it stopped growing past
+  a gap of about 30. Now a huge gap keeps paying out, in season and over the
+  summer. A 23-overall freshman with 99 potential typically jumps +28 to +34
+  in their first year, about +20 in the second, then tapers off as they near
+  their ceiling. Runners with ordinary gaps develop exactly as before, and
+  world-wide average and top-end overalls are unchanged in 8-season tests.
+  Spotting these diamonds in the rough is a real recruiting edge. Keeping
+  them, once they're good enough to be poached through the portal, is the
+  risk.
+
 ## Version 15.2 — Load Spikes & Injury Comebacks
 
 - **Big jumps in load raise injury risk.** Each runner now carries a rolling
