@@ -15,13 +15,93 @@
     rest: 'Complete rest. Sheds fatigue, cuts injury risk, sharpens the legs — but too many rest days stall development.',
     easy: 'Genuinely easy running. Sheds fatigue, keeps the aerobic system ticking — the recovery currency of every good week.',
     long: 'The weekly cornerstone: big stamina, some VO₂ Max.',
-    tempo: 'Threshold running — builds Lactate Threshold.',
+    tempo: 'Threshold running — builds Lactate Threshold and Base (the sharpening ceiling). Stacks well: up to 3 a week.',
     double: 'Double Threshold: two threshold sessions in a day — roughly twice a tempo\'s benefit at interval-level fatigue. Excellent for advanced runners; stacking multiple in a week spikes injury risk.',
     hills: 'Hill repeats: VO₂ Max, Speed, Economy + hill toughness. High injury risk.',
-    intervals: 'Track work: VO₂ Max and some Speed. The hardest day.',
+    intervals: 'Track work: VO₂ Max and some Speed. The hardest day — sharpens fast, but builds little Base and goes stale if held for weeks.',
     speed: 'Sprint mechanics: Speed and Running Economy.',
     racesim: 'Full championship rehearsal: the biggest sharpness boost in the game and a confidence builder for fit runners — at heavy fatigue and injury cost. One per week, placed late in the season.'
   };
+
+  // Form trade-off pips for a workout (Update 25): Base / Sharp / Stale.
+  function formPips(key) {
+    const w = D.WORKOUTS[key];
+    if (!w || (!w.base && !w.sharp)) return '';
+    const pips = (v, scale) => { const n = Math.max(0, Math.min(3, Math.round(v / scale))); return '▮'.repeat(n) + '▯'.repeat(3 - n); };
+    return ` · Base ${pips(w.base, 0.42)} · Sharp ${pips(w.sharp, 0.8)} · Stale ${pips(w.stale, 0.33)}${w.stack ? ` · max ${w.stack}/wk` : ''}`;
+  }
+  const hintFor = (key) => WORKOUT_HINTS[key] + formPips(key);
+
+  // What the player's squad races in a given week.
+  function weekMeetLabel(game, w) {
+    const CAL = D.CALENDAR;
+    if (w === CAL.CONFERENCE_WEEK) return 'Conference Championship';
+    if (w === CAL.REGIONAL_WEEK) return 'Regional Championship';
+    if (w === CAL.NATIONAL_WEEK) return 'NCAA Championship';
+    const s = game.season;
+    const m = s && s.playerMeetByWeek[w] && s.meets[s.playerMeetByWeek[w]];
+    return m ? m.name : 'no meet';
+  }
+
+  // Squad Form card (Update 25, Stage 3): Base, Sharpening vs its ceiling,
+  // Staleness, the season's one peak, and a form-by-week chart.
+  function squadFormHtml(game, school, gender) {
+    const f = TE().squadForm(game, school, gender);
+    if (!f) return '';
+    const CAL = D.CALENDAR;
+    const wk = game.week;
+    const next = wk + 1;
+    const pct = (v) => Math.max(0, Math.min(100, v));
+    const sharpBar = `<div class="form-bar"><div class="form-fill" style="width:${pct(f.sharp)}%;"></div>
+      <div class="form-ceiling" style="left:${pct(f.ceiling)}%;" title="Ceiling set by Base: ${Math.round(f.ceiling)}"></div></div>`;
+    const staleWord = f.stale >= 20 ? 'High' : f.stale >= 9 ? 'Building' : 'Low';
+    let taper;
+    if (wk > CAL.NATIONAL_WEEK) taper = '🔋 The season is over — a fresh peak comes with next season.';
+    else if (f.peaking) taper = `⚡ <strong>PEAKING</strong> — this week's race (${Utils.escapeHtml(weekMeetLabel(game, wk))}) gets the full peak. It fades fast after.`;
+    else if (f.peakUsed) taper = `🪫 Peak spent this season${f.peakWeek ? ` (landed Week ${f.peakWeek})` : ''}. Another taper only sheds fatigue.`;
+    else if (f.charge >= 0.99) taper = `🔋 <strong>Charged.</strong> To peak for <strong>Week ${next} — ${Utils.escapeHtml(weekMeetLabel(game, next))}</strong>, run the <em>Championship taper</em> miles THIS week with one quality session. One peak per season.`;
+    else taper = `🔋 Charging ${Math.round(f.charge * 100)}% — a few more weeks of normal training before a full peak.`;
+    let verdict;
+    if (f.stale >= 20) verdict = 'Going stale — too much sharp work for too long. Back off intervals for a week or two.';
+    else if (f.sharp >= f.ceiling - 3 && f.base < 65) verdict = 'Sharp, but the base is thin — this is about as good as it gets this season.';
+    else if (f.sharp >= f.ceiling - 3) verdict = 'At the ceiling — more sharp work only adds staleness. Build Base or save it for the taper.';
+    else if (f.base >= 70 && f.sharp < f.ceiling - 12) verdict = 'Big base, room to sharpen — intervals and racing will pay off now.';
+    else verdict = 'Building — threshold work raises the ceiling, intervals sharpen into it.';
+
+    // Form-by-week chart (this season).
+    const log = (school.formLog && school.formLog.year === game.year && school.formLog[gender]) || [];
+    const W = 300, H = 74, maxW = CAL.NATIONAL_WEEK;
+    const x = (w) => 8 + (w - 1) / (maxW - 1) * (W - 16);
+    const y = (v) => H - 8 - (Math.max(30, Math.min(105, v)) - 30) / 75 * (H - 16); // 30-105 band shows the swings
+    const line = (key) => log.map((r, i) => `${i ? 'L' : 'M'}${x(r.w).toFixed(1)},${y(r[key]).toFixed(1)}`).join(' ');
+    const marks = [[CAL.CONFERENCE_WEEK, 'C'], [CAL.REGIONAL_WEEK, 'R'], [CAL.NATIONAL_WEEK, 'N']]
+      .map(([w, l]) => `<line x1="${x(w)}" x2="${x(w)}" y1="6" y2="${H - 6}" class="form-mark"/><text x="${x(w)}" y="${H}" class="form-mark-t">${l}</text>`).join('');
+    const peaks = log.filter((r) => r.peak >= 4).map((r) => `<text x="${x(r.w)}" y="${y(r.form) - 4}" class="form-peak">⚡</text>`).join('');
+    const chart = log.length >= 2 ? `
+      <svg viewBox="0 0 ${W} ${H}" class="form-chart" role="img" aria-label="Squad form by week">
+        ${marks}
+        <path d="${line('base')}" class="form-line-base"/>
+        <path d="${line('form')}" class="form-line-form"/>
+        ${peaks}
+      </svg>
+      <div class="form-legend"><span class="lg-form">━ Race form</span> <span class="lg-base">━ Base</span> · C/R/N = Conference, Regional, Nationals</div>`
+      : '<div style="color:var(--text-faint); font-size:12px;">The form chart fills in as the season goes.</div>';
+
+    return `
+      <div class="card squad-form" style="margin-bottom:16px;">
+        <h2 style="margin:0 0 8px;">Squad Form — ${gender === 'M' ? "Men's" : "Women's"} Top 7</h2>
+        <div class="form-grid">
+          <div class="form-rows">
+            <div class="form-row"><span class="k" title="Built by volume, threshold, and long runs. Slow to build, slow to fade. Sets the sharpening ceiling.">Base</span>${UI.meter(f.base)}<strong>${Math.round(f.base)}</strong></div>
+            <div class="form-row"><span class="k" title="Race readiness from intervals, speed, race sims, and racing. Fast to build, fast to fade. Capped by Base.">Sharpening</span>${sharpBar}<strong>${Math.round(f.sharp)}<small> / ${Math.round(f.ceiling)}</small></strong></div>
+            <div class="form-row"><span class="k" title="Sharp work held too long goes flat. Easy and recovery weeks clear it.">Staleness</span>${UI.meter(f.stale * 2.5, f.stale >= 20 ? 'red' : f.stale >= 9 ? 'yellow' : 'green')}<strong>${staleWord}</strong></div>
+            <div class="form-taper">${taper}</div>
+            <div class="form-verdict">${verdict}</div>
+          </div>
+          <div class="form-chart-wrap">${chart}</div>
+        </div>
+      </div>`;
+  }
 
   const ATTR_LABELS = {
     vo2Max: 'VO₂ Max', runningEconomy: 'Economy', stamina: 'Stamina',
@@ -46,7 +126,7 @@
         ${philo.label ? UI.philosophyTradeoffs(philo, { compact: true }) : ''}
       </div>
       <div class="grid cols-4" style="margin-top:14px;">
-        <div class="stat-tile"><div class="label">Squad Fitness</div><div class="value">${avg((a) => a.fitness)}</div></div>
+        <div class="stat-tile"><div class="label">Squad Base</div><div class="value">${avg((a) => a.fitness)}</div></div>
         <div class="stat-tile"><div class="label">Squad Fatigue</div><div class="value">${avg((a) => a.fatigue)}</div></div>
         <div class="stat-tile"><div class="label">Readiness</div><div class="value">${avg((a) => TE().readiness(a))}</div></div>
         <div class="stat-tile"><div class="label">Injured</div><div class="value">${injured.length}</div></div>
@@ -95,11 +175,13 @@
 
       ${UI.sectionLabel('Squad Status')}
       <div class="grid cols-4" style="margin-bottom:16px;">
-        <div class="stat-tile"><div class="label">Squad Fitness</div><div class="value">${avgFitness}</div>${UI.meter(avgFitness)}</div>
+        <div class="stat-tile"><div class="label">Squad Base</div><div class="value">${avgFitness}</div>${UI.meter(avgFitness)}</div>
         <div class="stat-tile"><div class="label">Squad Fatigue</div><div class="value">${avgFatigue}</div>${UI.meter(avgFatigue, avgFatigue > 60 ? 'red' : avgFatigue > 40 ? 'yellow' : 'green')}</div>
         <div class="stat-tile"><div class="label">Race Readiness</div><div class="value">${avgReadiness}</div>${UI.meter(avgReadiness, 'green')}</div>
         <div class="stat-tile"><div class="label">Team Morale</div><div class="value">${school.teamMorale ?? '—'}</div><div class="sub">${(window.XCD.engine.Morale.label(school.teamMorale ?? 65)).text} · chem ${school.chemistry?.[activeGender] ?? '—'}</div></div>
       </div>
+
+      ${squadFormHtml(game, school, activeGender)}
 
       ${UI.sectionLabel('Plan & Mileage')}
       <div class="card" style="margin-bottom:16px;">
@@ -115,14 +197,14 @@
         </div>
         <div id="phase-banner" style="margin:8px 0 0; padding:8px 12px; background:var(--bg-tile, rgba(128,128,128,0.08)); border-radius:8px; font-size:13px; border-left:3px solid var(--warning);"></div>
         ${raceThisWeek ? `<div style="margin:8px 0 0; padding:8px 12px; background:var(--accent-soft); border-radius:8px; font-size:13px;">
-          🏁 RACE WEEK — your runners race this week. Fresh legs win races; consider tapering.
+          🏁 RACE WEEK — your runners race this week. This week's plan takes effect after the race, so a taper now peaks the squad for NEXT week.
         </div>` : ''}
         <div class="week-planner" id="week-planner">
           ${D.DAYS.map((day, i) => `
             <div class="day-slot">
               <div class="day-name">${day.slice(0, 3)}</div>
               <select data-day="${i}" class="day-select ${D.WORKOUTS[plan[i]].hard ? 'hard' : 'easy'}">${workoutOptions(plan[i])}</select>
-              <div class="day-hint" id="hint-${i}">${WORKOUT_HINTS[plan[i]]}</div>
+              <div class="day-hint" id="hint-${i}">${hintFor(plan[i])}</div>
             </div>`).join('')}
         </div>
         <div id="plan-preview" style="font-size:13px; margin-top:10px;"></div>
@@ -132,7 +214,7 @@
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
           <h2 style="margin:0;">Weekly Mileage — ${activeGender === 'M' ? "Men's" : "Women's"} Squad</h2>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="btn small primary" id="preset-ideal" title="Set every runner to their own ideal mileage — the most their body can absorb right now, tapered for championships">🎯 Ideal Mileage</button>
+            <button class="btn small primary" id="preset-ideal" title="Set every runner to their own ideal mileage — the most their body can absorb right now, built up gradually (it never spends your peak; that's the Championship taper preset)">🎯 Ideal Mileage</button>
             <button class="btn small" id="preset-all" title="Clear every individual override — the whole squad runs the program mileage">Quick Set All</button>
             ${D.MILEAGE.PRESETS.map((p) => `
               <button class="btn small" data-preset="${p.key}" title="${p.desc}">${p.label}</button>`).join('')}
@@ -177,7 +259,7 @@
                 </div>
               </div>
               <div class="m-stats">
-                <div class="m-stat"><div class="k">Fitness</div>${UI.meter(a.fitness)}</div>
+                <div class="m-stat"><div class="k">Base</div>${UI.meter(a.fitness)}</div>
                 <div class="m-stat"><div class="k">Fatigue</div>${UI.meter(a.fatigue, a.fatigue > 70 ? 'red' : a.fatigue > 45 ? 'yellow' : 'green')}</div>
                 <div class="m-stat"><div class="k">Morale</div>${UI.meter(a.morale, a.morale < 40 ? 'red' : a.morale < 65 ? 'yellow' : 'green')}</div>
               </div>
@@ -198,7 +280,7 @@
         <div class="table-wrap"><table class="data squad-table">
           <thead><tr>
             <th class="col-grow">Name</th><th>Class</th><th class="num">OVR</th><th class="num" title="Overall gained this season">+Season</th>
-            <th>Fitness</th><th>Fatigue</th><th class="num">Sharp</th><th class="num">Ready</th><th>Morale</th><th>Status</th><th>Load</th><th class="num">Mi/wk</th>
+            <th title="Base: built by volume and threshold work; sets the sharpening ceiling">Base</th><th>Fatigue</th><th class="num" title="Sharpening (⚡ = peaking, 🥱 = going stale)">Sharp</th><th class="num">Ready</th><th>Morale</th><th>Status</th><th>Load</th><th class="num">Mi/wk</th>
           </tr></thead>
           <tbody>
             ${roster.map((a) => {
@@ -217,7 +299,7 @@
                 <td class="num" style="color:${(a.seasonDev || 0) > 0 ? 'var(--success)' : 'var(--text-faint)'};">${(a.seasonDev || 0) > 0 ? '+' + a.seasonDev : a.seasonDev || '—'}</td>
                 <td class="meter-cell"><div style="min-width:52px;">${UI.meter(a.fitness)}</div></td>
                 <td class="meter-cell"><div style="min-width:52px;">${UI.meter(a.fatigue, a.fatigue > 70 ? 'red' : a.fatigue > 45 ? 'yellow' : 'green')}</div></td>
-                <td class="num">${Math.round(a.sharpness ?? 55)}</td>
+                <td class="num" title="Ceiling ${TE().sharpCeiling(a)} · staleness ${Math.round(a.staleness || 0)}">${Math.round(a.sharpness ?? 55)}${a.peakBonus > 0 ? ' ⚡' : ''}${(a.staleness || 0) >= 20 ? ' 🥱' : ''}</td>
                 <td class="num"><strong>${ready}</strong></td>
                 <td class="meter-cell"><div style="min-width:46px;">${UI.meter(a.morale, a.morale < 40 ? 'red' : a.morale < 65 ? 'yellow' : 'green')}</div></td>
                 <td>${a.injury
@@ -248,7 +330,7 @@
         ${injured.length ? injured.map((a) => `
           <div class="attr-row" style="padding:6px 0;">
             <span>${UI.personName(game, 'ath', a.id, a.fullName, { person: a, link: false })} <span style="color:var(--text-dim);">(${a.gender === 'M' ? 'M' : 'W'} • ${a.classYear})</span></span>
-            <span style="color:var(--danger);">${Utils.escapeHtml(a.injury.type)}</span>
+            <span style="color:var(--danger);">${Utils.escapeHtml(a.injury.type)}${TE().injuryDeficitOverall(a) >= 1 ? ` · −${Math.round(TE().injuryDeficitOverall(a))} OVR so far` : ''}</span>
             <span style="color:var(--text-dim);">${a.injury.weeksRemaining} of ${a.injury.totalWeeks} wk remaining</span>
           </div>`).join('') : '<div style="color:var(--text-dim);">No injuries. Keep managing those fatigue levels.</div>'}
         ${recovering.length ? `
@@ -256,7 +338,7 @@
           ${recovering.map((a) => `
           <div class="attr-row" style="padding:6px 0;">
             <span>${UI.personName(game, 'ath', a.id, a.fullName, { person: a, link: false })} <span style="color:var(--text-dim);">(${a.gender === 'M' ? 'M' : 'W'} • ${a.classYear})</span></span>
-            <span style="color:var(--warning);">Rebuilding fitness, sharpness & confidence</span>
+            <span style="color:var(--warning);">Rebuilding fitness, sharpness & confidence${TE().injuryDeficitOverall(a) >= 1 ? ` · ${Math.round(TE().injuryDeficitOverall(a))} OVR to win back` : ''}</span>
             <span style="color:var(--text-dim);">~${Math.max(1, a.recentInjuryWeeks || 1)} wk to full strength</span>
           </div>`).join('')}` : ''}
       </div>`;
@@ -292,6 +374,9 @@
       if (hint) {
         const avgChronic = Math.round(Utils.average(roster.map((a) => a.chronicMileage || miles)));
         const taper = miles <= avgChronic - 15;
+        const planMeta = TE().planMetaFor(game.training[activeGender]);
+        const realTaper = TE().isTaperWeek(miles, avgChronic, planMeta);
+        const sf = TE().squadForm(game, school, activeGender);
         const fragile = roster.filter((a) => !a.injury && miles > TE().safeMileage(a) &&
           game.training.mileageOverrides[a.id] === undefined).length;
         // Gendered volume bands (mileage rebalance): men typically absorb
@@ -301,12 +386,24 @@
         const strongAt = women ? 66 : 78;
         const lowAt = women ? 44 : 50;
         let msg;
-        if (taper) msg = `📉 TAPER: ${miles} mi vs ~${avgChronic} mi chronic load — fatigue sheds, sharpness spikes. Time it for championships; hold it too long and fitness fades.`;
+        if (realTaper && game.week <= D.CALENDAR.NATIONAL_WEEK && sf && !sf.peakUsed) msg = `⚡ TAPER: ${miles} mi vs ~${avgChronic} mi recent load, with a quality session — this SPENDS your one peak of the season. Your squad peaks for <strong>Week ${game.week + 1} — ${Utils.escapeHtml(weekMeetLabel(game, game.week + 1))}</strong>, keeps a third of it the week after, then it's gone.`;
+        else if (realTaper && sf && sf.peakUsed) msg = `📉 Taper miles: ${miles} mi vs ~${avgChronic} mi — your peak is already spent this season, so this only sheds fatigue (and Base fades).`;
+        else if (taper && planMeta.qualityDays < 1) msg = `🛌 Recovery week: ${miles} mi with no quality session — fatigue sheds and your peak is saved for later.`;
+        else if (taper) msg = `📉 Lighter week: ${miles} mi vs ~${avgChronic} mi recent load — fatigue sheds. (A real taper is about a 30% cut — the Championship taper preset.)`;
         else if (miles >= heavyAt) msg = `🔥 Heavy volume: maximum aerobic development, but fatigue and injury risk climb — only ${women ? 'exceptionally durable women survive weeks this big (the ceiling sits below the men\'s)' : `durable athletes survive ${miles} miles`}.`;
         else if (miles >= strongAt) msg = `Strong aerobic block: real Stamina/Threshold gains at a manageable cost.`;
         else if (miles <= lowAt) msg = `⚡ Low volume: fresh and sharp with better speed work — but endurance and long-term fitness will stagnate.`;
         else msg = `Moderate volume: balanced development and recovery.`;
         if (fragile > 0) msg += ` <span style="color:var(--danger);">⚠ ${fragile} runner${fragile > 1 ? 's' : ''} above their durable limit.</span>`;
+        // Load spikes (Update 25): a jump well above a runner's recent load
+        // raises injury risk — miles or quality work.
+        const meta = TE().planMetaFor(game.training[activeGender]);
+        const spiking = roster.filter((a) => {
+          if (a.injury) return false;
+          const m = game.training.mileageOverrides[a.id] ?? miles;
+          return TE().loadSpike(m, a.chronicMileage, meta.intensity, a.chronicIntensity).mult > 1.05;
+        }).length;
+        if (spiking > 0) msg += ` <span style="color:var(--warning);">⚠ Load spike for ${spiking} runner${spiking > 1 ? 's' : ''}: this week jumps well above their recent miles or quality work — higher injury risk. Build up gradually (Ideal Mileage ramps for you).</span>`;
         hint.innerHTML = msg;
       }
     };
@@ -400,7 +497,7 @@
         sel.classList.toggle('hard', !!D.WORKOUTS[sel.value].hard);
         sel.classList.toggle('easy', !D.WORKOUTS[sel.value].hard);
         const hint = container.querySelector(`#hint-${i}`);
-        if (hint) hint.textContent = WORKOUT_HINTS[sel.value];
+        if (hint) hint.textContent = hintFor(sel.value);
         refreshPhaseBanner();
         preview();
       });

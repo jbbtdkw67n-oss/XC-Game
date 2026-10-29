@@ -39,6 +39,7 @@
  *   portal:opened       (count, mine[], mineCount)         portal.js
  *   nationals:selection ({M, W} bid status)                races.js (field set)
  *   jobs:newOpening     (schoolId, name, division)         careers.js evolveJobMarket
+ *   jobs:promotionOffer (schoolId, name)                   careers.js (assistant out-rates head coach)
  */
 (function () {
   const Utils = window.XCD.core.Utils;
@@ -174,6 +175,11 @@
       priority: 1, screen: 'dashboard', icon: '📞',
       title: `New opening: ${p.name}`,
       body: `A ${p.division} head-coaching search begins — it's on the job market board.`
+    }),
+    'jobs:promotionOffer': (p) => ({
+      priority: 3, screen: 'jobs', icon: '🎉',
+      title: `Promotion offer: head coach at ${p.name}`,
+      body: 'You now out-rate your head coach — the athletic director offers you the job. It is on the job offers board.'
     }),
     'career:fired': () => ({
       priority: 3, screen: 'jobs', icon: '🚪',

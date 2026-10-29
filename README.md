@@ -14,6 +14,112 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.4 — Season Form: Base, Sharpening & One Peak Per Season
+
+- **Base and Sharpening.** Fitness is now **Base**: built by mileage,
+  threshold work, and long runs. It's slow to build and slow to fade, and it
+  sets the *ceiling* for sharpening. Sharpness is now **Sharpening**: built
+  by intervals, speed, race simulations, and racing itself. It builds fast,
+  fades fast, and can never climb past what the Base supports.
+- **Staleness.** Hard sharp work held week after week goes flat. Interval-
+  and speed-heavy weeks pile up staleness, which drags sharpening and race
+  form down. Easy and recovery weeks clear it. Interval blocks in the summer
+  make a squad sharp by mid-season, but on a thin base and stale by
+  November. Threshold work builds a higher ceiling to sharpen into late.
+- **Trade-offs per workout.** Every workout shows what it builds (Base /
+  Sharp / Stale pips) and its weekly limit. Threshold stacks deeper (3 tempos
+  a week) than intervals or speed (2). Sessions past a limit cost extra
+  injury risk, fatigue, and staleness. Four quality sessions plus a long run
+  is now a legitimate **aggressive block**: the biggest development of any
+  week, paid for in fatigue, injury risk, and staleness.
+- **One peak per season.** Normal training charges the taper, reaching full
+  after about 4 weeks. Running the **Championship taper** miles (a ~30%
+  cut) with at least one quality session spends it. Your squad peaks for
+  the **next** week's race, keeps about a third of it the week after, then
+  it's gone. Taper for Conference and you'll fly there, but you'll be well
+  short of that by Nationals. A second taper that season only sheds fatigue.
+  A cut with no quality session is a recovery week and saves the peak.
+  Ideal Mileage never spends it by accident.
+- **Form matters on race day.** A well-timed peak is worth about 2%, and a
+  stale or thin-based squad gives up about as much. A peaked runner beats a
+  stale one by about 4%, up from about 1.4% before. Race times are centered
+  so they stay realistic.
+- **Squad Form card.** The Training screen shows your top 7's Base,
+  Sharpening against its ceiling, and Staleness. It also shows the taper
+  (charging, charged, peaking, or spent), names the meet the peak would land
+  on, gives a one-line verdict, and charts form by week. The Squad Monitor
+  shows Base and Sharp (⚡ peaking, 🥱 stale), and the Schedule marks your
+  peak week with ⚡.
+- **The CPU plays by the same rules.** Each CPU staff picks a season style:
+  interval-first (speed-minded and poor staffs), threshold-first
+  (Norwegian, threshold, polarized, high-mileage), or classic. Each week
+  until mid-October it reads where its team stands. Contenders peak for
+  Nationals, bubble teams for Regionals (they must earn the bid), and
+  everyone else for their Conference meet. Poor staffs misjudge their team
+  more often and botch about 30% of tapers (a week early, a week late, or
+  never), against about 5% for elite staffs. Good staffs also back off when
+  their squad goes stale.
+
+## Version 15.3 — Raw Talent Surges
+
+- **Raw talents grow fast.** Development speed has always scaled with the gap
+  between a runner's overall and their ceiling, but it stopped growing past
+  a gap of about 30. Now a huge gap keeps paying out, in season and over the
+  summer. A 23-overall freshman with 99 potential typically jumps +28 to +34
+  in their first year, about +20 in the second, then tapers off as they near
+  their ceiling. Runners with ordinary gaps develop exactly as before, and
+  world-wide average and top-end overalls are unchanged in 8-season tests.
+  Spotting these diamonds in the rough is a real recruiting edge. Keeping
+  them, once they're good enough to be poached through the portal, is the
+  risk.
+
+## Version 15.2 — Load Spikes & Injury Comebacks
+
+- **Big jumps in load raise injury risk.** Each runner now carries a rolling
+  average of their recent miles and of their recent quality work (hard
+  sessions). A week that jumps miles more than about 20% above that
+  average, or quality work about 30% above it, raises injury risk. The
+  bigger the jump, the bigger the risk, up to about 2.6×. Cutting load is
+  never penalized. The averages fade during an injury layoff, so throwing a
+  runner straight back into full training is a spike, and easing them back
+  over a few weeks is not.
+- **Smart ramping.** Ideal Mileage builds volume gradually. Competent CPU
+  staffs ramp volume too, and ease returning runners back on a reduced
+  load. Poor staffs don't, and their runners get hurt more. The Training
+  screen warns when the week's plan spikes anyone.
+- **Injuries cost real overall, and it comes back fast.** Every week out
+  costs about 2 overall, aerobic ratings fading fastest, up to a 20-overall
+  hole. The loss is banked. Once the runner is training again, a quarter of
+  what's left comes back each week, so a six-week layoff (about −12) is
+  rebuilt in roughly eight or nine weeks, far faster than it was first
+  built. Anything still missing at season's end returns over the summer.
+  The Injury Report shows the overall lost so far and what's left to win
+  back.
+
+## Version 15.1 — Restless Athletic Directors & Promotion From Within
+
+- **No more lifers at the bottom.** Low prestige no longer protects a coach.
+  Every athletic director now expects at least to stay out of the bottom 35%
+  of the division. The deeper a program sits below that line, the faster the
+  seat heats. A long tenure spent there adds pressure every year, so a
+  cellar-dweller no longer keeps its coach for 27 years. CPU athletic
+  directors are also a little more impulsive and less predictable. This
+  applies to you too.
+- **Fair to new hires and rebuilds.** A new coach gets two seasons of grace
+  (half the heat), and climbing the standings from one year to the next
+  cools the seat.
+- **Promotion from within.** As an assistant, if your coach overall rises
+  above your head coach's, the athletic director offers you the head job at
+  your own program. The offer appears with the job offers after Nationals,
+  or later in the offseason the moment spent points put you ahead. Take it
+  or turn it down like any offer. If you take it, the old head coach retires
+  (62+) or enters the coaching market, and you keep your roster and
+  recruiting board.
+- **Recruiting coordinators earn more.** As an assistant, a strong
+  recruiting class now pays out tiered dynasty points: top 3 = 4, top 5 = 3,
+  top 10 = 2, top 25 = 1 (before the 1.5× progression rate; DII ×0.85,
+  DIII ×0.7). Head coaches still earn 1 for a top-10 class.
+
 ## Version 15.0 — Pick Your Top 7, a Fresh Start Each Season & Championship Upsets
 
 - **🏃 Choose who races.** The Roster screen has a new **Race-Day Top 7**

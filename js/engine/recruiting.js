@@ -2023,8 +2023,16 @@
     if (playerClass.length) {
       gameState.logNews(`Your ${playerClass.length}-runner class signs — ranked #${playerRank + 1} in ${divLabel} (#${playerEntry.rank} nationally).`);
       const coach = gameState.getPlayerCoach();
-      // Elite recruiting hauls feed coach progression.
-      if (playerRank >= 0 && playerRank < 10 && coach) {
+      // Elite recruiting hauls feed coach progression. An assistant's
+      // recruiting class IS their job (user request), so a recruiting
+      // coordinator earns a bigger, tiered payout — top-3 4 pts, top-5 3,
+      // top-10 2, top-25 1 — scaled for the lower divisions.
+      if (gameState.isAssistant() && coach && playerRank >= 0 && playerRank < 25) {
+        const base = playerRank < 3 ? 4 : playerRank < 5 ? 3 : playerRank < 10 ? 2 : 1;
+        const divW = { DI: 1, DII: 0.85, DIII: 0.7 }[playerDiv] ?? 1;
+        const got = window.XCD.engine.Coaching.awardPoints(coach, base * divW);
+        gameState.logNews(`📋 Top-${playerRank < 3 ? 3 : playerRank < 5 ? 5 : playerRank < 10 ? 10 : 25} ${playerDiv} recruiting class: +${got} dynasty point${got === 1 ? '' : 's'} for the recruiting coordinator${got ? '' : ' (banked toward the next)'}.`);
+      } else if (playerRank >= 0 && playerRank < 10 && coach) {
         const got = window.XCD.engine.Coaching.awardPoints(coach, 1);
         gameState.logNews(`📋 Top-10 ${playerDiv} recruiting class: +${got} dynasty point${got === 1 ? '' : 's'}${got ? '' : ' (half a point banked toward the next)'}.`);
       }

@@ -600,20 +600,27 @@
   // Easy Run fatigue eased (Update 13, Phase 7): easy running is genuine
   // recovery, so its net fatigue is a touch lower (−4) — fresher legs across a
   // training block without touching the hard-day balance.
+  // Form trade-offs (Update 25, Stage 3): every session also feeds the
+  // season-form model —
+  //   base  = Base built (slow to build, slow to fade; sets the ceiling)
+  //   sharp = Sharpening stimulus (fast to build, fast to fade)
+  //   stale = staleness it piles on (intensity held too long goes flat)
+  //   stack = sessions per week before stacking penalties (threshold work
+  //           stacks deeper than intervals)
   D.WORKOUTS = {
-    rest:      { label: 'Rest Day',          short: 'Rest',  fatigue: -13, injury: 0.0, hard: false, attrs: {}, isRest: true },
-    easy:      { label: 'Easy Run',          short: 'Easy',  fatigue: -4, injury: 0.4, hard: false, attrs: { stamina: 0.5 } },
-    long:      { label: 'Long Run',          short: 'Long',  fatigue: 10, injury: 1.1, hard: true,  attrs: { stamina: 3.0, vo2Max: 1.0 } },
-    tempo:     { label: 'Tempo',             short: 'Tempo', fatigue: 9,  injury: 1.0, hard: true,  attrs: { lactateThreshold: 3.0, stamina: 1.0 } },
+    rest:      { label: 'Rest Day',          short: 'Rest',  fatigue: -13, injury: 0.0, hard: false, attrs: {}, isRest: true, base: 0, sharp: 0, stale: 0 },
+    easy:      { label: 'Easy Run',          short: 'Easy',  fatigue: -4, injury: 0.4, hard: false, attrs: { stamina: 0.5 }, base: 0, sharp: 0, stale: 0 },
+    long:      { label: 'Long Run',          short: 'Long',  fatigue: 10, injury: 1.1, hard: true,  attrs: { stamina: 3.0, vo2Max: 1.0 }, base: 0.9, sharp: 0, stale: 0, stack: 1 },
+    tempo:     { label: 'Tempo',             short: 'Tempo', fatigue: 9,  injury: 1.0, hard: true,  attrs: { lactateThreshold: 3.0, stamina: 1.0 }, base: 0.8, sharp: 0.3, stale: 0.1, stack: 3 },
     // Double Threshold (Update 13, Phase 7): two threshold sessions in a day —
     // roughly twice the physiological benefit of one Tempo, fatigue on par
     // with an Interval session, and a higher injury risk when overused. An
     // advanced tool that should complement, not replace, single tempo work.
-    double:    { label: 'Double Threshold', short: '2×Thr', fatigue: 12, injury: 1.25, hard: true, attrs: { lactateThreshold: 6.0, stamina: 2.0 } },
-    hills:     { label: 'Hills',             short: 'Hills', fatigue: 11, injury: 1.4, hard: true,  attrs: { vo2Max: 2.0, speed: 2.0, runningEconomy: 2.0 } },
-    intervals: { label: 'Intervals',         short: 'Int',   fatigue: 12, injury: 1.3, hard: true,  attrs: { vo2Max: 3.0, speed: 1.0 } },
-    speed:     { label: 'Speed Development', short: 'Spd',   fatigue: 8,  injury: 1.2, hard: true,  attrs: { speed: 3.0, runningEconomy: 2.0 } },
-    racesim:   { label: 'Championship Simulation', short: 'Sim', fatigue: 13, injury: 1.5, hard: true, attrs: { vo2Max: 1.5, lactateThreshold: 1.5, stamina: 0.5 } }
+    double:    { label: 'Double Threshold', short: '2×Thr', fatigue: 12, injury: 1.25, hard: true, attrs: { lactateThreshold: 6.0, stamina: 2.0 }, base: 1.3, sharp: 0.3, stale: 0.2, stack: 1 },
+    hills:     { label: 'Hills',             short: 'Hills', fatigue: 11, injury: 1.4, hard: true,  attrs: { vo2Max: 2.0, speed: 2.0, runningEconomy: 2.0 }, base: 0.6, sharp: 0.6, stale: 0.3, stack: 2 },
+    intervals: { label: 'Intervals',         short: 'Int',   fatigue: 12, injury: 1.3, hard: true,  attrs: { vo2Max: 3.0, speed: 1.0 }, base: 0.35, sharp: 2.0, stale: 1.0, stack: 2, track: true },
+    speed:     { label: 'Speed Development', short: 'Spd',   fatigue: 8,  injury: 1.2, hard: true,  attrs: { speed: 3.0, runningEconomy: 2.0 }, base: 0.15, sharp: 1.6, stale: 0.6, stack: 2, track: true },
+    racesim:   { label: 'Championship Simulation', short: 'Sim', fatigue: 13, injury: 1.5, hard: true, attrs: { vo2Max: 1.5, lactateThreshold: 1.5, stamina: 0.5 }, base: 0.5, sharp: 2.6, stale: 0.8, stack: 1, track: true }
   };
 
   D.DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -646,7 +653,7 @@
       ideal: 'Sharpen while shedding load: at most 2 hard days, speed or a race simulation, mostly easy running.',
       fit: (m) => m.hardDays >= 1 && m.hardDays <= 2 && (m.speedDays > 0 || m.racesimDays > 0) },
     { key: 'championship', label: 'Championship Phase', icon: '🏆', upTo: 15,
-      ideal: 'The taper: one hard touch at most, rest days banked, everything else easy.',
+      ideal: 'Peak once: the week BEFORE your target meet, run the Championship Taper miles with one quality session. You get one peak per season.',
       fit: (m) => m.hardDays <= 1 && (m.restDays > 0 || m.easyDays >= 4) },
     // Postseason recovery (Update 13, Phase 7): the week immediately after
     // Nationals is a mandatory complete recovery week — skip it and

@@ -215,7 +215,7 @@
    */
   function evolveJobMarket(gameState, rng) {
     if (searchClosed(gameState)) return; // committed for the season — no new listings
-    if (gameState.isAssistant()) return;
+    if (gameState.isAssistant()) { refreshInternalPromotion(gameState); return; }
     if (gameState.seasonPhase !== 'Offseason' || gameState.week >= OFFER_EXPIRY_WEEK) return;
     const school = gameState.getPlayerSchool();
     const coach = gameState.getPlayerCoach();
@@ -400,20 +400,83 @@
       });
     }
 
+    // C) Promotion from within (user request): an assistant who now out-rates
+    //    their own head coach is offered the head job at their program.
+    const internal = internalPromotionOffer(gameState);
+    if (internal) offers.push(internal);
+
     if (!offers.length) { gameState.jobOffers = null; return; }
-    offers.sort((a, b) => b.prestige - a.prestige);
+    offers.sort((a, b) => (b.internal ? 1 : 0) - (a.internal ? 1 : 0) || b.prestige - a.prestige);
     const promos = offers.filter((o) => o.promotion).length;
     gameState.jobOffers = {
       year: gameState.year, expiresWeek: OFFER_EXPIRY_WEEK, offers,
       promotion: promos > 0
     };
-    if (promos) {
-      gameState.logNews(`📞 Head-coaching interest: ${promos === 1 ? offers.find((o) => o.promotion).schoolName + ' wants' : promos + ' programs want'} to make you a head coach.`);
+    if (internal) announceInternalPromotion(gameState, internal);
+    const outside = promos - (internal ? 1 : 0);
+    if (outside) {
+      gameState.logNews(`📞 Head-coaching interest: ${outside === 1 ? offers.find((o) => o.promotion && !o.internal).schoolName + ' wants' : outside + ' programs want'} to make you a head coach.`);
     }
     const seats = offers.filter((o) => o.assistantRole);
     if (seats.length) {
       gameState.logNews(`📞 ${seats.map((o) => o.schoolName).join(' and ')} ${seats.length === 1 ? 'wants' : 'want'} you on staff — a bigger assistant job, a step up the ladder.`);
     }
+  }
+
+  /*
+   * Promotion from within (user request). When the player, as an assistant,
+   * surpasses their head coach's overall rating, the athletic director offers
+   * them the head job at their own program. It arrives with the job offers
+   * after Nationals — or later in the offseason, the moment spent dynasty
+   * points push the assistant past the boss — and, like any offer, it can be
+   * taken or turned down. Returns the offer row, or null.
+   */
+  function internalPromotionOffer(gameState) {
+    if (!gameState.isAssistant()) return null;
+    const school = gameState.getPlayerSchool();
+    const coach = gameState.getPlayerCoach();
+    const head = school && school.coachId && gameState.world.coaches[school.coachId];
+    if (!coach || !head || head.isPlayer || head.id === coach.id) return null;
+    if (coach.overallRating <= head.overallRating) return null;
+    const hs = school.historicalSuccess || {};
+    return {
+      schoolId: school.id, schoolName: school.name, prestige: school.prestige, conference: school.conference,
+      division: school.division || 'DI', budget: school.budget.total, facilities: school.facilitiesOverall,
+      academics: school.academics, bestRank: null,
+      expectations: Math.round((window.XCD.data.divisionFor(school).expectations || 1) * 100),
+      natTitles: (hs.nationalTitlesM || 0) + (hs.nationalTitlesW || 0),
+      confTitles: (hs.conferenceTitlesM || 0) + (hs.conferenceTitlesW || 0),
+      repFit: 100,
+      promotion: true,
+      internal: true,
+      replacesId: head.id,
+      kind: 'Head coach — promotion from within'
+    };
+  }
+
+  function announceInternalPromotion(gameState, offer) {
+    const coach = gameState.getPlayerCoach();
+    const head = gameState.getCoach(offer.replacesId);
+    gameState.logNews(`📞 PROMOTION OFFER: Your ${coach.overallRating} overall now tops head coach ${head ? head.fullName : 'your boss'}'s ${head ? head.overallRating : '?'} — ${offer.schoolName} offers you its head-coaching job. Take it from the job offers before the offseason ends.`);
+    const Events = window.XCD.engine.Events;
+    if (Events) Events.emit(gameState, 'jobs:promotionOffer', { schoolId: offer.schoolId, name: offer.schoolName });
+  }
+
+  // Later in the offseason (spent points can tip the balance), add the
+  // promotion-from-within offer to the board if it is newly earned.
+  function refreshInternalPromotion(gameState) {
+    if (gameState.seasonPhase !== 'Offseason' || gameState.week >= OFFER_EXPIRY_WEEK) return;
+    const market = gameState.jobOffers;
+    if (market && market.offers.some((o) => o.internal)) return;
+    const offer = internalPromotionOffer(gameState);
+    if (!offer) return;
+    if (market) {
+      market.offers.unshift(offer);
+      market.promotion = true;
+    } else {
+      gameState.jobOffers = { year: gameState.year, expiresWeek: OFFER_EXPIRY_WEEK, offers: [offer], promotion: true };
+    }
+    announceInternalPromotion(gameState, offer);
   }
 
   /*
@@ -531,6 +594,57 @@
 
       gameState.logNews(`📶 CAREER MOVE: You leave ${oldSchool.name} for a bigger assistant post at ${newSchool.name} — a step up the recruiting ladder.`);
       return { ok: true, message: `Welcome to the ${newSchool.name} staff!` };
+    }
+
+    // Promotion from within: the assistant takes over their own program and
+    // the head coach they out-rated steps aside (retiring if 62+, otherwise
+    // into the free-agent pool). Recruiting, roster, and board carry over.
+    if (gameState.isAssistant() && offer && offer.internal) {
+      const Legacy = window.XCD.engine.Legacy;
+      const school = gameState.getPlayerSchool();
+      const coach = gameState.getPlayerCoach();
+      Legacy.closeStint(gameState, coach, school, gameState.year, 'promoted', true);
+      if (school.assistantId === coach.id) school.assistantId = null;
+      Legacy.creditPromotion(gameState, coach, school, gameState.year);
+
+      const head = school.coachId && gameState.world.coaches[school.coachId];
+      let headLine = '';
+      if (head && !head.isPlayer) {
+        const retiring = (head.age || 45) >= 62;
+        Legacy.closeStint(gameState, head, school, gameState.year, retiring ? 'retired' : 'fired');
+        if (retiring) {
+          Legacy.recordRetiredCoach(gameState, head, 'retired');
+          delete gameState.world.coaches[head.id];
+          headLine = ` ${head.fullName} retires.`;
+        } else {
+          head.schoolId = null;
+          head.hotSeat = 0;
+          head.hotSeatYears = 0; head.podiumMissStreak = 0;
+          head.poolYears = 0;
+          headLine = ` ${head.fullName} steps aside and enters the coaching market.`;
+        }
+      }
+      coach.role = 'Head';
+      gameState.playerRole = 'Head';
+      window.XCD.engine.Coaching.convertAssistantPrestige(coach);
+      school.coachId = coach.id;
+      coach.yearsAtSchool = 0;
+      coach.hotSeat = 0;
+      coach.hotSeatYears = 0; coach.podiumMissStreak = 0;
+      coach.seatTrack = null;
+      Legacy.openStint(gameState, coach, school, gameState.year + 1);
+      school.coachChangedYear = gameState.year;
+
+      gameState.training.overrides = {};
+      gameState.training.mileageOverrides = {};
+      closeJobSearch(gameState);
+      gameState.weeklyFlow.trainingConfirmed = false; // a head coach plans training
+
+      gameState.career.stops = gameState.career.stops || [];
+      gameState.career.stops.push({ school: school.name, startYear: gameState.year + 1, role: 'Head' });
+
+      gameState.logNews(`🎉 PROMOTION: ${school.name} names you head coach — promoted from within after out-rating your boss.${headLine} Hire an assistant on My Program.`);
+      return { ok: true, message: `You're the head coach at ${school.name}!` };
     }
 
     // Assistant → head coach promotion: a distinct transition. The assistant

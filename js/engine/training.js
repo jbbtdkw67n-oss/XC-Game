@@ -101,8 +101,64 @@
     sharpsim:  ['easy', 'racesim', 'easy', 'speed', 'rest', 'long', 'easy'],         // elite: rehearse the championship
     strength:  ['easy', 'hills', 'easy', 'tempo', 'easy', 'long', 'easy'],           // hill/strength emphasis
     base:      ['easy', 'easy', 'easy', 'tempo', 'easy', 'long', 'easy'],            // aerobic base
-    recovery:  ['easy', 'easy', 'rest', 'easy', 'easy', 'easy', 'easy']              // absorb the work
+    recovery:  ['easy', 'easy', 'rest', 'easy', 'easy', 'easy', 'easy'],             // absorb the work
+    // Season styles (Update 25, Stage 3):
+    early:     ['easy', 'intervals', 'easy', 'intervals', 'easy', 'long', 'easy'],   // sharp fast — thin base, goes stale
+    threshold: ['easy', 'tempo', 'easy', 'tempo', 'easy', 'long', 'easy'],           // build the ceiling, sharpen late
+    champ:     ['easy', 'tempo', 'rest', 'easy', 'easy', 'easy', 'easy']             // between championship rounds
   };
+
+  /*
+   * CPU season plan (Update 25, Stage 3). Each staff picks a season style
+   * once a year — speed-minded and poor staffs chase early sharpness with
+   * interval blocks; threshold-minded staffs build Base and sharpen late —
+   * and reads where its team stands to pick the meet worth peaking for:
+   * contenders peak for Nationals, bubble teams for Regionals (they have to
+   * earn the bid), the rest for their Conference meet. The read is noisier
+   * for poor staffs, and the taper itself can be botched — a week early
+   * (peaked for the wrong meet), a week late (the peak lands after the
+   * race), or never at all. Better staffs botch it far less often.
+   */
+  function seasonStyle(coach, year) {
+    const craft = coachCraft(coach);
+    const philo = coach && coach.trainingPhilosophy;
+    const roll = coachRoll(coach, year, 71);
+    if (philo === 'speed') return roll < 0.7 ? 'early' : 'classic';
+    if (craft < 45 && roll < 0.4) return 'early';
+    if (['norwegian', 'threshold', 'polarized', 'high-mileage'].includes(philo)) return 'threshold';
+    return 'classic';
+  }
+
+  function cpuPeakPlan(gameState, school, gender, coach) {
+    const year = gameState.year;
+    school.peakPlan = school.peakPlan || {};
+    let p = school.peakPlan[gender];
+    if (!p || p.year !== year) {
+      const craft = coachCraft(coach);
+      const botchChance = Utils.clamp((62 - craft) / 70, 0.03, 0.4);
+      const salt = gender === 'W' ? 5 : 0;
+      let botch = null;
+      if (coachRoll(coach, year, 61 + salt) < botchChance) {
+        const r = coachRoll(coach, year, 67 + salt);
+        botch = r < 0.5 ? 'early' : r < 0.8 ? 'late' : 'none';
+      }
+      p = school.peakPlan[gender] = { year, target: CAL.NATIONAL_WEEK, taperWeek: CAL.NATIONAL_WEEK - 1, botch };
+    }
+    // Re-read the team's standing each week until the plan locks.
+    if (gameState.week <= CAL.CONFERENCE_WEEK - 2) {
+      const row = gameState.rankings && (gameState.rankings[gender] || []).find((r) => r.schoolId === school.id);
+      const field = ((D.divisionFor(school) || {}).championship || {}).nationalsFieldSize || 31;
+      const craft = coachCraft(coach);
+      // Poor staffs misjudge their own team (deterministic per coach-week).
+      const noise = (coachRoll(coach, gameState.week + year * 31, 73) - 0.5) * Utils.clamp((70 - craft) / 50, 0.05, 0.8);
+      const perceived = (row ? row.rank : 999) * (1 + noise);
+      p.target = perceived <= field * 0.7 ? CAL.NATIONAL_WEEK
+        : perceived <= field * 1.5 ? CAL.REGIONAL_WEEK : CAL.CONFERENCE_WEEK;
+      p.taperWeek = p.botch === 'none' ? -1
+        : p.target - 1 + (p.botch === 'early' ? -1 : p.botch === 'late' ? 1 : 0);
+    }
+    return p;
+  }
 
   /*
    * CPU coaching intelligence (Update 6, Section 5). A staff's training +
@@ -134,19 +190,23 @@
    * staffs finally back off a truly exhausted roster — the CPU no longer
    * arrives at championship season running on empty.
    */
-  function aiPlan(gameState, coach, avgFatigue = 0) {
+  function aiPlan(gameState, coach, avgFatigue = 0, ctx = {}) {
     const week = gameState.week;
     const craft = coachCraft(coach);
+    const peak = ctx.peak;
+    const style = seasonStyle(coach, gameState.year);
 
-    // Championship weeks: a genuine taper with rest days built in. Poor
-    // staffs still botch the peak sometimes — just far less often than the
-    // old chronic overtraining (Update X buff).
+    // The season's one taper (Update 25): the week before the target meet
+    // (or whenever a botched plan puts it).
+    if (peak && week === peak.taperWeek) return AI_TEMPLATES.taper.slice();
+
+    // Championship weeks between rounds: light, sharp, rested. Poor staffs
+    // still overtrain into the biggest meets sometimes.
     if (week >= CAL.CONFERENCE_WEEK && week <= CAL.NATIONAL_WEEK) {
       if (craft < 45 && coachRoll(coach, week, 11) < 0.25) return AI_TEMPLATES.build.slice(); // overtrains into the biggest meets
-      // Peaking for nationals after conference: a squad still carrying real
-      // fatigue gets a genuine recovery week between the rounds.
+      // A squad still carrying real fatigue gets a genuine recovery week.
       if (avgFatigue >= 62 && craft >= 45) return AI_TEMPLATES.recovery.slice();
-      return AI_TEMPLATES.taper.slice();
+      return AI_TEMPLATES.champ.slice();
     }
     if (racesThisWeek(gameState, coach)) {
       // Conservative / development-minded staffs rest more before meets.
@@ -165,7 +225,12 @@
     }
     // Track prep (weeks 17+) and the summer base block: aerobic base with a
     // little quality — after the mandated down week, 2-3 quality days are fine.
-    if (week > CAL.OFFSEASON_START || week <= CAL.SUMMER_WEEKS) return AI_TEMPLATES.base.slice();
+    if (week > CAL.OFFSEASON_START) return AI_TEMPLATES.base.slice();
+    // Interval-first staffs start sharpening in the summer (Update 25).
+    if (week <= CAL.SUMMER_WEEKS) return (style === 'early' ? AI_TEMPLATES.early : AI_TEMPLATES.base).slice();
+    // Staleness watch: a good staff sees a flat squad and backs off the
+    // intervals; a poor one keeps hammering.
+    if (craft >= 60 && (ctx.avgStale || 0) >= 16) return AI_TEMPLATES.threshold.slice();
     // Double Threshold (Update 13, Phase 8): elite threshold-minded staffs work
     // a controlled double day through the build/specific phases — big lactate-
     // threshold gains their advanced athletes can absorb. Norwegian staffs, who
@@ -190,6 +255,9 @@
     if (craft >= 65 && week > CAL.SUMMER_WEEKS + 2 && coachRoll(coach, week, 17) < 0.18) {
       return AI_TEMPLATES.recovery.slice();
     }
+    // Season style (Update 25): interval blocks early, or threshold first.
+    if (style === 'early' && week <= 8) return AI_TEMPLATES.early.slice();
+    if (style === 'threshold' && week <= 9) return AI_TEMPLATES.threshold.slice();
     // Poor staffs peak too early: quality sharpening long before it matters.
     if (craft < 45 && coachRoll(coach, week, 19) < 0.3) return AI_TEMPLATES.sharpen.slice();
     // Average staffs make the occasional odd call.
@@ -204,16 +272,16 @@
    * trims, and a genuine championship taper. Poor staffs (Update 6) miss
    * the taper: they keep the volume high straight into championships.
    */
-  function aiMileage(gameState, coach, gender) {
+  function aiMileage(gameState, coach, gender, peak) {
     const Coaching = window.XCD.engine.Coaching;
     let m = Coaching ? Coaching.preferredMileage(coach, gender) : 70;
     const week = gameState.week;
-    const craft = coachCraft(coach);
     if (week >= CAL.OFFSEASON_START) m = Math.round(m * 0.8);        // offseason maintenance
+    // The season's one taper (Update 25): the Championship Taper cut.
+    else if (peak && week === peak.taperWeek) m = Math.round(m * 0.58);
     else if (week <= CAL.SUMMER_WEEKS) m += 8;                       // summer volume block
-    // Championship taper: poor staffs still under-taper, but no longer march
-    // into nationals at ~full volume (Update X CPU fitness buff).
-    else if (week >= CAL.CONFERENCE_WEEK) m = Math.round(m * (craft < 45 ? 0.78 : 0.62));
+    // Championship rounds: a race-week trim — the peak comes from the taper.
+    else if (week >= CAL.CONFERENCE_WEEK) m = Math.round(m * 0.85);
     else if (racesThisWeek(gameState, coach)) m = Math.round(m * 0.85); // race-week trim
     return Utils.clamp(m, D.MILEAGE.MIN, D.MILEAGE.MAX);
   }
@@ -229,12 +297,17 @@
         : (t.mileage && t.mileage[gender] !== undefined ? t.mileage[gender] : D.MILEAGE.DEFAULT[gender]);
       return Utils.clamp(Math.round(m), D.MILEAGE.MIN, D.MILEAGE.MAX);
     }
-    let m = aiMileage(gameState, coach, gender);
+    const peak = school.peakPlan && school.peakPlan[gender] && school.peakPlan[gender].year === gameState.year
+      ? school.peakPlan[gender] : null;
+    let m = aiMileage(gameState, coach, gender, peak);
     // Smart AI staffs protect fragile runners from crushing volume —
     // poor talent evaluators don't notice until it's too late.
     const safe = safeMileage(athlete);
     const buffer = coach && coach.talentEval >= 55 ? 4 : 16;
     if (m > safe + buffer) m = safe + buffer;
+    // Competent staffs ramp volume instead of spiking it (Update 25) — most
+    // visibly when bringing a runner back from injury. Poor staffs don't.
+    if (coachCraft(coach) >= 50) m = Math.min(m, rampLimit(athlete));
     return Utils.clamp(m, D.MILEAGE.MIN, D.MILEAGE.MAX);
   }
 
@@ -277,8 +350,9 @@
     const v = mileage / 70;
     const chronic = chronicMileage || mileage;
     const taper = mileage <= chronic - 15;
-    let sharpTarget = Utils.clamp(133 - mileage * 0.85, 20, 95);
-    if (taper) sharpTarget = Math.min(95, sharpTarget + 10); // the taper pop
+    // Freshness from volume. (The old flat taper pop is gone: a real taper
+    // now spends the season's one peak — see applyForm.)
+    const sharpTarget = Utils.clamp(133 - mileage * 0.85, 20, 95);
     return {
       mileage,
       fatigueAdd: (mileage - 62) * 0.22 - (taper ? 3 : 0),
@@ -309,7 +383,8 @@
         fatigue: -16, fitness: 0, injuryMult: 0.2, devMult: 0.15,
         attrWeights: {}, hardDays: 0, hasLong: false, easyDays: 0,
         quality: { label: 'Resting', tone: 'warn' }, hillsDays: 0, speedDays: 0,
-        tempoDays: 0, doubleDays: 0, racesimDays: 0
+        tempoDays: 0, doubleDays: 0, racesimDays: 0, intensity: 0,
+        baseStim: 0, sharpStim: 0, trackSharp: 0, staleStim: 0, counts: {}, qualityDays: 0
       };
     }
     const loadMult = override === 'reduced' ? 0.55 : 1;
@@ -325,13 +400,23 @@
     let tempoDays = 0;
     let doubleDays = 0;
     let restDays = 0;
+    let intensity = 0; // the week's quality load (load-spike tracking)
+    // Season-form stimuli (Update 25, Stage 3): Base built, Sharpening
+    // (split so the indoor track can amplify track sessions), staleness.
+    let baseStim = 0, sharpStim = 0, trackSharp = 0, staleStim = 0;
+    const counts = {};
     const attrWeights = {};
 
     days.forEach((key) => {
       const w = D.WORKOUTS[key];
       fatigue += w.fatigue;
       injurySum += w.injury;
-      if (w.hard) hardDays++;
+      counts[key] = (counts[key] || 0) + 1;
+      baseStim += w.base || 0;
+      if (w.track) trackSharp += w.sharp || 0;
+      else sharpStim += w.sharp || 0;
+      staleStim += w.stale || 0;
+      if (w.hard) { hardDays++; intensity += w.fatigue; }
       if (w.isRest) restDays++;
       if (key === 'easy') easyDays++;
       if (key === 'hills') hillsDays++;
@@ -369,6 +454,16 @@
     // manageable stimulus; stacking two or more in a week sharply raises injury
     // risk and fatigue — it can't simply replace every tempo day.
     if (doubleDays >= 2) { injuryMult *= 1 + (doubleDays - 1) * 0.30; fatigue += (doubleDays - 1) * 4; }
+    // Stacking limits (Update 25, Stage 3): threshold work stacks deeper
+    // than intervals. Each session past a workout's weekly limit costs extra
+    // injury risk and fatigue — and piles on staleness if it is sharp work.
+    ['tempo', 'intervals', 'speed', 'hills', 'long'].forEach((key) => {
+      const excess = (counts[key] || 0) - (D.WORKOUTS[key].stack || 7);
+      if (excess <= 0) return;
+      injuryMult *= 1 + excess * 0.22;
+      fatigue += excess * 4;
+      staleStim += excess * (D.WORKOUTS[key].stale || 0) * 0.5;
+    });
 
     // Development quality: 2-3 hard days is the sweet spot; more is
     // overtraining, fewer is undertraining.
@@ -393,13 +488,23 @@
     // block rather than being penalized as "very heavy".
     const qualityPlusLong = hasLong && hardDays === 4 && easyDays >= 2;
     if (qualityPlusLong) devMult = Math.max(devMult, 1.15) + 0.10;
+    // Aggressive block (Update 25, Stage 3): four quality sessions plus the
+    // long run is a legitimate gamble, not plain overtraining — the biggest
+    // development of any week, paid for in fatigue, injury risk, and (if the
+    // quality is interval-heavy) staleness that can leave a squad cooked
+    // by the championships.
+    const qualityDays = hardDays - (hasLong ? 1 : 0);
+    const aggressive = hasLong && qualityDays === 4 && easyDays + restDays >= 2;
+    if (aggressive) devMult = 1.32;
     if (hardVariety >= 3) devMult += 0.05;       // varied stimulus
     if (hardDays >= 5) fatigue += 6;             // overtraining tax
 
     // Rest days (Update 3): one well-placed rest day sharpens without cost;
     // stacking them cuts weekly stimulus and slows long-term aerobic
     // development, threshold, and endurance gains.
-    let fitnessBuild = 1.2 + hardDays * 0.55 + (hasLong ? 0.35 : 0);
+    // Base build (Update 25): each session builds Base by its own weight —
+    // threshold and long runs build it most, intervals and speed little.
+    let fitnessBuild = 1.2 + baseStim;
     if (restDays >= 2) {
       const excess = restDays - 1;
       devMult *= Math.max(0.45, 1 - excess * 0.12);   // slowed development
@@ -407,7 +512,8 @@
     }
 
     let quality;
-    if (hardDays >= 5) quality = { label: 'Overtraining — injuries & burnout likely', tone: 'bad' };
+    if (aggressive) quality = { label: 'Aggressive block — 4 quality sessions: big gains now; watch fatigue, injuries & staleness', tone: 'warn' };
+    else if (hardDays >= 5) quality = { label: 'Overtraining — injuries & burnout likely', tone: 'bad' };
     else if (qualityPlusLong) quality = { label: 'Textbook build week — 3 quality sessions + a long run', tone: 'good' };
     else if (hardDays === 4) quality = { label: 'Very heavy — watch fatigue closely', tone: 'warn' };
     else if (restDays >= 3) quality = { label: 'Rest-heavy — fresh, but development stalls', tone: 'warn' };
@@ -423,6 +529,9 @@
       devMult: devMult * loadMult,
       attrWeights,
       hardDays, hasLong, hillsDays, speedDays, tempoDays, doubleDays, racesimDays, restDays, easyDays, quality,
+      intensity: intensity * loadMult,
+      baseStim: baseStim * loadMult, sharpStim: sharpStim * loadMult, trackSharp: trackSharp * loadMult,
+      staleStim: staleStim * loadMult, counts, qualityDays,
       loadMult
     };
   }
@@ -609,6 +718,21 @@
     return Utils.clamp(ceil, 20, 99);
   }
 
+  /*
+   * Growth speed from the gap to the effective ceiling (Update 25, Stage 4).
+   * Ordinary gaps (up to ~30) grow exactly as before. Beyond that, a raw
+   * talent — a low overall with a huge ceiling — surges: the bigger the gap,
+   * the faster the climb (up to ~1.75× the old cap), so a 23-overall with
+   * 99 potential can jump ~25-35 overall in a season in a good program. The
+   * surge fades on its own as the gap closes, and growth slows to a crawl in
+   * the final few points below the ceiling. Finding these athletes is a real
+   * recruiting edge — and keeping them (the portal) is the risk.
+   */
+  function gapGrowth(gap) {
+    if (gap <= 30) return Utils.clamp(gap / 24, 0.02, 1.25);
+    return Math.min(2.2, 1.25 + (gap - 30) / 26);
+  }
+
   function devPoints(athlete, coach, school, planMeta, rng) {
     const coachSkill = coach ? (coach.training ?? coach.development ?? 55) : 50;
     // Environment quality sets the athlete's EFFECTIVE ceiling — how much of
@@ -617,8 +741,10 @@
     const ceil = effectiveCeiling(athlete, env);
     athlete._devCeiling = ceil; // consumed by applyDevelopment's rating cap
     // Development slows to a crawl as the athlete nears their effective ceiling.
-    const gap = ceil - athlete.currentOverall;
-    const gapFactor = Utils.clamp(gap / 24, 0.02, 1.25);
+    // Banked injury losses come back separately, so the gap is measured from
+    // the runner's healthy level (no double-speed rebuild past the ceiling).
+    const gap = ceil - (athlete.currentOverall + injuryDeficitOverall(athlete));
+    const gapFactor = gapGrowth(gap);
     // Perfect-storm finishing kick: only a near-max potential unlocked by a
     // near-perfect program (effective ceiling ~98-99) gets a boost on the final,
     // otherwise glacial climb — enough that a genuine 99 overall is reachable
@@ -723,6 +849,103 @@
   }
 
   /* ================================================================ *
+   * Load spikes (Update 25, Stage 2)
+   * ================================================================ *
+   * The body adapts to the load it has recently carried, not to the load a
+   * coach wishes it could carry. A week well above the recent norm — miles
+   * jumping more than ~20% over the rolling average, or quality work jumping
+   * ~30% over it — raises injury risk, the bigger the jump the bigger the
+   * risk. Cutting load is never penalized. The rolling averages fade during
+   * an injury layoff, so rushing a runner straight back to full load is a
+   * spike too; ramping back up over a few weeks is not.
+   */
+  const SPIKE_MILES = 1.2;
+  const SPIKE_INTENSITY = 1.3;
+
+  function loadSpike(mileage, chronicMileage, intensity, chronicIntensity) {
+    const miRatio = mileage / Math.max(25, chronicMileage || mileage);
+    const intRatio = intensity / Math.max(12, chronicIntensity ?? intensity);
+    const mult = 1 + Math.max(0, miRatio - SPIKE_MILES) * 1.8 + Math.max(0, intRatio - SPIKE_INTENSITY) * 0.9;
+    return {
+      miRatio: Math.round(miRatio * 100) / 100,
+      intRatio: Math.round(intRatio * 100) / 100,
+      mult: Math.round(Utils.clamp(mult, 1, 2.6) * 100) / 100
+    };
+  }
+
+  // The most miles a runner can take on next week without a spike.
+  function rampLimit(athlete) {
+    return Math.round(Math.max(25, athlete.chronicMileage || D.MILEAGE.DEFAULT[athlete.gender === 'W' ? 'W' : 'M']) * SPIKE_MILES + 2);
+  }
+
+  /* ================================================================ *
+   * Injury detraining & the comeback (Update 25, Stage 2)
+   * ================================================================ *
+   * Every week out costs about 2 overall (aerobic systems fade fastest),
+   * up to a 20-overall hole. The lost ratings are banked as a deficit and
+   * come back much faster than they were first built once the runner is
+   * training again: a quarter of the remaining hole each week (never less
+   * than 4 rating points), so a six-week layoff is rebuilt in roughly nine.
+   * Whatever is still missing at season's end comes back over the summer.
+   */
+  const DETRAIN_PER_WEEK = { vo2Max: 3, stamina: 3, lactateThreshold: 2, runningEconomy: 1, speed: 1 };
+  const OVR_WEIGHTS = { vo2Max: 0.24, lactateThreshold: 0.18, runningEconomy: 0.18, stamina: 0.18, speed: 0.14 };
+  const MAX_INJURY_DEFICIT = 20; // overall
+
+  function injuryDeficitOverall(athlete) {
+    const d = athlete.injuryDeficit;
+    if (!d) return 0;
+    let s = 0;
+    for (const k in d) s += d[k] * (OVR_WEIGHTS[k] || 0);
+    return s;
+  }
+
+  function injuryDeficitPoints(athlete) {
+    const d = athlete.injuryDeficit;
+    if (!d) return 0;
+    let s = 0;
+    for (const k in d) s += d[k];
+    return s;
+  }
+
+  function detrain(athlete) {
+    const d = athlete.injuryDeficit || (athlete.injuryDeficit = {});
+    for (const [k, per] of Object.entries(DETRAIN_PER_WEEK)) {
+      if (injuryDeficitOverall(athlete) >= MAX_INJURY_DEFICIT) break;
+      const take = Math.max(0, Math.min(per, (athlete[k] || 0) - 15));
+      if (!take) continue;
+      athlete[k] -= take;
+      d[k] = (d[k] || 0) + take;
+    }
+  }
+
+  // Give back up to `points` banked rating points (largest holes first).
+  function restoreDeficit(athlete, points, rng) {
+    const d = athlete.injuryDeficit;
+    if (!d) return;
+    let left = Math.round(points);
+    while (left > 0) {
+      const open = Object.keys(d).filter((k) => d[k] > 0);
+      if (!open.length) break;
+      const k = rng ? rng.weightedChoice(open, (x) => d[x]) : open.sort((a, b) => d[b] - d[a])[0];
+      d[k] -= 1;
+      if (athlete[k] < 99) athlete[k] += 1;
+      left--;
+    }
+    Object.keys(d).forEach((k) => { if (d[k] <= 0) delete d[k]; });
+    if (!Object.keys(d).length) athlete.injuryDeficit = null;
+  }
+
+  function weeklyComeback(athlete, planMeta, rng) {
+    const pts = injuryDeficitPoints(athlete);
+    if (!pts) return;
+    let give = Math.max(4, Math.ceil(pts * 0.25));
+    if ((planMeta.fitness || 0) <= 0) give = Math.ceil(give * 0.5);   // resting, not rebuilding
+    if (athlete.fatigue > 75) give = Math.ceil(give * 0.6);           // too tired to absorb it
+    restoreDeficit(athlete, Math.min(pts, give), rng);
+  }
+
+  /* ================================================================ *
    * Injuries
    * ================================================================ */
   // A difficulty slider as a multiplier (1 when the settings module is absent).
@@ -756,7 +979,7 @@
     return null;
   }
 
-  function rollInjury(athlete, school, planMeta, mMeta, rng, philoInjuryMult = 1, rateMult = 1) {
+  function rollInjury(athlete, school, planMeta, mMeta, rng, philoInjuryMult = 1, rateMult = 1, spikeMult = 1) {
     // Rebalanced (Update 6, Phase 2). Injury risk is now driven far more
     // strongly by how much a runner is being pushed: severe fatigue,
     // consecutive weeks of heavy workload, recent race intensity, a recent
@@ -788,7 +1011,7 @@
     const facilityMult = 1.14 - school.facilities.weightRoom / 400;
 
     let chance = base * planMeta.injuryMult * fatigueMult * resistMult
-      * chronicMult * raceMult * reinjuryMult * facilityMult * philoInjuryMult;
+      * chronicMult * raceMult * reinjuryMult * facilityMult * philoInjuryMult * spikeMult;
 
     // Mileage abuse (Update 3): the further past a body's durable limit the
     // volume goes, the sharper the breakdown risk — and the more it skews to
@@ -886,6 +1109,132 @@
   }
 
   /* ================================================================ *
+   * Season form (Update 25, Stage 3)
+   * ================================================================ *
+   * Three layers sit on top of an athlete's permanent ratings:
+   *   Base (stored as `fitness`) — the aerobic support built by volume,
+   *     threshold work, and long runs. Slow to build, slow to fade. It sets
+   *     the CEILING for sharpening.
+   *   Sharpening (stored as `sharpness`) — race readiness from intervals,
+   *     speed, race simulations, and racing itself. Builds fast, fades fast,
+   *     and can never climb past what the Base supports.
+   *   Staleness — intensity held too long goes flat. Interval-heavy weeks
+   *     pile it on; easy and recovery weeks bleed it off. It drags
+   *     sharpening down and costs race-day form.
+   * So intervals early make a squad sharp by mid-season, but on a thin base
+   * and going stale by November; threshold work builds a higher ceiling to
+   * sharpen into late.
+   *
+   * The peak — ONE per season. Training normally banks a taper charge
+   * (full after ~4 weeks). Running the Championship Taper miles (≤72% of the
+   * recent load) with at least one quality session spends it: the squad
+   * peaks for the NEXT week's race, keeps about a third of it the week
+   * after, then it is gone, with a little post-peak flatness. Another taper
+   * that season just sheds fatigue. A cut with no quality session is a
+   * recovery week and saves the peak.
+   */
+  const TAPER_RATIO = 0.72;
+  const PEAK_MAX = 22;
+
+  function sharpCeiling(athlete) {
+    return Math.round(45 + (athlete.fitness ?? 50) * 0.55);
+  }
+
+  // What race day actually sees: sharpening + any peak − staleness.
+  function formScore(athlete) {
+    return Utils.clamp((athlete.sharpness ?? 55) + (athlete.peakBonus || 0) - (athlete.staleness || 0) * 0.4, 0, 120);
+  }
+
+  function peakUsed(gameState, athlete) {
+    return athlete.peakSeason === gameState.year;
+  }
+
+  // Would this week's miles + plan count as the season's taper?
+  function isTaperWeek(mileage, chronic, planMeta) {
+    return mileage <= (chronic || mileage) * TAPER_RATIO && (planMeta.qualityDays || 0) >= 1;
+  }
+
+  function applyForm(gameState, athlete, school, planMeta, mMeta, chronicBefore) {
+    const week = gameState.week;
+    const inSeason = week <= CAL.NATIONAL_WEEK;
+    const raced = athlete.lastRaced === gameState.year * 100 + week;
+
+    // Staleness: sharp work held week after week goes flat.
+    let stale = athlete.staleness || 0;
+    stale += (planMeta.staleStim + (raced ? 0.3 : 0)) * 3 - 3.5;
+    if ((planMeta.hardDays || 0) === 0) stale -= 5; // a true recovery week
+    athlete.staleness = Math.round(Utils.clamp(stale, 0, 40) * 10) / 10;
+
+    // Sharpening: fast up, fast down, capped by the Base.
+    const trackQual = 1 + (school.facilities.indoorTrack - 45) / 160; // indoor track amplifies track work
+    const stim = planMeta.sharpStim + planMeta.trackSharp * trackQual + (raced ? 2.0 : 0); // racing sharpens
+    let target = mMeta.sharpTarget * 0.5 + 18 + stim * 7 + (planMeta.restDays || 0) * 3 - athlete.staleness * 0.6;
+    // A real indoor track lets track work push a little past the usual
+    // ceiling; a dirt loop holds it back (about −3 to +5).
+    const trackLift = planMeta.trackSharp > 0 ? (school.facilities.indoorTrack - 45) * 0.1 : 0;
+    target = Math.min(target, sharpCeiling(athlete) + trackLift);
+    // Race rust (Injury System Expansion): a runner rebuilding from injury
+    // can't be fully race-sharp until the Recovering window closes.
+    if (athlete.health === 'Recovering') target = Math.min(target, 72);
+    target = Utils.clamp(target, 15, 96);
+    const cur = athlete.sharpness ?? 55;
+    athlete.sharpness = Math.round(Utils.clamp(cur + (target - cur) * (target > cur ? 0.45 : 0.30), 0, 100));
+
+    // The peak fades: full for one race week, a third the next, then gone.
+    if (athlete.peakBonus > 0) {
+      if (athlete.peakFresh) {
+        athlete.peakFresh = false;
+        athlete.peakBonus = Math.round(athlete.peakBonus * 0.35);
+        athlete.sharpness = Math.max(15, athlete.sharpness - 6); // post-peak flatness
+      } else {
+        athlete.peakBonus = 0;
+      }
+    }
+
+    if (!inSeason) return;
+    // The taper spends the season's one peak.
+    if (week >= 2 && isTaperWeek(mMeta.mileage, chronicBefore, planMeta)) {
+      if (!peakUsed(gameState, athlete)) {
+        const strength = (athlete.taperCharge ?? 0) * Utils.clamp((athlete.fitness ?? 50) / 70, 0.6, 1.15);
+        athlete.peakBonus = Math.round(PEAK_MAX * Utils.clamp(strength, 0.15, 1.15));
+        athlete.peakFresh = true;
+        athlete.peakSeason = gameState.year;
+        athlete.peakWeek = week + 1; // it lands on next week's race
+        athlete.taperCharge = 0;
+      }
+    } else if ((planMeta.hardDays || 0) >= 1 && mMeta.mileage >= (chronicBefore || mMeta.mileage) * 0.85) {
+      // Normal training banks the taper charge (full after ~4 weeks).
+      athlete.taperCharge = Math.min(1, (athlete.taperCharge ?? 0) + 0.25);
+    }
+  }
+
+  // A squad's form at a glance (top 7 healthy runners) — the Squad Form card,
+  // the schedule's peak marker, and the player's weekly form log read this.
+  function squadForm(gameState, school, gender) {
+    const roster = (gender === 'W' ? school.rosterW : school.rosterM)
+      .map((id) => gameState.world.athletes[id]).filter((a) => a && !a.injury)
+      .sort((a, b) => b.currentOverall - a.currentOverall).slice(0, 7);
+    if (!roster.length) return null;
+    const avg = (f) => Math.round(roster.reduce((sum, a) => sum + f(a), 0) / roster.length * 10) / 10;
+    const used = roster.filter((a) => a.peakSeason === gameState.year);
+    const byWeek = {};
+    used.forEach((a) => { byWeek[a.peakWeek] = (byWeek[a.peakWeek] || 0) + 1; });
+    const peakWeek = Object.keys(byWeek).sort((x, y) => byWeek[y] - byWeek[x])[0];
+    return {
+      base: avg((a) => a.fitness ?? 50),
+      sharp: avg((a) => a.sharpness ?? 55),
+      ceiling: avg(sharpCeiling),
+      stale: avg((a) => a.staleness || 0),
+      peak: avg((a) => a.peakBonus || 0),
+      form: avg(formScore),
+      charge: avg((a) => a.taperCharge ?? 0),
+      peakUsed: used.length * 2 >= roster.length,
+      peakWeek: peakWeek ? Number(peakWeek) : null,
+      peaking: roster.some((a) => a.peakBonus > 0 && a.peakFresh)
+    };
+  }
+
+  /* ================================================================ *
    * Weekly processing
    * ================================================================ */
   function processAthlete(gameState, athlete, coach, school, planMeta, mMeta, rng, isPlayerSchool, culture, philo) {
@@ -904,10 +1253,19 @@
         5.5 - athlete.injuryResistance / 40 - school.facilities.rehabCenter / 120, 2, 6);
       athlete.fitness = Utils.clamp(athlete.fitness - fitnessSlide, 0, 100);
       athlete.sharpness = Utils.clamp((athlete.sharpness ?? 55) - 4, 0, 100);
+      athlete.peakBonus = 0; // a peak doesn't survive a layoff
       athlete.confidence = Utils.clamp((athlete.confidence ?? 60) - 1.3, 10, 99);
       const weeksOut = (athlete.injury.totalWeeks || 2) - athlete.injury.weeksRemaining;
       athlete.morale = Utils.clamp(athlete.morale - (weeksOut >= 3 ? 2 : 1), 0, 100);
       athlete.chronicMileage = Math.round((athlete.chronicMileage || 60) * 0.7); // detraining
+      athlete.chronicIntensity = Math.round((athlete.chronicIntensity ?? 30) * 0.7 * 10) / 10;
+      // Ratings fade too (Update 25): ~2 overall per week out, banked for a
+      // fast comeback (see detrain / weeklyComeback).
+      const ovrBefore = athlete.currentOverall;
+      detrain(athlete);
+      athlete.recalculateOverall();
+      const drop = athlete.currentOverall - ovrBefore;
+      athlete.seasonDev = (athlete.seasonDev || 0) + drop;
       if (athlete.injury.weeksRemaining <= 0) {
         // A recently-healed runner is fragile: a reinjury window where the
         // body is still adapting back to full load (longer for the injury
@@ -919,14 +1277,19 @@
         athlete.injury = null;
         athlete.health = 'Recovering';
         if (isPlayerSchool) {
-          gameState.logNews(`${athlete.fullName} returns to training after injury — expect ~${athlete.recentInjuryWeeks} week${athlete.recentInjuryWeeks > 1 ? 's' : ''} of rebuilding before full race form.`);
+          const lost = Math.round(injuryDeficitOverall(athlete));
+          gameState.logNews(`${athlete.fullName} returns to training after injury — expect ~${athlete.recentInjuryWeeks} week${athlete.recentInjuryWeeks > 1 ? 's' : ''} of rebuilding before full race form${lost > 0 ? `, and about ${lost} overall to win back (it returns much faster than it was built)` : ''}.`);
         }
       }
-      athlete.lastDelta = 0;
+      athlete.lastDelta = drop;
       return;
     }
 
     const before = athlete.currentOverall;
+    // Load-spike check against the load carried BEFORE this week.
+    const spike = loadSpike(mMeta.mileage, athlete.chronicMileage, planMeta.intensity || 0, athlete.chronicIntensity);
+    athlete.loadSpike = spike.mult;
+    const chronicBefore = athlete.chronicMileage || mMeta.mileage;
 
     // High-altitude programs (Update 5, Part 3): training at elevation is a
     // real physiological edge — a bigger aerobic engine and stronger
@@ -969,18 +1332,12 @@
     // Indoor track (facilities overhaul): a real indoor facility makes every
     // speed session and race rehearsal count for more — all-weather, banked,
     // fast. A dirt loop in the rain blunts the same work.
-    const trackQual = 1 + (school.facilities.indoorTrack - 45) / 160; // ~0.75–1.34
-    let sharpTarget = mMeta.sharpTarget + (planMeta.speedDays || 0) * 2.5 * trackQual
-      + (planMeta.restDays || 0) * 3 + (planMeta.racesimDays || 0) * 6 * trackQual;
-    sharpTarget = Utils.clamp(sharpTarget, 15, 96);
-    // Race rust (Injury System Expansion): a runner rebuilding from injury
-    // can't be fully race-sharp until the Recovering window closes.
-    if (athlete.health === 'Recovering') sharpTarget = Math.min(sharpTarget, 72);
-    athlete.sharpness = Math.round(Utils.clamp(
-      (athlete.sharpness ?? 55) + (sharpTarget - (athlete.sharpness ?? 55)) * 0.30, 0, 100));
+    applyForm(gameState, athlete, school, planMeta, mMeta, chronicBefore);
 
     // Chronic load: the rolling base that makes tapers work — and fade.
     athlete.chronicMileage = Math.round((athlete.chronicMileage || mMeta.mileage) * 0.7 + mMeta.mileage * 0.3);
+    athlete.chronicIntensity = Math.round(((athlete.chronicIntensity ?? (planMeta.intensity || 0)) * 0.7 +
+      (planMeta.intensity || 0) * 0.3) * 10) / 10;
 
     // Workload history (Update 6, Phase 2): a week counts as "high load" when
     // the runner is carrying real fatigue, stacking hard days, or pushing past
@@ -1157,6 +1514,9 @@
       athlete.injuryResistance += 1;
     }
 
+    // The comeback (Update 25): banked injury losses return fast.
+    weeklyComeback(athlete, planMeta, rng);
+
     athlete.recalculateOverall();
     athlete.lastDelta = athlete.currentOverall - before;
     athlete.seasonDev = (athlete.seasonDev || 0) + athlete.lastDelta;
@@ -1167,7 +1527,7 @@
 
     // Injury roll (philosophy adjusts overtraining risk — Norwegian/
     // strength-endurance staffs manage load better).
-    const injury = rollInjury(athlete, school, planMeta, mMeta, rng, philo.injuryMult, settingMult(gameState, 'injuryRate'));
+    const injury = rollInjury(athlete, school, planMeta, mMeta, rng, philo.injuryMult, settingMult(gameState, 'injuryRate'), spike.mult);
     if (injury) {
       athlete.injury = injury;
       athlete.health = 'Injured';
@@ -1308,18 +1668,21 @@
         const roster = gender === 'M' ? school.rosterM : school.rosterW;
         // CPU squad monitoring (Update X): the staff reads the room's fatigue
         // before writing the week — a tired squad earns a recovery week.
-        let avgFatigue = 0;
+        let avgFatigue = 0, avgStale = 0;
+        let peak = null;
         if (!playerPlans && roster.length) {
-          let sum = 0, n = 0;
+          let sum = 0, st = 0, n = 0;
           roster.forEach((id) => {
             const a = gameState.world.athletes[id];
-            if (a && !a.injury) { sum += a.fatigue; n++; }
+            if (a && !a.injury) { sum += a.fatigue; st += a.staleness || 0; n++; }
           });
           avgFatigue = n ? sum / n : 0;
+          avgStale = n ? st / n : 0;
+          if (gameState.week <= CAL.NATIONAL_WEEK) peak = cpuPeakPlan(gameState, school, gender, coach);
         }
         const plan = playerPlans
           ? (gameState.training[gender] || defaultPlan())
-          : aiPlan(gameState, coach, avgFatigue);
+          : aiPlan(gameState, coach, avgFatigue, { peak, avgStale });
         const baseMeta = planMetaFor(plan);
         // Periodization fit (Update 6): does this week's plan match the phase?
         baseMeta.phaseFit = !!(phase.fit && phase.fit(baseMeta));
@@ -1336,11 +1699,13 @@
           if (playerPlans) {
             const override = gameState.training.overrides[id];
             if (override) { meta = planMetaFor(plan, override); meta.phaseFit = baseMeta.phaseFit; }
-          } else if ((athlete.fatigue > 74 && craft >= 50) || athlete.fatigue > 86) {
+          } else if ((athlete.fatigue > 74 && craft >= 50) || athlete.fatigue > 86 ||
+              (athlete.health === 'Recovering' && craft >= 45)) {
             // AI staffs rest struggling athletes (Update 6, Section 5; buffed
             // in Update X): a runner deep in the red gets a reduced-load week.
             // Competent staffs react early; even poor ones finally notice a
-            // runner who is completely cooked.
+            // runner who is completely cooked. Competent staffs also ease a
+            // runner back from injury on a reduced load (Update 25).
             meta = planMetaFor(plan, 'reduced');
             meta.phaseFit = baseMeta.phaseFit;
           }
@@ -1348,6 +1713,16 @@
           const mMeta = mileageMeta(miles, athlete.chronicMileage);
           processAthlete(gameState, athlete, coach, school, meta, mMeta, rng, isPlayer, culture, philo);
         });
+        // The player's weekly form log feeds the Squad Form chart.
+        if (isPlayer && gameState.week <= CAL.NATIONAL_WEEK) {
+          if (!school.formLog || school.formLog.year !== gameState.year) school.formLog = { year: gameState.year, M: [], W: [] };
+          const f = squadForm(gameState, school, gender);
+          if (f) {
+            const log = school.formLog[gender];
+            const row = { w: gameState.week, base: f.base, sharp: f.sharp, form: f.form, stale: f.stale, peak: f.peak };
+            if (log.length && log[log.length - 1].w === gameState.week) log[log.length - 1] = row; else log.push(row);
+          }
+        }
       });
     }
   }
@@ -1384,12 +1759,18 @@
           const snapshot = isPlayerSchool
             ? REPORT_ATTRS.reduce((s, k) => { s[k] = a[k]; return s; }, {})
             : null;
+          // Whatever an injury took and the season didn't give back returns
+          // over the summer (Update 25).
+          if (a.injuryDeficit) restoreDeficit(a, injuryDeficitPoints(a));
 
           // Attribute points, not overall: ~5.5 points across the five
           // physical ratings move the overall by 1, so a +4/+5 summer is a
           // ~22-28 point haul — only possible for a grinder with real headroom.
           const gap = a.potential - a.currentOverall;
-          let pts = Utils.clamp(gap * 1.1, 0, 22) * OFFSEASON_DEV_RATE; // headroom drives growth
+          // Headroom drives growth; a raw talent's huge gap keeps paying out
+          // past the ordinary 20-point mark (Update 25, Stage 4).
+          let pts = (Math.min(gap, 20) * 1.1 + Math.max(0, gap - 20) * 0.5) * OFFSEASON_DEV_RATE;
+          pts = Utils.clamp(pts, 0, 45);
           if (gap < 5) pts *= 0.3;                          // the plateau near the ceiling
           // Work Ethic is the LARGEST factor (Section 11): summer is
           // unsupervised, so the grinders separate themselves. The curve is
@@ -1410,8 +1791,10 @@
           pts *= 0.7 + rng.next() * 0.6;
           if (!isPlayerSchool) pts *= settingMult(gameState, 'cpuDevelopment'); // difficulty
           // One summer can't remake a runner: ~30 points is a +5/+6 ceiling,
-          // so stacked late-bloomer multipliers never produce a +15 jump.
-          pts = Math.min(pts, OFFSEASON_MAX_POINTS);
+          // so stacked late-bloomer multipliers never produce a +15 jump —
+          // except a raw talent with a huge gap, whose summer cap stretches
+          // (up to ~45 points, about +8) while the gap lasts.
+          pts = Math.min(pts, OFFSEASON_MAX_POINTS + Math.min(15, Math.max(0, gap - 25) * 0.5));
 
           // Regression: age, injuries, apathy, and burnout take ratings back.
           let loss = 0;
@@ -1476,6 +1859,11 @@
           a.morale = Utils.clamp(a.morale + 4, 0, 100);
           a.fitness = Utils.clamp(a.fitness - 8, 0, 100);
           a.sharpness = Utils.clamp((a.sharpness ?? 55) * 0.8 + 8, 0, 100);
+          // A new season: staleness gone, a fresh peak to earn (Update 25).
+          a.staleness = 0;
+          a.taperCharge = 0;
+          a.peakBonus = 0;
+          a.peakFresh = false;
 
           if (school.id === gameState.playerSchoolId && delta !== 0) {
             improvers.push({ a, delta });
@@ -1512,7 +1900,12 @@
     let m = safeMileage(athlete) - 3;
     const week = gameState.week;
     if (week >= CAL.OFFSEASON_START) m *= 0.8;
-    else if (week >= CAL.CONFERENCE_WEEK && week <= CAL.NATIONAL_WEEK) m *= 0.7;
+    // Championship weeks get a race-week trim only — the season's one taper
+    // is the coach's call, through the Championship Taper preset (Update 25).
+    else if (week >= CAL.CONFERENCE_WEEK && week <= CAL.NATIONAL_WEEK) m *= 0.88;
+    m = Math.min(m, rampLimit(athlete));
+    // Ideal Mileage never spends the peak by accident.
+    if (week <= CAL.NATIONAL_WEEK) m = Math.max(m, (athlete.chronicMileage || m) * TAPER_RATIO + 3); // build gradually — no load spikes (Update 25)
     return Utils.clamp(Math.round(m), D.MILEAGE.MIN, D.MILEAGE.MAX);
   }
 
@@ -1537,7 +1930,7 @@
   // freshness, and race sharpness in one number.
   function readiness(athlete) {
     return Math.round(Utils.clamp(
-      athlete.fitness * 0.50 + (100 - athlete.fatigue) * 0.30 + (athlete.sharpness ?? 55) * 0.20,
+      athlete.fitness * 0.50 + (100 - athlete.fatigue) * 0.30 + Math.min(100, formScore(athlete)) * 0.20,
       0, 100));
   }
 
@@ -1563,8 +1956,20 @@
     majorInjuryCount,
     recordCareerInjury,
     MAJOR_INJURY_WEEKS,
+    loadSpike,
+    rampLimit,
+    gapGrowth,
+    formScore,
+    sharpCeiling,
+    squadForm,
+    isTaperWeek,
+    peakUsed,
+    TAPER_RATIO,
+    injuryDeficitOverall,
     philosophyEffect,
     coachCraft,
+    cpuPeakPlan,
+    seasonStyle,
     MEET_WEEKS
   };
 })();

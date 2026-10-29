@@ -606,9 +606,22 @@
       return { week, label, meet, done, note, status, field, conditions, where };
     });
 
+    // ⚡ The week the squad's one peak of the season lands (Update 25).
+    const TE = window.XCD.engine.Training;
+    const mySchool = game.getPlayerSchool();
+    const peakWeeks = {};
+    if (TE.squadForm && mySchool) {
+      ['M', 'W'].forEach((g) => {
+        const f = TE.squadForm(game, mySchool, g);
+        if (f && f.peakUsed && f.peakWeek) (peakWeeks[f.peakWeek] = peakWeeks[f.peakWeek] || []).push(g === 'M' ? 'men' : 'women');
+      });
+    }
+    const peakTag = (w) => peakWeeks[w]
+      ? ` <span title="Peak week: your ${peakWeeks[w].join(' & ')}">⚡</span>` : '';
+
     const rows = entries.map((e) => `
       <tr class="${e.meet && e.done ? 'clickable' : ''}" ${e.meet && e.done ? `data-meet="${e.meet.id}"` : ''}>
-        <td>Wk ${e.week}</td>
+        <td>Wk ${e.week}${peakTag(e.week)}</td>
         <td><strong>${e.meet ? Utils.escapeHtml(e.meet.name) : (e.note || 'No meet')}</strong>
           ${e.meet ? `<span style="color:var(--text-faint); font-size:11px;"> ${e.label}</span>` : ''}
           ${e.where ? `<div style="color:var(--text-faint); font-size:11px;">${Utils.escapeHtml(e.where)}</div>` : ''}</td>
@@ -630,7 +643,7 @@
         ${thisWeek ? 'style="border-color:var(--warning);"' : ''}>
         <div class="m-head">
           <div class="m-title">${e.meet ? Utils.escapeHtml(e.meet.name) : (e.note || 'No meet')}
-            <div class="m-sub">Week ${e.week} • ${importance}${e.field ? ' • ' + e.field : ''}</div>
+            <div class="m-sub">Week ${e.week}${peakTag(e.week)} • ${importance}${e.field ? ' • ' + e.field : ''}</div>
             ${e.where ? `<div class="m-sub">${Utils.escapeHtml(e.where)}</div>` : ''}
             ${e.conditions ? `<div class="m-sub">${e.conditions}</div>` : ''}
           </div>

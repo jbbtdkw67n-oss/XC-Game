@@ -11,7 +11,7 @@
     trainingCenter: ['Training Center', 'Development speed: every athlete grows faster each week, and training fitness builds quicker.'],
     weightRoom: ['Weight Room', 'Injury prevention: strong bodies break down less under the same load.'],
     rehabCenter: ['Rehab Center', 'Recovery: faster weekly fatigue recovery, shorter injury layoffs, and less fitness lost while hurt.'],
-    indoorTrack: ['Indoor Track', 'Sharpness: speed sessions and race simulations pay out more, and Speed develops faster from speed work.'],
+    indoorTrack: ['Indoor Track', 'Sharpening: intervals, speed sessions, and race simulations pay out more, and Speed develops faster from speed work.'],
     alumniCenter: ['Alumni Center', 'Fundraising: bigger booster pushes and a faster-refilling facilities fund, scaled by program success and school size.'],
     travel: ['Travel Program', 'Travel budget: a bigger program means a bigger hard travel budget every season — more meets, farther away. Upgrades apply to this season too.']
   };
