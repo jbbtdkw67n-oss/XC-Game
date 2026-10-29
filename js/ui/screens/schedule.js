@@ -409,9 +409,7 @@
           <span style="color:var(--text-dim); font-size:12.5px;">Team Power <strong>${MC().powerOf(game, school.id)}</strong> · Weeks 4–12</span>
         </div>
         <div style="color:var(--text-faint); font-size:12px; margin:4px 0 10px;">
-          The CPU has built its schedules — every meet happens on the same weekend every year.
-          Pick ${MC().CFG.MIN_MEETS}–${MC().CFG.MAX_MEETS} meets within your travel budget, then <strong>finalize</strong> (it locks after Week 1).
-          Elite meets take a strong program in any division (Team Power), and every meet holds a seat for you if you can afford it.
+          Pick ${MC().CFG.MIN_MEETS}–${MC().CFG.MAX_MEETS} meets within your travel budget, then <strong>finalize</strong> — it locks after Week 1.
         </div>
         ${budgetCard(game, sp, editable)}
         <div class="sb-weeks">${rows}</div>
@@ -423,6 +421,18 @@
       </div>`;
   }
 
+  // Short trip text for the browser: "🚌 240 mi · $1,200" or "🏠 Home".
+  function tripShort(cost) {
+    if (cost.mode === 'home') return '🏠 Home';
+    return `${cost.mode === 'flight' ? '✈️' : '🚌'} ${cost.miles.toLocaleString()} mi · ${money(cost.total)}`;
+  }
+
+  /*
+   * The Meet Browser: one compact card per meet — name, where, the trip,
+   * course speed, field size — plus the ranked teams and conference rivals
+   * entered. Everyone else is one tap away. Shown only while the schedule
+   * is still being built.
+   */
   function browserHtml(game, editable) {
     const season = game.season;
     const school = game.getPlayerSchool();
@@ -433,60 +443,56 @@
     const sp = MC().playerSpend(game);
     const curId = season.playerMeetByWeek[sbWeek] || null;
     const curCost = curId ? MC().meetCost(game, school, season.meets[curId]).total : 0;
+    const inDiv = (id) => sbDiv === 'all' || (game.getSchool(id) || {}).division === sbDiv;
     let list = (season.byWeek[sbWeek] || []).map((id) => season.meets[id]).filter((m) => m && m.type === 'invite')
       .map((m) => ({ m, d: MC().describeMeet(game, m, school), st: fieldStats(game, m, ranks, school) }));
-    if (sbDiv !== 'all') list = list.filter((x) => x.m.schoolIds.some((id) => (game.getSchool(id) || {}).division === sbDiv));
+    if (sbDiv !== 'all') list = list.filter((x) => x.m.schoolIds.some(inDiv));
     if (sbRankedOnly) list = list.filter((x) => x.st.ranked > 0);
     if (sbRivalsOnly) list = list.filter((x) => x.st.rivals > 0);
     list.sort((a, b) => sbSort === 'cost' ? a.d.cost.total - b.d.cost.total
       : sbSort === 'size' ? b.d.field - a.d.field
       : (b.st.ranked * 10 + b.st.avgPower) - (a.st.ranked * 10 + a.st.avgPower));
-    const cards = list.map(({ m, d, st }) => {
-      const ids = m.schoolIds.slice().sort((a, b) => ((ranks[a] || {}).best || 99) - ((ranks[b] || {}).best || 99) ||
+    const CHIPS = 6;
+    const cards = list.map(({ m, d }) => {
+      const ids = m.schoolIds.filter(inDiv).sort((a, b) => ((ranks[a] || {}).best || 99) - ((ranks[b] || {}).best || 99) ||
         MC().powerOf(game, b) - MC().powerOf(game, a));
-      const shown = ids.filter((id) => (sbDiv === 'all' || (game.getSchool(id) || {}).division === sbDiv) &&
-        (ranks[id] || (game.getSchool(id) || {}).conference === school.conference));
-      const allIds = ids.filter((id) => sbDiv === 'all' || (game.getSchool(id) || {}).division === sbDiv);
+      const notable = ids.filter((id) => ranks[id] || (game.getSchool(id) || {}).conference === school.conference);
       let action = '';
-      if (d.mine) action = '<span class="sb-on">✓ On your schedule</span>';
+      if (d.mine) action = '<span class="sb-on">✓ Entered</span>';
       else if (editable && game.week <= m.week) {
         const block = !d.access.ok ? '🔒 ' + d.access.reason : !d.room ? 'Full'
           : d.cost.total > sp.left + curCost ? '💸 Over budget' : (!curId && sp.count >= MC().CFG.MAX_MEETS) ? `Max ${MC().CFG.MAX_MEETS} meets` : '';
         action = block ? `<span class="sb-block">${Utils.escapeHtml(block)}</span>`
-          : `<button class="btn small primary" data-sb-enter="${m.id}" data-sb-enter-week="${m.week}">${curId ? `Switch to this meet (Wk ${m.week})` : `Enter for Wk ${m.week}`}</button>`;
+          : `<button class="btn small primary" data-sb-enter="${m.id}" data-sb-enter-week="${m.week}">${curId ? 'Switch' : 'Enter'}</button>`;
       }
+      const more = ids.length - Math.min(notable.length, CHIPS);
       return `
         <div class="sb-meet ${d.mine ? 'mine' : ''}">
           <div class="sb-meet-head">
-            <div>
-              <div class="sb-meet-name">${d.tierIcon ? d.tierIcon + ' ' : ''}${Utils.escapeHtml(m.name)} <span class="sb-tier t-${m.tier}">${d.tierLabel}</span></div>
-              <div class="sb-meet-sub">📍 ${Utils.escapeHtml([d.course.hostName && m.tier !== 'prenats' ? 'Host: ' + d.course.hostName : '', d.course.location].filter(Boolean).join(' · '))}</div>
-              <div class="sb-meet-sub">${travelText(d.cost)} · ${UI.meetSpeedTag(m)} · Hills ${m.conditions.hilliness}/100 · ${window.XCD.data.altitudeClass(m.conditions)} altitude</div>
-              <div class="sb-meet-sub">${d.field}/${d.cap} teams · avg Team Power ${st.avgPower}${st.ranked ? ` · <strong>${st.ranked} ranked</strong>` : ''}${st.rivals ? ` · ⚔️ ${st.rivals} conference rival${st.rivals === 1 ? '' : 's'}` : ''}</div>
+            <div class="sb-meet-main">
+              <div class="sb-meet-name">${d.tierIcon ? d.tierIcon + ' ' : ''}${Utils.escapeHtml(m.name)}</div>
+              <div class="sb-meet-sub">${Utils.escapeHtml(d.course.location || '')} · ${tripShort(d.cost)} · ${UI.meetSpeedTag(m)} · ${d.field}/${d.cap} teams</div>
             </div>
             <div class="sb-meet-act">${action}</div>
           </div>
-          ${shown.length ? `<div class="sb-chips">${shown.slice(0, 14).map((id) => rankChip(game, id, ranks, school)).join('')}${shown.length > 14 ? `<span class="sb-more">+${shown.length - 14}</span>` : ''}</div>` : ''}
-          <details class="sb-field"><summary>All ${allIds.length} team${allIds.length === 1 ? '' : 's'}${sbDiv !== 'all' ? ' (' + DIV_SHORT(sbDiv) + ')' : ''}</summary>
-            <div class="sb-chips">${allIds.map((id) => rankChip(game, id, ranks, school)).join('')}</div>
-          </details>
+          ${ids.length ? `<div class="sb-chips">${notable.slice(0, CHIPS).map((id) => rankChip(game, id, ranks, school)).join('')}${more > 0 ? `
+            <details class="sb-field"><summary>${notable.length ? `+${more} more` : `${ids.length} team${ids.length === 1 ? '' : 's'}`}</summary>
+              <div class="sb-chips">${ids.map((id) => rankChip(game, id, ranks, school)).join('')}</div>
+            </details>` : ''}</div>` : ''}
         </div>`;
     }).join('');
     return `
       <div class="card" id="meet-browser" style="margin-bottom:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
-          <h2 style="margin:0;">🔎 Meet Browser</h2>
-          <span style="color:var(--text-faint); font-size:12px;">Who's racing where — chase ranked teams and conference rivals.</span>
-        </div>
+        <h2 style="margin:0 0 8px;">🔎 Meet Browser</h2>
         <div class="pill-tabs" style="margin-bottom:8px;">${weeks.map((w) => `<button data-sb-week-tab="${w}" class="${w === sbWeek ? 'active' : ''}">Wk ${w}${season.playerMeetByWeek[w] ? ' •' : ''}</button>`).join('')}</div>
         <div class="sb-filters">
-          <div class="pill-tabs">${['all', 'DI', 'DII', 'DIII'].map((dv) => `<button data-sb-div="${dv}" class="${dv === sbDiv ? 'active' : ''}">${dv === 'all' ? 'All divisions' : DIV_SHORT(dv)}</button>`).join('')}</div>
-          <label class="sb-toggle"><input type="checkbox" id="sb-ranked" ${sbRankedOnly ? 'checked' : ''}> Ranked teams</label>
-          <label class="sb-toggle"><input type="checkbox" id="sb-rivals" ${sbRivalsOnly ? 'checked' : ''}> Conference rivals</label>
+          <div class="pill-tabs">${['all', 'DI', 'DII', 'DIII'].map((dv) => `<button data-sb-div="${dv}" class="${dv === sbDiv ? 'active' : ''}">${dv === 'all' ? 'All' : DIV_SHORT(dv)}</button>`).join('')}</div>
+          <label class="sb-toggle"><input type="checkbox" id="sb-ranked" ${sbRankedOnly ? 'checked' : ''}> Ranked</label>
+          <label class="sb-toggle"><input type="checkbox" id="sb-rivals" ${sbRivalsOnly ? 'checked' : ''}> Rivals</label>
           <select id="sb-sort" class="sb-sort" aria-label="Sort meets">
-            <option value="strength" ${sbSort === 'strength' ? 'selected' : ''}>Strongest fields</option>
-            <option value="cost" ${sbSort === 'cost' ? 'selected' : ''}>Cheapest trip</option>
-            <option value="size" ${sbSort === 'size' ? 'selected' : ''}>Biggest fields</option>
+            <option value="strength" ${sbSort === 'strength' ? 'selected' : ''}>Strongest</option>
+            <option value="cost" ${sbSort === 'cost' ? 'selected' : ''}>Cheapest</option>
+            <option value="size" ${sbSort === 'size' ? 'selected' : ''}>Biggest</option>
           </select>
         </div>
         <div class="sb-meets">${cards || '<div style="color:var(--text-dim); font-size:13px; padding:8px 0;">No meets match these filters this weekend.</div>'}</div>
@@ -583,8 +589,10 @@
       const field = meet
         ? `${(meet.type === 'national' ? (meet.fieldByGender?.M || []) : meet.schoolIds).length || '~31'} teams`
         : '';
+      // The course is always known; race-day weather only once it's
+      // forecast (race week and the week before) or the race is run.
       const conditions = meet
-        ? `${meet.conditions.tempF}°F${meet.conditions.ground === 'Muddy' ? ' 🌧 mud' : meet.conditions.rain ? ' 🌧' : ''} · hills ${meet.conditions.hilliness} · ${window.XCD.data.courseSpeed(meet.conditions.hilliness, meet.conditions.altitudeFt ?? meet.conditions.altitude).label}`
+        ? `${UI.meetSpeedTag(meet)}${UI.weatherKnown(game, meet) ? ` ${meet.conditions.tempF}°F${meet.conditions.snow ? ' ❄️' : meet.conditions.rain ? ' 🌧' : ''}${meet.conditions.ground === 'Muddy' ? ' mud' : ''}` : ''}`
         : '';
       // Where the meet is held (Realism Update): host + real city (or, for the
       // national championship, the authentic venue).
@@ -602,7 +610,7 @@
       <tr class="${e.meet && e.done ? 'clickable' : ''}" ${e.meet && e.done ? `data-meet="${e.meet.id}"` : ''}>
         <td>Wk ${e.week}</td>
         <td><strong>${e.meet ? Utils.escapeHtml(e.meet.name) : (e.note || 'No meet')}</strong>
-          <span style="color:var(--text-faint); font-size:11px;"> ${e.label}</span>
+          ${e.meet ? `<span style="color:var(--text-faint); font-size:11px;"> ${e.label}</span>` : ''}
           ${e.where ? `<div style="color:var(--text-faint); font-size:11px;">${Utils.escapeHtml(e.where)}</div>` : ''}</td>
         <td>${e.field}</td>
         <td style="font-size:12.5px; color:var(--text-dim);">${e.conditions}</td>
@@ -635,16 +643,17 @@
     const rankM = Rk.teamRank(game, school.id, 'M');
     const rankW = Rk.teamRank(game, school.id, 'W');
 
-    // Upcoming meet field preview → the filterable "In the Field" browser with
-    // division/gender labels and pre-meet projections (Meet preview overhaul).
-    const previewHtml = inTheFieldHtml(game);
-
     // Week 1 Administrative Phase (spec Part 2, Section 15): the schedule is
     // set during Week 1 and then finalized for the season. After that, only
     // the finalized table shows. Pre-Nationals (Update 20) is no longer a
     // separate accept/decline invitation — it is a normal Week 10 elite meet
     // option in the schedule selector below.
     const locked = game.scheduleLocked ? game.scheduleLocked() : game.week > 1;
+
+    // Upcoming meet field preview → the filterable "In the Field" browser with
+    // division/gender labels and pre-meet projections (Meet preview overhaul).
+    // Like the Meet Browser, it's for planning, so it goes once locked.
+    const previewHtml = locked ? '' : inTheFieldHtml(game);
 
     // Custom race scheduling (Update 4, Part 7 + Section 15): pick which
     // meets to attend during Week 1, gated by prestige — then finalize.
@@ -654,13 +663,12 @@
     const realSchedule = !!(season.calendarVersion && MC());
     if (realSchedule) {
       const editable = !locked && game.controlsScheduling();
-      scheduleHtml = editable ? builderHtml(game, true) : `
-        <div class="card" style="margin-bottom:16px;">
-          <h2 style="margin:0 0 4px;">🔒 Schedule Finalized — ${season.year}</h2>
-          <div style="color:var(--text-dim); font-size:12.5px;">The slate below is locked for the season. Your next schedule is built in Week 1 of next year.</div>
-          ${budgetCard(game, MC().playerSpend(game), false)}
-        </div>`;
-      browserCard = browserHtml(game, editable);
+      // Once locked, the clean season schedule moves to the top and the
+      // builder and Meet Browser go away until next Week 1.
+      if (!locked) {
+        scheduleHtml = editable ? builderHtml(game, true) : '';
+        browserCard = browserHtml(game, editable);
+      }
     } else if (Scheduling && !locked) {
       Scheduling.buildOptions(game);
       const sched = season.playerSchedule;
@@ -709,17 +717,11 @@
             </div>
           </div>`;
       }
-    } else if (locked) {
-      scheduleHtml = `
-        <div class="card" style="margin-bottom:16px;">
-          <h2 style="margin:0 0 4px;">🔒 Schedule Finalized — ${season.year}</h2>
-          <div style="color:var(--text-dim); font-size:12.5px;">The slate below is locked for the season. Meet selection reopens in Week 1 of next year.</div>
-        </div>`;
     }
 
     // Assistant coaches don't set the schedule or answer invitations — those
     // are head-coach calls. Replace the editors with a read-only note.
-    if (game.isAssistant && game.isAssistant()) {
+    if (!locked && game.isAssistant && game.isAssistant()) {
       const head = game.getCoach(school.coachId);
       scheduleHtml = `<div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent);">
         <h2>🗓 Race Scheduling</h2>
@@ -738,9 +740,16 @@
       ${UI.sectionLabel('Your Season')}
       ${scheduleHtml}
       ${browserCard}
-      <div class="card">
+      <div class="card" id="season-schedule">
+        ${locked ? `<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+          <h2 style="margin:0;">${season.year} Schedule Finalized</h2>
+          ${realSchedule ? (() => {
+            const sp = MC().playerSpend(game);
+            return `<span style="color:var(--text-dim); font-size:12.5px;">${sp.count} meets · ${money(sp.spent)} of ${money(sp.budget)} travel</span>`;
+          })() : ''}
+        </div>` : `<h2 style="margin:0 0 8px;">📅 Season at a Glance</h2>`}
         <div class="table-wrap desktop-only"><table class="data">
-          <thead><tr><th class="col-rank">Week</th><th class="col-grow">Meet</th><th>Field</th><th>Conditions</th><th>Result</th></tr></thead>
+          <thead><tr><th class="col-rank">Week</th><th class="col-grow">Meet</th><th>Field</th><th>Course</th><th>Result</th></tr></thead>
           <tbody>${rows}</tbody>
         </table></div>
         <div class="card-list mobile-only">${meetCards}</div>

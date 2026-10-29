@@ -475,6 +475,116 @@
     return 'Low';
   };
   /*
+   * Fall climate (real race-day weather). The cross country season on the
+   * real calendar: Week 4 is the last weekend of August, the invitationals
+   * run through September and October, conference meets are on Halloween
+   * weekend, regionals in mid-November and Nationals the weekend before
+   * Thanksgiving. Days are counted from September 1.
+   */
+  const WEEK_DAY = { 4: -2, 5: 5, 6: 12, 7: 19, 8: 26, 9: 33, 10: 40, 11: 47, 12: 53, 13: 60, 14: 74, 15: 82 };
+  const MONTHS = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  D.weekDay = (week) => WEEK_DAY[week] ?? (week < 4 ? -2 - (4 - week) * 7 : 82 + (week - 15) * 7);
+  D.weekDateLabel = function (week) {
+    const d = new Date(Date.UTC(2001, 8, 1 + D.weekDay(week)));
+    return `${MONTHS[d.getUTCMonth() - 7] || ''} ${d.getUTCDate()}`;
+  };
+
+  /*
+   * 1991–2020 climate normals for a representative college town in each
+   * state: [elevation ft, Sep high, Sep low, Oct high, Oct low, Nov high,
+   * Nov low, share of Sep / Oct / Nov days with rain]. Race-day weather
+   * starts from these and then varies by year and by day.
+   */
+  const FALL_CLIMATE = {
+    AL: [600, 85, 64, 75, 52, 64, 42, 0.23, 0.20, 0.27], // Birmingham / Tuscaloosa
+    AK: [100, 55, 41, 41, 29, 28, 17, 0.50, 0.40, 0.35], // Anchorage
+    AZ: [1100, 100, 77, 89, 65, 76, 53, 0.10, 0.08, 0.07], // Phoenix / Tempe
+    AR: [300, 85, 64, 75, 52, 63, 41, 0.20, 0.23, 0.27], // Little Rock / Fayetteville
+    CA: [200, 80, 58, 76, 54, 68, 47, 0.03, 0.07, 0.17], // Bay Area / Los Angeles
+    CO: [5300, 79, 50, 66, 38, 53, 27, 0.20, 0.17, 0.17], // Denver / Boulder
+    CT: [150, 76, 54, 64, 42, 53, 33, 0.30, 0.30, 0.30], // Hartford
+    DE: [100, 79, 60, 68, 48, 57, 38, 0.27, 0.27, 0.27], // Newark
+    DC: [50, 80, 63, 69, 51, 58, 41, 0.27, 0.25, 0.27],
+    FL: [100, 89, 72, 84, 64, 77, 55, 0.43, 0.23, 0.20], // Gainesville / Tallahassee
+    GA: [1000, 83, 65, 74, 54, 64, 44, 0.23, 0.20, 0.27], // Atlanta / Athens
+    HI: [50, 89, 74, 87, 73, 84, 71, 0.25, 0.30, 0.35], // Honolulu
+    ID: [2700, 79, 50, 65, 39, 49, 30, 0.10, 0.17, 0.27], // Boise
+    IL: [650, 77, 57, 64, 45, 50, 34, 0.30, 0.33, 0.33], // Chicago / Champaign
+    IN: [750, 78, 58, 66, 46, 52, 35, 0.27, 0.30, 0.33], // Bloomington / Indianapolis
+    IA: [900, 77, 56, 64, 43, 48, 30, 0.30, 0.27, 0.27], // Ames / Iowa City
+    KS: [1000, 80, 58, 68, 46, 54, 33, 0.27, 0.23, 0.20], // Lawrence / Manhattan
+    KY: [700, 81, 61, 70, 49, 58, 39, 0.27, 0.27, 0.33], // Louisville / Lexington
+    LA: [50, 88, 68, 81, 57, 71, 48, 0.27, 0.20, 0.27], // Baton Rouge
+    ME: [100, 70, 49, 58, 38, 47, 30, 0.30, 0.33, 0.37], // Portland / Orono
+    MD: [100, 79, 59, 68, 47, 57, 37, 0.27, 0.27, 0.27], // College Park
+    MA: [50, 74, 58, 63, 48, 52, 38, 0.30, 0.30, 0.33], // Boston
+    MI: [850, 74, 54, 61, 42, 47, 32, 0.37, 0.40, 0.40], // East Lansing / Ann Arbor
+    MN: [850, 73, 54, 59, 41, 42, 27, 0.33, 0.33, 0.27], // Minneapolis
+    MS: [300, 87, 65, 78, 53, 67, 43, 0.23, 0.20, 0.27], // Jackson / Oxford
+    MO: [700, 80, 59, 68, 47, 55, 36, 0.27, 0.30, 0.27], // Columbia / St. Louis
+    MT: [4000, 72, 42, 56, 31, 40, 23, 0.23, 0.27, 0.33], // Missoula / Bozeman
+    NE: [1150, 79, 55, 66, 42, 51, 29, 0.23, 0.20, 0.17], // Lincoln / Omaha
+    NV: [4500, 82, 49, 70, 39, 56, 30, 0.07, 0.10, 0.13], // Reno
+    NH: [300, 72, 48, 60, 36, 48, 28, 0.30, 0.30, 0.33], // Durham / Hanover
+    NJ: [100, 78, 58, 66, 46, 56, 37, 0.27, 0.27, 0.27], // New Brunswick / Princeton
+    NM: [5300, 83, 59, 71, 47, 58, 35, 0.17, 0.13, 0.10], // Albuquerque
+    NY: [300, 74, 52, 62, 41, 49, 32, 0.33, 0.37, 0.40], // Albany / Syracuse / Ithaca
+    NC: [400, 82, 62, 72, 50, 62, 40, 0.23, 0.20, 0.23], // Raleigh / Chapel Hill
+    ND: [900, 71, 48, 56, 35, 37, 21, 0.27, 0.23, 0.20], // Fargo
+    OH: [800, 78, 57, 65, 45, 52, 35, 0.30, 0.30, 0.33], // Columbus
+    OK: [1000, 84, 63, 73, 51, 61, 39, 0.23, 0.23, 0.17], // Stillwater / Norman
+    OR: [400, 78, 50, 64, 43, 53, 38, 0.17, 0.40, 0.60], // Eugene / Corvallis
+    PA: [800, 76, 55, 64, 43, 52, 34, 0.30, 0.30, 0.33], // State College / Philadelphia
+    RI: [50, 75, 55, 64, 44, 53, 35, 0.27, 0.30, 0.33], // Providence
+    SC: [300, 85, 65, 76, 52, 67, 43, 0.23, 0.20, 0.23], // Columbia / Clemson
+    SD: [1450, 75, 52, 61, 38, 44, 25, 0.23, 0.20, 0.17], // Sioux Falls / Brookings
+    TN: [800, 83, 63, 73, 51, 61, 40, 0.23, 0.23, 0.30], // Nashville / Knoxville
+    TX: [600, 90, 69, 81, 58, 70, 47, 0.20, 0.20, 0.20], // Austin / Dallas
+    UT: [4500, 81, 56, 66, 43, 51, 32, 0.17, 0.20, 0.23], // Salt Lake City / Provo
+    VT: [300, 71, 50, 58, 39, 46, 30, 0.37, 0.40, 0.43], // Burlington
+    VA: [500, 80, 59, 70, 47, 60, 38, 0.23, 0.23, 0.23], // Charlottesville / Richmond
+    WA: [200, 71, 53, 60, 46, 51, 40, 0.23, 0.47, 0.63], // Seattle
+    WV: [1000, 77, 55, 67, 43, 55, 35, 0.33, 0.33, 0.37], // Morgantown
+    WI: [900, 74, 53, 60, 41, 45, 29, 0.30, 0.30, 0.30], // Madison
+    WY: [7200, 68, 39, 55, 29, 42, 20, 0.17, 0.17, 0.17]  // Laramie
+  };
+  // The open Plains run windier than anywhere else in the fall.
+  const WINDY_STATES = new Set(['KS', 'OK', 'NE', 'SD', 'ND', 'WY', 'TX', 'IA', 'MT']);
+
+  /*
+   * The normal race-morning weather for a course in `state` at `altitudeFt`
+   * in a given season week: { tempF, rainChance, windShift }. Meets go off
+   * in the morning, so the race temperature sits a little under halfway
+   * from the overnight low to the afternoon high. A course well above (or
+   * below) the state's reference town is cooler (or warmer), so Flagstaff
+   * races far colder than Tempe. Null when the state is unknown.
+   */
+  D.raceClimate = function (state, week, altitudeFt) {
+    const c = FALL_CLIMATE[state];
+    if (!c) return null;
+    const [elev, sh, sl, oh, ol, nh, nl, rs, ro, rn] = c;
+    // Mid-month anchors (days from Sep 1), with August and December
+    // extended from the fall trend.
+    const pts = [
+      [-17, sh + (sh - oh) * 0.5, sl + (sl - ol) * 0.5, rs],
+      [14, sh, sl, rs], [44, oh, ol, ro], [75, nh, nl, rn],
+      [105, nh - (oh - nh) * 0.9, nl - (ol - nl) * 0.9, rn]
+    ];
+    const day = Math.max(-17, Math.min(105, D.weekDay(week)));
+    let i = 0;
+    while (i < pts.length - 2 && day > pts[i + 1][0]) i++;
+    const [d0, h0, l0, r0] = pts[i], [d1, h1, l1, r1] = pts[i + 1];
+    const f = (day - d0) / (d1 - d0);
+    const hi = h0 + (h1 - h0) * f, lo = l0 + (l1 - l0) * f;
+    const lapse = typeof altitudeFt === 'number' ? Math.max(-25, Math.min(25, (elev - altitudeFt) * 0.0032)) : 0;
+    return {
+      tempF: lo + (hi - lo) * 0.45 + lapse,
+      rainChance: (r0 + (r1 - r0) * f) * 0.6, // rain during the race, not just that day
+      windShift: WINDY_STATES.has(state) ? 3 : 0
+    };
+  };
+
+  /*
    * Travel geography (Real Schedules): an approximate center for every state
    * (weighted toward where its colleges are) and a typical in-state trip
    * length. Meet travel is priced from the miles between the two states — a

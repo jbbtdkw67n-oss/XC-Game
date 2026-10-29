@@ -14,6 +14,37 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 14.8 — A Cleaner Schedule Tab, Hidden Forecasts & Cold-Weather PRs
+
+- **A cleaner Meet Browser.** Each meet is now one compact card: the name, a
+  single line with the city, the trip (miles and cost), the course speed and
+  the field size, then up to six ranked teams or conference rivals. Everyone
+  else is behind "+N more". The extra lines (host, hills, altitude, average
+  Team Power) and the long filter labels are gone.
+- **No weather in the schedule creator.** You pick meets on the course, the
+  trip and the field, not on the forecast. Weather appears only in the week
+  before a race and in race week (on the Schedule and Dashboard), and on
+  results after the race.
+- **Real weather for the place and the date.** Each season week is a real
+  weekend: Week 4 is the last weekend of August, conference meets are on
+  Halloween weekend, regionals in mid-November and Nationals the weekend
+  before Thanksgiving. Race-morning weather starts from real fall climate
+  normals for the state the course is in. So late August in Texas is hot,
+  late September in Minnesota is cool, and Nationals in Wisconsin is cold
+  (sometimes snowy). A mountain course is colder than a low one in the same
+  state. Rain follows the local wet season, so Oregon and Washington get wet
+  in October and November and Arizona stays dry. The open Plains run windier.
+- **Weather still varies year to year.** Each autumn runs warmer or colder,
+  wetter or drier than normal, and every race day has its own weather on top,
+  so the same course is often 15–25°F apart from one season to the next.
+- **Hot is slow, cold is fast.** Heat costs time from 60°F up, and more the
+  hotter it gets. Cool air below 50°F now speeds everyone up (cold-weather
+  runners a little more), so a crisp, cold meet is a PR day. Rain, mud and
+  wind still slow times.
+- **The locked schedule goes to the top.** Once you finalize, the builder, the
+  Meet Browser and the In the Field panel all disappear. Your season schedule
+  is the first card on the Schedule tab, with a one-line travel summary.
+
 ## Version 14.7 — Real Schedules, Travel Budgets & Fairer Nationals Bids
 
 - **A real meet calendar.** Weeks 4–12 now have meets every weekend, and each
