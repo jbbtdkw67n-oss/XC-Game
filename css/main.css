@@ -658,6 +658,29 @@ table.data td.col-actions .btn + .btn { margin-left: 6px; }
 .meter > span { display: block; height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.4s ease; }
 .meter.green > span { background: var(--success); }
 .meter.yellow > span { background: var(--warning); }
+
+/* Squad Form card (Update 25): Base / Sharpening vs ceiling / Staleness + chart */
+.squad-form .form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.squad-form .form-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 64px; gap: 10px; align-items: center; margin-bottom: 8px; font-size: 13px; }
+.squad-form .form-row .k { color: var(--text-dim); cursor: help; }
+.squad-form .form-row strong { text-align: right; }
+.squad-form .form-row strong small { color: var(--text-faint); font-weight: 400; }
+.squad-form .form-bar { position: relative; height: 7px; background: var(--bg-hover); border-radius: 4px; }
+.squad-form .form-fill { height: 100%; border-radius: 4px; background: var(--accent); }
+.squad-form .form-ceiling { position: absolute; top: -4px; width: 2px; height: 15px; background: var(--warning); border-radius: 1px; transform: translateX(-1px); }
+.squad-form .form-taper { font-size: 13px; margin: 10px 0 6px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--accent-soft); }
+.squad-form .form-verdict { font-size: 12.5px; color: var(--text-dim); }
+.squad-form .form-chart { width: 100%; height: auto; display: block; }
+.squad-form .form-line-base { fill: none; stroke: var(--text-faint); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.squad-form .form-line-form { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linejoin: round; }
+.squad-form .form-mark { stroke: var(--border); stroke-width: 1; }
+.squad-form .form-mark-t { fill: var(--text-faint); font-size: 8px; text-anchor: middle; }
+.squad-form .form-peak { font-size: 9px; text-anchor: middle; }
+.squad-form .form-legend { font-size: 11px; color: var(--text-faint); margin-top: 4px; }
+.squad-form .form-legend .lg-form { color: var(--accent); }
+@media (max-width: 720px) {
+  .squad-form .form-grid { grid-template-columns: minmax(0, 1fr); }
+}
 .meter.red > span { background: var(--danger); }
 
 /* ---------- Forms ---------- */

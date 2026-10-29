@@ -5,7 +5,7 @@
  * always correct; bump CACHE_VERSION whenever shipped files change to make
  * installed players pick up a new build.
  */
-const CACHE_VERSION = 'xcd-v17';
+const CACHE_VERSION = 'xcd-v18';
 
 const ASSETS = [
   './',

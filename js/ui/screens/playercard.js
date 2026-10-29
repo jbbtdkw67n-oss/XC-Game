@@ -230,9 +230,9 @@
     const statusMetersHtml = `
       <div class="grid cols-4 meter-stats" style="margin-bottom:16px;">
         ${UI.meterStat('Fatigue', Math.round(athlete.fatigue), UI.meter(athlete.fatigue, statusColor))}
-        ${UI.meterStat('Sharpness', Math.round(athlete.sharpness ?? 55), UI.meter(Math.round(athlete.sharpness ?? 55)))}
+        ${UI.meterStat(`Sharpening${athlete.peakBonus > 0 ? ' ⚡' : ''}`, Math.round(athlete.sharpness ?? 55), UI.meter(Math.round(athlete.sharpness ?? 55)))}
         ${UI.meterStat('Morale', Math.round(athlete.morale), UI.meter(athlete.morale, moraleColor))}
-        ${UI.meterStat('Fitness', Math.round(athlete.fitness), UI.meter(athlete.fitness))}
+        ${UI.meterStat('Base', Math.round(athlete.fitness), UI.meter(athlete.fitness))}
       </div>`;
 
     const statusCareerHtml = `

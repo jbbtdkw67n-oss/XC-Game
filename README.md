@@ -14,6 +14,52 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.4 — Season Form: Base, Sharpening & One Peak Per Season
+
+- **Base and Sharpening.** Fitness is now **Base**: built by mileage,
+  threshold work, and long runs. It's slow to build and slow to fade, and it
+  sets the *ceiling* for sharpening. Sharpness is now **Sharpening**: built
+  by intervals, speed, race simulations, and racing itself. It builds fast,
+  fades fast, and can never climb past what the Base supports.
+- **Staleness.** Hard sharp work held week after week goes flat. Interval-
+  and speed-heavy weeks pile up staleness, which drags sharpening and race
+  form down. Easy and recovery weeks clear it. Interval blocks in the summer
+  make a squad sharp by mid-season, but on a thin base and stale by
+  November. Threshold work builds a higher ceiling to sharpen into late.
+- **Trade-offs per workout.** Every workout shows what it builds (Base /
+  Sharp / Stale pips) and its weekly limit. Threshold stacks deeper (3 tempos
+  a week) than intervals or speed (2). Sessions past a limit cost extra
+  injury risk, fatigue, and staleness. Four quality sessions plus a long run
+  is now a legitimate **aggressive block**: the biggest development of any
+  week, paid for in fatigue, injury risk, and staleness.
+- **One peak per season.** Normal training charges the taper, reaching full
+  after about 4 weeks. Running the **Championship taper** miles (a ~30%
+  cut) with at least one quality session spends it. Your squad peaks for
+  the **next** week's race, keeps about a third of it the week after, then
+  it's gone. Taper for Conference and you'll fly there, but you'll be well
+  short of that by Nationals. A second taper that season only sheds fatigue.
+  A cut with no quality session is a recovery week and saves the peak.
+  Ideal Mileage never spends it by accident.
+- **Form matters on race day.** A well-timed peak is worth about 2%, and a
+  stale or thin-based squad gives up about as much. A peaked runner beats a
+  stale one by about 4%, up from about 1.4% before. Race times are centered
+  so they stay realistic.
+- **Squad Form card.** The Training screen shows your top 7's Base,
+  Sharpening against its ceiling, and Staleness. It also shows the taper
+  (charging, charged, peaking, or spent), names the meet the peak would land
+  on, gives a one-line verdict, and charts form by week. The Squad Monitor
+  shows Base and Sharp (⚡ peaking, 🥱 stale), and the Schedule marks your
+  peak week with ⚡.
+- **The CPU plays by the same rules.** Each CPU staff picks a season style:
+  interval-first (speed-minded and poor staffs), threshold-first
+  (Norwegian, threshold, polarized, high-mileage), or classic. Each week
+  until mid-October it reads where its team stands. Contenders peak for
+  Nationals, bubble teams for Regionals (they must earn the bid), and
+  everyone else for their Conference meet. Poor staffs misjudge their team
+  more often and botch about 30% of tapers (a week early, a week late, or
+  never), against about 5% for elite staffs. Good staffs also back off when
+  their squad goes stale.
+
 ## Version 15.3 — Raw Talent Surges
 
 - **Raw talents grow fast.** Development speed has always scaled with the gap

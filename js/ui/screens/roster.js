@@ -53,7 +53,7 @@
             <button id="tab-w" class="${activeGender === 'W' ? 'active' : ''}">Women</button>
           </div>
           <input class="search-input" id="roster-search" placeholder="Search runners...">
-          ${canManage ? `<button class="btn" id="btn-ideal-mileage" title="Set every runner on both squads to their own ideal weekly mileage — the most their body can absorb right now, tapered for championships. Fine-tune any runner on the Training screen.">🎯 Ideal Mileage</button>` : ''}
+          ${canManage ? `<button class="btn" id="btn-ideal-mileage" title="Set every runner on both squads to their own ideal weekly mileage — the most their body can absorb right now, built up gradually. Fine-tune any runner on the Training screen.">🎯 Ideal Mileage</button>` : ''}
         </div>
       </div>
       <div class="card lead-card" style="margin-bottom:14px;">

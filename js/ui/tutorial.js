@@ -43,10 +43,11 @@
     {
       icon: '📋', title: 'Training',
       body: () => `On the <strong>Training</strong> screen (the "Train" tab) you set each squad's
-        Monday–Sunday workout plan and weekly mileage. Match the plan to the season phase —
-        aerobic base early, quality work mid-season, a sharp taper for championships —
-        and watch each runner's <strong>fatigue</strong>: overtraining causes injuries.
-        Freshmen absorb less volume; the mileage presets handle common situations in one tap.`
+        Monday–Sunday workout plan and weekly mileage. Threshold work and mileage build
+        <strong>Base</strong>, the ceiling; intervals and racing build <strong>Sharpening</strong> fast,
+        but hold them too long and runners go stale. You get <strong>one peak per season</strong>:
+        run the Championship taper miles the week before the meet that matters most.
+        Watch each runner's <strong>fatigue</strong>, and build load gradually, because spikes cause injuries.`
     },
     {
       icon: '🎯', title: 'Recruiting',

@@ -702,9 +702,11 @@
     mult += Utils.clamp((62 - ready) * 0.00075, -0.008, 0.035);
     mult += Utils.clamp((65 - a.morale) * 0.0002, -0.004, 0.008);
 
-    // Race sharpness (Part 6): a well-timed taper puts speed in the legs;
-    // heavy-volume legs race flat. (±~1.3% at the extremes.)
-    mult += Utils.clamp((55 - (a.sharpness ?? 55)) * 0.00035, -0.014, 0.014);
+    // Season form (Update 25, Stage 3): sharpening plus any taper peak,
+    // minus staleness. A well-timed peak is worth ~2%; a stale, flat, or
+    // thin-based squad gives up as much. (Was ±1.4% from sharpness alone.)
+    // Centered on a typical mid-season squad so race times stay realistic.
+    mult += Utils.clamp((74 - TE.formScore(a)) * 0.0008, -0.022, 0.035);
 
     // Peaking: a great tactician has athletes flying for championship races.
     // Race preparation is a staff effort (spec Part 2, Section 12): the
@@ -1336,6 +1338,7 @@
         : (meet.type === 'regional' || meet.type === 'conference') ? 84
         : 62;
       a.raceLoad = Math.max(a.raceLoad || 0, raceIntensity);
+      a.lastRaced = gameState.year * 100 + meet.week; // racing sharpens (training engine)
       if (f.place === 1) a.morale = Utils.clamp(a.morale + 5, 0, 100);
       else if (f.place <= 10) a.morale = Utils.clamp(a.morale + 2, 0, 100);
       else if (f.place > finishers.length * 0.8) a.morale = Utils.clamp(a.morale - 2, 0, 100);
