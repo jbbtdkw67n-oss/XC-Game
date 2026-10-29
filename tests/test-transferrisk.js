@@ -45,10 +45,14 @@ async function run() {
     const happyRisk = P.transferRisk(g, happy);
 
     // Stagnation feeds desire: big headroom, zero growth, not a freshman.
+    // A season-scoped reason (Update 24): judged once the season has run.
     const stuck = roster.filter((a) => a.eligibilityRemaining >= 2)[3];
     stuck.classYear = 'Junior'; stuck.seasonDev = 0;
     stuck.potential = stuck.currentOverall + 20;
+    const wk = g.week;
+    g.week = 10;
     const stuckRisk = P.transferRisk(g, stuck);
+    g.week = wk;
 
     // A graduating senior never shows live risk.
     const senior = roster.find((a) => a.eligibilityRemaining < 2);

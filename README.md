@@ -14,6 +14,46 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.0 — Pick Your Top 7, a Fresh Start Each Season & Championship Upsets
+
+- **🏃 Choose who races.** The Roster screen has a new **Race-Day Top 7**
+  card. The **Highest Overall** preset (the default) races your seven best
+  healthy runners by overall. Pick **Custom**, or tap the **Top 7** button on
+  any runner, to choose your own seven. If one of your picks is injured, the
+  best healthy runner races in their place until they're back. An open spot
+  fills by overall and is shown dashed as *auto*. Your picks are kept in your
+  save.
+- **Benching has a cost.** Transfer risk now reads your Top 7. A good runner
+  you keep out of the lineup counts as buried on the depth chart. A runner
+  you race never does, whatever their overall.
+- **Transfer risk resets each season.** At the new year every returner's
+  morale, and any frayed bond with the coach or teammates, settles most of
+  the way back to a new-season baseline. Strong bonds stay, so they keep
+  runners home. The season-only reasons (*never raced*, *not developing*)
+  now wait until halfway through the regular season (Week 8) instead of
+  flagging every runner in Week 1. Risk builds during a season and no longer
+  piles up year after year.
+- **Championship upsets.** Every team at a conference, regional, or national
+  meet now has a collective good or bad day (worth about 1.6 rating points
+  either way), and each runner's own form swings a little wider under
+  championship pressure. Close title races flip more often. This makes
+  single races less predictable. It does not by itself break up long
+  dynasties: in 20-season test runs those come from one program holding the
+  talent lead for years, which is a recruiting and development question.
+- **Transfer points reset with a new coach.** Retiring and starting a
+  successor used to carry the old coach's transfer points and open portal
+  pursuits into the new job. Now the successor starts the window with a
+  fresh budget for their own school, and the old pursuits are withdrawn.
+  Taking another job or being let go mid-window does the same.
+- **Whole numbers in the Offseason Progression Report.** Ratings that move by
+  fractions on race day (Consistency especially) showed long decimals like
+  `CON 63.7→64.7`. The report now rounds every rating, and drops changes that
+  round away to nothing. Older saved reports are cleaned up when shown.
+- **Squad Monitor fills the screen.** On wide screens the name column used
+  to take all the spare width, so names sat far left and the data was pushed
+  to the right edge. The spare space is now spread across every column, the
+  data is centered under its headers, and the meters stretch to fit.
+
 ## Version 14.9 — A Restless Roster, Smarter Auto Recruiting & Ideal Mileage
 
 - **Harder difficulty, harder to stack talent.** A new difficulty slider,

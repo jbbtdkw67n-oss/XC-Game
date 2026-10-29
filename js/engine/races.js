@@ -475,6 +475,117 @@
       a.mentalToughness * 0.06 + a.raceIQ * 0.04 + a.consistency * 0.03;
   }
 
+  /* ================================================================ *
+   * Race-day lineup (Update 24): the Top 7
+   * ================================================================ */
+  /*
+   * Who toes the line for a team. CPU staffs pick their seven most
+   * race-ready runners for the distance. The player's squads follow the
+   * Top 7 set on the Roster screen: the "Highest Overall" preset (the
+   * default) races the seven best healthy runners by overall, while a custom
+   * lineup races exactly the runners the coach picked. A custom pick who is
+   * injured (or no longer on the roster) is replaced by the best healthy
+   * runner by overall, so a team never races short-handed.
+   */
+  const LINEUP_SIZE = 7;
+  const byOverall = (a, b) => (b.currentOverall - a.currentOverall) || (b.fitness - a.fitness);
+
+  // Championship-day variance (Update 24): a whole team's good/bad day
+  // (standard deviation as a fraction of race time) and how much wider each
+  // runner's own day form swings at conference, regional, and national meets.
+  const CHAMP_TEAM_DAY_SD = 0.0055;
+  const CHAMP_DAY_FORM_MULT = 1.3;
+
+  function lineupSettings(gameState, gender) {
+    const t = gameState.training;
+    if (!t) return { mode: 'overall', ids: [] };
+    t.lineup = t.lineup || {};
+    const lu = t.lineup[gender] = t.lineup[gender] || { mode: 'overall', ids: [] };
+    if (!Array.isArray(lu.ids)) lu.ids = [];
+    if (lu.mode !== 'custom') lu.mode = 'overall';
+    return lu;
+  }
+
+  // The player's own lineup applies only while they run the team (an
+  // assistant's head coach picks the squad like any CPU staff).
+  function usesPlayerLineup(gameState, school) {
+    return school.id === gameState.playerSchoolId &&
+      (!gameState.controlsTraining || gameState.controlsTraining());
+  }
+
+  function raceSquad(gameState, school, gender, distanceM = 8000) {
+    const healthy = (gender === 'M' ? school.rosterM : school.rosterW)
+      .map((id) => gameState.world.athletes[id])
+      .filter((a) => a && !a.injury);
+    if (!usesPlayerLineup(gameState, school)) {
+      return healthy
+        .sort((a, b) => (raceRating(b, distanceM) + b.fitness * 0.1) - (raceRating(a, distanceM) + a.fitness * 0.1))
+        .slice(0, LINEUP_SIZE);
+    }
+    const lu = lineupSettings(gameState, gender);
+    const best = healthy.slice().sort(byOverall);
+    if (lu.mode !== 'custom') return best.slice(0, LINEUP_SIZE);
+    const picked = lu.ids.map((id) => healthy.find((a) => a.id === id)).filter(Boolean).slice(0, LINEUP_SIZE);
+    best.forEach((a) => { if (picked.length < LINEUP_SIZE && !picked.includes(a)) picked.push(a); });
+    return picked;
+  }
+
+  // The player's planned Top 7 for a squad: { mode, ids, filled } where
+  // `filled` holds the open custom spots filled by overall.
+  function playerLineup(gameState, gender) {
+    const school = gameState.getPlayerSchool();
+    const lu = lineupSettings(gameState, gender);
+    const squad = school ? raceSquad(gameState, school, gender) : [];
+    const ids = squad.map((a) => a.id);
+    return {
+      mode: lu.mode,
+      ids,
+      filled: new Set(lu.mode === 'custom' ? ids.filter((id) => !lu.ids.includes(id)) : [])
+    };
+  }
+
+  // Switch a squad between the Highest Overall preset and a custom Top 7.
+  // Going custom starts from the current Top 7 so the coach only swaps.
+  function setLineupMode(gameState, gender, mode) {
+    const lu = lineupSettings(gameState, gender);
+    if (mode === 'custom') {
+      if (lu.mode !== 'custom') {
+        const school = gameState.getPlayerSchool();
+        lu.ids = school ? raceSquad(gameState, school, gender).map((a) => a.id) : [];
+      }
+      lu.mode = 'custom';
+    } else {
+      lu.mode = 'overall';
+      lu.ids = [];
+    }
+    return lu;
+  }
+
+  // Add or remove one runner from the custom Top 7 (switching to custom).
+  function toggleLineup(gameState, gender, athleteId) {
+    const a = gameState.world.athletes[athleteId];
+    const school = gameState.getPlayerSchool();
+    const roster = school ? (gender === 'M' ? school.rosterM : school.rosterW) : [];
+    if (!a || !roster.includes(athleteId)) return { ok: false, message: 'That runner is not on this squad.' };
+    const lu = setLineupMode(gameState, gender, 'custom');
+    // Picks who left the roster never hold a spot.
+    lu.ids = lu.ids.filter((id) => roster.includes(id));
+    if (lu.ids.includes(athleteId)) {
+      lu.ids = lu.ids.filter((id) => id !== athleteId);
+      return { ok: true, added: false, message: `${a.fullName} moves out of the Top 7.` };
+    }
+    if (lu.ids.length >= LINEUP_SIZE) {
+      return { ok: false, message: `The Top 7 is full — take someone out first.` };
+    }
+    lu.ids.push(athleteId);
+    return {
+      ok: true, added: true,
+      message: a.injury
+        ? `${a.fullName} is in the Top 7 — but injured, so the best healthy runner races until they're back.`
+        : `${a.fullName} is in the Top 7.`
+    };
+  }
+
   // Rating -> total seconds for gender/distance, before conditions/noise.
   //
   // Race-time realism rebalance: the ability→pace mapping is anchored to a
@@ -651,12 +762,7 @@
     meet.schoolIds.forEach((schoolId) => {
       const school = gameState.getSchool(schoolId);
       if (!school) return;
-      const squad = (gender === 'M' ? school.rosterM : school.rosterW)
-        .map((id) => gameState.world.athletes[id])
-        .filter((a) => a && !a.injury)
-        .sort((a, b) => (raceRating(b, distanceM) + b.fitness * 0.1) - (raceRating(a, distanceM) + a.fitness * 0.1))
-        .slice(0, 7);
-      squad.forEach((a) => entries.push({ athlete: a, schoolId }));
+      raceSquad(gameState, school, gender, distanceM).forEach((a) => entries.push({ athlete: a, schoolId }));
     });
     (meet.individualEntries && meet.individualEntries[gender] || []).forEach((athId) => {
       const a = gameState.world.athletes[athId];
@@ -689,11 +795,26 @@
     const defaultTactic = D.racePhilosophy('even').tactic;
     const tacticFor = (sid) => teamTactic[sid] || defaultTactic;
 
+    // Championship days (Update 24): the postseason is where favorites get
+    // beaten. Every team at a conference, regional, or national meet has a
+    // collective good or bad day — travel, nerves, how the pack plan holds up
+    // — and every runner's own day swings a little wider under the pressure.
+    // Close title races now flip more often, so dynasties have to survive
+    // bad days instead of winning on paper every November.
+    const teamDay = {};
+    if (isChampMeet) {
+      (meet.schoolIds || []).forEach((sid) => {
+        teamDay[sid] = Utils.clamp(rng.gaussian(0, CHAMP_TEAM_DAY_SD), -2.5 * CHAMP_TEAM_DAY_SD, 2.5 * CHAMP_TEAM_DAY_SD);
+      });
+    }
+    const dayFormSpread = isChampMeet ? CHAMP_DAY_FORM_MULT : 1;
+
     // --- Per-runner race state -----------------------------------------
     const runners = entries.map(({ athlete: a, schoolId, individual }) => {
       const rating = raceRating(a, distanceM);
       let total = baseTime(rating, gender, distanceM) * conditionsMultiplier(gameState, a, meet, gender);
       if (teamForm[schoolId]) total *= 1 + teamForm[schoolId];
+      if (teamDay[schoolId] && !individual) total *= 1 + teamDay[schoolId];
       const chem = gameState.getSchool(schoolId)?.chemistry?.[gender];
       if (chem !== undefined) total *= 1 + (55 - chem) * 0.0002;
       // A strong captain steadies the team on race day — a small edge that
@@ -704,7 +825,7 @@
       // Day form: consistent runners have narrower swings. Even-pace and
       // pack-running staffs damp the swing further (steadier team scoring).
       const evennessDamp = tactic.evenness ? 0.72 : tactic.teamPack ? 0.82 : 1;
-      total *= 1 + rng.gaussian(0, 0.015 * (1.45 - a.consistency / 100) * evennessDamp);
+      total *= 1 + rng.gaussian(0, 0.015 * (1.45 - a.consistency / 100) * evennessDamp * dayFormSpread);
 
       // The energy tank: Stamina + current fitness + freshness. A 12-segment
       // race costs ~66-78 depending on Lactate Threshold, so tired or
@@ -2073,6 +2194,11 @@
     kolasPoints,
     kolasBoard,
     raceRating,
+    raceSquad,
+    playerLineup,
+    setLineupMode,
+    toggleLineup,
+    LINEUP_SIZE,
     conditionsMultiplier,
     formatTime,
     kmSplits,

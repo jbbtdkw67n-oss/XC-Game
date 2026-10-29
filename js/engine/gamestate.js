@@ -84,7 +84,10 @@
         W: D.DEFAULT_WEEK_PLAN.slice(),
         overrides: {}, // athleteId -> 'reduced' | 'rest'
         mileage: { M: D.MILEAGE.DEFAULT.M, W: D.MILEAGE.DEFAULT.W },
-        mileageOverrides: {} // athleteId -> weekly miles (30-120)
+        mileageOverrides: {}, // athleteId -> weekly miles (30-120)
+        // Race-day Top 7 per squad (Update 24): the Highest Overall preset
+        // or a custom lineup the coach picked on the Roster screen.
+        lineup: { M: { mode: 'overall', ids: [] }, W: { mode: 'overall', ids: [] } }
       };
 
       this.season = null;    // current season schedule + results (Races engine)
@@ -598,11 +601,21 @@
         a.seasonDev = 0;
         a.seasonInjuryWeeks = 0;
       });
+      // 6a) Transfer desire resets with the season (Update 24): moods and
+      //     frayed bonds settle back toward a new-season baseline.
+      window.XCD.engine.Portal.seasonFreshStart(this);
       Object.keys(this.training.overrides).forEach((id) => {
         if (!this.world.athletes[id]) delete this.training.overrides[id];
       });
       Object.keys(this.training.mileageOverrides || {}).forEach((id) => {
         if (!this.world.athletes[id]) delete this.training.mileageOverrides[id];
+      });
+      // Graduates and departed transfers drop out of a custom Top 7; the
+      // open spots fill by overall until the coach picks again.
+      const mine = this.getPlayerSchool();
+      Object.entries(this.training.lineup || {}).forEach(([g, lu]) => {
+        const roster = mine ? (g === 'M' ? mine.rosterM : mine.rosterW) : [];
+        if (lu && Array.isArray(lu.ids)) lu.ids = lu.ids.filter((id) => roster.includes(id));
       });
 
       // 7) Archive last season's player results, then build the new season.
@@ -773,7 +786,8 @@
         W: Array.isArray(savedTraining.W) ? savedTraining.W : D.DEFAULT_WEEK_PLAN.slice(),
         overrides: savedTraining.overrides || {},
         mileage: savedTraining.mileage || { M: D.MILEAGE.DEFAULT.M, W: D.MILEAGE.DEFAULT.W },
-        mileageOverrides: savedTraining.mileageOverrides || {}
+        mileageOverrides: savedTraining.mileageOverrides || {},
+        lineup: savedTraining.lineup || { M: { mode: 'overall', ids: [] }, W: { mode: 'overall', ids: [] } }
       };
       gs.season = obj.season || null;
       gs.rankings = obj.rankings || null;

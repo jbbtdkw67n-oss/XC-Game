@@ -215,11 +215,11 @@
                 <td>${a.classYear}</td>
                 <td class="num">${UI.ratingBadge(a.currentOverall)}</td>
                 <td class="num" style="color:${(a.seasonDev || 0) > 0 ? 'var(--success)' : 'var(--text-faint)'};">${(a.seasonDev || 0) > 0 ? '+' + a.seasonDev : a.seasonDev || '—'}</td>
-                <td><div style="min-width:52px;">${UI.meter(a.fitness)}</div></td>
-                <td><div style="min-width:52px;">${UI.meter(a.fatigue, a.fatigue > 70 ? 'red' : a.fatigue > 45 ? 'yellow' : 'green')}</div></td>
+                <td class="meter-cell"><div style="min-width:52px;">${UI.meter(a.fitness)}</div></td>
+                <td class="meter-cell"><div style="min-width:52px;">${UI.meter(a.fatigue, a.fatigue > 70 ? 'red' : a.fatigue > 45 ? 'yellow' : 'green')}</div></td>
                 <td class="num">${Math.round(a.sharpness ?? 55)}</td>
                 <td class="num"><strong>${ready}</strong></td>
-                <td><div style="min-width:46px;">${UI.meter(a.morale, a.morale < 40 ? 'red' : a.morale < 65 ? 'yellow' : 'green')}</div></td>
+                <td class="meter-cell"><div style="min-width:46px;">${UI.meter(a.morale, a.morale < 40 ? 'red' : a.morale < 65 ? 'yellow' : 'green')}</div></td>
                 <td>${a.injury
                   ? `<span style="color:var(--danger);">${Utils.escapeHtml(a.injury.type)} (${a.injury.weeksRemaining}w)</span>`
                   : a.health === 'Recovering'

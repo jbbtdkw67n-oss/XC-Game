@@ -54,10 +54,15 @@
       const color = d > 0 ? 'var(--success)' : d < 0 ? 'var(--danger)' : 'var(--text-faint)';
       return `<span style="color:${color}; font-weight:700;">${e.before} → ${e.after} (${d > 0 ? '+' : ''}${d})</span>`;
     };
-    const attrHtml = (e) => e.attrs.map((r) => {
-      const up = r.to > r.from;
-      return `<span title="${r.key}" style="white-space:nowrap; color:${up ? 'var(--success)' : 'var(--danger)'};">${ATTR_SHORT[r.key] || r.key} ${r.from}→${r.to}</span>`;
-    }).join(' · ') || '<span style="color:var(--text-faint);">no change</span>';
+    // Whole numbers only — reports saved before the rounding fix carry raw
+    // fractional ratings, and a change that rounds away is no change.
+    const attrHtml = (e) => e.attrs
+      .map((r) => ({ key: r.key, from: Math.round(r.from), to: Math.round(r.to) }))
+      .filter((r) => r.from !== r.to)
+      .map((r) => {
+        const up = r.to > r.from;
+        return `<span title="${r.key}" style="white-space:nowrap; color:${up ? 'var(--success)' : 'var(--danger)'};">${ATTR_SHORT[r.key] || r.key} ${r.from}→${r.to}</span>`;
+      }).join(' · ') || '<span style="color:var(--text-faint);">no change</span>';
     const section = (gender, label) => {
       const rows = rep.entries.filter((e) => e.gender === gender);
       if (!rows.length) return '';
@@ -70,7 +75,7 @@
               <tr class="${e.id ? 'clickable' : ''}" ${e.id ? `data-ath="${e.id}"` : ''}>
                 <td>${UI.personName(game, 'ath', e.id, e.name, { link: false, extra: { gender: e.gender } })}${e.incoming ? ' <span style="color:var(--text-faint); font-size:10px;" title="Incoming — first summer on campus">NEW</span>' : ''}</td>
                 <td>${e.classYear}</td>
-                <td class="num">${e.workEthic}</td>
+                <td class="num">${Math.round(e.workEthic)}</td>
                 <td>${deltaHtml(e)}</td>
                 <td style="font-size:12px;">${attrHtml(e)}</td>
               </tr>`).join('')}
