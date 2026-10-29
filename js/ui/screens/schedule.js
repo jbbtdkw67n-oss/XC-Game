@@ -643,16 +643,17 @@
     const rankM = Rk.teamRank(game, school.id, 'M');
     const rankW = Rk.teamRank(game, school.id, 'W');
 
-    // Upcoming meet field preview → the filterable "In the Field" browser with
-    // division/gender labels and pre-meet projections (Meet preview overhaul).
-    const previewHtml = inTheFieldHtml(game);
-
     // Week 1 Administrative Phase (spec Part 2, Section 15): the schedule is
     // set during Week 1 and then finalized for the season. After that, only
     // the finalized table shows. Pre-Nationals (Update 20) is no longer a
     // separate accept/decline invitation — it is a normal Week 10 elite meet
     // option in the schedule selector below.
     const locked = game.scheduleLocked ? game.scheduleLocked() : game.week > 1;
+
+    // Upcoming meet field preview → the filterable "In the Field" browser with
+    // division/gender labels and pre-meet projections (Meet preview overhaul).
+    // Like the Meet Browser, it's for planning, so it goes once locked.
+    const previewHtml = locked ? '' : inTheFieldHtml(game);
 
     // Custom race scheduling (Update 4, Part 7 + Section 15): pick which
     // meets to attend during Week 1, gated by prestige — then finalize.
@@ -741,7 +742,7 @@
       ${browserCard}
       <div class="card" id="season-schedule">
         ${locked ? `<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
-          <h2 style="margin:0;">🔒 ${season.year} Schedule Finalized</h2>
+          <h2 style="margin:0;">${season.year} Schedule Finalized</h2>
           ${realSchedule ? (() => {
             const sp = MC().playerSpend(game);
             return `<span style="color:var(--text-dim); font-size:12.5px;">${sp.count} meets · ${money(sp.spent)} of ${money(sp.budget)} travel</span>`;

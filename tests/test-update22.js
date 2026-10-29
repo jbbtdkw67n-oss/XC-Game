@@ -77,11 +77,13 @@ async function run() {
       firstIsSchedule: cards[0] && cards[0].id === 'season-schedule',
       title: cards[0] ? cards[0].querySelector('h2').textContent : '',
       browser: !!document.querySelector('#meet-browser'),
-      builder: !!document.querySelector('#schedule-builder')
+      builder: !!document.querySelector('#schedule-builder'),
+      inTheField: !!document.querySelector('[data-if-div]')
     };
   });
   ok(post.firstIsSchedule && /Schedule Finalized/.test(post.title), 'the locked schedule is the first card: ' + JSON.stringify(post));
-  ok(!post.browser && !post.builder, 'the Meet Browser and builder disappear once locked');
+  ok(!post.browser && !post.builder && !post.inTheField, 'the Meet Browser, builder and In the Field panel disappear once locked: ' + JSON.stringify(post));
+  ok(!/🔒/.test(post.title), 'the locked schedule title has no lock symbol: ' + post.title);
 
   // Race week shows the forecast.
   const fc = await page.evaluate(() => {

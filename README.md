@@ -32,9 +32,9 @@ Home Screen** — it installs as a full-screen, offline-capable app. See
   hotter it gets. Cool air below 50°F now speeds everyone up (cold-weather
   runners a little more), so a crisp, cold meet is a PR day. Rain, mud and
   wind still slow times.
-- **The locked schedule goes to the top.** Once you finalize, the builder and
-  the Meet Browser disappear. Your season schedule is the first card on the
-  Schedule tab, with a one-line travel summary.
+- **The locked schedule goes to the top.** Once you finalize, the builder, the
+  Meet Browser and the In the Field panel all disappear. Your season schedule
+  is the first card on the Schedule tab, with a one-line travel summary.
 
 ## Version 14.7 — Real Schedules, Travel Budgets & Fairer Nationals Bids
 
