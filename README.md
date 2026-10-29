@@ -14,6 +14,30 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.1 — Restless Athletic Directors & Promotion From Within
+
+- **No more lifers at the bottom.** Low prestige no longer protects a coach.
+  Every athletic director now expects at least to stay out of the bottom 35%
+  of the division. The deeper a program sits below that line, the faster the
+  seat heats. A long tenure spent there adds pressure every year, so a
+  cellar-dweller no longer keeps its coach for 27 years. CPU athletic
+  directors are also a little more impulsive and less predictable. This
+  applies to you too.
+- **Fair to new hires and rebuilds.** A new coach gets two seasons of grace
+  (half the heat), and climbing the standings from one year to the next
+  cools the seat.
+- **Promotion from within.** As an assistant, if your coach overall rises
+  above your head coach's, the athletic director offers you the head job at
+  your own program. The offer appears with the job offers after Nationals,
+  or later in the offseason the moment spent points put you ahead. Take it
+  or turn it down like any offer. If you take it, the old head coach retires
+  (62+) or enters the coaching market, and you keep your roster and
+  recruiting board.
+- **Recruiting coordinators earn more.** As an assistant, a strong
+  recruiting class now pays out tiered dynasty points: top 3 = 4, top 5 = 3,
+  top 10 = 2, top 25 = 1 (before the 1.5× progression rate; DII ×0.85,
+  DIII ×0.7). Head coaches still earn 1 for a top-10 class.
+
 ## Version 15.0 — Pick Your Top 7, a Fresh Start Each Season & Championship Upsets
 
 - **🏃 Choose who races.** The Roster screen has a new **Race-Day Top 7**

@@ -497,6 +497,9 @@
    * another program); the chair stays open until the offseason carousel
    * fills it — schools only hire on genuine vacancies (Part 11).
    */
+  // The bottom 35% of a division is "struggling" for hot-seat purposes.
+  const STRUGGLE_LINE = 0.65;
+
   function coachFirings(gameState, rng) {
     const rankIndex = { M: {}, W: {} };
     ['M', 'W'].forEach((g) => gameState.rankings[g].forEach((r) => { rankIndex[g][r.schoolId] = r.rank; }));
@@ -511,7 +514,11 @@
       // prestige, measured against the school's own division field.
       const total = divSize(school.division);
       const pressure = window.XCD.data.divisionFor(school).expectations || 1;
-      const expectedPct = 1 - school.prestige / 100;
+      // Expectation floor (user request): low prestige no longer buys a
+      // permanent pass. No athletic director accepts life in the bottom 35%
+      // of the division forever, so a perennial cellar-dweller is judged
+      // against at least that line instead of against its own losing.
+      const expectedPct = Math.min(1 - school.prestige / 100, STRUGGLE_LINE);
       // Program Expectations (spec Part 2): schools recognize success in
       // EITHER program. The better squad carries most of the evaluation, so
       // a nationally competitive men's OR women's team keeps the seat cool;
@@ -531,9 +538,35 @@
       // faster, a good one cools it faster (~1.0x at a 60-prestige program,
       // up to ~1.7x at a blue blood).
       const big = Utils.clamp((school.prestige - 60) / 40, 0, 1);
-      const volatility = 1 + big * 0.55 + ((school.division || 'DI') === 'DI' && school.conferenceTier === 1 ? 0.15 : 0);
-      const heat = underperformance * 55 * volatility;
+      // Struggling programs (user request) live with a volatile seat too: the
+      // deeper into the bottom 35% a program finishes, the faster the chair
+      // heats. CPU athletic directors are also more impulsive than the
+      // player's, with a little year-to-year unpredictability.
+      const struggle = Utils.clamp((actualPct - STRUGGLE_LINE) / (1 - STRUGGLE_LINE), 0, 1);
+      let volatility = 1 + big * 0.55 + ((school.division || 'DI') === 'DI' && school.conferenceTier === 1 ? 0.15 : 0) +
+        struggle * 0.6;
+      if (!coach.isPlayer) volatility *= 1.2 * (0.85 + rng.next() * 0.3);
+
+      // Trajectory: a program climbing the standings buys its coach time; the
+      // seat remembers last season's finish (per school, so a new job starts
+      // clean).
+      const track = coach.seatTrack && coach.seatTrack.schoolId === school.id ? coach.seatTrack : null;
+      const improvement = track ? track.pct - actualPct : 0; // + = climbed
+      coach.seatTrack = { schoolId: school.id, pct: Math.round(actualPct * 1000) / 1000 };
+      // New hires get two seasons of grace before pressure bites in full.
+      const honeymoon = (coach.yearsAtSchool || 0) <= 1;
+
+      let heat = underperformance * 55 * volatility;
+      if (heat > 0 && honeymoon) heat *= 0.5;
+      // Stagnation (user request): a long tenure spent in the cellar without
+      // progress wears out its welcome — every extra year in the bottom 35%
+      // adds pressure, so a bottom program never keeps a coach for decades.
+      if (struggle > 0 && !honeymoon && improvement < 0.05 && (coach.yearsAtSchool || 0) >= 5) {
+        heat += Math.min(20, ((coach.yearsAtSchool || 0) - 4) * 3) * (0.4 + struggle * 0.6);
+      }
       coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(heat > 0 ? heat / patience : heat), 0, 100);
+      // A real climb up the standings cools the chair.
+      if (improvement >= 0.08) coach.hotSeat = Math.max(0, coach.hotSeat - Math.round(improvement * 70));
       // Successful seasons reduce Hot Seat pressure GRADUALLY (spec Part 2);
       // a single decent year eases the seat but does not erase years of
       // failure outright.
@@ -586,14 +619,15 @@
 
       // AI coaches: three consecutive Hot Seat seasons — or three straight
       // seasons of missed podium expectations — is an automatic dismissal.
-      // (The fired<40 cap only paces the news feed — a coach who has hit the
+      // (The 40-firing cap only paces the news feed — a coach who has hit the
       // mark is always let go.)
-      if ((coach.hotSeatYears >= 3 || podiumFired) && fired < 40) {
+      if (coach.hotSeatYears >= 3 || podiumFired) {
         fired++;
         gameState.history.firings = (gameState.history.firings || 0) + 1;
         const why = (podiumFired && coach.hotSeatYears < 3)
           ? 'after another season short of the podium it was picked to reach'
-          : 'after three seasons on the Hot Seat';
+          : struggle > 0 ? 'after another season near the bottom of the standings'
+            : 'after three seasons on the Hot Seat';
         window.XCD.engine.Legacy.closeStint(gameState, coach, school, gameState.year, 'fired');
         coach.schoolId = null;   // into the free-agent pool
         coach.hotSeat = 0;
@@ -603,7 +637,7 @@
         coach.reputation = Utils.clamp((coach.reputation || 25) - 6, 1, 99); // firings sting
         school.coachId = null;   // the chair sits open until the carousel
         school.coachChangedYear = gameState.year;
-        gameState.logNews(`FIRED: ${school.name} lets ${coach.fullName} go ${why}. The search for a successor begins.`);
+        if (fired <= 40) gameState.logNews(`FIRED: ${school.name} lets ${coach.fullName} go ${why}. The search for a successor begins.`);
       }
     });
   }

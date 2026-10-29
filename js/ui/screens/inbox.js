@@ -26,7 +26,7 @@
   const CATEGORY = {
     'athlete:injured': 'team', 'staff:assistantLeft': 'career', 'season:started': 'team', 'portal:opened': 'team',
     'recruit:committed': 'recruiting', 'recruit:decommitted': 'recruiting', 'recruit:signingDay': 'recruiting',
-    'jobs:marketOpened': 'career', 'jobs:newOpening': 'career', 'career:hotSeat': 'career', 'career:fired': 'career',
+    'jobs:marketOpened': 'career', 'jobs:newOpening': 'career', 'jobs:promotionOffer': 'career', 'career:hotSeat': 'career', 'career:fired': 'career',
     'race:completed': 'results', 'nationals:selection': 'results'
   };
   const FILTERS = [
