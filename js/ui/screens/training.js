@@ -248,7 +248,7 @@
         ${injured.length ? injured.map((a) => `
           <div class="attr-row" style="padding:6px 0;">
             <span>${UI.personName(game, 'ath', a.id, a.fullName, { person: a, link: false })} <span style="color:var(--text-dim);">(${a.gender === 'M' ? 'M' : 'W'} • ${a.classYear})</span></span>
-            <span style="color:var(--danger);">${Utils.escapeHtml(a.injury.type)}</span>
+            <span style="color:var(--danger);">${Utils.escapeHtml(a.injury.type)}${TE().injuryDeficitOverall(a) >= 1 ? ` · −${Math.round(TE().injuryDeficitOverall(a))} OVR so far` : ''}</span>
             <span style="color:var(--text-dim);">${a.injury.weeksRemaining} of ${a.injury.totalWeeks} wk remaining</span>
           </div>`).join('') : '<div style="color:var(--text-dim);">No injuries. Keep managing those fatigue levels.</div>'}
         ${recovering.length ? `
@@ -256,7 +256,7 @@
           ${recovering.map((a) => `
           <div class="attr-row" style="padding:6px 0;">
             <span>${UI.personName(game, 'ath', a.id, a.fullName, { person: a, link: false })} <span style="color:var(--text-dim);">(${a.gender === 'M' ? 'M' : 'W'} • ${a.classYear})</span></span>
-            <span style="color:var(--warning);">Rebuilding fitness, sharpness & confidence</span>
+            <span style="color:var(--warning);">Rebuilding fitness, sharpness & confidence${TE().injuryDeficitOverall(a) >= 1 ? ` · ${Math.round(TE().injuryDeficitOverall(a))} OVR to win back` : ''}</span>
             <span style="color:var(--text-dim);">~${Math.max(1, a.recentInjuryWeeks || 1)} wk to full strength</span>
           </div>`).join('')}` : ''}
       </div>`;
@@ -307,6 +307,15 @@
         else if (miles <= lowAt) msg = `⚡ Low volume: fresh and sharp with better speed work — but endurance and long-term fitness will stagnate.`;
         else msg = `Moderate volume: balanced development and recovery.`;
         if (fragile > 0) msg += ` <span style="color:var(--danger);">⚠ ${fragile} runner${fragile > 1 ? 's' : ''} above their durable limit.</span>`;
+        // Load spikes (Update 25): a jump well above a runner's recent load
+        // raises injury risk — miles or quality work.
+        const meta = TE().planMetaFor(game.training[activeGender]);
+        const spiking = roster.filter((a) => {
+          if (a.injury) return false;
+          const m = game.training.mileageOverrides[a.id] ?? miles;
+          return TE().loadSpike(m, a.chronicMileage, meta.intensity, a.chronicIntensity).mult > 1.05;
+        }).length;
+        if (spiking > 0) msg += ` <span style="color:var(--warning);">⚠ Load spike for ${spiking} runner${spiking > 1 ? 's' : ''}: this week jumps well above their recent miles or quality work — higher injury risk. Build up gradually (Ideal Mileage ramps for you).</span>`;
         hint.innerHTML = msg;
       }
     };

@@ -14,6 +14,29 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.2 — Load Spikes & Injury Comebacks
+
+- **Big jumps in load raise injury risk.** Each runner now carries a rolling
+  average of their recent miles and of their recent quality work (hard
+  sessions). A week that jumps miles more than about 20% above that
+  average, or quality work about 30% above it, raises injury risk. The
+  bigger the jump, the bigger the risk, up to about 2.6×. Cutting load is
+  never penalized. The averages fade during an injury layoff, so throwing a
+  runner straight back into full training is a spike, and easing them back
+  over a few weeks is not.
+- **Smart ramping.** Ideal Mileage builds volume gradually. Competent CPU
+  staffs ramp volume too, and ease returning runners back on a reduced
+  load. Poor staffs don't, and their runners get hurt more. The Training
+  screen warns when the week's plan spikes anyone.
+- **Injuries cost real overall, and it comes back fast.** Every week out
+  costs about 2 overall, aerobic ratings fading fastest, up to a 20-overall
+  hole. The loss is banked. Once the runner is training again, a quarter of
+  what's left comes back each week, so a six-week layoff (about −12) is
+  rebuilt in roughly eight or nine weeks, far faster than it was first
+  built. Anything still missing at season's end returns over the summer.
+  The Injury Report shows the overall lost so far and what's left to win
+  back.
+
 ## Version 15.1 — Restless Athletic Directors & Promotion From Within
 
 - **No more lifers at the bottom.** Low prestige no longer protects a coach.
