@@ -132,6 +132,7 @@
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
           <h2 style="margin:0;">Weekly Mileage — ${activeGender === 'M' ? "Men's" : "Women's"} Squad</h2>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="btn small primary" id="preset-ideal" title="Set every runner to their own ideal mileage — the most their body can absorb right now, tapered for championships">🎯 Ideal Mileage</button>
             <button class="btn small" id="preset-all" title="Clear every individual override — the whole squad runs the program mileage">Quick Set All</button>
             ${D.MILEAGE.PRESETS.map((p) => `
               <button class="btn small" data-preset="${p.key}" title="${p.desc}">${p.label}</button>`).join('')}
@@ -194,7 +195,7 @@
             </div>`;
           }).join('')}
         </div>` : `
-        <div class="table-wrap"><table class="data">
+        <div class="table-wrap"><table class="data squad-table">
           <thead><tr>
             <th class="col-grow">Name</th><th>Class</th><th class="num">OVR</th><th class="num" title="Overall gained this season">+Season</th>
             <th>Fitness</th><th>Fatigue</th><th class="num">Sharp</th><th class="num">Ready</th><th>Morale</th><th>Status</th><th>Load</th><th class="num">Mi/wk</th>
@@ -365,6 +366,11 @@
       btn.addEventListener('click', () => {
         applyPreset(D.MILEAGE.PRESETS.find((p) => p.key === btn.dataset.preset));
       });
+    });
+    container.querySelector('#preset-ideal').addEventListener('click', () => {
+      const n = TE().applyIdealMileage(game, activeGender);
+      UI.toast(`🎯 Ideal mileage set for ${n} runner${n === 1 ? '' : 's'} — each at the most their body can absorb right now.`, 'success');
+      render(container);
     });
     container.querySelector('#preset-all').addEventListener('click', () => {
       roster.forEach((a) => delete game.training.mileageOverrides[a.id]);

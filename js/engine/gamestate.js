@@ -64,6 +64,8 @@
         budgetLeft: 0,
         actionsThisWeek: {},   // recruitId -> actions used this week
         board: { M: [], W: [] }, // player's target lists
+        staffAdded: { M: [], W: [] }, // board entries Auto Recruiting added (not the player's picks)
+        boardSkip: { M: [], W: [] },  // staff picks the player removed — never re-added
         aiBoards: {},          // schoolId -> { M: [ids], W: [ids] }
         classYear: null,
         auto: false            // Auto Recruiting: the CPU runs your board

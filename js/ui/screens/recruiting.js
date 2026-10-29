@@ -239,23 +239,42 @@
         btn.addEventListener('click', () => {
           const result = RE().doAction(game, rec.id, btn.dataset.action);
           UI.toast(result.message, result.ok ? 'success' : 'error');
-          if (result.ok && !game.recruiting.board[rec.gender].includes(rec.id)) {
-            game.recruiting.board[rec.gender].push(rec.id); // acting on a recruit tracks them
+          // Acting on a recruit tracks them — as YOUR pick, which Auto
+          // Recruiting then works before anyone else.
+          if (result.ok && (!game.recruiting.board[rec.gender].includes(rec.id) || RE().isStaffPick(game, rec))) {
+            RE().boardAdd(game, rec);
           }
           if (result.ok) showRecruitCard(game, rec); // refresh meters/buttons
         });
       });
       modal.querySelector('#btn-board-toggle').addEventListener('click', () => {
-        const board = game.recruiting.board[rec.gender];
-        const i = board.indexOf(rec.id);
-        if (i >= 0) { board.splice(i, 1); UI.toast(`${rec.lastName} removed from your board.`); }
-        else { board.push(rec.id); UI.toast(`${rec.lastName} added to your board.`, 'success'); }
+        if (game.recruiting.board[rec.gender].includes(rec.id)) {
+          RE().boardRemove(game, rec);
+          UI.toast(`${rec.lastName} removed from your board.`);
+        } else {
+          RE().boardAdd(game, rec);
+          UI.toast(game.recruiting.auto
+            ? `${rec.lastName} added to your board — Auto Recruiting works your picks first.`
+            : `${rec.lastName} added to your board.`, 'success');
+        }
         showRecruitCard(game, rec);
       });
     });
   }
 
   UI.showRecruitCard = showRecruitCard;
+
+  // Last week's Auto Recruiting work, in one line.
+  function autoReportHtml(game) {
+    const rep = game.recruiting.autoReport;
+    if (!rep) return '';
+    const parts = [`${rep.actions} action${rep.actions === 1 ? '' : 's'} on ${rep.worked.length} recruit${rep.worked.length === 1 ? '' : 's'}`];
+    if (rep.priority) parts.push(`${rep.priorityWorked} of ${rep.priority} board pick${rep.priority === 1 ? '' : 's'} worked`);
+    if (rep.spent) parts.push(`$${(rep.spent / 1000).toFixed(1)}k spent`);
+    if (rep.offers.length) parts.push(`offers: ${rep.offers.map(Utils.escapeHtml).join(', ')}`);
+    if (rep.flips.length) parts.push(`flipped: ${rep.flips.map(Utils.escapeHtml).join(', ')}`);
+    return `<div style="margin-top:6px; color:var(--text-dim);">Week ${rep.week} staff report: ${parts.join(' • ')}.</div>`;
+  }
 
   /* ---------------- Tab renderers ---------------- */
   function rowsForBoard(game) {
@@ -275,6 +294,11 @@
 
   function recruitTable(game, container, rows, opts = {}) {
     const school = game.getPlayerSchool();
+    // On the board, Auto Recruiting's fill-in targets are tagged so the
+    // player can tell them from their own picks (which the staff works first).
+    const staffTag = (r) => opts.boardTags && RE().isStaffPick(game, r)
+      ? ' <span style="font-size:10px; color:var(--text-faint);" title="Added by your Auto Recruiting staff. Your own picks are worked first.">🤖 staff</span>'
+      : '';
     // Phone view (Update 14): each recruit is a tappable card — stars, rank,
     // scouted overall, interest, distance, and commitment status. Tapping
     // opens the full recruit profile with every recruiting action.
@@ -290,7 +314,7 @@
         <div class="m-head">
           ${UI.avatar(r, { size: 42 })}
           <div class="m-title">${r.generational ? '⭐ ' : ''}${r.nxn && r.nxn.champion ? '👟 ' : r.nxn && r.nxn.allAmerican ? '🎽 ' : ''}${Utils.escapeHtml(r.fullName)}${r.source !== 'HS' ? ` <span style="font-size:10px; color:var(--warning);">${r.source}</span>` : ''}
-            <div class="m-sub">${stars(r.starRating)} • Natl #${r.nationalRank}</div>
+            <div class="m-sub">${stars(r.starRating)} • Natl #${r.nationalRank}${staffTag(r)}</div>
           </div>
           <div class="m-badge">${fogBadge(r.currentOverall, r.playerKnowledge.scout)}
             <div class="m-sub">Scouted ${r.playerKnowledge.scout}%</div>
@@ -322,7 +346,7 @@
       columns: [
         { key: 'starRating', label: 'Stars', numeric: true, align: 'left', render: (r) => stars(r.starRating) },
         { key: 'nationalRank', label: 'Natl', numeric: true, align: 'left', render: (r) => `#${r.nationalRank}` },
-        { key: 'lastName', label: 'Name', render: (r) => `${UI.avatar(r, { size: 24 })} ${r.generational ? '<span title="Generational Recruit">⭐</span> ' : ''}${r.nxn && r.nxn.champion ? '<span title="NXN Champion">👟</span> ' : r.nxn && r.nxn.allAmerican ? '<span title="NXN All-American">🎽</span> ' : ''}<strong>${Utils.escapeHtml(r.fullName)}</strong>${r.source !== 'HS' ? ` <span style="font-size:10px; color:var(--warning);">${r.source}</span>` : ''}` },
+        { key: 'lastName', label: 'Name', render: (r) => `${UI.avatar(r, { size: 24 })} ${r.generational ? '<span title="Generational Recruit">⭐</span> ' : ''}${r.nxn && r.nxn.champion ? '<span title="NXN Champion">👟</span> ' : r.nxn && r.nxn.allAmerican ? '<span title="NXN All-American">🎽</span> ' : ''}<strong>${Utils.escapeHtml(r.fullName)}</strong>${r.source !== 'HS' ? ` <span style="font-size:10px; color:var(--warning);">${r.source}</span>` : ''}${staffTag(r)}` },
         { key: 'hometownState', label: 'From', render: (r) => r.hometownState === 'INT' ? Utils.escapeHtml(r.country) : `${Utils.escapeHtml(r.hometownCity)}, ${r.hometownState}` },
         {
           key: 'dist', label: 'Dist', numeric: true,
@@ -474,11 +498,12 @@
 
       ${R.auto ? `
       <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent); padding:10px 14px; font-size:13px;">
-        🤖 <strong>Auto Recruiting is ON.</strong> Your staff runs recruiting like a competent human assistant:
-        it spends your weekly points and yearly budget on real actions — calls, visits, scouting, and
-        ${D.offerTerms(game.getPlayerSchool()).noun} offers — prioritizing roster holes and graduation losses until the class is filled.
-        It is the exact same system every CPU program uses. Your board below mirrors the staff's targets;
-        toggle off any time to take back control.
+        🤖 <strong>Auto Recruiting is ON.</strong> Your staff works <strong>your board picks first</strong>, every week:
+        a ${D.offerTerms(game.getPlayerSchool()).noun} offer on first contact, a scouting trip, the pitch that fits each recruit's
+        personality, and flip attempts if a rival lands the verbal. Leftover points go to fill-in targets
+        (tagged 🤖 staff) chosen for roster holes, talent, and winnable battles. Same points, budget, and rules as everyone else.
+        Add anyone to your board to make them a priority; remove a staff pick and it stays off.
+        ${autoReportHtml(game)}
       </div>` : ''}
 
       <div class="grid cols-4" style="margin-bottom:16px;">
@@ -563,6 +588,7 @@
     const rows = isSearch ? rowsForSearch(game) : rowsForBoard(game);
     const table = recruitTable(game, body.querySelector('#rec-table'), rows, {
       maxRows: isSearch ? 200 : undefined,
+      boardTags: !isSearch,
       emptyMessage: isSearch
         ? 'No recruits match these filters. Loosen the star or source filter to widen the pool.'
         : 'Your board is empty. Find targets in the Search tab and add them.'

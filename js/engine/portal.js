@@ -368,6 +368,12 @@
    * Smart entry model (Part 4): every departure has a concrete, legible
    * cause. Returns the accumulated unhappiness and the loudest reason.
    */
+  // The player's roster attrition slider (1 when the settings module is absent).
+  function playerTransferMult(gameState) {
+    const S = window.XCD.engine.Settings;
+    return S ? S.mult(gameState, 'transferPressure') : 1;
+  }
+
   function unhappiness(gameState, a, school) {
     const RE = window.XCD.engine.Recruiting;
     const TE = window.XCD.engine.Training;
@@ -375,7 +381,13 @@
     let u = 0;
     const reasons = []; // { w, label } — what pushes toward the door
     const anchors = []; //  labels — what keeps this athlete home
-    const add = (w, label) => { u += w; reasons.push({ w, label }); };
+    // Difficulty (Update 23): on the player's roster every push toward the
+    // door — buried on the depth chart, a lost injury season, a frayed bond —
+    // hits harder at higher difficulty, so stacking talent gets harder to
+    // hold together. Only the reasons are amplified: anchors are untouched,
+    // and an athlete with nothing pushing them out stays exactly as settled.
+    const push = school.id === gameState.playerSchoolId ? playerTransferMult(gameState) : 1;
+    const add = (w, label) => { w *= push; u += w; reasons.push({ w, label }); };
 
     const coach = gameState.getCoach(school.coachId);
 
@@ -493,7 +505,7 @@
     // Facilities & misery
     if (school.facilitiesOverall < 40) add(7, 'Facilities');
     if (a.morale < 40) add(24, 'Unhappy');
-    else if (a.morale < 55) u += 10;
+    else if (a.morale < 55) u += 10 * push;
 
     reasons.sort((x, y) => y.w - x.w);
     // Merge duplicate labels (culture can trigger twice) for clean display.
@@ -566,7 +578,11 @@
           // too much talent. Entry probability is scaled to ~75% of its former
           // rate, so meaningfully fewer runners churn each cycle and rosters
           // are built more through recruiting and development than the portal.
-          let p = Utils.clamp((u - 14) / 130, 0, 0.5) * PORTAL_ENTRY_SCALE;
+          // At higher difficulty the player's most unhappy athletes can also
+          // clear the usual ceiling (only reachable through amplified reasons).
+          const cap = school.id === gameState.playerSchoolId
+            ? Math.min(0.75, 0.5 * Math.max(1, playerTransferMult(gameState))) : 0.5;
+          let p = Utils.clamp((u - 14) / 130, 0, cap) * PORTAL_ENTRY_SCALE;
           // The Zero Morale Rule (Section 14): athletes at rock bottom almost
           // always leave. The only rare exceptions are exceptionally strong
           // bonds (and seniors, who never enter — they finish out the career).
@@ -1473,6 +1489,7 @@
     portalAppeal,
     transferRisk,
     applyTransfers,
+    openPortal,
     cutAthlete,
     trimRosters,
     // Transfer Points system (Update 15)

@@ -14,6 +14,38 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 14.9 — A Restless Roster, Smarter Auto Recruiting & Ideal Mileage
+
+- **Harder difficulty, harder to stack talent.** A new difficulty slider,
+  **Roster transfer pressure**, makes every existing reason a runner on *your*
+  roster leaves hit harder: not getting to race, being buried on the depth
+  chart, a season lost to injury, a frayed bond with the coach or team,
+  homesickness, stalled development and the rest. Runners with nothing pushing
+  them out are not affected, and CPU rosters are untouched. The presets set it
+  for you: Rookie 0.85×, Normal 1.00×, Veteran 1.35×, Legend 1.75×. The
+  Transfer Risk shown on each profile includes it.
+- **Auto Recruiting works your board first.** Every recruit you put on your
+  board is now an order for your staff. Each week the staff works all of your
+  picks before anyone else: it offers on first contact (while you have open
+  slots), sends one scouting trip, uses the pitch that fits each recruit's
+  personality, and tries to flip a pick who commits somewhere else. Your
+  picks stay at the top of your board, and turning Auto on no longer wipes
+  your board.
+- **Smarter fill-ins.** Any points left over go to fill-in targets for roster
+  holes. The staff weighs talent against how winnable each battle is, picks
+  the best-value action for each recruit, and spends the whole week's points.
+  Fill-ins are tagged **🤖 staff** on your board. Remove one and the staff
+  never adds it back. The Auto banner shows a weekly staff report, and the
+  news notes every offer and flip your staff makes.
+- **🎯 Ideal Mileage in one click.** The Roster screen has an **Ideal
+  Mileage** button that sets every runner on both squads to their own number:
+  the most their body can absorb right now, just under their durable limit.
+  It is cut back for the championship taper and the offseason. The Training
+  screen's mileage card has the same button for the squad you're viewing.
+- **Cleaner Training table.** In the desktop Squad Monitor, each runner's
+  name now sits on one line and the columns line up. The Mi/wk boxes are
+  compact again.
+
 ## Version 14.8 — A Cleaner Schedule Tab, Hidden Forecasts & Cold-Weather PRs
 
 - **A cleaner Meet Browser.** Each meet is now one compact card: the name, a

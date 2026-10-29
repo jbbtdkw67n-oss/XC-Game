@@ -1152,16 +1152,21 @@
     return lo;
   }
 
-  function ensureAIBoard(gameState, school, rng, ctx) {
+  // `pinned` (Auto Recruiting only): the player's own picks. The staff's
+  // board never duplicates them (or re-adds a pick the player removed), and
+  // shrinks to leave room for the ones still being worked.
+  function ensureAIBoard(gameState, school, rng, ctx, pinned = null) {
     const R = gameState.recruiting;
     R.aiBoards[school.id] = R.aiBoards[school.id] || { M: [], W: [] };
     const board = R.aiBoards[school.id];
 
     ['M', 'W'].forEach((gender) => {
       const week = gameState.week;
+      const exclude = pinned ? pinned.exclude[gender] : null;
       board[gender] = board[gender].filter((id) => {
         const r = gameState.world.recruits[id];
         if (!r || r.signed) return false;
+        if (exclude && exclude.has(id)) return false;
         // A recruit committed elsewhere normally drops off the board — but a
         // staff holding an offer and a real commitment chance keeps them on
         // as a Sway (flip) target for a while.
@@ -1189,6 +1194,7 @@
       const coach = gameState.getCoach(school.coachId);
       ctx.pools[gender].slice(-6).forEach((r) => {
         if (!r.generational || r.committedTo || board[gender].includes(r.id)) return;
+        if (exclude && exclude.has(r.id)) return;
         const gambler = coach && coach.hasTendency &&
           (coach.hasTendency('aggressive') || coach.hasTendency('elite-recruiter'));
         if (school.prestige >= 72 || (gambler && rng.bool(0.35)) || rng.bool(0.04)) {
@@ -1204,9 +1210,10 @@
       const committed = (ctx.commitCounts[school.id] && ctx.commitCounts[school.id][gender]) || 0;
       const need = ctx.needs[school.id][gender];
       const elite = school.prestige >= 75;
-      const boardCap = elite && committed === 0 && week <= D.RECRUITING.SIGNING_WEEK - 3
+      let boardCap = elite && committed === 0 && week <= D.RECRUITING.SIGNING_WEEK - 3
         ? 4
         : Utils.clamp(need.target * 2, 6, 16);
+      if (pinned) boardCap = Math.max(0, boardCap - pinned.live[gender].length);
       if (board[gender].length >= boardCap) return;
 
       // Target recruits whose composite matches the program's level, with
@@ -1236,6 +1243,7 @@
         attempts++;
         const r = pool[lo + rng.int(0, windowSize - 1)];
         if (!r || r.signed || r.committedTo || onBoard.has(r.id)) continue;
+        if (exclude && exclude.has(r.id)) continue;
         // Regional bias: nearby recruits usually make the board; far ones sometimes.
         const dist = r.hometownState === 'INT' ? 1000 : distanceMiles(r.hometownState, school.state);
         let keepChance = Utils.clamp(1.05 - dist / 1600, 0.25, 1);
@@ -1320,6 +1328,17 @@
       const oc = (ctx.offerCounts[school.id] = ctx.offerCounts[school.id] || { M: 0, W: 0 });
       oc[rec.gender] += 1;
     }
+    // Auto Recruiting keeps a weekly report of what the staff did.
+    const report = school.id === gameState.playerSchoolId && gameState.recruiting.autoReport;
+    if (report) {
+      report.actions += 1;
+      report.points += action.points;
+      report.spent += action.cost;
+      if (report.worked.indexOf(rec.id) < 0) report.worked.push(rec.id);
+      if (actionKey === 'offer') report.offers.push(rec.fullName);
+      if (actionKey === 'sway' && st._swayOutcome === 'flip') report.flips.push(rec.fullName);
+    }
+    delete st._swayOutcome; // transient — never persist into saves
     return true;
   }
 
@@ -1347,27 +1366,7 @@
     }
 
     // 1) The close: offer when the AI believes in the match and slots remain.
-    //    Late in the cycle programs behind on their class lower the bar —
-    //    empty roster spots trigger aggressive recruiting, and the final two
-    //    weeks are a genuine closing sweep so no class goes unsigned for
-    //    want of paperwork.
-    const talentBar = 34 + school.prestige * 0.62 + o.urgency * 12;
-    // Quality over quantity (Update 11.1): a high-prestige program doesn't
-    // spend offers on recruits well beneath its level — a blue blood chases
-    // blue-chips, not depth pieces — unless it's genuinely desperate late in
-    // the cycle. The floor rises with prestige and lifts once the closing
-    // sweep begins, so a strong roster ends up with a small, elite class.
-    const talentFloor = school.prestige >= 72 && o.urgency < 2 ? school.prestige * 0.5 : 0;
-    // In the closing sweep a program short on bodies offers on contact —
-    // a roster spot in hand beats an empty locker. Bars start low so offers
-    // move early rather than a season of letters followed by a panic.
-    const interestBar = o.urgency >= 2 ? -1 : o.urgency === 1 ? 10 : 20;
-    const composite = recruitComposite(rec);
-    if (!st.offered && st.interest > interestBar &&
-        composite <= talentBar && composite >= talentFloor && affordable('offer')) {
-      const oc = ctxOfferCount(o.ctx, school.id, rec.gender);
-      if (oc < offerCap(school, rec.gender, o.need.target)) return 'offer';
-    }
+    if (aiWouldOffer(gameState, school, rec, st, o) && affordable('offer')) return 'offer';
     // 1b) Scouting: fog of war is the player's problem alone, so an Auto
     //     Recruiting staff sends a scout to a race before it commits real
     //     money to a name it can't read. (CPU programs carry no fog — a
@@ -1389,8 +1388,242 @@
     return null;
   }
 
+  /*
+   * Does the AI believe in this match enough to put an offer down (with a
+   * slot still open under the offer cap)? Late in the cycle programs behind
+   * on their class lower the bar — empty roster spots trigger aggressive
+   * recruiting, and the final two weeks are a genuine closing sweep so no
+   * class goes unsigned for want of paperwork.
+   */
+  function aiWouldOffer(gameState, school, rec, st, o) {
+    if (st.offered) return false;
+    const talentBar = 34 + school.prestige * 0.62 + o.urgency * 12;
+    // Quality over quantity (Update 11.1): a high-prestige program doesn't
+    // spend offers on recruits well beneath its level — a blue blood chases
+    // blue-chips, not depth pieces — unless it's genuinely desperate late in
+    // the cycle. The floor rises with prestige and lifts once the closing
+    // sweep begins, so a strong roster ends up with a small, elite class.
+    const talentFloor = school.prestige >= 72 && o.urgency < 2 ? school.prestige * 0.5 : 0;
+    // In the closing sweep a program short on bodies offers on contact —
+    // a roster spot in hand beats an empty locker. Bars start low so offers
+    // move early rather than a season of letters followed by a panic.
+    const interestBar = o.urgency >= 2 ? -1 : o.urgency === 1 ? 10 : 20;
+    const composite = recruitComposite(rec);
+    if (st.interest <= interestBar || composite > talentBar || composite < talentFloor) return false;
+    return offerSlotOpen(school, rec, o);
+  }
+
+  function offerSlotOpen(school, rec, o) {
+    return ctxOfferCount(o.ctx, school.id, rec.gender) < offerCap(school, rec.gender, o.need.target);
+  }
+
   function ctxOfferCount(ctx, schoolId, gender) {
     return (ctx.offerCounts[schoolId] && ctx.offerCounts[schoolId][gender]) || 0;
+  }
+
+  /* ================================================================ *
+   * Auto Recruiting staff (Update 23): the player's board comes first.
+   *
+   * The visible board holds the player's own picks plus the staff's
+   * fill-in targets. R.staffAdded marks the fill-ins — any board entry NOT
+   * marked is the player's pick, and the staff works every one of those
+   * before it spends a point on anyone else. R.boardSkip remembers fill-ins
+   * the player removed so the staff never puts them back.
+   * ================================================================ */
+  const AUTO_CONTACTS = ['campusVisit', 'hostOvernight', 'homeVisit', 'assistantVisit', 'meetTeam', 'call', 'letter'];
+  const AUTO_MAX_SWAYS = 3;
+
+  function ensureBoardMarks(gameState) {
+    const R = gameState.recruiting;
+    R.board = R.board || { M: [], W: [] };
+    if (!R.staffAdded) {
+      R.staffAdded = { M: [], W: [] };
+      // Saves from before Update 23 mirrored the staff's board straight onto
+      // the player's — treat those mirrored names as staff picks, not orders.
+      const mirrored = R.auto && R.aiBoards && R.aiBoards[gameState.playerSchoolId];
+      if (mirrored) {
+        ['M', 'W'].forEach((g) => {
+          const ai = new Set(mirrored[g] || []);
+          R.staffAdded[g] = (R.board[g] || []).filter((id) => ai.has(id));
+        });
+      }
+    }
+    R.boardSkip = R.boardSkip || { M: [], W: [] };
+    return R;
+  }
+
+  // The player's own picks for one gender, in board order.
+  function playerPicks(gameState, gender) {
+    const R = ensureBoardMarks(gameState);
+    const staff = new Set(R.staffAdded[gender]);
+    return (R.board[gender] || []).filter((id) => !staff.has(id));
+  }
+
+  function isStaffPick(gameState, rec) {
+    const R = ensureBoardMarks(gameState);
+    return R.staffAdded[rec.gender].includes(rec.id);
+  }
+
+  // The player adds a recruit (or acts on one): it becomes THEIR target.
+  function boardAdd(gameState, rec) {
+    const R = ensureBoardMarks(gameState);
+    const g = rec.gender;
+    R.staffAdded[g] = R.staffAdded[g].filter((id) => id !== rec.id);
+    R.boardSkip[g] = R.boardSkip[g].filter((id) => id !== rec.id);
+    if (!R.board[g].includes(rec.id)) R.board[g].push(rec.id);
+  }
+
+  // The player removes a recruit: a removed staff pick stays off for good.
+  function boardRemove(gameState, rec) {
+    const R = ensureBoardMarks(gameState);
+    const g = rec.gender;
+    R.board[g] = R.board[g].filter((id) => id !== rec.id);
+    if (R.staffAdded[g].includes(rec.id)) {
+      R.staffAdded[g] = R.staffAdded[g].filter((id) => id !== rec.id);
+      if (!R.boardSkip[g].includes(rec.id)) R.boardSkip[g].push(rec.id);
+    }
+    // Drop it from the staff's working list too, so it stops being worked now.
+    const ai = R.aiBoards && R.aiBoards[gameState.playerSchoolId];
+    if (ai && ai[g]) ai[g] = ai[g].filter((id) => id !== rec.id);
+  }
+
+  /*
+   * The player's picks the staff can still do something about this week:
+   * open recruits, plus ones committed elsewhere while a flip is still on
+   * the table. `exclude` (picks + removed staff picks) keeps the staff's
+   * fill-in board from duplicating or re-adding any of them.
+   */
+  function autoPriority(gameState, school) {
+    const R = ensureBoardMarks(gameState);
+    const out = { live: { M: [], W: [] }, exclude: { M: null, W: null } };
+    ['M', 'W'].forEach((g) => {
+      const picks = playerPicks(gameState, g);
+      out.exclude[g] = new Set([...picks, ...R.boardSkip[g]]);
+      picks.forEach((id) => {
+        const r = gameState.world.recruits[id];
+        if (!r || r.signed || r.committedTo === school.id) return;
+        if (r.committedTo) {
+          const st = r.interests[school.id];
+          if ((st && st.swayAttempts || 0) >= AUTO_MAX_SWAYS) return;
+        }
+        out.live[g].push(r);
+      });
+    });
+    return out;
+  }
+
+  // Mirror the staff's fill-ins onto the visible board, behind the player's picks.
+  function syncPlayerBoard(gameState, school) {
+    const R = ensureBoardMarks(gameState);
+    const ai = R.aiBoards[school.id] || { M: [], W: [] };
+    ['M', 'W'].forEach((g) => {
+      const picks = playerPicks(gameState, g);
+      const mine = new Set(picks);
+      const fill = (ai[g] || []).filter((id) => !mine.has(id));
+      R.staffAdded[g] = fill.slice();
+      R.board[g] = [...picks, ...fill];
+    });
+  }
+
+  /*
+   * The staff's read on one contact action for one recruit: the appeal it
+   * actually buys (relationship and interest weighted as appeal weighs
+   * them, with diminishing returns near the cap, plus the campus-visit
+   * bonus), shaped by who this recruit is — then divided by what it costs
+   * in points and money. Personality-aware, so an academics kid gets the
+   * classroom pitch and a homebody gets the in-home visit.
+   */
+  function contactValue(gameState, school, coach, rec, st, key) {
+    const A = D.RECRUIT_ACTIONS[key];
+    const p = personalityEffect(gameState, school, coach, rec, key);
+    let rel = A.relationship * p.rel;
+    let int = A.interest * p.int;
+    if (key === 'campusVisit') int *= 0.6 + (school.campusAppeal + school.facilitiesOverall) / 250;
+    if (key === 'homeVisit') rel *= 0.8 + (rec.parentsInfluence || 50) / 250;
+    if (key === 'assistantVisit') {
+      const asst = gameState.getCoach(school.assistantId);
+      const m = asst ? 0.7 + asst.recruiting / 160 : 0.8;
+      rel *= m; int *= m;
+    }
+    rel = Math.min(rel, 100 - (st.relationship || 0));
+    int = Math.min(int, 100 - (st.interest || 0));
+    let gain = rel * 0.25 + int * 0.20;
+    if (key === 'campusVisit' && !st.visited) gain += 5;
+    if (key === 'hostOvernight' && !st.overnight) gain += 1.5;
+    return gain / (Math.sqrt(A.points) + A.cost / 1000);
+  }
+
+  /*
+   * What the player's Auto Recruiting staff does with one recruit. Board
+   * picks (o.priority) get the full treatment: an offer on first contact,
+   * one scouting trip so the player can see the truth, real flip attempts
+   * if a rival lands the verbal, and a looser spending leash. Fill-ins use
+   * the CPU's offer judgement. Everything else is the best-value contact.
+   */
+  function chooseAutoAction(gameState, school, coach, rec, st, o) {
+    const A = D.RECRUIT_ACTIONS;
+    const leash = o.priority ? o.weekSpend * 1.5 + 1000 : o.weekSpend + 400;
+    const affordable = (k, cap = leash) =>
+      o.econ.points >= A[k].points && o.econ.budget >= A[k].cost && A[k].cost <= cap;
+
+    if (rec.committedTo && rec.committedTo !== school.id) {
+      if (!o.priority) return chooseAIAction(gameState, school, rec, st, o);
+      // A board pick committed elsewhere: go for the flip — but never with
+      // more than half of what is left in the budget.
+      if ((st.swayAttempts || 0) < AUTO_MAX_SWAYS && affordable('sway', o.econ.budget / 2) &&
+          commitChance(gameState, school, rec) >= 0.10) return 'sway';
+      return null;
+    }
+    if (!st.offered && affordable('offer') &&
+        (o.priority ? offerSlotOpen(school, rec, o) : aiWouldOffer(gameState, school, rec, st, o))) {
+      return 'offer';
+    }
+    const scoutBar = o.priority ? 25 : 40;
+    if (rec.playerKnowledge.scout < scoutBar && affordable('watchRace') &&
+        (o.priority || (!st.offered && st.interest >= 10))) {
+      return 'watchRace';
+    }
+    let best = null, bestV = 0;
+    AUTO_CONTACTS.forEach((k) => {
+      if (!affordable(k)) return;
+      if (A[k].requires === 'interest30' && st.interest < 30) return;
+      if (A[k].requires === 'visited' && !st.visited) return;
+      const v = contactValue(gameState, school, coach, rec, st, k);
+      if (v > bestV) { bestV = v; best = k; }
+    });
+    return best;
+  }
+
+  // Work one recruit up to the weekly contact cap. Returns points spent.
+  function autoWork(gameState, school, coach, rec, o, rng, ctx, pointCap = Infinity) {
+    const st = rec.getSchoolState(school.id, true);
+    let spent = 0;
+    while ((o.econ.actions[rec.id] || 0) < D.MAX_ACTIONS_PER_RECRUIT_WEEK &&
+           o.econ.points > 0 && spent < pointCap) {
+      const key = chooseAutoAction(gameState, school, coach, rec, st, o);
+      if (!key) break;
+      if (!tryAIAction(gameState, school, coach, rec, key, o.econ, rng, ctx)) break;
+      spent += D.RECRUIT_ACTIONS[key].points;
+      o.weekSpend -= D.RECRUIT_ACTIONS[key].cost;
+    }
+    return spent;
+  }
+
+  // Board picks first, alternating squads so neither starves.
+  function autoPriorityPass(gameState, school, coach, pinned, econ, weekSpend, urgency, rng, ctx) {
+    const queue = [];
+    const n = Math.max(pinned.live.M.length, pinned.live.W.length);
+    for (let i = 0; i < n; i++) {
+      if (pinned.live.M[i]) queue.push(pinned.live.M[i]);
+      if (pinned.live.W[i]) queue.push(pinned.live.W[i]);
+    }
+    const o = { econ, weekSpend, urgency, ctx, rng, priority: true, coachRecruiting: coach.recruiting || 55 };
+    queue.forEach((rec) => {
+      if (econ.points <= 0) return;
+      o.need = ctx.needs[school.id][rec.gender];
+      autoWork(gameState, school, coach, rec, o, rng, ctx);
+    });
+    return o.weekSpend;
   }
 
   function aiRecruitWeek(gameState, rng, ctx) {
@@ -1408,13 +1641,12 @@
       const coach = gameState.getCoach(school.coachId);
       if (!coach) continue;
 
-      ensureAIBoard(gameState, school, rng, ctx);
-      // Mirror the AI's working board onto the player's visible board so
-      // they can follow along while the CPU runs their recruiting.
-      if (isPlayer) {
-        const aiBoard = R.aiBoards[school.id];
-        R.board = { M: aiBoard.M.slice(), W: aiBoard.W.slice() };
-      }
+      // Auto Recruiting (Update 23): the player's own board picks are the
+      // staff's orders — worked first, every week — and the staff's
+      // fill-in board only covers what those picks leave open.
+      const pinned = isPlayer ? autoPriority(gameState, school) : null;
+      ensureAIBoard(gameState, school, rng, ctx, pinned);
+      if (isPlayer) syncPlayerBoard(gameState, school);
       const board = R.aiBoards[school.id];
       const econ = makeEcon(gameState, school, coach);
       // Budget pacing: spend the year's budget evenly-but-confidently, the
@@ -1423,20 +1655,28 @@
       let weekSpend = Math.max(1500, Math.round((econ.budget / weeksLeft) * 1.7));
       const aggressive = coach.archetype === 'Recruiter' ||
         (coach.hasTendency && coach.hasTendency('elite-recruiter'));
+      // Urgency rises as signing day nears with the class still short:
+      // 1 = push harder and lower the bars, 2 = the final closing sweep.
+      // Update 11: both fire earlier — bigger classes need a longer close.
+      const urgency = weeksLeft <= 3 ? 2 : weeksLeft <= 8 ? 1 : 0;
+
+      if (isPlayer) {
+        R.autoReport = { week, actions: 0, points: 0, spent: 0, worked: [], offers: [], flips: [],
+          priority: pinned.live.M.length + pinned.live.W.length, priorityWorked: 0 };
+        weekSpend = autoPriorityPass(gameState, school, coach, pinned, econ, weekSpend, urgency, rng, ctx);
+        R.autoReport.priorityWorked = R.autoReport.worked.length;
+      }
 
       // Work genders in alternating priority so one squad never starves.
       const genders = week % 2 === 0 ? ['M', 'W'] : ['W', 'M'];
+      const fillIns = [];
       genders.forEach((gender) => {
         const need = ctx.needs[school.id][gender];
         const committedCount = (ctx.commitCounts[school.id] && ctx.commitCounts[school.id][gender]) || 0;
         // CPU coaches keep recruiting until roster needs are met — then stop.
         if (committedCount >= need.target) return;
-        // Urgency rises as signing day nears with the class still short:
-        // 1 = push harder and lower the bars, 2 = the final closing sweep.
-        // Update 11: both fire earlier — bigger classes need a longer close.
-        const urgency = weeksLeft <= 3 ? 2 : weeksLeft <= 8 ? 1 : 0;
 
-        const targets = board[gender]
+        let targets = board[gender]
           .map((id) => gameState.world.recruits[id])
           .filter((r) => {
             if (!r || r.signed || r.committedTo === school.id) return false;
@@ -1456,8 +1696,17 @@
               if (eliteOffers >= 4) return false;
             }
             return true;
-          })
-          .sort((a, b) => recruitComposite(b) - recruitComposite(a));
+          });
+        if (isPlayer) {
+          // The player's staff plays the odds: talent weighed against how
+          // winnable the battle actually is, so points go where they land.
+          const odds = new Map(targets.map((r) => [r.id, commitChance(gameState, school, r)]));
+          targets.sort((a, b) => (recruitComposite(b) + odds.get(b.id) * 30) -
+            (recruitComposite(a) + odds.get(a.id) * 30));
+          fillIns.push(...targets.map((r) => ({ r, need })));
+        } else {
+          targets = targets.sort((a, b) => recruitComposite(b) - recruitComposite(a));
+        }
 
         // Points are shared across both squads (like the player's), with a
         // soft per-gender ceiling so the first squad can't spend everything.
@@ -1468,6 +1717,15 @@
         // programs, on the same point economy.
         const workCount = Math.min(targets.length,
           (aggressive ? 6 : 5) + urgency * 2 + Math.max(0, need.target - 4));
+        if (isPlayer) {
+          const o = { econ, weekSpend, urgency, need, ctx, rng, priority: false, coachRecruiting: coach.recruiting || 55 };
+          for (let i = 0; i < workCount; i++) {
+            if (econ.points <= 0 || spentHere >= genderPointCap) break;
+            spentHere += autoWork(gameState, school, coach, targets[i], o, rng, ctx, genderPointCap - spentHere);
+          }
+          weekSpend = o.weekSpend;
+          return;
+        }
         for (let i = 0; i < workCount; i++) {
           const rec = targets[i];
           if (econ.points <= 0 || spentHere >= genderPointCap) break;
@@ -1483,7 +1741,31 @@
           }
         }
       });
+
+      // No point left on the table: a human staff spends the whole week.
+      // Leftovers go back to the player's picks first, then the fill-ins.
+      if (isPlayer && econ.points > 0) {
+        weekSpend = autoPriorityPass(gameState, school, coach, pinned, econ, weekSpend, urgency, rng, ctx);
+        const o = { econ, weekSpend, urgency, ctx, rng, priority: false, coachRecruiting: coach.recruiting || 55 };
+        for (const { r, need } of fillIns) {
+          if (econ.points <= 0) break;
+          o.need = need;
+          autoWork(gameState, school, coach, r, o, rng, ctx);
+        }
+      }
+      if (isPlayer) autoNews(gameState);
     }
+  }
+
+  // One news line when the Auto Recruiting staff did something worth knowing.
+  function autoNews(gameState) {
+    const rep = gameState.recruiting.autoReport;
+    if (!rep) return;
+    const terms = D.offerTerms(gameState.getPlayerSchool());
+    const bits = [];
+    if (rep.offers.length) bits.push(`extended ${terms.noun} offers to ${rep.offers.join(', ')}`);
+    if (rep.flips.length) bits.push(`flipped ${rep.flips.join(', ')}`);
+    if (bits.length) gameState.logNews(`🤖 Auto Recruiting: your staff ${bits.join(' and ')}.`);
   }
 
   /* ================================================================ *
@@ -1843,6 +2125,9 @@
     gameState.recruiting.aiBoards = {};
     gameState.recruiting.aiBudgets = {}; // every CPU program's budget refills
     gameState.recruiting.board = { M: [], W: [] };
+    gameState.recruiting.staffAdded = { M: [], W: [] };
+    gameState.recruiting.boardSkip = { M: [], W: [] };
+    gameState.recruiting.autoReport = null;
     generateClass(gameState, rng);
   }
 
@@ -1879,6 +2164,10 @@
     classScore,
     perceivedPotential,
     signingTarget,
+    boardAdd,
+    boardRemove,
+    isStaffPick,
+    playerPicks,
     weeklyPoints,
     schoolWeeklyPoints,
     scholarshipsUsed,

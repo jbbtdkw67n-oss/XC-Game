@@ -37,6 +37,7 @@ node tests/test-roadmap-features.js # Sim-to-date menu + report, pack stats, Kol
 node tests/test-update21.js        # Inbox clear (one / filter / all), true 1 km splits, Pack Report w/o pack-in-field, sectioned menu, Week 1 card on top + gone when done, no Trophy Case / Coach's Desk, fixed course terrain + yearly weather + fast/slow courses, American Rivers Conference (DIII) incl. filters + save backfill
 node tests/test-clean-ui.js        # Clean UI: titles = menu labels (no emoji), section labels on long screens, table columns, Save/Load actions fit, honor tiles + tables on History Awards/Champions and News Awards
 node tests/test-sw-precache.js     # Offline install: sw.js precaches every script/stylesheet index.html loads (no browser needed)
+node tests/test-update23.js        # Difficulty-scaled transfer pressure (player only, reasons only), Auto Recruiting works board picks first (offers, stays on board, staff tags, removed picks stay off), one-click ideal mileage, one-line names in the Training squad monitor
 ```
 
 Each script prints `PASS` or `FAIL` with details and exits non-zero on failure.
