@@ -139,7 +139,6 @@
     const playerDiv = school.division || 'DI';
     // The division currently being viewed (defaults to the player's).
     const viewDiv = activeDiv || playerDiv;
-    const isCoaches = activeTab === 'coaches';
 
     container.innerHTML = `
       <div class="screen-header">
@@ -151,14 +150,13 @@
             <button data-tab="conference" class="${activeTab === 'conference' ? 'active' : ''}">Conference</button>
             <button data-tab="individual" class="${activeTab === 'individual' ? 'active' : ''}">Individuals</button>
             <button data-tab="freshman" class="${activeTab === 'freshman' ? 'active' : ''}">Freshmen</button>
-            <button data-tab="coaches" class="${activeTab === 'coaches' ? 'active' : ''}">Coaches</button>
             <button data-tab="selection" class="${activeTab === 'selection' ? 'active' : ''}" title="NCAA at-large selection — Kolas points">🎟 Selection</button>
           </div>
-          ${isCoaches ? '' : `<div class="pill-tabs">
+          <div class="pill-tabs">
             <button data-div="DI" class="${viewDiv === 'DI' ? 'active' : ''}">D1</button>
             <button data-div="DII" class="${viewDiv === 'DII' ? 'active' : ''}">D2</button>
             <button data-div="DIII" class="${viewDiv === 'DIII' ? 'active' : ''}">D3</button>
-          </div>`}
+          </div>
           <div class="pill-tabs">
             <button id="g-m" class="${activeGender === 'M' ? 'active' : ''}">Men</button>
             <button id="g-w" class="${activeGender === 'W' ? 'active' : ''}">Women</button>
@@ -171,29 +169,6 @@
 
     if (activeTab === 'selection') {
       body.innerHTML = selectionHtml(game, viewDiv, activeGender);
-    } else if (activeTab === 'coaches') {
-      const all = window.XCD.engine.Careers.coachRankings(game);
-      const rows = all.slice(0, 50);
-      const me = all.find((r) => r.isPlayer);
-      if (me && me.rank > 50) rows.push(me); // always show yourself
-      body.innerHTML = `
-        <h2>National Coach Rankings</h2>
-        <div class="table-wrap"><table class="data">
-          <thead><tr><th class="col-rank">Rank</th><th class="col-grow">Coach</th><th class="hide-mobile">School</th><th class="hide-mobile">Style</th><th class="num">Natl Titles</th><th class="num">Conf Titles</th><th class="num hide-mobile">Best Poll</th><th class="num">Score</th></tr></thead>
-          <tbody>
-            ${rows.map((r) => `
-              <tr class="clickable" data-coach="${r.coachId}" ${r.isPlayer ? 'style="background:var(--accent-soft);"' : ''}>
-                <td class="col-rank"><strong>#${r.rank}</strong></td>
-                <td class="col-grow">${UI.avatar(game.getCoach(r.coachId) || { name: r.name }, { size: 22, outfit: 'suit' })} <strong>${Utils.escapeHtml(r.name)}</strong>${r.isPlayer ? ' <span style="color:var(--accent);">(You)</span>' : ''}</td>
-                <td class="hide-mobile">${Utils.escapeHtml(r.school)}</td>
-                <td class="hide-mobile" style="font-size:12px; color:var(--text-dim);">${Utils.escapeHtml(r.personality)}</td>
-                <td class="num">${r.natTitles}</td>
-                <td class="num">${r.confTitles}</td>
-                <td class="num hide-mobile">${r.bestRank <= 354 ? '#' + r.bestRank : '—'}</td>
-                <td class="num">${r.score}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table></div>`;
     } else if (activeTab === 'individual' || activeTab === 'freshman') {
       const raw = activeTab === 'individual' ? R.individuals[activeGender] : R.freshmen[activeGender];
       // Scope to the SELECTED division (never combine divisions).
@@ -244,7 +219,7 @@
         rows = rows.filter((r) => r.conference === school.conference);
         heading = `${school.conference} Standings`;
       } else {
-        rows = rows.slice(0, 40);
+        rows = rows.slice(0, 25); // national polls show the Top 25
         if (!relative && (activeTab === 'region' || activeTab === 'conference')) {
           heading = `${divLabel} National Poll`;
         }
@@ -279,9 +254,6 @@
         e.stopPropagation();
         UI.openAthlete(game, el.dataset.ath);
       });
-    });
-    body.querySelectorAll('[data-coach]').forEach((el) => {
-      el.addEventListener('click', () => UI.openCoach(game, el.dataset.coach));
     });
 
     container.querySelectorAll('[data-tab]').forEach((btn) => {

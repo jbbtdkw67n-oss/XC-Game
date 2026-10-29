@@ -131,7 +131,7 @@ const { newDynasty, wireErrors } = require('./helpers');
   }
   {
     await page.click('[data-nav="rankings"]');
-    for (const tab of ['national', 'region', 'conference', 'individual', 'freshman', 'coaches']) {
+    for (const tab of ['national', 'region', 'conference', 'individual', 'freshman', 'selection']) {
       await page.click(`[data-tab="${tab}"]`);
       await page.waitForTimeout(80);
       if (errors.length > errBase) { console.log('ERROR ON RANKINGS TAB:', tab); errBase = errors.length; }
