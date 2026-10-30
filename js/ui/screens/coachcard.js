@@ -39,6 +39,24 @@
     const stints = (coach.stints || []).slice().sort((a, b) => a.startYear - b.startYear);
     const yearsCoached = cr.seasons || stints.reduce((s, st) => s + Math.max(0, (st.endYear || (game ? game.year : st.startYear)) - st.startYear), 0);
 
+    // Every school on the card opens its program profile. Stints carry the
+    // school id; fall back to the name for records that predate it.
+    const schoolFor = (id, name) => {
+      if (!game) return null;
+      return (id && game.getSchool(id)) || (name && Object.values(game.world.schools).find((s) => s.name === name)) || null;
+    };
+    const schoolAttrs = (id, name) => {
+      const s = schoolFor(id, name);
+      return s ? { school: s.id } : null;
+    };
+    const schoolHeader = (s) => {
+      const rk = (g) => {
+        const row = UI.pollRow(game, s.id, g);
+        return `${g} ${UI.rankChip(row && row.rank, { title: `${g === 'M' ? "Men's" : "Women's"} poll${row ? ` — #${row.rank} of ${row.divisionSize}` : ': unranked'}` })}`;
+      };
+      return `<span class="school-link" data-school="${s.id}" title="Open the ${Utils.escapeHtml(s.name)} program profile">${UI.kitSwatch(s, 14)} ${Utils.escapeHtml(s.name)}</span> (${Utils.escapeHtml(s.conference)}) • ${rk('M')} ${rk('W')}`;
+    };
+
     const ratingRow = (label, val) => `
       <div class="attr-row"><span class="attr-name">${label}</span>${UI.ratingBadge(Math.round(val || 0))}</div>`;
 
@@ -54,7 +72,7 @@
           <h2>${archIcon} ${Utils.escapeHtml(coach.fullName || coach.name || `${coach.firstName || ''} ${coach.lastName || ''}`)}${coach.isPlayer ? ' <span style="color:var(--accent);">(You)</span>' : ''}</h2>
           <div class="sub">
             ${retired ? '<span style="color:var(--text-faint);">Retired</span> • ' : ''}Age ${coach.age || '—'} •
-            ${school ? Utils.escapeHtml(school.name) + ' (' + Utils.escapeHtml(school.conference) + ')' : (retired ? 'Career complete' : 'Free agent')}
+            ${school ? schoolHeader(school) : (retired ? 'Career complete' : 'Free agent')}
           </div>
           <div class="sub">${repIcon} ${Utils.escapeHtml(repLabel)} • ${Utils.escapeHtml(coach.archetype || 'Developer')}${coach.role === 'Assistant' ? ` • <span style="color:var(--accent);">${coach.isPlayer ? 'Recruiting Coordinator' : 'Assistant Coach'}</span>` : ''}</div>
           ${(coach.hometown || coach.almaMater) ? `<div class="sub">${coach.hometown ? `🏠 ${Utils.escapeHtml(coach.hometown)}` : ''}${coach.hometown && coach.almaMater ? ' • ' : ''}${coach.almaMater ? `🎓 ${Utils.escapeHtml(coach.almaMater)}` : ''}${coach.careerRecord && coach.careerRecord.seasons ? ` • ${coach.careerRecord.seasons} yr${coach.careerRecord.seasons === 1 ? '' : 's'} experience` : ''}</div>` : ''}
@@ -214,7 +232,7 @@
           const end = st.endYear || nowYear;
           for (let y = st.startYear; y <= end; y++) {
             if (st.role === 'Assistant') {
-              seasons.push({ year: y, school: st.school, div, tone: 'muted', badge: '👔', result: 'Assistant Coach' });
+              seasons.push({ year: y, school: st.school, schoolId: st.schoolId, div, tone: 'muted', badge: '👔', result: 'Assistant Coach' });
               continue;
             }
             const natG = [], regG = [], confG = [];
@@ -234,7 +252,7 @@
             if (natG.length) { tone = 'gold'; badge = '🏆'; result = `National Champions${gTag(natG)}`; }
             else if (regG.length) { tone = 'accent'; badge = '🚩'; result = `Regional Champions${gTag(regG)}`; }
             else if (confG.length) { tone = 'good'; badge = '🥇'; result = `Conference Champions${gTag(confG)}`; }
-            seasons.push({ year: y, school: st.school, div, tone, badge, result });
+            seasons.push({ year: y, school: st.school, schoolId: st.schoolId, div, tone, badge, result });
           }
         });
         if (!seasons.length) return '';
@@ -246,7 +264,8 @@
             badge: s.badge, tone: s.tone,
             title: `${Utils.escapeHtml(s.school)}${s.div !== 'DI' ? ` <span class="tag">${short[s.div] || s.div}</span>` : ''}`,
             sub: s.result,
-            meta: `${s.year}`
+            meta: `${s.year}`,
+            attrs: schoolAttrs(s.schoolId, s.school)
           })))}
         </div>`;
       })()}
@@ -261,7 +280,8 @@
                 tone: s.role === 'Assistant' ? 'muted' : 'accent',
                 title: `${Utils.escapeHtml(s.school)}${div}`,
                 sub: s.role === 'Assistant' ? 'Assistant Coach' : 'Head Coach',
-                meta: `${s.startYear}–${end}`
+                meta: `${s.startYear}–${end}`,
+                attrs: schoolAttrs(s.schoolId, s.school)
               });
             }))
           : '<div style="color:var(--text-dim); font-size:13px;">No coaching stops recorded.</div>'}
@@ -309,6 +329,14 @@
         </div>`;
       })()}
       </div>
-    `, (modal) => { UI.wireProfileTabs(modal); });
+    `, (modal) => {
+      UI.wireProfileTabs(modal);
+      modal.querySelectorAll('[data-school]').forEach((el) => {
+        el.addEventListener('click', () => {
+          const s = game && game.getSchool(el.dataset.school);
+          if (s) UI.showSchoolCard(s, game);
+        });
+      });
+    });
   };
 })();

@@ -168,6 +168,24 @@
     return `<span class="rating ${cls}">${v}</span>`;
   };
 
+  /*
+   * Poll rank chip: a program's place in its division's current poll — gold
+   * for the top 10, accent for the top 25, plain beyond, NR when unranked.
+   */
+  UI.rankChip = function (rank, { title } = {}) {
+    const tip = title ? ` title="${String(title).replace(/"/g, '&quot;')}"` : '';
+    if (!rank) return `<span class="rank-chip nr"${tip}>NR</span>`;
+    const tier = rank <= 10 ? ' top10' : rank <= 25 ? ' top25' : '';
+    return `<span class="rank-chip${tier}"${tip}>#${rank}</span>`;
+  };
+
+  // A program's poll row for one squad ({ rank, prevRank, divisionSize }),
+  // or null when unranked / before the first poll.
+  UI.pollRow = function (game, schoolId, gender) {
+    const list = game && game.rankings && game.rankings[gender];
+    return (list && list.find((r) => r.schoolId === schoolId)) || null;
+  };
+
   UI.meter = function (value, colorClass = '') {
     return `<div class="meter ${colorClass}"><span style="width:${Utils.clamp(value, 0, 100)}%"></span></div>`;
   };
@@ -321,7 +339,7 @@
    * config: {
    *   columns: [{ key, label, numeric?, render?(row) -> html, sortValue?(row) }],
    *   rows: [...], defaultSort: key, defaultDir: 'asc'|'desc',
-   *   onRowClick?(row), searchKeys?: [key,...]
+   *   onRowClick?(row), searchKeys?: [key,...], rowClass?(row) -> class
    * }
    */
   UI.renderSortableTable = function (container, config) {
@@ -330,6 +348,9 @@
       sortDir: config.defaultDir || 'desc',
       query: ''
     };
+
+    // Optional per-row class (e.g. 'mine' to highlight the player's own).
+    const rowCls = (row) => (config.rowClass ? config.rowClass(row) || '' : '');
 
     function getSortValue(row, col) {
       if (col.sortValue) return col.sortValue(row);
@@ -390,7 +411,7 @@
           </div>
           <div class="m-cards${gridCls}">
             ${rows.length
-              ? rows.map((row, i) => `<div class="m-card ${config.onRowClick ? 'clickable' : ''}" data-row="${i}">${cardRenderer(row, i)}</div>`).join('')
+              ? rows.map((row, i) => `<div class="m-card ${config.onRowClick ? 'clickable' : ''} ${rowCls(row)}" data-row="${i}">${cardRenderer(row, i)}</div>`).join('')
               : `<div class="m-empty">${config.emptyMessage || 'No results match the current filters.'}</div>`}
           </div>
           ${truncated ? `<div style="color:var(--text-faint); font-size:12px; padding:8px 2px 0;">Showing ${cap} of ${totalRows.toLocaleString()} — narrow with search or sorting.</div>` : ''}`;
@@ -436,7 +457,7 @@
           const content = c.render ? c.render(row, i) : Utils.escapeHtml(row[c.key]);
           return `<td class="${colCls(c)}">${content}</td>`;
         }).join('');
-        return `<tr class="${config.onRowClick ? 'clickable' : ''}" data-row="${i}">${tds}</tr>`;
+        return `<tr class="${config.onRowClick ? 'clickable' : ''} ${rowCls(row)}" data-row="${i}">${tds}</tr>`;
       }).join('') : `<tr><td colspan="${config.columns.length}" style="color:var(--text-dim); padding:14px; text-align:center;">${config.emptyMessage || 'No results match the current filters.'}</td></tr>`;
 
       container.innerHTML = `
