@@ -31,11 +31,30 @@
     const coach = game.getCoach(school.coachId);
     const assistant = school.assistantId ? game.getCoach(school.assistantId) : null;
     const Legacy = window.XCD.engine.Legacy;
-    const Rk = window.XCD.engine.Rankings;
     const prog = Legacy ? Legacy.program(game, school.id) : {};
     const divLabel = D.divisionFor(school).label;
-    const rankM = Rk ? Rk.teamRank(game, school.id, 'M') : null;
-    const rankW = Rk ? Rk.teamRank(game, school.id, 'W') : null;
+    const pollM = UI.pollRow(game, school.id, 'M');
+    const pollW = UI.pollRow(game, school.id, 'W');
+
+    // The men's and women's poll rank, front and center: the rank within the
+    // division's poll, the field size, and the move since the last poll.
+    const pollTile = (poll, label) => {
+      const rank = poll ? poll.rank : null;
+      const tier = !rank ? 'nr' : rank <= 10 ? 'top10' : rank <= 25 ? 'top25' : '';
+      let move = '';
+      if (rank && poll.prevRank) {
+        const d = poll.prevRank - rank;
+        move = d > 0 ? ` <span class="rank-move up">▲${d}</span>` : d < 0 ? ` <span class="rank-move down">▼${-d}</span>` : ' <span class="rank-move flat">—</span>';
+      }
+      return `
+        <div class="poll-tile ${tier}">
+          <div class="pt-rank">${rank ? '#' + rank : 'NR'}</div>
+          <div style="min-width:0;">
+            <div class="pt-label">${school.division || 'DI'} ${label}</div>
+            <div class="pt-sub">${rank ? `of ${poll.divisionSize}${move}` : 'Unranked'}</div>
+          </div>
+        </div>`;
+    };
 
     const rosterM = game.getRoster(school.id, 'M').sort((a, b) => b.currentOverall - a.currentOverall);
     const rosterW = game.getRoster(school.id, 'W').sort((a, b) => b.currentOverall - a.currentOverall);
@@ -111,8 +130,12 @@
         <div style="text-align:right;">
           <div style="font-size:30px; font-weight:800;">${school.prestige}</div>
           <div style="font-size:12px; color:var(--text-dim);">PRESTIGE${school.heritage >= 55 ? ' 🏛' : ''}</div>
-          <div style="font-size:12px; color:var(--text-faint); margin-top:2px;">M ${rankM ? '#' + rankM : '—'} · W ${rankW ? '#' + rankW : '—'}</div>
         </div>
+      </div>
+
+      <div class="poll-strip">
+        ${pollTile(pollM, 'Men')}
+        ${pollTile(pollW, 'Women')}
       </div>
 
       <div class="grid cols-4" style="margin-bottom:16px;">

@@ -111,8 +111,8 @@
           : 'Every dynasty starts with a coach. Who are you?',
         `
         <div class="grid cols-2">
-          <div class="field"><label>First Name</label><input id="coach-first" value="${Utils.escapeHtml(spec.first)}" maxlength="20"></div>
-          <div class="field"><label>Last Name</label><input id="coach-last" value="${Utils.escapeHtml(spec.last)}" maxlength="20"></div>
+          <div class="field"><label class="name-label">First Name <button type="button" class="btn" id="rand-name" title="Randomize first and last name">🎲 Random Name</button></label><input id="coach-first" value="${Utils.escapeHtml(spec.first)}" maxlength="20"></div>
+          <div class="field"><label class="name-label">Last Name</label><input id="coach-last" value="${Utils.escapeHtml(spec.last)}" maxlength="20"></div>
         </div>
         ${succession ? '' : `<div class="field"><label>Dynasty Name</label><input id="dyn-name" value="${Utils.escapeHtml(spec.dynName)}" placeholder="e.g. The Carter Era" maxlength="40"></div>`}
         <div class="grid cols-2">
@@ -150,6 +150,21 @@
           spec.startRole = el.dataset.role;
           root.querySelectorAll('[data-role]').forEach((n) => n.classList.toggle('selected', n.dataset.role === spec.startRole));
         });
+      });
+      // A random name from the game's own name pools. The pick sets the
+      // coach's gender to match (still changeable on the Appearance step).
+      root.querySelector('#rand-name').addEventListener('click', () => {
+        const D = window.XCD.data;
+        const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+        const g = Math.random() < 0.5 ? 'W' : 'M';
+        const first = pick(g === 'W' ? D.FIRST_NAMES_W : D.FIRST_NAMES_M);
+        const last = pick(D.LAST_NAMES);
+        root.querySelector('#coach-first').value = first;
+        root.querySelector('#coach-last').value = last;
+        spec.gender = g;
+        if (spec.appearance) spec.appearance.gender = g;
+        const dyn = root.querySelector('#dyn-name');
+        if (dyn) dyn.placeholder = `e.g. The ${last} Era`;
       });
       root.querySelector('#rand-town').addEventListener('click', () => {
         root.querySelector('#coach-town').value = randomHometown();

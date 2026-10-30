@@ -414,6 +414,57 @@ table.data.squad-table th:not(:first-child),
 table.data.squad-table td:not(:first-child) { text-align: center; }
 table.data.squad-table .meter-cell > div { width: 100%; max-width: 140px; margin: 0 auto; }
 table.data td.col-actions .btn + .btn { margin-left: 6px; }
+/* The player's own row (World list), and inline school links in tables. */
+table.data tbody tr.mine { background: var(--accent-soft); }
+table.data tbody tr.mine:hover { background: rgba(61, 139, 253, 0.2); }
+table.data .name-cell { white-space: nowrap; }
+.school-cell { display: inline-flex; align-items: center; gap: 8px; min-width: 0; vertical-align: middle; }
+.school-cell .sc-name { font-weight: 650; color: var(--text); }
+.school-cell .sc-sub { font-size: 11.5px; color: var(--text-faint); font-weight: 400; }
+.div-chip {
+  display: inline-block; min-width: 38px; text-align: center;
+  padding: 2px 7px; border-radius: 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  background: var(--bg-hover); color: var(--text-dim);
+}
+/* World view switcher sits above the filters on its own row. */
+.world-views { margin-bottom: 12px; }
+
+/* Poll rank chip (UI.rankChip): top 10 gold, top 25 accent, NR muted. */
+.rank-chip {
+  display: inline-block; min-width: 38px; text-align: center;
+  padding: 2px 7px; border-radius: 6px;
+  font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums;
+  background: var(--bg-hover); color: var(--text);
+}
+.rank-chip.top25 { background: var(--accent-soft); color: var(--accent-hover); }
+.rank-chip.top10 { background: rgba(212, 160, 23, 0.2); color: #f0c34e; }
+.rank-chip.nr { background: transparent; color: var(--text-faint); font-weight: 600; }
+
+/* Program card poll strip: the men's and women's poll rank, front and center. */
+.poll-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.poll-tile {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg-raised); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 14px; min-width: 0;
+}
+.poll-tile .pt-rank {
+  flex: none; font-size: 28px; font-weight: 800; line-height: 1;
+  font-variant-numeric: tabular-nums; color: var(--text);
+}
+.poll-tile .pt-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+.poll-tile .pt-sub { font-size: 12px; color: var(--text-faint); margin-top: 2px; }
+.poll-tile.top25 { border-color: rgba(61, 139, 253, 0.45); background: linear-gradient(135deg, var(--accent-soft), var(--bg-raised)); }
+.poll-tile.top25 .pt-rank { color: var(--accent-hover); }
+.poll-tile.top10 { border-color: rgba(212, 160, 23, 0.5); background: linear-gradient(135deg, rgba(212, 160, 23, 0.16), var(--bg-raised)); }
+.poll-tile.top10 .pt-rank { color: #f0c34e; }
+.poll-tile.nr .pt-rank { color: var(--text-faint); font-size: 22px; }
+@media (max-width: 380px) { .poll-tile .pt-rank { font-size: 22px; } }
+
+/* Inline links to a program from a profile (coach card header). */
+.school-link { cursor: pointer; color: var(--accent-hover); font-weight: 600; }
+.school-link:hover { text-decoration: underline; }
+
 .rank-move { display: inline-block; min-width: 30px; margin-left: 6px; font-size: 11.5px; font-weight: 600; }
 .rank-move.up { color: var(--success); }
 .rank-move.down { color: var(--danger); }
@@ -685,6 +736,10 @@ table.data td.col-actions .btn + .btn { margin-left: 6px; }
 
 /* ---------- Forms ---------- */
 .field { margin-bottom: 14px; }
+/* Coach wizard name labels: the Random Name button sits inline without
+   pushing the First Name input out of line with Last Name. */
+.field label.name-label { display: flex; align-items: center; gap: 8px; height: 26px; }
+.field label.name-label .btn { min-height: 0; height: 24px; padding: 0 9px; font-size: 11px; }
 .field label { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 5px; font-weight: 600; }
 .field input, .field select, .field textarea {
   width: 100%;
