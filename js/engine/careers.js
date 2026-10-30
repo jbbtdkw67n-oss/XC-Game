@@ -744,7 +744,9 @@
     gameState.career.stops.push({ school: newSchool.name, startYear: gameState.year + 1 });
 
     gameState.logNews(`🚨 COACHING MOVE: You leave ${oldSchool.name} for ${newSchool.name} (${newSchool.conference}). The rebuild begins.`);
-    return { ok: true, message: `Welcome to ${newSchool.name}!` };
+    // A few runners who trust you may follow you there.
+    const followers = window.XCD.engine.Followers.openForMove(gameState, coach, oldSchool, newSchool);
+    return { ok: true, message: `Welcome to ${newSchool.name}!`, followers: !!followers };
   }
 
   /*
@@ -932,6 +934,8 @@
         Legacy.openStint(gameState, c, school, gameState.year);
         school.coachChangedYear = gameState.year;
         gameState.logNews(`POACHED: ${school.name} hires ${c.fullName} away from ${from.name} (${(c.reputationLevel || {}).label || 'rising name'}).`);
+        // Their closest runners may follow them (only while the fall window is open).
+        window.XCD.engine.Followers.cpuFollow(gameState, c, from, school);
         fillVacancy(gameState, from, rng, depth + 1);
         return c;
       }

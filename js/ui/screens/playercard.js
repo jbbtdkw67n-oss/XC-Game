@@ -91,6 +91,62 @@
   }
   UI._accoladesCard = accoladesCard;
 
+  /*
+   * School crest: a colored disc with the program's initial (the same look as
+   * the Available Jobs picker), for any school — current or long gone.
+   */
+  function schoolColors(school, name) {
+    if (school && Array.isArray(school.colors) && school.colors.length >= 2) return school.colors;
+    const meta = window.XCD.data.schoolMeta ? window.XCD.data.schoolMeta(name || (school && school.name) || '') : null;
+    return (meta && meta.colors) || ['#7a869a', '#c8d0dc'];
+  }
+  UI.schoolCrest = function (school, size, name) {
+    const nm = name || (school && school.name) || '?';
+    const colors = schoolColors(school, nm);
+    const initial = nm.trim().charAt(0) || '?';
+    return `<span class="job-crest" style="width:${size}px; height:${size}px; background:${colors[0]}; font-size:${Math.round(size * 0.44)}px;">${Utils.escapeHtml(initial)}</span>`;
+  };
+
+  /*
+   * "Transferred from" pill for a profile header: the school the athlete
+   * most recently left, with its crest and the season they arrived. A
+   * runner who followed their coach says so.
+   */
+  UI.transferFromPill = function (game, history) {
+    const list = Array.isArray(history) ? history : [];
+    if (!list.length) return '';
+    const last = list[list.length - 1];
+    const from = game && game.getSchool(last.fromSchoolId);
+    const how = last.followedCoach
+      ? `<span class="xfer-tag follow" title="Followed ${Utils.escapeHtml(last.followedCoach)} to ${Utils.escapeHtml(last.toName || '')}">🧳 Followed ${Utils.escapeHtml(last.followedCoach)}</span>`
+      : last.cut ? '<span class="xfer-tag">Roster cut</span>' : '';
+    const more = list.length > 1 ? `<span class="xfer-tag" title="${list.map((t) => `${t.year}: ${t.fromName} → ${t.toName}`).join(' • ')}">+${list.length - 1} earlier</span>` : '';
+    return `<div class="xfer-pill" title="Transferred from ${Utils.escapeHtml(last.fromName)} (${last.fromDivision || 'DI'}) in ${last.year}">
+      <span class="xfer-arrow">↪</span><span class="xfer-label">Transferred from</span>
+      <span class="xfer-school">${UI.schoolCrest(from, 18, last.fromName)}
+        <strong>${Utils.escapeHtml(last.fromName)}</strong>
+        <span class="xfer-year">${last.fromDivision && last.fromDivision !== 'DI' ? Utils.escapeHtml(last.fromDivision) + ' · ' : ''}’${String(last.year).slice(2)}</span></span>
+      ${how}${more}
+    </div>`;
+  };
+
+  // The full ledger of moves, oldest first, as list rows.
+  UI.transferHistoryCard = function (game, history) {
+    const list = Array.isArray(history) ? history : [];
+    if (!list.length) return '';
+    return `
+      <div class="card" style="padding:12px; margin-bottom:14px;">
+        <h3>Transfer History</h3>
+        ${UI.listGroup(list.map((t) => UI.listRow({
+          badge: UI.schoolCrest(game && game.getSchool(t.fromSchoolId), 28, t.fromName),
+          title: `${Utils.escapeHtml(t.fromName)} <span style="color:var(--text-faint);">→</span> ${Utils.escapeHtml(t.toName)}`,
+          sub: t.followedCoach ? `🧳 Followed ${Utils.escapeHtml(t.followedCoach)}`
+            : t.cut ? 'Roster cut — continued their career' : t.summer ? 'Summer transfer window' : 'Transfer portal',
+          meta: `<span class="big">${t.year}</span><div class="small">${Utils.escapeHtml(t.fromDivision || 'DI')}</div>`
+        })), { scroll: false })}
+      </div>`;
+  };
+
   UI.showPlayerCard = function (athlete, game) {
     const school = athlete.schoolId ? game.getSchool(athlete.schoolId) : null;
     const heightFt = Math.floor(athlete.heightIn / 12);
@@ -311,8 +367,9 @@
 
     // History tab body (progression + races + injuries), with a graceful
     // empty state so the tab is never blank.
-    const historyBody = (progressHtml || raceLogHtml || injuryHistoryHtml)
-      ? `${progressHtml}${raceLogHtml}${injuryHistoryHtml}`
+    const transferHistoryHtml = UI.transferHistoryCard(game, athlete.transferHistory);
+    const historyBody = (progressHtml || raceLogHtml || injuryHistoryHtml || transferHistoryHtml)
+      ? `${transferHistoryHtml}${progressHtml}${raceLogHtml}${injuryHistoryHtml}`
       : '<div class="card" style="padding:14px; color:var(--text-dim);">No races or injuries recorded yet — this athlete\'s story is just beginning.</div>';
 
     // Accolades tab body.
@@ -333,6 +390,7 @@
             ${school ? Utils.escapeHtml(school.name) + ' • ' : ''}Major: ${Utils.escapeHtml(athlete.major)} •
             ${Utils.escapeHtml(athlete.personality)}${athlete.isWalkOn ? ' • <span style="color:var(--text-faint);">Walk-On</span>' : ''}
           </div>
+          ${UI.transferFromPill(game, athlete.transferHistory)}
         </div>
         <div style="text-align:right;">
           <div style="font-size:30px; font-weight:800;">${athlete.currentOverall}</div>
@@ -415,6 +473,7 @@
             ${rec.gradYear ? ` • Class of ${rec.gradYear}` : ''}${rec.yearsCompeted ? ` • Competed ${rec.yearsCompeted}` : ''}
             ${rec.inducted ? ` • <span style="color:var(--gold, #d4a017);">Hall of Fame ’${String(rec.inducted).slice(2)}</span>` : ''}
           </div>
+          ${UI.transferFromPill(game, rec.transferHistory)}
         </div>
         <div style="text-align:right;">
           <div style="font-size:30px; font-weight:800;">${legacyScore}</div>
@@ -451,6 +510,7 @@
       </div>
 
       <div class="pc-tabpane" data-pcpane="career" hidden>
+        ${UI.transferHistoryCard(game, rec.transferHistory)}
         ${stats.prs && Object.keys(stats.prs).length ? `
         <div class="card" style="padding:12px; margin-bottom:14px;">
           <h3>Personal Bests</h3>

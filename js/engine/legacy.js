@@ -195,6 +195,8 @@
       // graduated athlete's profile still shows every division/conference honor.
       accolades: (athlete.accolades || []).slice(),
       overallHistory: (athlete.overallHistory || []).slice(),
+      // Every school they ran for before the last one (transfers).
+      transferHistory: (athlete.transferHistory || []).slice(),
       classYear: athlete.classYear,
       stats: {
         races: athlete.careerStats.races,

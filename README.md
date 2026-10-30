@@ -14,6 +14,38 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.5 — Following the Coach
+
+- **Bring your runners.** Leave one head job for another and up to **three**
+  athletes from your old roster can follow you as transfers. The **Bring Your
+  Runners** popup opens right after you take the job (and stays on the
+  Dashboard and Portal until the transfer window closes). Every eligible
+  athlete shows a **chance to follow** ring, their bond with you, and the fit
+  reasons behind it. Pick up to three, make one pitch, and watch each decision
+  land. Nobody is a sure thing (the cap is 92%), and the roll can't be redone.
+- **What sets the odds.** The bond comes first: nobody follows a coach they
+  don't trust. Fit at the new program pushes the odds up or down: where they'd
+  slot on the depth chart, a step up or down in program or division, distance
+  from home, academics, how close they are with the teammates they'd leave,
+  how settled they are, and their personality.
+- **Followers keep the bond.** They join with the rest of the transfer class
+  at the rollover, arrive settled (first-season grace), and bring their Coach
+  Relationship with them.
+- **CPU coaches do it too.** A CPU head coach poached during the offseason
+  brings up to three of their closest runners the same way.
+- **Transferred from.** Every transfer now carries a career ledger. The profile
+  card shows a **Transferred from** pill with the old school's crest and the
+  season they arrived, plus **Followed Coach X** when that's why they came. The
+  History tab lists every move. Graduated legends keep the ledger.
+- **Coach Relationship is personal.** Teammates no longer drift to the same
+  number. Each athlete has their own **rapport** with the head coach (some
+  personalities click with some archetypes, and every pairing has its own
+  chemistry). Racing in the Top 7 builds trust, sitting behind it wears it
+  down (most of all when benched behind weaker runners), morale and overload
+  weigh on it, and the weekly moments of a season swing it, more often for the
+  better under a coach who communicates well. A **new head coach** means a new
+  relationship: it restarts from a first impression.
+
 ## Version 15.4 — Season Form: Base, Sharpening & One Peak Per Season
 
 - **Base and Sharpening.** Fitness is now **Base**: built by mileage,
