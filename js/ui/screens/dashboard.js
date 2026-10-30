@@ -7,34 +7,35 @@
   const Utils = window.XCD.core.Utils;
 
   /*
-   * Annual program expectations (Update 5, Part 5): what the athletic
-   * department expects this season, scaled by prestige, division pressure,
-   * budget, program history, and conference strength. Elite programs are
-   * expected to contend for trophies; rebuilds are asked to improve.
+   * Annual program expectations (Update 5, Part 5; reworked by user
+   * request): the athletic department's target finish for each squad, set
+   * fresh every preseason from last season's finish, the preseason poll,
+   * roster talent, and program prestige (Coaching.expectedFinish). The goals
+   * follow the target, so a breakthrough raises next year's bar and a
+   * rebuild lowers it. Returns { text, detail }.
    */
-  function expectationsFor(school) {
+  function expectationsFor(game, school) {
     const D = window.XCD.data;
     const div = D.divisionFor(school);
-    const p = school.prestige || 50;
-    const hs = school.historicalSuccess || {};
-    const pedigree = (hs.nationalTitlesM || 0) + (hs.nationalTitlesW || 0) + (hs.conferenceTitlesM || 0) + (hs.conferenceTitlesW || 0);
-    const strongConf = (school.conferenceTier || 3) <= 1;
+    const C = window.XCD.engine.Coaching;
+    const ex = C.expectedFinish(game, school);
+    const best = Math.min(ex.rankM, ex.rankW);
+    const total = ex.total;
     const goals = [];
-    if (p >= 82) {
-      goals.push('contend for a national trophy', 'a top-10 national finish', 'win the conference');
-    } else if (p >= 66) {
-      goals.push('qualify for Nationals', 'finish top-3 in a strong conference' , 'earn All-America honors');
-    } else if (p >= 48) {
-      goals.push('reach the NCAA Regional podium picture', 'a top-half conference finish', 'develop All-Conference runners');
-    } else {
-      goals.push('show clear, steady improvement', 'be competitive in-conference', 'build the roster through recruiting');
-    }
-    const tierLabel = p >= 82 ? 'Elite program' : p >= 66 ? 'Established program' : p >= 48 ? 'Middle-tier program' : 'Rebuilding program';
-    const budgetNote = school.budget && school.budget.total >= 400000 ? ' Resources are strong, so patience is short.'
-      : (school.budget && school.budget.total < 180000 ? ' Modest resources temper the demands.' : '');
-    const histNote = pedigree >= 6 ? ' A proud history raises the bar.' : '';
+    if (best <= 3) goals.push('contend for a national trophy', 'win the conference');
+    else if (best <= 10) goals.push('a top-10 national finish', 'qualify for Nationals');
+    else if (best <= 25) goals.push('a Top 25 finish', 'push for a Nationals berth');
+    else if (best <= total * 0.4) goals.push('reach the Regional podium picture', 'a top-half conference finish');
+    else goals.push('show clear, steady improvement', 'be competitive in-conference');
+    const tierLabel = best <= 10 ? 'National contender' : best <= 25 ? 'Ranked program'
+      : best <= total * 0.4 ? 'Middle-tier program' : 'Rebuilding program';
+    const strongConf = (school.conferenceTier || 3) <= 1;
     const confNote = strongConf ? ' The conference is a gauntlet.' : '';
-    return `${tierLabel} · ${div.label}. Expected to ${goals.join(', ')}.${budgetNote}${histNote}${confNote}`;
+    const text = `${tierLabel} · ${div.label}. Target: around <strong>#${ex.rankM}</strong> (men) · <strong>#${ex.rankW}</strong> (women) of ${total}. Expected to ${goals.join(', ')}.${confNote}`;
+    const p = ex.parts;
+    const r = (g, k) => (p[g][k] ? '#' + p[g][k] : '—');
+    const detail = `Set this preseason from last season's finish (${r('M', 'lastRank')} / ${r('W', 'lastRank')}), the preseason poll (${r('M', 'pollRank')} / ${r('W', 'pollRank')}), roster talent (${r('M', 'talentRank')} / ${r('W', 'talentRank')}) and program prestige (${school.prestige}). Men / women. Beat the target and the seat cools; fall well short and it heats.`;
+    return { text, detail };
   }
 
   /*
@@ -237,7 +238,7 @@
     }
 
     // Program expectations & the player's job security (Update 5, Part 5).
-    const expectations = expectationsFor(school);
+    const expectations = expectationsFor(game, school);
     const seat = window.XCD.data.seatStatus(coach.hotSeat || 0);
     const seatColor = seat.key === 'hot' ? 'var(--danger)' : seat.key === 'warm' ? 'var(--warning)' : 'var(--success)';
     const isAsst = game.isAssistant();
@@ -344,7 +345,8 @@
       <div class="card" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <div>
           <h3 style="margin:0 0 2px;">🎯 ${game.year} Program Expectations</h3>
-          <div style="color:var(--text-dim); font-size:13px;">${expectations}</div>
+          <div style="color:var(--text-dim); font-size:13px;">${expectations.text}</div>
+          <div style="color:var(--text-faint); font-size:12px; margin-top:4px;" id="expectations-detail">${expectations.detail}</div>
         </div>
         <div style="text-align:right; font-size:12px; color:var(--text-faint);">
           ${isAsst

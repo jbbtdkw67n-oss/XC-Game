@@ -40,6 +40,19 @@ Home Screen** — it installs as a full-screen, offline-capable app. See
   short of that by Nationals. A second taper that season only sheds fatigue.
   A cut with no quality session is a recovery week and saves the peak.
   Ideal Mileage never spends it by accident.
+- **Down Week.** One click on the Training screen sheds fatigue *without*
+  tapering. Every runner drops to about 75% of their recent load for the
+  week, and you can keep a quality session in. It never spends the peak,
+  keeps the taper charge building slowly, sheds extra fatigue and staleness,
+  and barely dents the rolling load, so the next week isn't a load spike.
+  Each runner's own mileage comes back the week after. The week's fresh
+  development is a little lighter, and you can run one at most every 3 weeks.
+- **Training is absorbed while you recover.** Above about 45 fatigue, part of
+  each week's development is banked instead of landing (up to 60% when a
+  runner is deep in the red). It lands as fatigue comes down: a little in a
+  normal week, about half in a recovery week or Down Week. Work left
+  unabsorbed fades, faster under chronic overload. The Squad Form card shows
+  what's waiting under **Absorbing**.
 - **Form matters on race day.** A well-timed peak is worth about 2%, and a
   stale or thin-based squad gives up about as much. A peaked runner beats a
   stale one by about 4%, up from about 1.4% before. Race times are centered
@@ -423,6 +436,18 @@ every season opens with a projected outlook, and expectations now have teeth.
   puts its coach on the hot seat, and repeated failures cost them the job — for
   the CPU **and** the player. A fired player isn't done: a rebuilding program
   gives them a fresh start the next offseason.
+- **Expectations move every season.** Each preseason the athletic director
+  sets a target finish for each squad from four things: last season's finish,
+  the preseason poll, roster talent (the top seven by overall), and program
+  prestige. A breakthrough raises next year's bar and a rebuild lowers it. The
+  Dashboard shows the target and what set it, and the hot seat judges each
+  season against it. Nobody is expected to live in the bottom 35% forever.
+- **Rising programs are protected.** A season that beats expectations never
+  heats the seat. Below 75 prestige, missing a pundit podium pick in a season
+  that beat expectations is waived. Putting a squad in the division's final
+  Top 25 when far less was expected cools the seat to Stable.
+- **First-season athletes are settled.** Every freshman, signee, walk-on and
+  transfer reads Very Low transfer risk and never enters that season's portal.
 - **Recruiting accountability for assistants.** A recruiting coordinator who
   fails to land a class up to the program's standard several years running can
   be let go.

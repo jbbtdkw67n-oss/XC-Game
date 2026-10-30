@@ -28,6 +28,121 @@
     return n || (gameState.rankings ? gameState.rankings.M.length : 354);
   }
 
+  /* ---------------- Season expectations ---------------- */
+  /*
+   * Program expectations move every season (user request). At the preseason
+   * the athletic director sets a target finish for each squad from four
+   * things, each read as a fraction of the division (0 = #1):
+   *   prestige  — the brand's standing (read live, it barely moves in-season)
+   *   last      — where the squad finished last season
+   *   poll      — the preseason poll
+   *   talent    — roster talent: the top seven by overall, ranked in division
+   * A breakthrough season raises next year's bar; a rebuild lowers it. The
+   * AD's floor still holds — nobody expects to live in the bottom 35%.
+   */
+  const STRUGGLE_LINE = 0.65;
+  const EXPECT_WEIGHTS = { prestige: 0.2, last: 0.3, poll: 0.25, talent: 0.25 };
+
+  // Average overall of a squad's top seven: the roster's raw talent.
+  function rosterTalent(gameState, school, gender) {
+    const ovr = (gender === 'M' ? school.rosterM : school.rosterW)
+      .map((id) => gameState.world.athletes[id]).filter(Boolean)
+      .map((a) => a.currentOverall).sort((a, b) => b - a).slice(0, 7);
+    return ovr.length ? ovr.reduce((x, y) => x + y, 0) / 7 : 0;
+  }
+
+  // { schoolId: talentRank } within each division, per gender.
+  function talentRanks(gameState) {
+    const out = { M: {}, W: {} };
+    const byDiv = {};
+    Object.values(gameState.world.schools).forEach((s) => {
+      (byDiv[s.division || 'DI'] = byDiv[s.division || 'DI'] || []).push(s);
+    });
+    ['M', 'W'].forEach((g) => {
+      Object.values(byDiv).forEach((list) => {
+        list.map((s) => ({ id: s.id, t: rosterTalent(gameState, s, g) }))
+          .sort((a, b) => b.t - a.t)
+          .forEach((r, i) => { out[g][r.id] = i + 1; });
+      });
+    });
+    return out;
+  }
+
+  function buildExpectation(gameState, school, talent) {
+    const total = divisionSize(gameState, school.division);
+    const pre = (gameState.season && gameState.season.preseasonRanks) || null;
+    const live = { M: {}, W: {} };
+    if (!pre && gameState.rankings) {
+      ['M', 'W'].forEach((g) => gameState.rankings[g].forEach((r) => { live[g][r.schoolId] = r.rank; }));
+    }
+    const fin = school.seasonFinish && school.seasonFinish.year === gameState.year - 1 ? school.seasonFinish : null;
+    const prestigePct = 1 - (school.prestige || 50) / 100;
+    const exp = { year: gameState.year };
+    ['M', 'W'].forEach((g) => {
+      const pollRank = (pre ? pre[g][school.id] : live[g][school.id]) || total;
+      exp[g] = {
+        last: fin && fin[g] != null ? fin[g] : prestigePct, // no record yet: the brand stands in
+        poll: Math.min(1, pollRank / total),
+        talent: Math.min(1, (talent[g][school.id] || total) / total),
+        lastRank: fin ? fin[g + 'Rank'] || null : null,
+        pollRank,
+        talentRank: talent[g][school.id] || null
+      };
+    });
+    return exp;
+  }
+
+  // Set every program's expectation for the new season (preseason).
+  function setSeasonExpectations(gameState) {
+    const talent = talentRanks(gameState);
+    Object.values(gameState.world.schools).forEach((school) => {
+      school.expectation = buildExpectation(gameState, school, talent);
+    });
+  }
+
+  // The season's expectation for one program, built on the spot if the
+  // preseason never set one (an old save, a brand-new school).
+  function seasonExpectation(gameState, school) {
+    if (!school.expectation || school.expectation.year !== gameState.year) {
+      school.expectation = buildExpectation(gameState, school, talentRanks(gameState));
+    }
+    return school.expectation;
+  }
+
+  /*
+   * The target finish as a division fraction (0 = #1), per gender and
+   * combined the same way results are judged (the better squad carries 70%).
+   * Returns { pct, M, W, rankM, rankW }.
+   */
+  function expectedFinish(gameState, school) {
+    const exp = seasonExpectation(gameState, school);
+    const total = divisionSize(gameState, school.division);
+    const prestigePct = 1 - (school.prestige || 50) / 100;
+    const W8 = EXPECT_WEIGHTS;
+    const per = {};
+    ['M', 'W'].forEach((g) => {
+      const e = exp[g];
+      per[g] = Math.min(STRUGGLE_LINE, prestigePct * W8.prestige + e.last * W8.last +
+        e.poll * W8.poll + e.talent * W8.talent);
+    });
+    const pct = Math.min(STRUGGLE_LINE,
+      Math.min(per.M, per.W) * 0.7 + Math.max(per.M, per.W) * 0.3);
+    const rank = (p) => Math.max(1, Math.round(p * total));
+    return { pct, M: per.M, W: per.W, rankM: rank(per.M), rankW: rank(per.W), total, parts: exp };
+  }
+
+  // Stamp the season just finished (final poll) for next year's targets.
+  function recordSeasonFinishes(gameState) {
+    const idx = { M: {}, W: {} };
+    ['M', 'W'].forEach((g) => (gameState.rankings[g] || []).forEach((r) => { idx[g][r.schoolId] = r.rank; }));
+    Object.values(gameState.world.schools).forEach((school) => {
+      const total = divisionSize(gameState, school.division);
+      const mRank = idx.M[school.id] || total;
+      const wRank = idx.W[school.id] || total;
+      school.seasonFinish = { year: gameState.year, M: mRank / total, W: wRank / total, MRank: mRank, WRank: wRank };
+    });
+  }
+
   /* ---------------- Reputation ---------------- */
   function bestRank(gameState, schoolId) {
     const r = gameState.rankings;
@@ -594,6 +709,11 @@
   }
 
   window.XCD.engine.Coaching = {
+    STRUGGLE_LINE,
+    setSeasonExpectations,
+    seasonExpectation,
+    expectedFinish,
+    recordSeasonFinishes,
     yearlyProgression,
     awardPoints,
     PROGRESSION_RATE,

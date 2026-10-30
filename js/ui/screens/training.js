@@ -67,6 +67,9 @@
     else if (f.sharp >= f.ceiling - 3) verdict = 'At the ceiling — more sharp work only adds staleness. Build Base or save it for the taper.';
     else if (f.base >= 70 && f.sharp < f.ceiling - 12) verdict = 'Big base, room to sharpen — intervals and racing will pay off now.';
     else verdict = 'Building — threshold work raises the ceiling, intervals sharpen into it.';
+    // The absorption bank (user request): when there's real work waiting and
+    // the squad is tired, a Down Week cashes it in without touching the peak.
+    if (f.absorb >= 2 && f.fatigue >= 50 && wk <= CAL.NATIONAL_WEEK) verdict += ` ${f.absorb.toFixed(1)} training points are waiting to be absorbed — a 🛌 Down Week sheds fatigue and lands about half of them, without spending your peak.`;
 
     // Form-by-week chart (this season).
     const log = (school.formLog && school.formLog.year === game.year && school.formLog[gender]) || [];
@@ -95,6 +98,7 @@
             <div class="form-row"><span class="k" title="Built by volume, threshold, and long runs. Slow to build, slow to fade. Sets the sharpening ceiling.">Base</span>${UI.meter(f.base)}<strong>${Math.round(f.base)}</strong></div>
             <div class="form-row"><span class="k" title="Race readiness from intervals, speed, race sims, and racing. Fast to build, fast to fade. Capped by Base.">Sharpening</span>${sharpBar}<strong>${Math.round(f.sharp)}<small> / ${Math.round(f.ceiling)}</small></strong></div>
             <div class="form-row"><span class="k" title="Sharp work held too long goes flat. Easy and recovery weeks clear it.">Staleness</span>${UI.meter(f.stale * 2.5, f.stale >= 20 ? 'red' : f.stale >= 9 ? 'yellow' : 'green')}<strong>${staleWord}</strong></div>
+            <div class="form-row"><span class="k" title="Training waiting to be absorbed: above ~45 fatigue part of each week's gains is banked, and it lands as fatigue comes down — a little in a normal week, half in a recovery or Down Week. Left too long, it fades.">Absorbing</span>${UI.meter(Math.min(100, f.absorb * 25), f.absorb >= 2 ? 'yellow' : 'green')}<strong>${f.absorb.toFixed(1)}<small> pts</small></strong></div>
             <div class="form-taper">${taper}</div>
             <div class="form-verdict">${verdict}</div>
           </div>
@@ -214,6 +218,13 @@
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
           <h2 style="margin:0;">Weekly Mileage — ${activeGender === 'M' ? "Men's" : "Women's"} Squad</h2>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            ${(() => {
+              const dw = TE().downWeekStatus(game, activeGender);
+              const tip = dw.active ? 'Down Week is ON for this week — click to cancel and restore everyone\'s mileage'
+                : dw.available ? 'Shed fatigue WITHOUT tapering: every runner drops to ~75% of their recent load for one week (keep a quality session if you like), then their mileage comes back. Never spends your peak; lands banked training.'
+                : `Available again in ${dw.weeksUntil} week${dw.weeksUntil === 1 ? '' : 's'} — down weeks work in a cycle, not back to back`;
+              return `<button class="btn small ${dw.active ? 'primary' : ''}" id="preset-downweek" title="${tip}" ${dw.available ? '' : 'disabled'}>🛌 Down Week${dw.active ? ' ✓' : dw.available ? '' : ` (${dw.weeksUntil}w)`}</button>`;
+            })()}
             <button class="btn small primary" id="preset-ideal" title="Set every runner to their own ideal mileage — the most their body can absorb right now, built up gradually (it never spends your peak; that's the Championship taper preset)">🎯 Ideal Mileage</button>
             <button class="btn small" id="preset-all" title="Clear every individual override — the whole squad runs the program mileage">Quick Set All</button>
             ${D.MILEAGE.PRESETS.map((p) => `
@@ -375,7 +386,8 @@
         const avgChronic = Math.round(Utils.average(roster.map((a) => a.chronicMileage || miles)));
         const taper = miles <= avgChronic - 15;
         const planMeta = TE().planMetaFor(game.training[activeGender]);
-        const realTaper = TE().isTaperWeek(miles, avgChronic, planMeta);
+        const dwOn = TE().downWeekStatus(game, activeGender).active;
+        const realTaper = TE().isTaperWeek(miles, avgChronic, { ...planMeta, downWeek: dwOn });
         const sf = TE().squadForm(game, school, activeGender);
         const fragile = roster.filter((a) => !a.injury && miles > TE().safeMileage(a) &&
           game.training.mileageOverrides[a.id] === undefined).length;
@@ -386,7 +398,8 @@
         const strongAt = women ? 66 : 78;
         const lowAt = women ? 44 : 50;
         let msg;
-        if (realTaper && game.week <= D.CALENDAR.NATIONAL_WEEK && sf && !sf.peakUsed) msg = `⚡ TAPER: ${miles} mi vs ~${avgChronic} mi recent load, with a quality session — this SPENDS your one peak of the season. Your squad peaks for <strong>Week ${game.week + 1} — ${Utils.escapeHtml(weekMeetLabel(game, game.week + 1))}</strong>, keeps a third of it the week after, then it's gone.`;
+        if (dwOn) msg = `🛌 <strong>DOWN WEEK</strong>: each runner at ~75% of their recent load${planMeta.qualityDays >= 1 ? ', quality session kept' : ''} — extra fatigue and staleness shed, banked training lands, and your peak is saved. Everyone's own mileage comes back next week.`;
+        else if (realTaper && game.week <= D.CALENDAR.NATIONAL_WEEK && sf && !sf.peakUsed) msg = `⚡ TAPER: ${miles} mi vs ~${avgChronic} mi recent load, with a quality session — this SPENDS your one peak of the season. Your squad peaks for <strong>Week ${game.week + 1} — ${Utils.escapeHtml(weekMeetLabel(game, game.week + 1))}</strong>, keeps a third of it the week after, then it's gone.`;
         else if (realTaper && sf && sf.peakUsed) msg = `📉 Taper miles: ${miles} mi vs ~${avgChronic} mi — your peak is already spent this season, so this only sheds fatigue (and Base fades).`;
         else if (taper && planMeta.qualityDays < 1) msg = `🛌 Recovery week: ${miles} mi with no quality session — fatigue sheds and your peak is saved for later.`;
         else if (taper) msg = `📉 Lighter week: ${miles} mi vs ~${avgChronic} mi recent load — fatigue sheds. (A real taper is about a 30% cut — the Championship taper preset.)`;
@@ -463,6 +476,14 @@
       btn.addEventListener('click', () => {
         applyPreset(D.MILEAGE.PRESETS.find((p) => p.key === btn.dataset.preset));
       });
+    });
+    const dwBtn = container.querySelector('#preset-downweek');
+    if (dwBtn) dwBtn.addEventListener('click', () => {
+      const on = !TE().downWeekStatus(game, activeGender).active;
+      const res = TE().setDownWeek(game, activeGender, on);
+      if (!res.ok) UI.toast(res.reason, 'error');
+      else UI.toast(on ? `🛌 Down Week: ${res.runners} runner${res.runners === 1 ? '' : 's'} cut to ~75% of their recent load — fatigue sheds, the peak is saved.` : 'Down Week cancelled — mileage restored.', 'success');
+      render(container);
     });
     container.querySelector('#preset-ideal').addEventListener('click', () => {
       const n = TE().applyIdealMileage(game, activeGender);

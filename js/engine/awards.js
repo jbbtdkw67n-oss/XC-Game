@@ -497,28 +497,29 @@
    * another program); the chair stays open until the offseason carousel
    * fills it — schools only hire on genuine vacancies (Part 11).
    */
-  // The bottom 35% of a division is "struggling" for hot-seat purposes.
+  // The bottom 35% of a division is "struggling" for hot-seat purposes
+  // (shared with the season expectations in Coaching).
   const STRUGGLE_LINE = 0.65;
 
   function coachFirings(gameState, rng) {
     const rankIndex = { M: {}, W: {} };
     ['M', 'W'].forEach((g) => gameState.rankings[g].forEach((r) => { rankIndex[g][r.schoolId] = r.rank; }));
-    const divSize = (d) => window.XCD.engine.Coaching.divisionSize(gameState, d);
+    const Coaching = window.XCD.engine.Coaching;
+    const divSize = (d) => Coaching.divisionSize(gameState, d);
     let fired = 0;
 
     Object.values(gameState.world.schools).forEach((school) => {
       const coach = gameState.getCoach(school.coachId);
       if (!coach) return;
 
-      // Expectation scales with the division's pressure and the school's
-      // prestige, measured against the school's own division field.
+      // Expectation (user request): set fresh every preseason from last
+      // season's finish, the preseason poll, roster talent, and prestige
+      // (Coaching.expectedFinish), measured against the school's own
+      // division field and scaled by the division's pressure. The floor
+      // still holds: no athletic director accepts life in the bottom 35%.
       const total = divSize(school.division);
       const pressure = window.XCD.data.divisionFor(school).expectations || 1;
-      // Expectation floor (user request): low prestige no longer buys a
-      // permanent pass. No athletic director accepts life in the bottom 35%
-      // of the division forever, so a perennial cellar-dweller is judged
-      // against at least that line instead of against its own losing.
-      const expectedPct = Math.min(1 - school.prestige / 100, STRUGGLE_LINE);
+      const expectedPct = Coaching.expectedFinish(gameState, school).pct;
       // Program Expectations (spec Part 2): schools recognize success in
       // EITHER program. The better squad carries most of the evaluation, so
       // a nationally competitive men's OR women's team keeps the seat cool;
@@ -664,6 +665,8 @@
         if (fired <= 40) gameState.logNews(`FIRED: ${school.name} lets ${coach.fullName} go ${why}. The search for a successor begins.`);
       }
     });
+    // The final poll becomes part of next season's expectations.
+    Coaching.recordSeasonFinishes(gameState);
   }
 
   /*
