@@ -77,14 +77,16 @@
     const x = (w) => 8 + (w - 1) / (maxW - 1) * (W - 16);
     const y = (v) => H - 8 - (Math.max(30, Math.min(105, v)) - 30) / 75 * (H - 16); // 30-105 band shows the swings
     const line = (key) => log.map((r, i) => `${i ? 'L' : 'M'}${x(r.w).toFixed(1)},${y(r[key]).toFixed(1)}`).join(' ');
+    // Presentation attributes are fallbacks only (the stylesheet wins): the
+    // chart still reads if a cached main.css is older than this script.
     const marks = [[CAL.CONFERENCE_WEEK, 'C'], [CAL.REGIONAL_WEEK, 'R'], [CAL.NATIONAL_WEEK, 'N']]
-      .map(([w, l]) => `<line x1="${x(w)}" x2="${x(w)}" y1="6" y2="${H - 6}" class="form-mark"/><text x="${x(w)}" y="${H}" class="form-mark-t">${l}</text>`).join('');
-    const peaks = log.filter((r) => r.peak >= 4).map((r) => `<text x="${x(r.w)}" y="${y(r.form) - 4}" class="form-peak">⚡</text>`).join('');
+      .map(([w, l]) => `<line x1="${x(w)}" x2="${x(w)}" y1="6" y2="${H - 10}" class="form-mark" stroke="currentColor" stroke-opacity="0.25"/><text x="${x(w)}" y="${H - 1}" class="form-mark-t" fill="currentColor" font-size="8" text-anchor="middle">${l}</text>`).join('');
+    const peaks = log.filter((r) => r.peak >= 4).map((r) => `<text x="${x(r.w)}" y="${y(r.form) - 4}" class="form-peak" font-size="9" text-anchor="middle">⚡</text>`).join('');
     const chart = log.length >= 2 ? `
-      <svg viewBox="0 0 ${W} ${H}" class="form-chart" role="img" aria-label="Squad form by week">
+      <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="form-chart" role="img" aria-label="Squad form by week">
         ${marks}
-        <path d="${line('base')}" class="form-line-base"/>
-        <path d="${line('form')}" class="form-line-form"/>
+        <path d="${line('base')}" class="form-line-base" fill="none" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="3 3"/>
+        <path d="${line('form')}" class="form-line-form" fill="none" stroke="#3d8bfd" stroke-width="2.2" stroke-linejoin="round"/>
         ${peaks}
       </svg>
       <div class="form-legend"><span class="lg-form">━ Race form</span> <span class="lg-base">━ Base</span> · C/R/N = Conference, Regional, Nationals</div>`

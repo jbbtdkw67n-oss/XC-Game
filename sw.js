@@ -5,7 +5,7 @@
  * always correct; bump CACHE_VERSION whenever shipped files change to make
  * installed players pick up a new build.
  */
-const CACHE_VERSION = 'xcd-v18';
+const CACHE_VERSION = 'xcd-v19';
 
 const ASSETS = [
   './',
@@ -84,7 +84,11 @@ const ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+    // cache: 'reload' skips the browser's HTTP cache, so a new version never
+    // precaches a stale file next to fresh ones (e.g. new JS with old CSS).
+    caches.open(CACHE_VERSION)
+      .then((cache) => cache.addAll(ASSETS.map((url) => new Request(url, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
   );
 });
 
