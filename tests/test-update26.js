@@ -77,6 +77,7 @@ async function run() {
     out.stalePlain = avg(D2, (a) => a.staleness);
     out.bankDown = avg(C, (a) => a.absorbBank);
     out.bankPlain = avg(D2, (a) => a.absorbBank);
+    out.hlwDown = avg(C, (a) => a.highLoadWeeks || 0);
     out.chronicDown = avg(C, (a) => a.chronicMileage);
     out.chronicPlain = avg(D2, (a) => a.chronicMileage);
 
@@ -100,6 +101,10 @@ async function run() {
   ok(dw.restored && dw.flagCleared, 'each runner\'s own mileage must come back after the Down Week');
   ok(dw.cutMiles >= 56 && dw.cutMiles <= 64, 'the Down Week must cut to ~75% of recent load (80 → ~60): ' + dw.cutMiles);
   ok(dw.fatigueDown <= dw.fatiguePlain - 5, 'a Down Week must shed clearly more fatigue than the same miles alone: ' + JSON.stringify(dw));
+  // A chronically tired squad (72) must come back under the fatigue where
+  // banked work lands, and the planned cutback is never a high-load week.
+  ok(dw.fatigueDown <= 50, 'a Down Week must pull a deeply tired squad well down, not just dent it: ' + JSON.stringify(dw));
+  ok(dw.hlwDown === 0, 'a Down Week must not count as a high-load week: ' + JSON.stringify(dw));
   ok(dw.staleDown < dw.stalePlain, 'a Down Week must shed staleness');
   ok(dw.bankDown < dw.bankPlain, 'a Down Week must land banked training: ' + JSON.stringify(dw));
   ok(dw.chronicDown > dw.chronicPlain, 'a Down Week must dent the rolling load less (no spike the week after)');

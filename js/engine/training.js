@@ -1144,8 +1144,12 @@
    * building slowly, sheds extra fatigue and staleness, and cashes in the
    * absorption bank below. The cost: the week's fresh development is a
    * little lighter, and it can't be run back to back (every 3 weeks at most).
+   * The shed scales with how deep in the red the runner is (DEEP_*): a flat
+   * cut barely dented a chronically tired squad, so it never got back under
+   * the fatigue where banked work lands — and it doesn't count as a
+   * high-load week, so it actually resets the overload clock.
    */
-  const DOWN_WEEK = { MILES: 0.75, SHED: 6, STALE: 4, DEV: 0.8, COOLDOWN: 3, CHARGE: 0.1 };
+  const DOWN_WEEK = { MILES: 0.75, SHED: 6, DEEP_FROM: 35, DEEP_SHED: 0.4, STALE: 4, DEV: 0.8, COOLDOWN: 3, CHARGE: 0.1 };
 
   /*
    * The absorption bank (user request): training is absorbed while the body
@@ -1333,6 +1337,65 @@
     };
   }
 
+  /*
+   * One runner's fatigue change for the week: the squad's plan sets the
+   * session load, the runner's OWN miles add the volume load, and their
+   * resilience and the program's facilities set what they recover.
+   * processAthlete applies it and the planner previews it (projectedFatigue),
+   * so the number on screen is the number that lands.
+   */
+  function weeklyFatigueDelta(athlete, school, planMeta, mMeta, philo) {
+    // High-altitude programs (Update 5, Part 3): training at elevation is a
+    // real physiological edge — a bigger aerobic engine and stronger
+    // threshold — but the thin air taxes the body, so fatigue builds faster
+    // and recovery is a touch slower. A realistic advantage a coach must
+    // manage, never a free win.
+    const alt = (school.weather && school.weather.altitude) || 'Low';
+    const altFatigue = alt === 'High' ? 1.6 : alt === 'Medium' ? 0.6 : 0;
+    const altRecovery = alt === 'High' ? 0.7 : alt === 'Medium' ? 0.3 : 0;
+
+    // Volume adds its own load; recovery rate scales with innate resilience
+    // and the program's recovery facilities.
+    const recoveryRate = 4 + athlete.injuryResistance / 30 +
+      school.facilities.rehabCenter / 27 - altRecovery;
+    let weeklyFatigue = planMeta.fatigue + mMeta.fatigueAdd * (planMeta.loadMult ?? 1);
+    // Training philosophy shifts how much fatigue the work accumulates (only
+    // the load side — recovery is unaffected).
+    if (weeklyFatigue > 0) weeklyFatigue *= philo.fatigueMult;
+    // Signature fatigue relief (Update 13, Phase 7): the philosophy's own
+    // bread-and-butter work tires its athletes a little less.
+    if (weeklyFatigue > 0) weeklyFatigue *= philoFatigueRelief(philo.key, planMeta, mMeta.mileage);
+    if (weeklyFatigue > 0) weeklyFatigue += altFatigue;
+    if (planMeta.downWeek) { // the down week's whole point
+      weeklyFatigue -= DOWN_WEEK.SHED + Math.max(0, athlete.fatigue - DOWN_WEEK.DEEP_FROM) * DOWN_WEEK.DEEP_SHED;
+    }
+    return weeklyFatigue - recoveryRate;
+  }
+
+  // Where one of the player's runners will finish this week's fatigue on the
+  // current plan, their load setting, and their own mileage (race-day fatigue
+  // not included). The planner shows this per runner.
+  function projectedFatigue(gameState, athlete) {
+    const f = athlete.fatigue || 0;
+    if (athlete.injury) return Utils.clamp(f - 12, 0, 100);
+    const school = gameState.world.schools[gameState.playerSchoolId];
+    const coach = gameState.getCoach(school.coachId);
+    const gender = athlete.gender === 'W' ? 'W' : 'M';
+    const plan = gameState.training[gender] || defaultPlan();
+    const override = gameState.training.overrides && gameState.training.overrides[athlete.id];
+    const meta = override ? planMetaFor(plan, override) : planMetaFor(plan);
+    if (downWeekStatus(gameState, gender).active) meta.downWeek = true;
+    const miles = mileageFor(gameState, school, gender, athlete, coach);
+    const mMeta = mileageMeta(miles, athlete.chronicMileage);
+    let after = Math.round(Utils.clamp(f + weeklyFatigueDelta(athlete, school, meta, mMeta, philosophyEffect(coach)), 0, 100));
+    // Running past the durable limit grinds on top (see processAthlete).
+    athlete.fatigue = after;
+    const overBy = miles - safeMileage(athlete);
+    athlete.fatigue = f;
+    if (overBy > 6) after = Utils.clamp(after + Math.min(6, overBy * 0.15), 0, 100);
+    return Math.round(after);
+  }
+
   /* ================================================================ *
    * Weekly processing
    * ================================================================ */
@@ -1391,29 +1454,9 @@
     athlete.loadSpike = spike.mult;
     const chronicBefore = athlete.chronicMileage || mMeta.mileage;
 
-    // High-altitude programs (Update 5, Part 3): training at elevation is a
-    // real physiological edge — a bigger aerobic engine and stronger
-    // threshold — but the thin air taxes the body, so fatigue builds faster
-    // and recovery is a touch slower. A realistic advantage a coach must
-    // manage, never a free win.
+    // Fatigue & fitness: the squad's plan plus this runner's own miles.
     const alt = (school.weather && school.weather.altitude) || 'Low';
-    const altFatigue = alt === 'High' ? 1.6 : alt === 'Medium' ? 0.6 : 0;
-    const altRecovery = alt === 'High' ? 0.7 : alt === 'Medium' ? 0.3 : 0;
-
-    // Fatigue & fitness. Volume adds its own load; recovery rate scales
-    // with innate resilience and the program's recovery facilities.
-    const recoveryRate = 4 + athlete.injuryResistance / 30 +
-      school.facilities.rehabCenter / 27 - altRecovery;
-    let weeklyFatigue = planMeta.fatigue + mMeta.fatigueAdd * (planMeta.loadMult ?? 1);
-    // Training philosophy shifts how much fatigue the work accumulates (only
-    // the load side — recovery is unaffected).
-    if (weeklyFatigue > 0) weeklyFatigue *= philo.fatigueMult;
-    // Signature fatigue relief (Update 13, Phase 7): the philosophy's own
-    // bread-and-butter work tires its athletes a little less.
-    if (weeklyFatigue > 0) weeklyFatigue *= philoFatigueRelief(philo.key, planMeta, mMeta.mileage);
-    if (weeklyFatigue > 0) weeklyFatigue += altFatigue;
-    if (planMeta.downWeek) weeklyFatigue -= DOWN_WEEK.SHED; // the down week's whole point
-    athlete.fatigue = Math.round(Utils.clamp(athlete.fatigue + weeklyFatigue - recoveryRate, 0, 100));
+    athlete.fatigue = Math.round(Utils.clamp(athlete.fatigue + weeklyFatigueDelta(athlete, school, planMeta, mMeta, philo), 0, 100));
 
     // Altitude's aerobic payoff: a small, steady boost to the stamina and
     // threshold engines (the systems that adapt to thin air).
@@ -1448,8 +1491,8 @@
     // their durable mileage limit. Consecutive high-load weeks compound injury
     // risk; a genuinely easy/taper week lets the body recover the counter.
     const hardDayCount = planMeta.hardDays || 0;
-    const highLoadWeek = athlete.fatigue >= 70 || hardDayCount >= 5 ||
-      (mMeta.mileage - safeMileage(athlete)) > 4;
+    const highLoadWeek = !planMeta.downWeek && (athlete.fatigue >= 70 || hardDayCount >= 5 ||
+      (mMeta.mileage - safeMileage(athlete)) > 4);
     if (highLoadWeek) athlete.highLoadWeeks = Math.min(24, (athlete.highLoadWeeks || 0) + 1);
     else athlete.highLoadWeeks = Math.max(0, (athlete.highLoadWeeks || 0) - 2);
 
@@ -2065,6 +2108,7 @@
     aiMileage,
     mileageFor,
     mileageMeta,
+    projectedFatigue,
     safeMileage,
     idealMileage,
     applyIdealMileage,
