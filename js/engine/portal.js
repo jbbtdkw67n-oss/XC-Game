@@ -396,6 +396,18 @@
    * Smart entry model (Part 4): every departure has a concrete, legible
    * cause. Returns the accumulated unhappiness and the loudest reason.
    */
+  /*
+   * New to the program (Transfer Risk overhaul): an athlete in their first
+   * season on campus — a signee, a walk-on, or a transfer — chose this
+   * program months ago and is settling in, not looking for the exit. Their
+   * transfer risk reads Very Low and they never enter that season's portal.
+   * Signees and transfers carry the grace year; freshmen from before the
+   * stamp (and walk-ons) are caught by the five-year clock.
+   */
+  function newToProgram(gameState, a) {
+    return a.transferGraceYear === gameState.year || (a.yearsOnCampus || 1) <= 1;
+  }
+
   // The player's roster attrition slider (1 when the settings module is absent).
   function playerTransferMult(gameState) {
     const S = window.XCD.engine.Settings;
@@ -425,18 +437,31 @@
     // runner the coach races is never "buried", whatever their overall.
     const seasonJudged = gameState.week >= SEASON_JUDGED_WEEK;
     const Races = window.XCD.engine.Races;
-    let buried;
-    if (school.id === gameState.playerSchoolId && Races && Races.playerLineup) {
-      buried = !Races.playerLineup(gameState, a.gender).ids.includes(a.id) && a.currentOverall > 45 && !a.injury;
-    } else {
-      const roster = gameState.getRoster(school.id, a.gender).sort((x, y) => y.currentOverall - x.currentOverall);
-      const rank = roster.findIndex((x) => x.id === a.id) + 1;
-      buried = rank > 7 && a.currentOverall > 45;
+    // Two kinds of "buried": a runner the coach benches ahead of weaker
+    // teammates feels it straight away, but ordinary depth (8th-14th on
+    // the depth chart) only frustrates once the season has shown they
+    // won't get their shot — not on day one of the season.
+    let buried = false, benched = false;
+    if (!a.injury && a.currentOverall > 45) {
+      if (school.id === gameState.playerSchoolId && Races && Races.playerLineup) {
+        const ids = Races.playerLineup(gameState, a.gender).ids;
+        if (!ids.includes(a.id)) {
+          buried = true;
+          benched = ids.some((id) => { const t = gameState.getAthlete(id); return t && t.currentOverall < a.currentOverall; });
+        }
+      } else {
+        const roster = gameState.getRoster(school.id, a.gender).sort((x, y) => y.currentOverall - x.currentOverall);
+        buried = roster.findIndex((x) => x.id === a.id) + 1 > 7;
+      }
     }
-    if (seasonJudged && (a.seasonRaces || 0) === 0 && a.currentOverall > 50) {
+    // A runner who sat out hurt didn't lose their shot to the coach.
+    const sidelined = !!a.injury || (a.seasonInjuryWeeks || 0) >= 3;
+    if (seasonJudged && !sidelined && (a.seasonRaces || 0) === 0 && a.currentOverall > 50) {
       add(a.currentOverall > 70 ? 30 : 18, R.racing);
-    } else if (buried) {
+    } else if (benched) {
       add(20, R.racing);
+    } else if (buried && seasonJudged) {
+      add(14, R.racing);
     }
 
     // Coach left this year — loyalty walks out the door with them.
@@ -478,7 +503,11 @@
 
     // Homesickness
     const dist = a.hometownState === 'INT' ? 0 : RE.distanceMiles(a.hometownState, school.state);
-    if (dist > 900) add(a.personality === 'Anxious' ? 16 : 11, R.homesick);
+    // It's sharpest early in a career and fades as campus becomes home.
+    if (dist > 900) {
+      const settled = (a.yearsOnCampus || 1) <= 2 ? 1 : (a.yearsOnCampus === 3 ? 0.6 : 0.35);
+      add((a.personality === 'Anxious' ? 16 : 11) * settled, R.homesick);
+    }
 
     // Academics
     if (a.academics > 80 && school.academics < 50) add(9, R.academics);
@@ -522,7 +551,11 @@
 
     // Training fit (Part 6 interplay): fragile bodies on crushing volume,
     // or speed merchants ground down by a mileage-heavy program.
-    const teamMiles = TE.aiMileage ? TE.aiMileage(gameState, coach, a.gender) : 70;
+    // Judged on the volume the runner has actually been carrying (the
+    // player sets each runner's miles; the CPU follows its own plan), not
+    // on the staff's preferred number.
+    const teamMiles = a.chronicMileage ||
+      (TE.aiMileage ? TE.aiMileage(gameState, coach, a.gender) : 70);
     const safe = TE.safeMileage ? TE.safeMileage(a) : 100;
     if (teamMiles > safe + 10) add(12, R.trainingFit);
     else if (a.speed > a.stamina + 18 && coach && coach.hasTendency && coach.hasTendency('mileage-heavy')) {
@@ -530,8 +563,10 @@
     }
 
     // Overtraining / undertraining: chronic states, not one bad week.
-    if (a.fatigue > 75) add(10, R.overtraining);
-    else if (a.fitness < 38 && a.fatigue < 30 && a.workEthic > 60) add(8, R.undertraining);
+    // Fitness resets low every summer, so undertraining is only judged once
+    // the season has had time to build it; overtraining needs weeks of load.
+    if (a.fatigue > 75 && (a.highLoadWeeks || 0) >= 3) add(10, R.overtraining);
+    else if (seasonJudged && a.fitness < 38 && a.fatigue < 30 && a.workEthic > 60) add(8, R.undertraining);
 
     // NIL money talks (only where the division allows it).
     const division = window.XCD.data.divisionFor(school);
@@ -542,7 +577,7 @@
     // Facilities & misery
     if (school.facilitiesOverall < 40) add(7, 'Facilities');
     if (a.morale < 40) add(24, 'Unhappy');
-    else if (a.morale < 55) u += 10 * push;
+    else if (a.morale < 55) add(10, 'Unhappy');
 
     reasons.sort((x, y) => y.w - x.w);
     // Merge duplicate labels (culture can trigger twice) for clean display.
@@ -566,15 +601,19 @@
   function transferRisk(gameState, athlete) {
     const school = athlete.schoolId && gameState.getSchool(athlete.schoolId);
     if (!school || athlete.isRecruit) return null;
-    // A just-arrived transfer (Update 11) is committed to the program they
-    // chose — no transfer risk during their first season on the new campus.
-    // Whatever drove them out of their old school does not follow them in.
-    if (athlete.transferGraceYear === gameState.year) {
+    // A just-arrived athlete — transfer (Update 11), signee, or walk-on — is
+    // committed to the program they chose: no transfer risk during their
+    // first season on campus. Whatever drove a transfer out of their old
+    // school does not follow them in.
+    if (newToProgram(gameState, athlete)) {
+      const transfer = athlete.transferGraceYear === gameState.year && (athlete.yearsOnCampus || 1) > 1 &&
+        athlete.classYear !== 'Freshman';
       return {
         score: 0,
         level: window.XCD.data.transferRiskLevel(0),
         reasons: [],
-        anchors: ['Just transferred in — settling into the new program'],
+        anchors: [transfer ? 'Just transferred in — settling into the new program'
+          : 'First season on campus — committed to the program they chose'],
         graduating: athlete.eligibilityRemaining < 2
       };
     }
@@ -608,8 +647,8 @@
         school[key].forEach((id) => {
           const a = gameState.world.athletes[id];
           if (!a || a.eligibilityRemaining < 2) return;
-          // A transfer in their grace season stays put — they just got here.
-          if (a.transferGraceYear === gameState.year) return;
+          // A first-season athlete stays put — they just got here.
+          if (newToProgram(gameState, a)) return;
           const { u, reason } = unhappiness(gameState, a, school);
           // Transfer Portal Nerf (Update 13, Phase 4): the portal was providing
           // too much talent. Entry probability is scaled to ~75% of its former
@@ -1548,6 +1587,7 @@
     playerOffer,
     portalAppeal,
     transferRisk,
+    newToProgram,
     applyTransfers,
     openPortal,
     cutAthlete,

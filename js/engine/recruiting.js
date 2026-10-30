@@ -2090,7 +2090,8 @@
           yearsOnCampus: rec.source === 'JUCO' ? 2 : 1,
           schoolId,
           morale: 75,
-          fatigue: 10
+          fatigue: 10,
+          transferGraceYear: gameState.year // first season on campus: settling in
         });
         delete athlete.interests;
         delete athlete.playerKnowledge;

@@ -35,12 +35,19 @@ async function run() {
       s.id !== g.playerSchoolId && s.coachId && g.world.coaches[s.coachId] && !g.world.coaches[s.coachId].isPlayer);
     const drop = (list, id) => list.filter((r) => r.schoolId !== id);
     const bury = (id) => { g.rankings.M = drop(g.rankings.M, id); g.rankings.W = drop(g.rankings.W, id); };
+    // Season expectations (Update 26) blend last season, the poll and roster
+    // talent with prestige; pin them to the prestige so each case is exact.
+    const flat = (s) => {
+      const p = 1 - s.prestige / 100;
+      const part = { last: p, poll: p, talent: p };
+      s.expectation = { year: g.year, M: { ...part }, W: { ...part } };
+    };
     const out = {};
 
     // 1) A long-tenured coach dead last at a 10-prestige program is fired.
     const s1 = cpu[0];
     const c1 = g.world.coaches[s1.coachId];
-    s1.prestige = 10; c1.yearsAtSchool = 8; c1.hotSeat = 0; c1.hotSeatYears = 0; c1.seatTrack = null;
+    s1.prestige = 10; c1.yearsAtSchool = 8; c1.hotSeat = 0; c1.hotSeatYears = 0; c1.seatTrack = null; flat(s1);
     bury(s1.id);
     let seasons = 0;
     while (s1.coachId === c1.id && seasons < 10) {
@@ -54,7 +61,7 @@ async function run() {
     const s2 = cpu[1], s3 = cpu[2];
     const c2 = g.world.coaches[s2.coachId], c3 = g.world.coaches[s3.coachId];
     [[s2, c2, 0], [s3, c3, 3]].forEach(([s, c, yrs]) => {
-      s.prestige = 30; s.conferenceTier = 2; c.yearsAtSchool = yrs; c.hotSeat = 0; c.hotSeatYears = 0; c.seatTrack = null; bury(s.id);
+      s.prestige = 30; s.conferenceTier = 2; c.yearsAtSchool = yrs; c.hotSeat = 0; c.hotSeatYears = 0; c.seatTrack = null; bury(s.id); flat(s);
     });
     A.coachFirings(g, new window.XCD.core.SeededRNG(11));
     out.newHireHeat = c2.hotSeat;
@@ -63,7 +70,7 @@ async function run() {
     // 3) Improvement cools: last year dead last, this year mid-table.
     const s4 = cpu[3];
     const c4 = g.world.coaches[s4.coachId];
-    s4.prestige = 20; c4.yearsAtSchool = 6; c4.hotSeat = 50; c4.hotSeatYears = 0;
+    s4.prestige = 20; c4.yearsAtSchool = 6; c4.hotSeat = 50; c4.hotSeatYears = 0; flat(s4);
     c4.seatTrack = { schoolId: s4.id, pct: 1 };
     const total = window.XCD.engine.Coaching.divisionSize(g, s4.division);
     const midRank = Math.round(total * 0.5);
@@ -79,12 +86,45 @@ async function run() {
     // 4) The player's seat heats at a bottom program too.
     const ps = g.getPlayerSchool();
     const pc = g.getPlayerCoach();
-    ps.prestige = 12; pc.yearsAtSchool = 3; pc.hotSeat = 0; pc.hotSeatYears = 0; pc.seatTrack = null;
+    ps.prestige = 12; pc.yearsAtSchool = 3; pc.hotSeat = 0; pc.hotSeatYears = 0; pc.seatTrack = null; flat(ps);
     bury(ps.id);
     A.coachFirings(g, new window.XCD.core.SeededRNG(17));
     out.playerHeat = pc.hotSeat;
+
+    // 5) Breakthrough protection: the player turns a low-prestige program
+    //    into a nationally ranked one (men #12, women still poor) — even
+    //    with leftover heat and a missed preseason podium pick, the seat
+    //    goes cool and the podium streak can't get them fired.
+    const place = (id, gd, rank) => {
+      const list = drop(g.rankings[gd], id);
+      const div = ps.division || 'DI';
+      const at = list.findIndex((r) => (r.division || 'DI') === div && r.rank === rank);
+      list.splice(Math.max(0, at), 0, { schoolId: id, rank, division: div });
+      g.rankings[gd] = list;
+    };
+    const ptotal = window.XCD.engine.Coaching.divisionSize(g, ps.division);
+    ps.prestige = 35; pc.yearsAtSchool = 4; pc.hotSeat = 70; pc.hotSeatYears = 1; flat(ps);
+    pc.seatTrack = { schoolId: ps.id, pct: 0.55 };
+    pc.podiumMissStreak = 2; pc._podiumPressure = 40;
+    place(ps.id, 'M', 12);
+    place(ps.id, 'W', Math.round(ptotal * 0.6));
+    g.career.pendingFiring = null;
+    A.coachFirings(g, new window.XCD.core.SeededRNG(19));
+    out.breakthrough = { seat: pc.hotSeat, years: pc.hotSeatYears, streak: pc.podiumMissStreak,
+      fired: !!(g.career.pendingFiring && g.career.pendingFiring.fromId === ps.id) };
+
+    // 6) An overachieving season never adds heat, even outside the Top 25.
+    pc.hotSeat = 40; pc.hotSeatYears = 0; pc.seatTrack = { schoolId: ps.id, pct: 0.5 };
+    pc.podiumMissStreak = 0; pc._podiumPressure = 0;
+    place(ps.id, 'M', Math.round(ptotal * 0.4));
+    place(ps.id, 'W', Math.round(ptotal * 0.5));
+    A.coachFirings(g, new window.XCD.core.SeededRNG(23));
+    out.overachieverSeat = pc.hotSeat;
     return out;
   });
+  ok(seat.breakthrough.seat <= 20 && seat.breakthrough.years === 0 && !seat.breakthrough.fired && seat.breakthrough.streak === 0,
+    'a breakthrough into the Top 25 must cool the seat and clear the podium streak: ' + JSON.stringify(seat.breakthrough));
+  ok(seat.overachieverSeat <= 40, 'a season that beats expectations must never heat the seat: ' + JSON.stringify(seat));
   ok(seat.firedAfter !== null && seat.firedAfter <= 6, 'a coach stuck at the bottom of a low-prestige program must be fired within 6 seasons: ' + JSON.stringify(seat));
   ok(seat.newHireHeat < seat.veteranHeat, 'a new hire must get a honeymoon (less heat): ' + JSON.stringify(seat));
   ok(seat.improvedSeat < 50, 'a program that climbed the standings must cool the seat: ' + JSON.stringify(seat));

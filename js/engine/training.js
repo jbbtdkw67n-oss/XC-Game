@@ -1136,6 +1136,98 @@
   const TAPER_RATIO = 0.72;
   const PEAK_MAX = 22;
 
+  /*
+   * The Down Week (user request): a deliberate cutback that sheds fatigue
+   * WITHOUT being the taper. One click cuts every runner to ~75% of their
+   * recent load for the week (a quality session can stay in), then their
+   * mileage is restored. It never spends the peak, keeps the taper charge
+   * building slowly, sheds extra fatigue and staleness, and cashes in the
+   * absorption bank below. The cost: the week's fresh development is a
+   * little lighter, and it can't be run back to back (every 3 weeks at most).
+   */
+  const DOWN_WEEK = { MILES: 0.75, SHED: 6, STALE: 4, DEV: 0.8, COOLDOWN: 3, CHARGE: 0.1 };
+
+  /*
+   * The absorption bank (user request): training is absorbed while the body
+   * recovers. Above ~45 fatigue part of each week's development is banked
+   * instead of landing (up to 60% when deep in the red); it lands as fatigue
+   * comes down — slowly in a normal week, in big pieces in a recovery or
+   * down week. Gains left unabsorbed fade, faster under chronic overload,
+   * so grinding without ever backing off wastes work.
+   */
+  const ABSORB = { FROM: 45, SPAN: 50, MAX_HOLD: 0.6, DECAY: 0.96, OVERLOAD_DECAY: 0.94, RECOVERY: 0.5 };
+
+  function absorbRelease(athlete, planMeta, mMeta) {
+    const recovery = planMeta.downWeek || ((planMeta.hardDays || 0) === 0 && (planMeta.easyDays || 0) + (planMeta.restDays || 0) >= 5);
+    if (recovery) return ABSORB.RECOVERY;
+    if (mMeta && mMeta.taper && athlete.fatigue < 45) return 0.35;
+    if (athlete.fatigue < 35) return 0.25;
+    if (athlete.fatigue < 50) return 0.12;
+    return 0;
+  }
+
+  function weekIndex(gameState) {
+    return gameState.year * CAL.WEEKS_PER_YEAR + gameState.week;
+  }
+
+  // { active, available, weeksUntil } for one of the player's squads.
+  function downWeekStatus(gameState, gender) {
+    const t = gameState.training || {};
+    const dw = t.downWeek && t.downWeek[gender];
+    const active = !!(dw && dw.year === gameState.year && dw.week === gameState.week);
+    const last = t.lastDownWeek && t.lastDownWeek[gender];
+    const since = last != null ? weekIndex(gameState) - last : Infinity;
+    const weeksUntil = Math.max(0, DOWN_WEEK.COOLDOWN - since);
+    return { active, available: active || weeksUntil === 0, weeksUntil };
+  }
+
+  // Turn this week's Down Week on or off for one squad. On: every healthy
+  // runner drops to ~75% of their recent load (their own mileage comes back
+  // after the week). Returns { ok, reason, runners }.
+  function setDownWeek(gameState, gender, on) {
+    const t = gameState.training;
+    t.downWeek = t.downWeek || {};
+    t.mileageOverrides = t.mileageOverrides || {};
+    const st = downWeekStatus(gameState, gender);
+    const cur = t.downWeek[gender];
+    if (!on) {
+      if (st.active && cur.restore) {
+        Object.entries(cur.restore).forEach(([id, v]) => {
+          if (v === null) delete t.mileageOverrides[id]; else t.mileageOverrides[id] = v;
+        });
+      }
+      t.downWeek[gender] = null;
+      return { ok: true, runners: 0 };
+    }
+    if (st.active) return { ok: true, runners: Object.keys(cur.restore || {}).length };
+    if (!st.available) return { ok: false, reason: `Your squad needs ${st.weeksUntil} more week${st.weeksUntil === 1 ? '' : 's'} of training before another down week.` };
+    const restore = {};
+    gameState.getRoster(gameState.playerSchoolId, gender).forEach((a) => {
+      if (a.injury) return;
+      const prev = t.mileageOverrides[a.id];
+      restore[a.id] = prev === undefined ? null : prev;
+      const recent = a.chronicMileage || prev || (t.mileage && t.mileage[gender]) || D.MILEAGE.DEFAULT[gender];
+      t.mileageOverrides[a.id] = Utils.clamp(Math.round(recent * DOWN_WEEK.MILES), D.MILEAGE.MIN, D.MILEAGE.MAX);
+    });
+    t.downWeek[gender] = { year: gameState.year, week: gameState.week, restore };
+    return { ok: true, runners: Object.keys(restore).length };
+  }
+
+  // After the week runs: put each runner's own mileage back and start the cooldown.
+  function finishDownWeek(gameState, gender) {
+    const t = gameState.training;
+    const cur = t.downWeek && t.downWeek[gender];
+    if (!cur) return;
+    if (cur.year === gameState.year && cur.week === gameState.week) {
+      Object.entries(cur.restore || {}).forEach(([id, v]) => {
+        if (v === null) delete t.mileageOverrides[id]; else t.mileageOverrides[id] = v;
+      });
+      t.lastDownWeek = t.lastDownWeek || {};
+      t.lastDownWeek[gender] = weekIndex(gameState);
+    }
+    t.downWeek[gender] = null; // one week only
+  }
+
   function sharpCeiling(athlete) {
     return Math.round(45 + (athlete.fitness ?? 50) * 0.55);
   }
@@ -1151,6 +1243,7 @@
 
   // Would this week's miles + plan count as the season's taper?
   function isTaperWeek(mileage, chronic, planMeta) {
+    if (planMeta && planMeta.downWeek) return false; // a down week saves the peak
     return mileage <= (chronic || mileage) * TAPER_RATIO && (planMeta.qualityDays || 0) >= 1;
   }
 
@@ -1163,6 +1256,7 @@
     let stale = athlete.staleness || 0;
     stale += (planMeta.staleStim + (raced ? 0.3 : 0)) * 3 - 3.5;
     if ((planMeta.hardDays || 0) === 0) stale -= 5; // a true recovery week
+    if (planMeta.downWeek) stale -= DOWN_WEEK.STALE;
     athlete.staleness = Math.round(Utils.clamp(stale, 0, 40) * 10) / 10;
 
     // Sharpening: fast up, fast down, capped by the Base.
@@ -1205,6 +1299,9 @@
     } else if ((planMeta.hardDays || 0) >= 1 && mMeta.mileage >= (chronicBefore || mMeta.mileage) * 0.85) {
       // Normal training banks the taper charge (full after ~4 weeks).
       athlete.taperCharge = Math.min(1, (athlete.taperCharge ?? 0) + 0.25);
+    } else if (planMeta.downWeek && (planMeta.hardDays || 0) >= 1) {
+      // A down week with a session in it keeps the charge building, slowly.
+      athlete.taperCharge = Math.min(1, (athlete.taperCharge ?? 0) + DOWN_WEEK.CHARGE);
     }
   }
 
@@ -1228,6 +1325,8 @@
       peak: avg((a) => a.peakBonus || 0),
       form: avg(formScore),
       charge: avg((a) => a.taperCharge ?? 0),
+      absorb: avg((a) => a.absorbBank || 0),
+      fatigue: avg((a) => a.fatigue || 0),
       peakUsed: used.length * 2 >= roster.length,
       peakWeek: peakWeek ? Number(peakWeek) : null,
       peaking: roster.some((a) => a.peakBonus > 0 && a.peakFresh)
@@ -1254,6 +1353,7 @@
       athlete.fitness = Utils.clamp(athlete.fitness - fitnessSlide, 0, 100);
       athlete.sharpness = Utils.clamp((athlete.sharpness ?? 55) - 4, 0, 100);
       athlete.peakBonus = 0; // a peak doesn't survive a layoff
+      athlete.absorbBank = (athlete.absorbBank || 0) * 0.85; // unabsorbed work fades in a layoff
       athlete.confidence = Utils.clamp((athlete.confidence ?? 60) - 1.3, 10, 99);
       const weeksOut = (athlete.injury.totalWeeks || 2) - athlete.injury.weeksRemaining;
       athlete.morale = Utils.clamp(athlete.morale - (weeksOut >= 3 ? 2 : 1), 0, 100);
@@ -1312,6 +1412,7 @@
     // bread-and-butter work tires its athletes a little less.
     if (weeklyFatigue > 0) weeklyFatigue *= philoFatigueRelief(philo.key, planMeta, mMeta.mileage);
     if (weeklyFatigue > 0) weeklyFatigue += altFatigue;
+    if (planMeta.downWeek) weeklyFatigue -= DOWN_WEEK.SHED; // the down week's whole point
     athlete.fatigue = Math.round(Utils.clamp(athlete.fatigue + weeklyFatigue - recoveryRate, 0, 100));
 
     // Altitude's aerobic payoff: a small, steady boost to the stamina and
@@ -1335,7 +1436,10 @@
     applyForm(gameState, athlete, school, planMeta, mMeta, chronicBefore);
 
     // Chronic load: the rolling base that makes tapers work — and fade.
-    athlete.chronicMileage = Math.round((athlete.chronicMileage || mMeta.mileage) * 0.7 + mMeta.mileage * 0.3);
+    // A down week is a planned dip: it dents the rolling load less, so the
+    // week after doesn't read as a load spike.
+    const keep = planMeta.downWeek ? 0.85 : 0.7;
+    athlete.chronicMileage = Math.round((athlete.chronicMileage || mMeta.mileage) * keep + mMeta.mileage * (1 - keep));
     athlete.chronicIntensity = Math.round(((athlete.chronicIntensity ?? (planMeta.intensity || 0)) * 0.7 +
       (planMeta.intensity || 0) * 0.3) * 10) / 10;
 
@@ -1448,9 +1552,21 @@
     // week lets athletes ABSORB banked hard work — converting accumulated
     // load into development — while body and mind recharge.
     const recoveryWeek = planMeta.hardDays === 0 && (planMeta.easyDays || 0) >= 4;
+    if (planMeta.downWeek) dev *= DOWN_WEEK.DEV; // a lighter week builds a little less
+    // The absorption bank: tired bodies bank part of the week's gains;
+    // recovery cashes them in (replaces the old flat recovery-week bonus).
+    if (dev > 0) {
+      const hold = Utils.clamp((athlete.fatigue - ABSORB.FROM) / ABSORB.SPAN, 0, ABSORB.MAX_HOLD);
+      athlete.absorbBank = (athlete.absorbBank || 0) + dev * hold;
+      dev -= dev * hold;
+    }
+    const release = (athlete.absorbBank || 0) * absorbRelease(athlete, planMeta, mMeta);
+    dev += release;
+    athlete.absorbBank = (athlete.absorbBank || 0) - release;
+    athlete.absorbBank *= ABSORB.DECAY * (loadWeeksNow >= 4 ? ABSORB.OVERLOAD_DECAY : 1);
+    athlete.absorbBank = Math.round(athlete.absorbBank * 1000) / 1000;
+    athlete.lastAbsorbed = Math.round(release * 100) / 100;
     if (recoveryWeek) {
-      const banked = Math.min(4, loadWeeksNow);
-      dev += banked * 0.4;                                          // the absorbed workload pays out
       athlete.morale = Utils.clamp(athlete.morale + 2, 0, 100);     // mental recovery
       if (athlete.health !== 'Injured') {
         athlete.confidence = Utils.clamp((athlete.confidence ?? 60) + 1, 10, 99);
@@ -1686,6 +1802,7 @@
         const baseMeta = planMetaFor(plan);
         // Periodization fit (Update 6): does this week's plan match the phase?
         baseMeta.phaseFit = !!(phase.fit && phase.fit(baseMeta));
+        if (playerPlans && downWeekStatus(gameState, gender).active) baseMeta.downWeek = true;
         const culture = squadCulture(gameState, school, gender, coach);
         school.chemistry[gender] = culture.chemistry;
         // Captain leadership rides into race day (see Races.simulateRace).
@@ -1698,7 +1815,7 @@
           let meta = baseMeta;
           if (playerPlans) {
             const override = gameState.training.overrides[id];
-            if (override) { meta = planMetaFor(plan, override); meta.phaseFit = baseMeta.phaseFit; }
+            if (override) { meta = planMetaFor(plan, override); meta.phaseFit = baseMeta.phaseFit; meta.downWeek = baseMeta.downWeek; }
           } else if ((athlete.fatigue > 74 && craft >= 50) || athlete.fatigue > 86 ||
               (athlete.health === 'Recovering' && craft >= 45)) {
             // AI staffs rest struggling athletes (Update 6, Section 5; buffed
@@ -1713,6 +1830,7 @@
           const mMeta = mileageMeta(miles, athlete.chronicMileage);
           processAthlete(gameState, athlete, coach, school, meta, mMeta, rng, isPlayer, culture, philo);
         });
+        if (playerPlans) finishDownWeek(gameState, gender);
         // The player's weekly form log feeds the Squad Form chart.
         if (isPlayer && gameState.week <= CAL.NATIONAL_WEEK) {
           if (!school.formLog || school.formLog.year !== gameState.year) school.formLog = { year: gameState.year, M: [], W: [] };
@@ -1762,6 +1880,8 @@
           // Whatever an injury took and the season didn't give back returns
           // over the summer (Update 25).
           if (a.injuryDeficit) restoreDeficit(a, injuryDeficitPoints(a));
+          // The summer absorbs what the season banked: half lands, the rest is gone.
+          if (a.absorbBank) { a.devProgress = (a.devProgress || 0) + a.absorbBank * 0.5; a.absorbBank = 0; }
 
           // Attribute points, not overall: ~5.5 points across the five
           // physical ratings move the overall by 1, so a +4/+5 summer is a
@@ -1963,6 +2083,10 @@
     sharpCeiling,
     squadForm,
     isTaperWeek,
+    DOWN_WEEK,
+    ABSORB,
+    downWeekStatus,
+    setDownWeek,
     peakUsed,
     TAPER_RATIO,
     injuryDeficitOverall,

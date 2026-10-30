@@ -267,6 +267,7 @@ const { newDynasty, wireErrors, launchOpts } = require('./helpers');
     a.morale = 1; a.coachRelationship = 10; a.teamRelationship = 10;
     a.seasonRaces = 0; a.currentOverall = 80;
     a.transferGraceYear = null; // the athlete found may itself be a fresh transfer
+    a.yearsOnCampus = Math.max(2, a.yearsOnCampus || 1); // ...or a first-year (also graced)
     const before = P.transferRisk(g, a);
     a.transferGraceYear = g.year; // ...but they just transferred in
     const after = P.transferRisk(g, a);

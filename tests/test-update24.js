@@ -43,6 +43,8 @@ async function run() {
     // Custom: bench the #1 runner, race the 8th instead.
     const ranked = healthy().sort((a, b) => b.currentOverall - a.currentOverall);
     const star = ranked[0], eighth = ranked[7];
+    // A first-season runner is graced (never at risk), so judge a returner.
+    star.yearsOnCampus = Math.max(2, star.yearsOnCampus || 1); star.transferGraceYear = null;
     R.setLineupMode(g, 'M', 'custom');
     out.customStartsFromTop7 = JSON.stringify(g.training.lineup.M.ids.slice().sort()) === JSON.stringify(top7.slice().sort());
     const rOut = R.toggleLineup(g, 'M', star.id);

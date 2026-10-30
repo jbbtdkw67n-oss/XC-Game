@@ -497,28 +497,29 @@
    * another program); the chair stays open until the offseason carousel
    * fills it — schools only hire on genuine vacancies (Part 11).
    */
-  // The bottom 35% of a division is "struggling" for hot-seat purposes.
+  // The bottom 35% of a division is "struggling" for hot-seat purposes
+  // (shared with the season expectations in Coaching).
   const STRUGGLE_LINE = 0.65;
 
   function coachFirings(gameState, rng) {
     const rankIndex = { M: {}, W: {} };
     ['M', 'W'].forEach((g) => gameState.rankings[g].forEach((r) => { rankIndex[g][r.schoolId] = r.rank; }));
-    const divSize = (d) => window.XCD.engine.Coaching.divisionSize(gameState, d);
+    const Coaching = window.XCD.engine.Coaching;
+    const divSize = (d) => Coaching.divisionSize(gameState, d);
     let fired = 0;
 
     Object.values(gameState.world.schools).forEach((school) => {
       const coach = gameState.getCoach(school.coachId);
       if (!coach) return;
 
-      // Expectation scales with the division's pressure and the school's
-      // prestige, measured against the school's own division field.
+      // Expectation (user request): set fresh every preseason from last
+      // season's finish, the preseason poll, roster talent, and prestige
+      // (Coaching.expectedFinish), measured against the school's own
+      // division field and scaled by the division's pressure. The floor
+      // still holds: no athletic director accepts life in the bottom 35%.
       const total = divSize(school.division);
       const pressure = window.XCD.data.divisionFor(school).expectations || 1;
-      // Expectation floor (user request): low prestige no longer buys a
-      // permanent pass. No athletic director accepts life in the bottom 35%
-      // of the division forever, so a perennial cellar-dweller is judged
-      // against at least that line instead of against its own losing.
-      const expectedPct = Math.min(1 - school.prestige / 100, STRUGGLE_LINE);
+      const expectedPct = Coaching.expectedFinish(gameState, school).pct;
       // Program Expectations (spec Part 2): schools recognize success in
       // EITHER program. The better squad carries most of the evaluation, so
       // a nationally competitive men's OR women's team keeps the seat cool;
@@ -564,22 +565,46 @@
       if (struggle > 0 && !honeymoon && improvement < 0.05 && (coach.yearsAtSchool || 0) >= 5) {
         heat += Math.min(20, ((coach.yearsAtSchool || 0) - 4) * 3) * (0.4 + struggle * 0.6);
       }
-      coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(heat > 0 ? heat / patience : heat), 0, 100);
+      // Every swing of the season nets out in ONE step, so a great year's
+      // cooling can offset pressure from elsewhere (the podium pick below)
+      // instead of being clamped away first.
+      let delta = Math.round(heat > 0 ? heat / patience : heat);
       // A real climb up the standings cools the chair.
-      if (improvement >= 0.08) coach.hotSeat = Math.max(0, coach.hotSeat - Math.round(improvement * 70));
+      if (improvement >= 0.08) delta -= Math.round(improvement * 70);
       // Successful seasons reduce Hot Seat pressure GRADUALLY (spec Part 2);
       // a single decent year eases the seat but does not erase years of
       // failure outright.
-      if (underperformance < -0.08) coach.hotSeat = Math.max(0, coach.hotSeat - 18);
+      if (underperformance < -0.08) delta -= 18;
       // A top-15% squad in either gender actively cools the chair.
-      if (Math.min(mPct, wPct) <= 0.15) coach.hotSeat = Math.max(0, coach.hotSeat - 25);
+      if (Math.min(mPct, wPct) <= 0.15) delta -= 25;
 
       // Failed podium expectations (Predictions): a program the pundits picked
       // for the podium that fell short heats the seat sharply — and the more
       // years it happens in a row, the hotter it gets. Consumed here.
+      // Protection (user request): at a program still building its name
+      // (below 75 prestige) the pundits' pick is not the AD's expectation —
+      // a season that met or beat what the program's standing asks for
+      // waives the podium heat and doesn't count toward the miss streak.
+      // An established power (75+) still answers for a missed pick.
+      const beatExpectations = underperformance <= 0;
+      // A season that beats expectations never leaves the seat hotter.
+      if (beatExpectations) delta = Math.min(0, delta);
       const podiumPressure = coach._podiumPressure || 0;
-      if (podiumPressure) coach.hotSeat = Utils.clamp(coach.hotSeat + Math.round(podiumPressure * volatility / patience), 0, 100);
       coach._podiumPressure = 0;
+      if (podiumPressure && beatExpectations && school.prestige < 75) {
+        coach.podiumMissStreak = 0;
+      } else if (podiumPressure) {
+        delta += Math.round(podiumPressure * volatility / patience);
+      }
+      coach.hotSeat = Utils.clamp(coach.hotSeat + delta, 0, 100);
+
+      // Breakthrough protection (user request): putting a squad into the
+      // division's final Top 25 when the program's standing expected far
+      // less is the job done — the seat goes cool, whatever came before.
+      const bestRank = Math.min(rankIndex.M[school.id] || total, rankIndex.W[school.id] || total);
+      if (beatExpectations && bestRank <= 25 && bestRank < expectedPct * total) {
+        coach.hotSeat = Math.min(coach.hotSeat, 20);
+      }
 
       // Hot Seat counter (Update 13, Phase 2): once a coach is genuinely on
       // the Hot Seat, a clock starts. Three consecutive seasons on the Hot
@@ -640,6 +665,8 @@
         if (fired <= 40) gameState.logNews(`FIRED: ${school.name} lets ${coach.fullName} go ${why}. The search for a successor begins.`);
       }
     });
+    // The final poll becomes part of next season's expectations.
+    Coaching.recordSeasonFinishes(gameState);
   }
 
   /*

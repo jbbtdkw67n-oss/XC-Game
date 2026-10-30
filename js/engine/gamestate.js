@@ -87,7 +87,8 @@
         mileageOverrides: {}, // athleteId -> weekly miles (30-120)
         // Race-day Top 7 per squad (Update 24): the Highest Overall preset
         // or a custom lineup the coach picked on the Roster screen.
-        lineup: { M: { mode: 'overall', ids: [] }, W: { mode: 'overall', ids: [] } }
+        lineup: { M: { mode: 'overall', ids: [] }, W: { mode: 'overall', ids: [] } },
+        downWeek: { M: null, W: null }, lastDownWeek: {}
       };
 
       this.season = null;    // current season schedule + results (Races engine)
@@ -346,6 +347,9 @@
       try {
         if (window.XCD.engine.Predictions) window.XCD.engine.Predictions.generate(this);
       } catch (e) { /* the outlook is best-effort and must never block a season */ }
+      // Program expectations for the new season (user request): last
+      // season's finish, this preseason poll, roster talent, and prestige.
+      window.XCD.engine.Coaching.setSeasonExpectations(this);
       // Custom race schedule options (Update 4, Part 7): what the player can
       // enter each regular-season week, gated by prestige.
       try {
@@ -787,7 +791,10 @@
         overrides: savedTraining.overrides || {},
         mileage: savedTraining.mileage || { M: D.MILEAGE.DEFAULT.M, W: D.MILEAGE.DEFAULT.W },
         mileageOverrides: savedTraining.mileageOverrides || {},
-        lineup: savedTraining.lineup || { M: { mode: 'overall', ids: [] }, W: { mode: 'overall', ids: [] } }
+        lineup: savedTraining.lineup || { M: { mode: 'overall', ids: [] }, W: { mode: 'overall', ids: [] } },
+        // The Down Week (user request): this week's flag + the cooldown clock.
+        downWeek: savedTraining.downWeek || { M: null, W: null },
+        lastDownWeek: savedTraining.lastDownWeek || {}
       };
       gs.season = obj.season || null;
       gs.rankings = obj.rankings || null;
