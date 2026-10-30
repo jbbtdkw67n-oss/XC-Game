@@ -83,8 +83,41 @@ async function run() {
     bury(ps.id);
     A.coachFirings(g, new window.XCD.core.SeededRNG(17));
     out.playerHeat = pc.hotSeat;
+
+    // 5) Breakthrough protection: the player turns a low-prestige program
+    //    into a nationally ranked one (men #12, women still poor) — even
+    //    with leftover heat and a missed preseason podium pick, the seat
+    //    goes cool and the podium streak can't get them fired.
+    const place = (id, gd, rank) => {
+      const list = drop(g.rankings[gd], id);
+      const div = ps.division || 'DI';
+      const at = list.findIndex((r) => (r.division || 'DI') === div && r.rank === rank);
+      list.splice(Math.max(0, at), 0, { schoolId: id, rank, division: div });
+      g.rankings[gd] = list;
+    };
+    const ptotal = window.XCD.engine.Coaching.divisionSize(g, ps.division);
+    ps.prestige = 35; pc.yearsAtSchool = 4; pc.hotSeat = 70; pc.hotSeatYears = 1;
+    pc.seatTrack = { schoolId: ps.id, pct: 0.55 };
+    pc.podiumMissStreak = 2; pc._podiumPressure = 40;
+    place(ps.id, 'M', 12);
+    place(ps.id, 'W', Math.round(ptotal * 0.6));
+    g.career.pendingFiring = null;
+    A.coachFirings(g, new window.XCD.core.SeededRNG(19));
+    out.breakthrough = { seat: pc.hotSeat, years: pc.hotSeatYears, streak: pc.podiumMissStreak,
+      fired: !!(g.career.pendingFiring && g.career.pendingFiring.fromId === ps.id) };
+
+    // 6) An overachieving season never adds heat, even outside the Top 25.
+    pc.hotSeat = 40; pc.hotSeatYears = 0; pc.seatTrack = { schoolId: ps.id, pct: 0.5 };
+    pc.podiumMissStreak = 0; pc._podiumPressure = 0;
+    place(ps.id, 'M', Math.round(ptotal * 0.4));
+    place(ps.id, 'W', Math.round(ptotal * 0.5));
+    A.coachFirings(g, new window.XCD.core.SeededRNG(23));
+    out.overachieverSeat = pc.hotSeat;
     return out;
   });
+  ok(seat.breakthrough.seat <= 20 && seat.breakthrough.years === 0 && !seat.breakthrough.fired && seat.breakthrough.streak === 0,
+    'a breakthrough into the Top 25 must cool the seat and clear the podium streak: ' + JSON.stringify(seat.breakthrough));
+  ok(seat.overachieverSeat <= 40, 'a season that beats expectations must never heat the seat: ' + JSON.stringify(seat));
   ok(seat.firedAfter !== null && seat.firedAfter <= 6, 'a coach stuck at the bottom of a low-prestige program must be fired within 6 seasons: ' + JSON.stringify(seat));
   ok(seat.newHireHeat < seat.veteranHeat, 'a new hire must get a honeymoon (less heat): ' + JSON.stringify(seat));
   ok(seat.improvedSeat < 50, 'a program that climbed the standings must cool the seat: ' + JSON.stringify(seat));

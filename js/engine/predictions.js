@@ -264,7 +264,9 @@
       // Missed the podium the pundits handed them.
       coach.podiumMissStreak = (coach.podiumMissStreak || 0) + 1;
       const streak = coach.podiumMissStreak;
-      coach._podiumPressure = (coach._podiumPressure || 0) + 20 + streak * 10;
+      // Scaled by the miss: 4th-5th is a near thing, missing nationals isn't.
+      const margin = !info.place ? 1 : info.place <= 5 ? 0.35 : info.place <= 10 ? 0.65 : 1;
+      coach._podiumPressure = (coach._podiumPressure || 0) + Math.round((20 + streak * 10) * margin);
 
       const where = info.place ? `finishing ${Utils.ordinal(info.place)}` : 'missing the national meet';
       if (coach.isPlayer) {
