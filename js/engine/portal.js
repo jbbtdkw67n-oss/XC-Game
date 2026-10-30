@@ -28,7 +28,10 @@
   // are throttled to ~75% of their former rate — the portal was providing too
   // much talent. (The Zero Morale Rule and DI summer roster cuts are separate
   // and unaffected.)
-  const PORTAL_ENTRY_SCALE = 0.75;
+  // Raised back to 0.95 when first-season athletes were graced out of the
+  // portal (they were ~a third of all entries), so the portal's overall
+  // volume and its share of genuine talent hold steady.
+  const PORTAL_ENTRY_SCALE = 0.95;
 
   // Season-scoped transfer reasons (Update 24): "never races" and "not
   // developing" judge THIS season, so they only count once it has had time
