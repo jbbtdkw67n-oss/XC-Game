@@ -271,7 +271,7 @@
               </div>
               <div class="m-stats">
                 <div class="m-stat"><div class="k">Base</div>${UI.meter(a.fitness)}</div>
-                <div class="m-stat"><div class="k">Fatigue</div>${UI.meter(a.fatigue, a.fatigue > 70 ? 'red' : a.fatigue > 45 ? 'yellow' : 'green')}</div>
+                <div class="m-stat"><div class="k">Fatigue <span data-proj="${a.id}"></span></div>${UI.meter(a.fatigue, a.fatigue > 70 ? 'red' : a.fatigue > 45 ? 'yellow' : 'green')}</div>
                 <div class="m-stat"><div class="k">Morale</div>${UI.meter(a.morale, a.morale < 40 ? 'red' : a.morale < 65 ? 'yellow' : 'green')}</div>
               </div>
               <div class="m-actions" style="align-items:center;">
@@ -309,7 +309,7 @@
                 <td class="num">${UI.ratingBadge(a.currentOverall)}</td>
                 <td class="num" style="color:${(a.seasonDev || 0) > 0 ? 'var(--success)' : 'var(--text-faint)'};">${(a.seasonDev || 0) > 0 ? '+' + a.seasonDev : a.seasonDev || '—'}</td>
                 <td class="meter-cell"><div style="min-width:52px;">${UI.meter(a.fitness)}</div></td>
-                <td class="meter-cell"><div style="min-width:52px;">${UI.meter(a.fatigue, a.fatigue > 70 ? 'red' : a.fatigue > 45 ? 'yellow' : 'green')}</div></td>
+                <td class="meter-cell"><div style="min-width:52px;">${UI.meter(a.fatigue, a.fatigue > 70 ? 'red' : a.fatigue > 45 ? 'yellow' : 'green')}</div><div data-proj="${a.id}"></div></td>
                 <td class="num" title="Ceiling ${TE().sharpCeiling(a)} · staleness ${Math.round(a.staleness || 0)}">${Math.round(a.sharpness ?? 55)}${a.peakBonus > 0 ? ' ⚡' : ''}${(a.staleness || 0) >= 20 ? ' 🥱' : ''}</td>
                 <td class="num"><strong>${ready}</strong></td>
                 <td class="meter-cell"><div style="min-width:46px;">${UI.meter(a.morale, a.morale < 40 ? 'red' : a.morale < 65 ? 'yellow' : 'green')}</div></td>
@@ -366,14 +366,29 @@
         .sort((a, b) => b[1] - a[1])
         .map(([k, v]) => `${ATTR_LABELS[k]} ${'▮'.repeat(Math.min(5, Math.ceil(v / 1.5)))}`)
         .join(' · ');
-      const totalFatigue = meta.fatigue + mMeta.fatigueAdd;
+      // Fatigue is per runner: this plan plus each runner's own miles, load
+      // setting, and recovery (the engine's own math).
+      const proj = roster.filter((a) => !a.injury).map((a) => ({ a, to: TE().projectedFatigue(game, a) }));
+      roster.forEach((a) => {
+        const to = a.injury ? null : proj.find((p) => p.a === a).to;
+        container.querySelectorAll(`[data-proj="${a.id}"]`).forEach((el) => {
+          if (to === null) { el.textContent = ''; return; }
+          const d = to - Math.round(a.fatigue);
+          el.innerHTML = `<small style="color:${to > 70 ? 'var(--danger)' : d > 0 ? 'var(--warning)' : 'var(--success)'};" title="Projected fatigue after this week's plan at ${game.training.mileageOverrides[a.id] ?? miles} mi">→ ${to}</small>`;
+        });
+      });
+      const deltas = proj.map((p) => p.to - Math.round(p.a.fatigue));
+      const totalFatigue = deltas.length ? Utils.average(deltas) : 0;
+      const sign = (v) => `${v > 0 ? '+' : ''}${Math.round(v)}`;
+      const spread = deltas.length && Math.min(...deltas) !== Math.max(...deltas)
+        ? ` (${sign(Math.min(...deltas))} to ${sign(Math.max(...deltas))} by runner)` : '';
       const injury = meta.injuryMult * mMeta.injuryMult;
       container.querySelector('#plan-preview').innerHTML = `
         <div style="display:flex; flex-wrap:wrap; gap:14px; align-items:center;">
           <strong style="color:${toneColor};">${meta.quality.label}</strong>
           <span>${meta.hardDays} quality day${meta.hardDays === 1 ? '' : 's'}${meta.hasLong ? ' + long run' : ''}</span>
           <span style="color:${totalFatigue > 10 ? 'var(--danger)' : totalFatigue > 4 ? 'var(--warning)' : 'var(--success)'};">
-            ${totalFatigue > 0 ? '+' : ''}${Math.round(totalFatigue)} fatigue</span>
+            ${sign(totalFatigue)} fatigue avg${spread}</span>
           <span>+${(meta.fitness * mMeta.fitnessMult).toFixed(1)} fitness</span>
           <span>injury ×${injury.toFixed(2)}</span>
           <span>development ×${(meta.devMult * mMeta.devMult).toFixed(2)}</span>
@@ -558,6 +573,7 @@
         else game.training.overrides[id] = sel.value;
         const a = game.getAthlete(id);
         UI.toast(`${a.lastName}: ${sel.value === 'normal' ? 'full training' : sel.value === 'reduced' ? 'reduced load' : 'resting this week'}.`);
+        preview();
       });
     });
 
