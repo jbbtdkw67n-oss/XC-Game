@@ -92,10 +92,19 @@
     return exp;
   }
 
-  // Set every program's expectation for the new season (preseason).
+  // Set every program's expectation for the new season (preseason). Last
+  // season's target is kept so the Dashboard can show how the bar moved.
   function setSeasonExpectations(gameState) {
     const talent = talentRanks(gameState);
     Object.values(gameState.world.schools).forEach((school) => {
+      const old = school.expectation;
+      const fin = school.seasonFinish;
+      if (fin && fin.targetM && fin.year === gameState.year - 1) {
+        school.lastTarget = { year: fin.year, rankM: fin.targetM, rankW: fin.targetW }; // as graded
+      } else if (old && old.year < gameState.year) {
+        const f = finishFrom(gameState, school, old);
+        school.lastTarget = { year: old.year, rankM: f.rankM, rankW: f.rankW };
+      }
       school.expectation = buildExpectation(gameState, school, talent);
     });
   }
@@ -115,7 +124,10 @@
    * Returns { pct, M, W, rankM, rankW }.
    */
   function expectedFinish(gameState, school) {
-    const exp = seasonExpectation(gameState, school);
+    return finishFrom(gameState, school, seasonExpectation(gameState, school));
+  }
+
+  function finishFrom(gameState, school, exp) {
     const total = divisionSize(gameState, school.division);
     const prestigePct = 1 - (school.prestige || 50) / 100;
     const W8 = EXPECT_WEIGHTS;
@@ -139,7 +151,10 @@
       const total = divisionSize(gameState, school.division);
       const mRank = idx.M[school.id] || total;
       const wRank = idx.W[school.id] || total;
-      school.seasonFinish = { year: gameState.year, M: mRank / total, W: wRank / total, MRank: mRank, WRank: wRank };
+      // The target it was graded against, frozen for next year's comparison.
+      const t = expectedFinish(gameState, school);
+      school.seasonFinish = { year: gameState.year, M: mRank / total, W: wRank / total, MRank: mRank, WRank: wRank,
+        targetM: t.rankM, targetW: t.rankW };
     });
   }
 

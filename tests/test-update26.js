@@ -215,6 +215,31 @@ async function run() {
     target: /Target: around #\d+/.test(document.body.textContent),
     detail: /preseason poll/.test(document.querySelector('#expectations-detail').textContent)
   }));
+  // The card follows the season: a verdict once graded, then how the bar moved.
+  const verdictText = async () => {
+    await page.click('[data-nav="training"]');
+    await page.click('[data-nav="dashboard"]');
+    await page.waitForSelector('#expectations-detail');
+    return page.evaluate(() => (document.querySelector('#expectations-verdict') || {}).textContent || '');
+  };
+  await page.evaluate(() => {
+    const g = window.XCD.ui.state.game;
+    const s = g.getPlayerSchool();
+    s.seasonFinish = { year: g.year, M: 0.05, W: 0.06, MRank: 18, WRank: 21, targetM: 120, targetW: 140 };
+  });
+  const graded = await verdictText();
+  await page.evaluate(() => {
+    const g = window.XCD.ui.state.game;
+    const s = g.getPlayerSchool();
+    s.seasonFinish.year = g.year - 1;
+    window.XCD.engine.Coaching.setSeasonExpectations(g);
+  });
+  const moved = await verdictText();
+  console.log('verdicts:', JSON.stringify({ graded, moved }));
+  ok(/verdict/.test(graded) && /#18/.test(graded) && /#120/.test(graded) && /Beat the target/.test(graded),
+    'after Nationals the card must grade the season against its target: ' + graded);
+  ok(/last season's target/.test(moved) && /from #120/.test(moved) && /from #140/.test(moved),
+    'the next season the card must show how the bar moved from last season\'s target: ' + moved);
   console.log('ui:', JSON.stringify({ ui1, ui2, ui3 }));
   ok(ui1.absorbing, 'the Squad Form card must show the Absorbing row');
   ok(ui1.disabled || (ui2.on && /DOWN WEEK/.test(ui2.hint)), 'the Down Week button must toggle on and explain itself: ' + JSON.stringify(ui2));

@@ -34,8 +34,27 @@
     const text = `${tierLabel} · ${div.label}. Target: around <strong>#${ex.rankM}</strong> (men) · <strong>#${ex.rankW}</strong> (women) of ${total}. Expected to ${goals.join(', ')}.${confNote}`;
     const p = ex.parts;
     const r = (g, k) => (p[g][k] ? '#' + p[g][k] : '—');
-    const detail = `Set this preseason from last season's finish (${r('M', 'lastRank')} / ${r('W', 'lastRank')}), the preseason poll (${r('M', 'pollRank')} / ${r('W', 'pollRank')}), roster talent (${r('M', 'talentRank')} / ${r('W', 'talentRank')}) and program prestige (${school.prestige}). Men / women. Beat the target and the seat cools; fall well short and it heats.`;
-    return { text, detail };
+    const last = p.M.lastRank || p.W.lastRank
+      ? `last season's finish (${r('M', 'lastRank')} / ${r('W', 'lastRank')})`
+      : 'last season (no finish on record yet, so prestige stands in)';
+    const detail = `Set this preseason from ${last}, the preseason poll (${r('M', 'pollRank')} / ${r('W', 'pollRank')}), roster talent (${r('M', 'talentRank')} / ${r('W', 'talentRank')}) and program prestige (${school.prestige}). Men / women. Beat the target and the seat cools; fall well short and it heats.`;
+
+    // Once the season is graded (final poll after Nationals): the verdict.
+    // Before that: how the bar moved from last season's target.
+    let verdict = '';
+    const fin = school.seasonFinish;
+    if (fin && fin.year === game.year) {
+      const actual = Math.min(fin.M, fin.W) * 0.7 + Math.max(fin.M, fin.W) * 0.3;
+      const tone = actual < ex.pct - 0.02 ? ['var(--success)', 'Beat the target']
+        : actual <= ex.pct + 0.02 ? ['var(--text)', 'Met the target'] : ['var(--danger)', 'Fell short of the target'];
+      verdict = `📋 <strong>${game.year} verdict:</strong> finished <strong>#${fin.MRank}</strong> (men) · <strong>#${fin.WRank}</strong> (women) against a target of #${fin.targetM || ex.rankM} · #${fin.targetW || ex.rankW} — <span style="color:${tone[0]}; font-weight:600;">${tone[1]}</span>. Next season's target is set at the preseason from this finish, the new poll, and the new roster.`;
+    } else if (school.lastTarget && school.lastTarget.year === game.year - 1) {
+      const lt = school.lastTarget;
+      const move = (from, to) => (to < from ? `<span style="color:var(--danger);">▲ raised</span> from #${from}`
+        : to > from ? `<span style="color:var(--success);">▼ eased</span> from #${from}` : `unchanged from #${from}`);
+      verdict = `↕ vs last season's target: men #${ex.rankM} (${move(lt.rankM, ex.rankM)}) · women #${ex.rankW} (${move(lt.rankW, ex.rankW)}).`;
+    }
+    return { text, detail, verdict };
   }
 
   /*
@@ -347,6 +366,7 @@
           <h3 style="margin:0 0 2px;">🎯 ${game.year} Program Expectations</h3>
           <div style="color:var(--text-dim); font-size:13px;">${expectations.text}</div>
           <div style="color:var(--text-faint); font-size:12px; margin-top:4px;" id="expectations-detail">${expectations.detail}</div>
+          ${expectations.verdict ? `<div style="font-size:12.5px; margin-top:6px;" id="expectations-verdict">${expectations.verdict}</div>` : ''}
         </div>
         <div style="text-align:right; font-size:12px; color:var(--text-faint);">
           ${isAsst
