@@ -370,6 +370,8 @@
         UI.toast(result.message, result.ok ? 'success' : 'error');
         if (result.ok) {
           UI.renderShell();
+          // Leaving a head job: a few runners may follow you.
+          if (result.followers) UI.showFollowersPopup(game);
         } else {
           // Passed over (or invalid): reflect the updated market and let the
           // player pick again or turn the rest down.

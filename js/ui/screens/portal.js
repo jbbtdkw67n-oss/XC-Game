@@ -241,6 +241,7 @@
             ? ' — as a Division I coach you can only watch the market move.'
             : ' — spend your transfer points before it closes at the end of Week ' + P.SUMMER_FINAL_WEEK + '.'}
         </div>` : ''}
+      ${UI.followersCard ? UI.followersCard(game) : ''}
       ${myDepartures.length ? `
         <div class="card" style="margin-bottom:16px; border-left:3px solid var(--danger);">
           <h2>Leaving Your Program</h2>
@@ -356,6 +357,8 @@
 
     container.querySelector('#g-m').addEventListener('click', () => { activeGender = 'M'; render(container); });
     container.querySelector('#g-w').addEventListener('click', () => { activeGender = 'W'; render(container); });
+    const followersBtn = container.querySelector('[data-open-followers]');
+    if (followersBtn) followersBtn.addEventListener('click', () => UI.showFollowersPopup(game));
   }
 
   UI.screens.portal = { render };

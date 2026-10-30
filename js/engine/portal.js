@@ -1246,6 +1246,9 @@
     a.coachRelationship = 55;
     a.teamRelationship = 50;
     a.transferGraceYear = gameState.year; // committed to the new program (Update 11)
+    const head = gameState.getCoach(to.coachId);
+    if (head) { a.coachBondId = head.id; a.coachRapport = window.XCD.engine.Followers.rapport(a, head); }
+    window.XCD.engine.Followers.recordTransfer(gameState, a, gameState.getSchool(entry.fromSchoolId), to, { summer: true });
     const engine = ((a.vo2Max || 55) + (a.stamina || 55)) / 2;
     a.fitness = Utils.clamp(Math.round(44 + (engine - 55) * 0.4 + rng.int(-12, 18)), 34, 84);
     a.fatigue = Utils.clamp(Math.min(a.fatigue, rng.int(6, 22)), 0, 100);
@@ -1357,14 +1360,26 @@
       from[key] = from[key].filter((id) => id !== a.id);
       to[key].push(a.id);
       a.schoolId = to.id;
-      a.morale = 72;
-      // A transfer chose this program — they arrive committed, not still
-      // looking to leave. Reset the bonds that pushed them out of their old
-      // school to a fresh baseline, and grant a first-season grace so their
-      // transfer risk reads low (Update 11).
-      a.coachRelationship = 62;
-      a.teamRelationship = 58;
-      a.transferGraceYear = gameState.year;
+      const Followers = window.XCD.engine.Followers;
+      if (entry.followedCoach) {
+        // They followed their coach here: the bond travels with them.
+        Followers.arrive(gameState, a, gameState.getCoach(to.coachId), entry.followBond);
+        a.transferGraceYear = gameState.year;
+      } else {
+        a.morale = 72;
+        // A transfer chose this program — they arrive committed, not still
+        // looking to leave. Reset the bonds that pushed them out of their old
+        // school to a fresh baseline, and grant a first-season grace so their
+        // transfer risk reads low (Update 11).
+        a.coachRelationship = 62;
+        a.teamRelationship = 58;
+        a.transferGraceYear = gameState.year;
+        const head = gameState.getCoach(to.coachId);
+        if (head) { a.coachBondId = head.id; a.coachRapport = Followers.rapport(a, head); }
+      }
+      // The year on the ledger is the season they first race for the new school.
+      Followers.recordTransfer(gameState, a, from, to, entry.followedCoach
+        ? { followedCoach: typeof entry.followedCoach === 'string' ? entry.followedCoach : null } : null);
 
       // The transfer-success ledger (Update X): who landed whom, and how
       // good they were — feeds staff reputation at the yearly progression.
@@ -1453,6 +1468,9 @@
     a.morale = 68;
     a.coachRelationship = 55;
     a.teamRelationship = 50;
+    const head = gameState.getCoach(to.coachId);
+    if (head) { a.coachBondId = head.id; a.coachRapport = window.XCD.engine.Followers.rapport(a, head); }
+    window.XCD.engine.Followers.recordTransfer(gameState, a, fromSchool, to, { cut: true });
     a.transferGraceYear = gameState.year; // a fresh start — no lingering flight risk
     return to;
   }
