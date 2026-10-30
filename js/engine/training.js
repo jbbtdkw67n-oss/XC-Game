@@ -1740,12 +1740,41 @@
     // injuries and stagnation strain it. Team relationship follows squad
     // chemistry. Drift is gentle so a bond is built (or lost) over a season,
     // not a single week.
+    //
+    // Coach relationship is personal, so it differs between teammates:
+    // each athlete has their own rapport with this head coach (a new coach
+    // means a fresh start), racing in the Top 7 builds trust while sitting
+    // behind it erodes it (most of all when benched behind weaker runners),
+    // and the week-to-week moments of a season (a talk that lands, a
+    // decision that stings) swing it, more often for the better under a
+    // coach who communicates well.
+    const Followers = window.XCD.engine.Followers;
+    if (coach) Followers.syncBond(athlete, coach);
+    let playing = 0;
+    if (culture && culture.lineup) {
+      if (culture.lineup.has(athlete.id)) playing = 5;
+      else if (!athlete.injury && athlete.currentOverall > 45) {
+        playing = athlete.currentOverall > (culture.lineupFloor || 0) + 2 ? -12 : -5;
+      }
+    }
+    const rapport = coach ? (athlete.coachRapport ?? Followers.rapport(athlete, coach)) : 0;
     const coachTarget = Utils.clamp(
       (coach ? (coach.culture * 0.35 + (coach.relationships ?? 55) * 0.35) : 35) + 22 +
+      rapport + playing +
       (athlete.lastDelta >= 2 ? 6 : athlete.lastDelta <= 0 ? -3 : 0) +
-      (athlete.health === 'Injured' ? -8 : 0), 10, 95);
-    athlete.coachRelationship = Utils.clamp(
-      (athlete.coachRelationship ?? 60) + (coachTarget - (athlete.coachRelationship ?? 60)) * 0.10, 10, 99);
+      (athlete.health === 'Injured' ? -8 : 0) +
+      (athlete.fatigue > 80 ? -4 : 0) +
+      ((athlete.morale ?? 70) - 65) * 0.12, 10, 95);
+    let coachRel = (athlete.coachRelationship ?? 60) + (coachTarget - (athlete.coachRelationship ?? 60)) * 0.10;
+    if (coach) {
+      const key = `${athlete.id}|${coach.id}|${gameState.year}|${gameState.week}`;
+      if (Followers.noise(key + '|moment') < 0.18) {
+        const pGood = Utils.clamp(0.5 + ((coach.relationships ?? 55) - 55) / 120 + rapport / 60, 0.2, 0.85);
+        const size = 2 + Math.floor(Followers.noise(key + '|size') * 5); // 2..6
+        coachRel += Followers.noise(key + '|sign') < pGood ? size : -size;
+      }
+    }
+    athlete.coachRelationship = Utils.clamp(coachRel, 10, 99);
     const teamTarget = Utils.clamp((culture && culture.chemistry ? culture.chemistry : 55) + 6, 10, 95);
     athlete.teamRelationship = Utils.clamp(
       (athlete.teamRelationship ?? 60) + (teamTarget - (athlete.teamRelationship ?? 60)) * 0.08, 10, 99);
@@ -1848,6 +1877,13 @@
         if (playerPlans && downWeekStatus(gameState, gender).active) baseMeta.downWeek = true;
         const culture = squadCulture(gameState, school, gender, coach);
         school.chemistry[gender] = culture.chemistry;
+        // In season, who's racing: the coach's Top 7 earns the bond, the rest
+        // of the depth chart feels the cold shoulder (see the relationship drift).
+        if (gameState.week >= CAL.REGULAR_SEASON_START && gameState.week <= CAL.NATIONAL_WEEK && roster.length) {
+          const squad = window.XCD.engine.Races.raceSquad(gameState, school, gender);
+          culture.lineup = new Set(squad.map((a) => a.id));
+          culture.lineupFloor = squad.length ? Math.min(...squad.map((a) => a.currentOverall)) : 0;
+        }
         // Captain leadership rides into race day (see Races.simulateRace).
         school.captainLeadership = school.captainLeadership || {};
         school.captainLeadership[gender] = culture.captainLeadership;

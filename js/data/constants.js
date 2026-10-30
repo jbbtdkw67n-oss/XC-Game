@@ -1059,7 +1059,8 @@
     stagnant:     'Limited development',
     injuries:     'Injury frustration',
     miserable:    'Completely unhappy',
-    fresh:        'Fresh start'
+    fresh:        'Fresh start',
+    followCoach:  'Following their coach'
   };
 
   /*

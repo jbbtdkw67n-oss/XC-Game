@@ -118,6 +118,8 @@
       this.jobOffers = null; // outside interest after strong seasons
       // A pending coordinator vacancy after an assistant leaves (Update 16).
       this.assistantDeparture = null;
+      // Athletes weighing whether to follow the player to a new head job.
+      this.coachFollowers = null;
 
       // First-season tutorial (Update 15): set at dynasty creation for the
       // FIRST coach only ({ pending, tipsYear, seen }); cleared forever when
@@ -482,6 +484,8 @@
 
       const transferCount = window.XCD.engine.Portal.applyTransfers(this, rng);
       if (transferCount) this.logNews(`Transfer portal closes: ${transferCount} athletes changed schools this cycle.`);
+      // An unanswered follow-the-coach pitch expires with the window.
+      this.coachFollowers = null;
 
       // 1) Age everyone one season (Update 20 — redshirts removed): every
       //    athlete gets five straight years of eligibility, and each season on
@@ -683,6 +687,8 @@
         // The player's coordinator left this offseason (Update 16): a pending
         // vacancy the player resolves from the hiring pool.
         assistantDeparture: this.assistantDeparture || null,
+        // Athletes weighing whether to follow the player to a new head job.
+        coachFollowers: this.coachFollowers || null,
         week1: this.week1,
         // First-season tutorial state (Update 15).
         tutorial: this.tutorial || null,
@@ -815,6 +821,7 @@
       gs.offseasonReport = obj.offseasonReport || null;
       gs.staffHiredYear = obj.staffHiredYear || null;
       gs.assistantDeparture = obj.assistantDeparture || null;
+      gs.coachFollowers = obj.coachFollowers || null;
       // Tutorial state (Update 15): null for older saves — never shown to them.
       gs.tutorial = obj.tutorial || null;
       // Saves from before the Week 1 administrative phase are grandfathered:

@@ -418,6 +418,7 @@
           <button class="btn small primary" id="btn-go-hire-asst" style="margin-top:10px;">Go to My Program →</button>
         </div>`;
       })()}
+      ${UI.followersCard ? UI.followersCard(game) : ''}
 
       ${game.jobOffers && game.jobOffers.offers.length && game.seasonPhase === 'Offseason' ? (() => {
         // The open coaching market (spec + user request): every vacant chair
@@ -553,6 +554,8 @@
 
     const hireAsstBtn = container.querySelector('#btn-go-hire-asst');
     if (hireAsstBtn) hireAsstBtn.addEventListener('click', () => UI.navigate('school'));
+    const followersBtn = container.querySelector('[data-open-followers]');
+    if (followersBtn) followersBtn.addEventListener('click', () => UI.showFollowersPopup(game));
 
     // Week 1 checklist wiring (Section 15).
     const w1 = (id, fn) => { const el = container.querySelector(id); if (el) el.addEventListener('click', fn); };
@@ -605,7 +608,7 @@
             const result = window.XCD.engine.Careers.acceptOffer(game, btn.dataset.accept);
             UI.closeModal();
             UI.toast(result.message, result.ok ? 'success' : 'error');
-            if (result.ok) UI.renderShell();
+            if (result.ok) { UI.renderShell(); if (result.followers) UI.showFollowersPopup(game); }
           });
         });
       });
@@ -635,7 +638,7 @@
             const result = window.XCD.engine.Careers.applyForJob(game, btn.dataset.apply);
             UI.closeModal();
             UI.toast(result.message, result.ok ? 'success' : 'error');
-            if (result.ok) UI.renderShell();
+            if (result.ok) { UI.renderShell(); if (result.followers) UI.showFollowersPopup(game); }
             else render(container); // reflect a closed door without losing the dashboard
           });
         });
