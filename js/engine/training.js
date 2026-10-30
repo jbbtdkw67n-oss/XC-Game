@@ -1144,8 +1144,12 @@
    * building slowly, sheds extra fatigue and staleness, and cashes in the
    * absorption bank below. The cost: the week's fresh development is a
    * little lighter, and it can't be run back to back (every 3 weeks at most).
+   * The shed scales with how deep in the red the runner is (DEEP_*): a flat
+   * cut barely dented a chronically tired squad, so it never got back under
+   * the fatigue where banked work lands — and it doesn't count as a
+   * high-load week, so it actually resets the overload clock.
    */
-  const DOWN_WEEK = { MILES: 0.75, SHED: 6, STALE: 4, DEV: 0.8, COOLDOWN: 3, CHARGE: 0.1 };
+  const DOWN_WEEK = { MILES: 0.75, SHED: 6, DEEP_FROM: 35, DEEP_SHED: 0.4, STALE: 4, DEV: 0.8, COOLDOWN: 3, CHARGE: 0.1 };
 
   /*
    * The absorption bank (user request): training is absorbed while the body
@@ -1412,7 +1416,9 @@
     // bread-and-butter work tires its athletes a little less.
     if (weeklyFatigue > 0) weeklyFatigue *= philoFatigueRelief(philo.key, planMeta, mMeta.mileage);
     if (weeklyFatigue > 0) weeklyFatigue += altFatigue;
-    if (planMeta.downWeek) weeklyFatigue -= DOWN_WEEK.SHED; // the down week's whole point
+    if (planMeta.downWeek) { // the down week's whole point
+      weeklyFatigue -= DOWN_WEEK.SHED + Math.max(0, athlete.fatigue - DOWN_WEEK.DEEP_FROM) * DOWN_WEEK.DEEP_SHED;
+    }
     athlete.fatigue = Math.round(Utils.clamp(athlete.fatigue + weeklyFatigue - recoveryRate, 0, 100));
 
     // Altitude's aerobic payoff: a small, steady boost to the stamina and
@@ -1448,8 +1454,8 @@
     // their durable mileage limit. Consecutive high-load weeks compound injury
     // risk; a genuinely easy/taper week lets the body recover the counter.
     const hardDayCount = planMeta.hardDays || 0;
-    const highLoadWeek = athlete.fatigue >= 70 || hardDayCount >= 5 ||
-      (mMeta.mileage - safeMileage(athlete)) > 4;
+    const highLoadWeek = !planMeta.downWeek && (athlete.fatigue >= 70 || hardDayCount >= 5 ||
+      (mMeta.mileage - safeMileage(athlete)) > 4);
     if (highLoadWeek) athlete.highLoadWeeks = Math.min(24, (athlete.highLoadWeeks || 0) + 1);
     else athlete.highLoadWeeks = Math.max(0, (athlete.highLoadWeeks || 0) - 2);
 
