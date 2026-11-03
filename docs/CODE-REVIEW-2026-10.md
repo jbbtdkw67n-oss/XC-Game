@@ -34,7 +34,7 @@ is unchanged. Options if it feels too harsh:
 
 ### Follow-up (November 2026): `test-update15-balance` transfer volume re-baselined
 
-The 40-season run started failing its transfer check (avg 2.25, then 1.77–2.35 across runs, against a 2.5 floor and a 3-6 band). The cause was not a change to the portal economy, and the harness was not misbehaving. The volume slid a little with each commit while world talent rose:
+The 40-season run started failing its transfer check (avg 2.25, then 1.55–2.35 across runs, against a 2.5 floor and a 3-6 band). The cause was not a change to the portal economy, and the harness was not misbehaving. The volume slid a little with each commit while world talent rose:
 
 | Commit | World avg OVR | Budget | Top-3 lock cost | Budget ÷ lock | Transfers/season |
 |---|---|---|---|---|---|
@@ -44,14 +44,14 @@ The 40-season run started failing its transfer check (avg 2.25, then 1.77–2.35
 | `5cd6973` | 50.0 | — | — | — | 2.55 |
 | `1d4b130` | 50.0 | — | — | — | 2.45 |
 | `109639f` | 50.3 | — | — | — | 2.35 |
-| `014ae39` main | 50.3–50.6 | 287–293 | 138–141 | 2.10–2.20 | 1.77–2.25 |
+| `014ae39` main | 50.2–50.6 | 261–304 | 127–164 | 1.68–2.45 | 1.55–2.45 |
 
 - **The economy is unchanged.** `TP`, `pointsToLock`, `prefMultiplier` and `transferQuality` in `js/engine/portal.js` have not been touched since Update 15. The unit checks still read the same: elite budget ≈ 310, star lock 94 (0.30 of budget).
 - **Supply is not the limit.** Every window has 140–180 portal athletes rated 55+ and 35–50 rated 70+. That holds even after `109639f` kept first-season athletes out of the portal.
 - **The harness lands exactly what its points buy.** It spends best-first, so its haul is about budget ÷ the lock cost of the top names. The ratio of landed transfers to locks bought is 0.94–1.02 at every commit. The lock cost is set on absolute ratings (`20 + q²/82`, plus a reach multiplier above `30 + 0.55 × prestige`). World talent has risen about 4 OVR, so the stars at the top of the portal now sit at 88–95, and each lock costs 130–230 instead of ~95.
 - **A cheaper-target harness is not the fix.** We tried one star plus value adds (next season's scorers). It landed more in one run, but in 4 of 5 runs it weakened the team: prestige slid to 56–86 instead of holding at 99. That shrank the budget and tripped the five-star recruiting check.
 
-**Change:** the test now prints the window's budget and the lock cost of its top-3 targets. It asserts that landed transfers track budget ÷ lock (0.75–1.3), which catches a broken points economy whatever the world's talent level. The volume band is re-baselined to an average of 1.5–6.5, with at most 2 empty cycles in 40 (replacing "≥2 in 30 of 40"). Every other check is unchanged.
+**Change:** the test now prints the window's budget and the lock cost of its top-3 targets. It asserts that landed transfers track budget ÷ lock (0.75–1.3), which catches a broken points economy whatever the world's talent level. The volume band is re-baselined to an average of 1.25–6.5, with at most 2 empty cycles in 40 (replacing "≥2 in 30 of 40"). The average swings with each seed's prestige path: a run that slid to 74 prestige had a ~260 budget against ~165-point locks and landed 1.55. Every other check is unchanged.
 
 **Your call:** if a blue blood should still land 3+ a cycle by chasing stars, that is a design change to the economy. Options are pegging `pointsToLock` to talent relative to the world (e.g. the portal's own percentile) instead of absolute OVR, or raising `TP` budgets. Either one also shifts the player-vs-CPU balance, since CPU suitor points don't depend on quality.
 
