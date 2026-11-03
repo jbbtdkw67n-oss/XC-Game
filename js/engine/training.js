@@ -820,8 +820,9 @@
     const env = devEnvQuality(athlete, coach, school);
     const ceil = effectiveCeiling(athlete, env);
     const open = openCeiling(athlete, ceil);
-    athlete._devCeiling = ceil; // consumed by applyDevelopment (elite polish)
-    athlete._devOpen = open;    // consumed by applyDevelopment's rating cap
+    // Kept to one decimal: these ride along in every save for every athlete.
+    athlete._devCeiling = Math.round(ceil * 10) / 10; // consumed by applyDevelopment (elite polish)
+    athlete._devOpen = Math.round(open * 10) / 10;    // consumed by applyDevelopment's cap + portal stagnation
     // Headroom (rule 1) is measured to the ceiling the development curve has
     // opened this year. Development slows to a crawl near it. Banked injury
     // losses come back separately, so the gap is measured from the runner's
