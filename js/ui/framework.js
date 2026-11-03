@@ -45,6 +45,117 @@
     }, duration);
   };
 
+  /* ---------------- Touch tooltips ----------------
+   * Explanations across the game live in `title` attributes, which a
+   * touchscreen never shows. On touch: LONG-PRESS anything with a title to
+   * read it (the press doesn't also fire the tap), and a plain TAP on a
+   * non-interactive label with a title (e.g. a Squad Form row name) shows it
+   * too. The next touch anywhere, a scroll, or a few seconds dismisses it.
+   * Mouse users keep the native tooltip; no touch events, no change.
+   */
+  UI.initTouchTips = function () {
+    if (UI._touchTips) return;
+    UI._touchTips = true;
+    const LONG_PRESS_MS = 450;
+    const MOVE_TOLERANCE = 10;
+    const INTERACTIVE = 'button, a, input, select, textarea, summary, label, [role="button"], .clickable, .btn, ' +
+      '[data-ath], [data-coach], [data-school], [data-course-key], tr.clickable, .m-card.clickable';
+    let tipEl = null;
+    let targetEl = null;
+    let timer = null;
+    let hideTimer = null;
+    let start = null;
+    let suppressClick = false;
+
+    const titleOf = (el) => el && (el.getAttribute('data-tip') || el.getAttribute('title') || '').trim();
+    // The nearest element carrying an explanation, stopping at the modal/screen.
+    const tipTarget = (node) => {
+      const el = node && node.closest ? node.closest('[title], [data-tip]') : null;
+      return el && titleOf(el) ? el : null;
+    };
+    const isInteractive = (el) => !!(el.closest(INTERACTIVE) ||
+      (window.getComputedStyle && getComputedStyle(el).cursor === 'pointer'));
+
+    function hide() {
+      clearTimeout(hideTimer);
+      if (tipEl) { tipEl.remove(); tipEl = null; }
+      if (targetEl) { targetEl.classList.remove('touch-tip-target'); targetEl = null; }
+    }
+    function show(el) {
+      hide();
+      const text = titleOf(el);
+      if (!text) return;
+      tipEl = document.createElement('div');
+      tipEl.className = 'touch-tip';
+      tipEl.setAttribute('role', 'tooltip');
+      tipEl.textContent = text;
+      document.body.appendChild(tipEl);
+      targetEl = el;
+      el.classList.add('touch-tip-target');
+      const r = el.getBoundingClientRect();
+      const t = tipEl.getBoundingClientRect();
+      const vw = window.innerWidth, vh = window.innerHeight;
+      let left = Math.min(Math.max(12, r.left + r.width / 2 - t.width / 2), vw - t.width - 12);
+      // Above the finger when there's room, else below the element.
+      let top = r.top - t.height - 10;
+      if (top < 12) top = Math.min(r.bottom + 10, vh - t.height - 12);
+      tipEl.style.left = `${Math.max(12, left)}px`;
+      tipEl.style.top = `${Math.max(12, top)}px`;
+      hideTimer = setTimeout(hide, Math.min(9000, 2500 + text.length * 45));
+    }
+
+    document.addEventListener('touchstart', (e) => {
+      const hadTip = !!tipEl;
+      hide();
+      clearTimeout(timer);
+      suppressClick = false;
+      const touch = e.touches[0];
+      if (!touch || e.touches.length > 1) return;
+      const el = tipTarget(e.target);
+      // Form controls keep their own touch behavior (dragging, typing, pickers).
+      if (!el || e.target.closest('input, textarea, select')) return;
+      start = { x: touch.clientX, y: touch.clientY, el, hadTip };
+      timer = setTimeout(() => {
+        timer = null;
+        suppressClick = true; // the long-press read the tip; don't also tap
+        show(el);
+        if (navigator.vibrate) { try { navigator.vibrate(8); } catch (_) { /* optional */ } }
+      }, LONG_PRESS_MS);
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!start || !timer) return;
+      const touch = e.touches[0];
+      if (touch && (Math.abs(touch.clientX - start.x) > MOVE_TOLERANCE || Math.abs(touch.clientY - start.y) > MOVE_TOLERANCE)) {
+        clearTimeout(timer); timer = null; start = null;
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+      const pressed = start;
+      start = null;
+      if (timer) {
+        clearTimeout(timer); timer = null;
+        // A plain tap on an explanation that isn't itself a control shows it.
+        if (pressed && !pressed.hadTip && !isInteractive(pressed.el)) show(pressed.el);
+      } else if (suppressClick && e.cancelable) {
+        e.preventDefault(); // swallow the synthetic click after a long-press
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchcancel', () => { clearTimeout(timer); timer = null; start = null; }, { passive: true });
+    // Belt and braces: some browsers still deliver the click after a long-press.
+    document.addEventListener('click', (e) => {
+      if (suppressClick) { suppressClick = false; e.preventDefault(); e.stopPropagation(); }
+    }, true);
+    // iOS/Android long-press would otherwise open the system callout menu.
+    document.addEventListener('contextmenu', (e) => {
+      if (tipEl || timer || suppressClick) e.preventDefault();
+    });
+    window.addEventListener('scroll', hide, { passive: true, capture: true });
+  };
+  UI.initTouchTips();
+
   /* ---------------- Modals ---------------- */
   UI.showModal = function (contentHtml, onMount) {
     UI.closeModal();

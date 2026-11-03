@@ -46,7 +46,8 @@
   // Squad Form card (Update 25, Stage 3): Base, Sharpening vs its ceiling,
   // Staleness, the season's one peak, and a form-by-week chart.
   function squadFormHtml(game, school, gender) {
-    const f = TE().squadForm(game, school, gender);
+    const T = TE();
+    const f = T.squadForm(game, school, gender);
     if (!f) return '';
     const CAL = D.CALENDAR;
     const wk = game.week;
@@ -69,7 +70,8 @@
     else verdict = 'Building — threshold work raises the ceiling, intervals sharpen into it.';
     // The absorption bank (user request): when there's real work waiting and
     // the squad is tired, a Down Week cashes it in without touching the peak.
-    if (f.absorb >= 2 && f.fatigue >= 50 && wk <= CAL.NATIONAL_WEEK) verdict += ` ${f.absorb.toFixed(1)} training points are waiting to be absorbed — a 🛌 Down Week sheds fatigue and lands about half of them, without spending your peak.`;
+    const absorbWks = f.absorbWeeks || 0;
+    if (absorbWks >= 2 && f.fatigue >= 45 && wk <= CAL.NATIONAL_WEEK) verdict += ` About ${absorbWks.toFixed(1)} weeks of training are waiting to be absorbed — a 🛌 Down Week sheds fatigue and lands about half of it, without spending your peak.`;
 
     // Form-by-week chart (this season).
     const log = (school.formLog && school.formLog.year === game.year && school.formLog[gender]) || [];
@@ -98,7 +100,8 @@
             <div class="form-row"><span class="k" title="Built by volume, threshold, and long runs. Slow to build, slow to fade. Sets the sharpening ceiling.">Base</span>${UI.meter(f.base)}<strong>${Math.round(f.base)}</strong></div>
             <div class="form-row"><span class="k" title="Race readiness from intervals, speed, race sims, and racing. Fast to build, fast to fade. Capped by Base.">Sharpening</span>${sharpBar}<strong>${Math.round(f.sharp)}<small> / ${Math.round(f.ceiling)}</small></strong></div>
             <div class="form-row"><span class="k" title="Sharp work held too long goes flat. Easy and recovery weeks clear it.">Staleness</span>${UI.meter(f.stale * 2.5, f.stale >= 20 ? 'red' : f.stale >= 9 ? 'yellow' : 'green')}<strong>${staleWord}</strong></div>
-            <div class="form-row"><span class="k" title="Training waiting to be absorbed: above ~45 fatigue part of each week's gains is banked, and it lands as fatigue comes down — a little in a normal week, half in a recovery or Down Week. Left too long, it fades.">Absorbing</span>${UI.meter(Math.min(100, f.absorb * 25), f.absorb >= 2 ? 'yellow' : 'green')}<strong>${f.absorb.toFixed(1)}<small> pts</small></strong></div>
+            <div class="form-row form-absorb"><span class="k" title="Training waiting to be absorbed, in weeks of this squad's own gains (full bar ≈ ${T.ABSORB.FULL_WEEKS} weeks). Above ~${T.ABSORB.FROM} fatigue part of each week's gains is banked — more the deeper the fatigue — and it lands as fatigue comes down: a little in a normal week, half in a recovery or Down Week. Left too long, it fades.">Absorbing</span>${UI.meter(Math.min(100, absorbWks / T.ABSORB.FULL_WEEKS * 100), absorbWks >= T.ABSORB.FULL_WEEKS ? 'yellow' : 'green')}<strong title="${f.absorb.toFixed(2)} pts per runner banked${f.banked > 0 ? ` · +${f.banked.toFixed(2)} this week` : ''}${f.landed > 0 ? ` · ${f.landed.toFixed(2)} landed this week` : ''}">${absorbWks.toFixed(1)}<small> wk</small></strong></div>
+            <div class="form-absorb-note">${f.banked > 0 ? `+${f.banked.toFixed(2)} pts banked last week` : f.fatigue < T.ABSORB.FROM ? `Banks once fatigue passes ${T.ABSORB.FROM} (now ${Math.round(f.fatigue)})` : 'Nothing banked last week'}${f.landed > 0 ? ` · ${f.landed.toFixed(2)} landed` : ''}</div>
             <div class="form-taper">${taper}</div>
             <div class="form-verdict">${verdict}</div>
           </div>

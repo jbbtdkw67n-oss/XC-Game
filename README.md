@@ -14,6 +14,26 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.6 — The Absorbing Bar Fills, and Touch Everywhere
+
+- **The Absorbing bar fills under real training.** Training now starts banking
+  at about 35 fatigue (was 45), so a squad on a high-mileage block banks work
+  within a few weeks. The Squad Form bar measures the bank in **weeks of your
+  squad's own training**. It reads full at about 3 weeks. Before, it used a
+  fixed points scale that a mature squad could never fill, even at 100
+  fatigue. A line under the bar shows what was banked and what landed last
+  week. Once about 2 weeks are waiting, the card suggests a Down Week.
+- **Touch friendly on every device.** Finger-sized targets used to switch on
+  only at phone width, so an iPad got the small desktop controls. They now
+  apply on any touchscreen, and every tab, filter, select, sort header,
+  chip, toggle and button is about 40–44px. Athlete, coach and school names
+  get a larger tap area without moving the text. Sliders have a taller hit
+  area around the same thin track. Hover highlights no longer stick after a
+  tap.
+- **Explanations on touch.** Long-press any control to read its explanation
+  without pressing it. Tap a label (like *Absorbing*) to read what it means.
+  Tap again, or scroll, to dismiss.
+
 ## Version 15.5 — Following the Coach
 
 - **Bring your runners.** Leave one head job for another and up to **three**
@@ -79,7 +99,7 @@ Home Screen** — it installs as a full-screen, offline-capable app. See
   and barely dents the rolling load, so the next week isn't a load spike.
   Each runner's own mileage comes back the week after. The week's fresh
   development is a little lighter, and you can run one at most every 3 weeks.
-- **Training is absorbed while you recover.** Above about 45 fatigue, part of
+- **Training is absorbed while you recover.** Above about 35 fatigue, part of
   each week's development is banked instead of landing (up to 60% when a
   runner is deep in the red). It lands as fatigue comes down: a little in a
   normal week, about half in a recovery week or Down Week. Work left

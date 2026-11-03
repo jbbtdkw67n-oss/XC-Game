@@ -716,6 +716,10 @@ table.data .name-cell { white-space: nowrap; }
 .squad-form .form-row .k { color: var(--text-dim); cursor: help; }
 .squad-form .form-row strong { text-align: right; }
 .squad-form .form-row strong small { color: var(--text-faint); font-weight: 400; }
+/* Absorbing row: a one-line read of what the bank did last week. */
+.squad-form .form-row.form-absorb { margin-bottom: 2px; }
+.squad-form .form-absorb-note { font-size: 11.5px; color: var(--text-faint); margin: 0 0 8px; padding-left: 102px; }
+@media (max-width: 380px) { .squad-form .form-absorb-note { padding-left: 0; } }
 .squad-form .form-bar { position: relative; height: 7px; background: var(--bg-hover); border-radius: 4px; }
 .squad-form .form-fill { height: 100%; border-radius: 4px; background: var(--accent); }
 .squad-form .form-ceiling { position: absolute; top: -4px; width: 2px; height: 15px; background: var(--warning); border-radius: 1px; transform: translateX(-1px); }
@@ -2411,3 +2415,116 @@ html[data-theme="light"] .card { box-shadow: var(--shadow-card); }
 @media (prefers-reduced-motion: reduce) {
   .fol-bag, .fol-result, .fol-result .fol-ring.fill, .fol-stamp, .fol-headline { animation: none !important; opacity: 1; transform: none; }
 }
+
+/* =========================================================
+   TOUCH (user request: the whole game is touch friendly)
+   Applies on phones AND on any device whose main pointer is a finger
+   (iPad, touchscreen laptops in tablet mode) — the finger-sized rules used
+   to switch on only at phone width, so an iPad got the 22–30px desktop
+   targets. Every tab, filter, chip, sort header, name link and toggle gets
+   a ~40–44px hit area; inline names grow an invisible tap halo so the
+   text layout doesn't move.
+   ========================================================= */
+@media (max-width: 760px), (pointer: coarse) {
+  /* Buttons, nav, tabs */
+  .btn { min-height: var(--tap); }
+  .btn.small { min-height: 40px; min-width: 40px; padding-top: 7px; padding-bottom: 7px; }
+  .btn.sim-caret { min-width: 40px; }
+  .btn.sort-dir { min-width: var(--tap); }
+  .nav-item { min-height: var(--tap); }
+  .flow-step { min-height: 40px; padding: 8px 13px; font-size: 12.5px; }
+  .pill-tabs button { min-height: 40px; padding: 9px 16px; }
+  .pc-tabs button { min-height: var(--tap); }
+  .modal .modal-close { min-height: var(--tap); min-width: var(--tap); }
+  .tip-banner .tip-close { min-width: var(--tap); min-height: var(--tap); }
+  .fol-slot-x { min-width: var(--tap); min-height: var(--tap); }
+  .job-later { min-height: var(--tap); }
+  .field label.name-label { height: auto; min-height: 26px; }
+  .field label.name-label .btn { height: auto; min-height: 36px; padding: 0 12px; font-size: 12px; }
+
+  /* Filters, selects, inputs — 16px text also stops iOS zooming on focus */
+  .field input, .field select, .field textarea, .search-input, .day-select,
+  .sb-select, .sb-sort, .job-sort select, select {
+    font-size: 16px;
+    min-height: var(--tap);
+  }
+  .day-select { padding: 8px 6px; }
+  input[type="checkbox"], input[type="radio"] {
+    width: 22px; height: 22px; flex: none; accent-color: var(--accent);
+  }
+  .sim-stop-toggle input { width: 22px; height: 22px; margin-top: 0; }
+  .sb-toggle { min-height: var(--tap); gap: 8px; font-size: 14px; }
+  .sim-stop-toggle { align-items: center; min-height: var(--tap); }
+
+  /* Sliders: a thin track drawn inside a finger-tall hit box */
+  input[type="range"] {
+    height: 32px;
+    padding: 13px 0;
+    background-clip: content-box !important;
+    box-sizing: border-box;
+  }
+  input[type="range"]::-webkit-slider-thumb { width: 28px; height: 28px; }
+  input[type="range"]::-moz-range-thumb { width: 28px; height: 28px; }
+  .set-default-tick { top: 8px; }
+
+  /* Sortable column headers and table rows */
+  table.data th { padding-top: 13px; padding-bottom: 13px; font-size: 11.5px; }
+  table.data td { padding-top: 11px; padding-bottom: 11px; }
+
+  /* Chips & small tappable rows */
+  .sb-chips { gap: 8px; }
+  .sb-chip { display: inline-flex; align-items: center; min-height: 36px; padding: 6px 12px; font-size: 12.5px; }
+  .sb-chips > .sb-field summary, .sb-more { display: inline-flex; align-items: center; min-height: 36px; padding: 6px 8px; font-size: 12.5px; }
+  details > summary { padding-top: 10px; padding-bottom: 10px; }
+  .kolas-chip { display: inline-flex; align-items: center; min-height: 36px; padding: 6px 12px; }
+  .sel-auto, .sel-indiv { min-height: 40px; align-items: center; padding: 8px 8px; }
+  .attr-row[data-meet], .attr-row[data-meet-nav], .attr-row[style*="cursor:pointer"],
+  .attr-row.clickable, div.clickable[data-ath], div.clickable[data-school], div.clickable[data-coach] { min-height: 40px; }
+  .inbox-item { min-height: var(--tap); }
+
+  /* Names & inline links: an invisible tap halo around the text. The
+     padding grows the hit box; the matching negative margin keeps the
+     line exactly where it was. */
+  .person-name.clickable, .school-link, .staff-name.clickable,
+  span.clickable[data-ath], span.clickable[data-school], span.clickable[data-coach],
+  a.clickable, .course-record-line {
+    padding: 9px 4px; margin: -9px -4px;
+    border-radius: 8px;
+  }
+  .person-name.clickable:active, .school-link:active, .staff-name.clickable:active,
+  span.clickable:active { background: var(--accent-soft); }
+
+  /* No text-selection / callout on long-press of controls (the long-press
+     shows the control's explanation instead — see UI.initTouchTips). */
+  button, .btn, .clickable, .nav-item, .bnav-item, .pill-tabs, .pc-tabs, .sb-chip,
+  .kolas-chip, th, summary, label, .m-card, .lrow, [title] {
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+  }
+  input, textarea, select { -webkit-user-select: auto; user-select: auto; }
+}
+
+/* Hover styles stick after a tap on touch screens — neutralize the ones that
+   read as "still selected". */
+@media (hover: none) {
+  .btn:hover { background: var(--bg-hover); }
+  .btn.primary:hover { background: linear-gradient(135deg, var(--accent), #2f6fd8); }
+  .btn.danger:hover { background: transparent; }
+  table.data tbody tr:not(.mine):hover, .lrow.clickable:hover, .inbox-item:hover,
+  .nav-item:not(.active):hover, .school-pick:hover, .sel-indiv:hover, .sel-auto:hover { background: transparent; }
+  .stat-tile:hover { transform: none; }
+  table.data tbody tr.clickable:active, .lrow.clickable:active, .inbox-item:active,
+  .m-card.clickable:active { background: var(--bg-hover); }
+}
+
+/* Touch tooltip (UI.initTouchTips): long-press any control — or tap any
+   label with an explanation — to read its title text. */
+.touch-tip {
+  position: fixed; z-index: 10000; max-width: min(320px, calc(100vw - 24px));
+  padding: 10px 13px; border-radius: 10px;
+  background: var(--bg-card); color: var(--text); border: 1px solid var(--border);
+  box-shadow: var(--shadow-pop);
+  font-size: 13.5px; line-height: 1.45; pointer-events: none;
+  animation: fade-in 0.12s ease;
+}
+.touch-tip-target { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
