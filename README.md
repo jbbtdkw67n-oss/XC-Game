@@ -14,6 +14,31 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.7 — One Development System
+
+- **Every athlete develops by the same rules, in season and over the
+  summer.** Growth comes from **room to grow** (the gap to the athlete's
+  ceiling: big gap, fast growth), the **development curve**, the **program**
+  (coach and facilities), and **training quality**. Work ethic, morale,
+  fatigue, culture, altitude, academics and injuries still matter, as
+  smaller effects on top. The summer now uses the same ceiling as the
+  season, so it can no longer push a runner past what their program realizes.
+- **The basics come quickly.** Below 75 overall, every athlete develops
+  faster, up to +40% at 50 overall and under, tapering to the normal rate at
+  75. Because growth still depends on room to grow, the boost does the most
+  for low-overall, high-potential runners. A Steady freshman at 45 overall
+  with 85+ potential now gains about +22 in a year (was about +19).
+- **Late Bloomers really bloom.** Their top end stays locked as underclassmen,
+  then opens all at once: a junior-year jump of about +17 on average, and
+  +20 to +30 for the best. Before, they never had a +20 season. Early Risers
+  still have the biggest freshman breakouts (about +30), then level off.
+- **Every curve is visible.** The player card shows the true development
+  curve. Athletes once disguised as "Steady" now show as **Limited** (tops
+  out well short of potential) or **Phenom** (fast every year). A new
+  **Ceiling Here** line shows how far the athlete will develop at your
+  program. A better coach, better facilities and well-executed training
+  raise it toward their potential.
+
 ## Version 15.6 — The Absorbing Bar Fills, and Touch Everywhere
 
 - **The Absorbing bar fills under real training.** Training now starts banking

@@ -520,8 +520,11 @@
     // Development & progression (Section 14): an athlete with real headroom
     // who isn't improving starts looking for a staff that will develop them;
     // visible growth is a genuine anchor.
+    // Headroom is measured to the ceiling open this year (Development Rework),
+    // so a Late Bloomer resting at their curve's lock isn't "stagnating".
     const seasonGrowth = a.seasonDev || 0;
-    if (seasonJudged && seasonGrowth <= 0 && (a.potential - a.currentOverall) > 8 &&
+    const openRoom = (a._devOpen ?? a.potential) - a.currentOverall;
+    if (seasonJudged && seasonGrowth <= 0 && openRoom > 8 &&
         !['Freshman'].includes(a.classYear)) {
       add(12, R.stagnant);
     } else if (seasonGrowth >= 3) { u -= 6; anchors.push('Consistent development'); }

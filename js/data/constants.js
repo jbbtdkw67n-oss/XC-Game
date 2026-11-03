@@ -700,18 +700,18 @@
   ];
 
   /*
-   * Development curve (visible profile stat). An athlete's hidden devProfile
-   * shapes WHEN their career growth arrives; this maps it to a player-facing
-   * label. "bust" and the rare "legend" surprises are deliberately shown as
-   * "Steady" so they stay a genuine surprise — the curve tells you the SHAPE
-   * of expected growth, not whether a recruit will secretly over/under-deliver.
+   * Development curve (visible profile stat — Development Rework). An
+   * athlete's devProfile shapes WHEN their career growth arrives and how much
+   * of their potential they ever reach; this maps it to the player-facing
+   * label. Every curve is shown honestly, so reading them — and building a
+   * roster and a training plan around them — is a skill the coach can learn.
    */
   D.GROWTH_CURVES = {
-    early:  { label: 'Early Riser',  icon: '🚀', desc: 'Big gains as a freshman and sophomore, then plateaus earlier — often near their peak by junior year.' },
-    late:   { label: 'Late Bloomer', icon: '🌙', desc: 'Develops slowly at first, then makes dramatic jumps as a junior and senior.' },
-    normal: { label: 'Steady',       icon: '📈', desc: 'Consistent, roughly linear improvement across all four or five years.' },
-    bust:   { label: 'Steady',       icon: '📈', desc: 'Consistent, roughly linear improvement across all four or five years.' },
-    legend: { label: 'Steady',       icon: '📈', desc: 'Consistent, roughly linear improvement across all four or five years.' }
+    early:  { label: 'Early Riser',  icon: '🚀', desc: 'Huge gains as a freshman and sophomore, then levels off — usually near their peak by junior year.' },
+    late:   { label: 'Late Bloomer', icon: '🌙', desc: 'Held back early: their top end stays locked until junior year, then opens all at once for dramatic junior/senior jumps.' },
+    normal: { label: 'Steady',       icon: '📈', desc: 'Consistent improvement every year, reaching their ceiling around junior year.' },
+    bust:   { label: 'Limited',      icon: '🪨', desc: 'Develops slowly and tops out well short of their potential, however well they are coached.' },
+    legend: { label: 'Phenom',       icon: '🌟', desc: 'A rare talent who develops fast every single year of their career.' }
   };
   D.growthCurve = function (devProfile) {
     return D.GROWTH_CURVES[devProfile] || D.GROWTH_CURVES.normal;
