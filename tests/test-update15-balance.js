@@ -6,7 +6,9 @@
  *    render; state persists.
  *  - Transfer Points: elite program+coach budget ≈ 300; a preference-matched
  *    elite transfer locks for ~1/3 of a max budget; top transfers draw ~5
- *    suitors; the player lands 3-6 transfers per cycle with sane play.
+ *    suitors; the player's transfer haul tracks what its points buy
+ *    (budget / lock cost of the top names), and a blue blood lands at
+ *    least one or two every cycle.
  *  - Recruiting: a blue-blood player signs genuine top-level classes
  *    (4★/5★ signees) with the buffed Sway, while CPU powers still win
  *    their share — the game stays difficult.
@@ -322,7 +324,8 @@ const { walkCoachWizard, wireErrors, launchOpts } = require('./helpers');
     // ~1.8-2.4. The old 3-6 band measured world talent, not the portal.
     //  1) The economy: commits track what the points buy (one landed transfer
     //     per top-3 lock the budget covers, give or take the 60% stakes).
-    if (windows.length >= 30 && (yieldRatio < 0.7 || yieldRatio > 1.6)) {
+    //     Measured at 0.94-1.02 from Update 15 through today.
+    if (windows.length >= 30 && (yieldRatio < 0.75 || yieldRatio > 1.3)) {
       fail('transfer points stopped converting into commits: ' + yieldRatio.toFixed(2) + ' landed per star-lock bought');
     }
     //  2) Volume: a blue blood still lands at least one or two every cycle.
