@@ -1153,13 +1153,26 @@
 
   /*
    * The absorption bank (user request): training is absorbed while the body
-   * recovers. Above ~45 fatigue part of each week's development is banked
+   * recovers. Above ~35 fatigue part of each week's development is banked
    * instead of landing (up to 60% when deep in the red); it lands as fatigue
    * comes down — slowly in a normal week, in big pieces in a recovery or
    * down week. Gains left unabsorbed fade, faster under chronic overload,
    * so grinding without ever backing off wastes work.
+   * Banking starts at 35 (was 45): a squad on a genuinely high-mileage block
+   * sits in the high 30s/40s for weeks, and at 45 the bank stayed empty the
+   * whole time — the Absorbing bar never moved under real training.
+   * FULL_WEEKS: the Squad Form bar reads full at ~3 weeks of the squad's own
+   * training waiting to land (a Down Week is clearly worth it there).
    */
-  const ABSORB = { FROM: 45, SPAN: 50, MAX_HOLD: 0.6, DECAY: 0.96, OVERLOAD_DECAY: 0.94, RECOVERY: 0.5 };
+  const ABSORB = { FROM: 35, SPAN: 50, MAX_HOLD: 0.6, DECAY: 0.96, OVERLOAD_DECAY: 0.94, RECOVERY: 0.5, FULL_WEEKS: 3 };
+
+  // How many weeks of the group's own training sit in the bank (0 when empty).
+  function absorbWeeks(runners) {
+    const bank = runners.reduce((sum, a) => sum + (a.absorbBank || 0), 0);
+    if (bank <= 0) return 0;
+    const rate = runners.reduce((sum, a) => sum + (a.devRate || 0), 0);
+    return Math.round(bank / Math.max(rate, runners.length * 0.05) * 100) / 100;
+  }
 
   function absorbRelease(athlete, planMeta, mMeta) {
     const recovery = planMeta.downWeek || ((planMeta.hardDays || 0) === 0 && (planMeta.easyDays || 0) + (planMeta.restDays || 0) >= 5);
@@ -1317,6 +1330,9 @@
       .sort((a, b) => b.currentOverall - a.currentOverall).slice(0, 7);
     if (!roster.length) return null;
     const avg = (f) => Math.round(roster.reduce((sum, a) => sum + f(a), 0) / roster.length * 10) / 10;
+    // The absorption numbers are small week to week — keep two decimals so
+    // the bar visibly moves as the bank fills.
+    const avg2 = (f) => Math.round(roster.reduce((sum, a) => sum + f(a), 0) / roster.length * 100) / 100;
     const used = roster.filter((a) => a.peakSeason === gameState.year);
     const byWeek = {};
     used.forEach((a) => { byWeek[a.peakWeek] = (byWeek[a.peakWeek] || 0) + 1; });
@@ -1329,7 +1345,13 @@
       peak: avg((a) => a.peakBonus || 0),
       form: avg(formScore),
       charge: avg((a) => a.taperCharge ?? 0),
-      absorb: avg((a) => a.absorbBank || 0),
+      absorb: avg2((a) => a.absorbBank || 0),
+      banked: avg2((a) => a.lastBanked || 0),
+      landed: avg2((a) => a.lastAbsorbed || 0),
+      // The bank in weeks of this squad's own training: a fixed points scale
+      // read empty for a mature squad (top runners gain ~0.1 a week), however
+      // hard they were working.
+      absorbWeeks: absorbWeeks(roster),
       fatigue: avg((a) => a.fatigue || 0),
       peakUsed: used.length * 2 >= roster.length,
       peakWeek: peakWeek ? Number(peakWeek) : null,
@@ -1598,10 +1620,15 @@
     if (planMeta.downWeek) dev *= DOWN_WEEK.DEV; // a lighter week builds a little less
     // The absorption bank: tired bodies bank part of the week's gains;
     // recovery cashes them in (replaces the old flat recovery-week bonus).
+    let banked = 0;
+    // The runner's gross weekly gain (before banking), smoothed — the yardstick
+    // the Squad Form bar measures the bank against ("weeks of training waiting").
+    athlete.devRate = Math.round(((athlete.devRate ?? Math.max(0, dev)) * 0.75 + Math.max(0, dev) * 0.25) * 1000) / 1000;
     if (dev > 0) {
       const hold = Utils.clamp((athlete.fatigue - ABSORB.FROM) / ABSORB.SPAN, 0, ABSORB.MAX_HOLD);
-      athlete.absorbBank = (athlete.absorbBank || 0) + dev * hold;
-      dev -= dev * hold;
+      banked = dev * hold;
+      athlete.absorbBank = (athlete.absorbBank || 0) + banked;
+      dev -= banked;
     }
     const release = (athlete.absorbBank || 0) * absorbRelease(athlete, planMeta, mMeta);
     dev += release;
@@ -1609,6 +1636,7 @@
     athlete.absorbBank *= ABSORB.DECAY * (loadWeeksNow >= 4 ? ABSORB.OVERLOAD_DECAY : 1);
     athlete.absorbBank = Math.round(athlete.absorbBank * 1000) / 1000;
     athlete.lastAbsorbed = Math.round(release * 100) / 100;
+    athlete.lastBanked = Math.round(banked * 100) / 100;
     if (recoveryWeek) {
       athlete.morale = Utils.clamp(athlete.morale + 2, 0, 100);     // mental recovery
       if (athlete.health !== 'Injured') {
