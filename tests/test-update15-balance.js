@@ -177,25 +177,49 @@ const { walkCoachWizard, wireErrors, launchOpts } = require('./helpers');
 
           // Portal policy: lock the best star, then lock value adds
           // (solid contributors), spreading whatever's left.
+          //
+          // The order matters. Spending the whole budget best-first means
+          // every pick is a star at ~1/3 of the budget or more, so the haul
+          // is capped at 2-3 and drops as the top of the portal gets
+          // stronger. (The 88-95 OVR stars at the top of today's portal cost
+          // 130-230 points each.) The Update 15 design behind the 3-6 band
+          // is one star plus value adds: athletes who score for this team
+          // next season, taken cheapest-lock first, since each is a scorer.
           if (g.portal && g.portal.open && !g.portal.summer) {
             const school = g.getPlayerSchool();
+            const held = (id) => !!(g.portal.player && g.portal.player.allocations[id]);
             const cands = g.portal.entries
               .filter((e) => !e.destination && e.fromSchoolId !== g.playerSchoolId)
               .map((e) => ({ e, a: g.getAthlete(e.athleteId) }))
               .filter((x) => x.a && x.a.currentOverall >= 55)
               .sort((x, y) => P.transferQuality(y.a) - P.transferQuality(x.a));
-            let slot = 0;
-            for (const { e, a } of cands) {
-              if (P.transferPointsLeft(g) < 20 || slot >= 7) break;
-              const already = g.portal.player && g.portal.player.allocations[a.id];
-              if (already) { slot++; continue; }
+            // A contributor would crack next season's scoring seven: at or
+            // above this program's 7th-best returner in that gender.
+            const scorerBar = {};
+            ['M', 'W'].forEach((gender) => {
+              const back = g.getRoster(school.id, gender)
+                .filter((x) => x.eligibilityRemaining >= 2)
+                .map((x) => x.currentOverall).sort((x, y) => y - x);
+              scorerBar[gender] = back[6] ?? 55;
+            });
+            const pursue = ({ e, a }) => {
               const lock = P.pointsToLock(g, a, school, e);
               const left = P.transferPointsLeft(g);
-              // Lock the first star, then lock anything affordable; put a
-              // 60% stake on names too expensive to lock outright.
+              // Lock when affordable; otherwise a 60% stake.
               const want = lock <= left ? lock : Math.round(lock * 0.6);
-              const res = P.setTransferPoints(g, a.id, Math.min(want, left));
-              if (res.ok) slot++;
+              return P.setTransferPoints(g, a.id, Math.min(want, left)).ok;
+            };
+            let slot = cands.filter((x) => held(x.a.id)).length;
+            // 1) The star: the best name on the board, once per window.
+            if (!P.transferPointsSpent(g) && cands.length && pursue(cands[0])) slot++;
+            // 2) Value adds: contributors, cheapest lock first.
+            const adds = cands
+              .filter((x) => !held(x.a.id) && x.a.currentOverall >= scorerBar[x.a.gender])
+              .map((x) => ({ x, lock: P.pointsToLock(g, x.a, school, x.e) }))
+              .sort((p, q) => p.lock - q.lock);
+            for (const { x } of adds) {
+              if (P.transferPointsLeft(g) < 20 || slot >= 7) break;
+              if (pursue(x)) slot++;
             }
           }
 
