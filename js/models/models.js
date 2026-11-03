@@ -6,9 +6,10 @@
    * Athlete
    * ---------------------------------------------------------------- */
   class Athlete {
-    constructor(data) {
-      Object.assign(this, {
-        id: Utils.generateId('ath'),
+    // Every field an athlete starts with. Saves omit fields still equal to
+    // these (GameState.toJSON), and the constructor restores them on load.
+    static defaults() {
+      return {
         firstName: '',
         lastName: '',
         gender: 'M', // 'M' or 'W'
@@ -120,8 +121,14 @@
 
         schoolId: null,
         isRecruit: false,
-        careerStats: { races: 0, wins: 0, top5: 0, personalBests: {} },
+        careerStats: { races: 0, wins: 0, top5: 0, personalBests: {} }
+      };
+    }
 
+    constructor(data) {
+      Object.assign(this, {
+        id: Utils.generateId('ath'),
+        ...Athlete.defaults(),
         ...data
       });
       this.migrateLegacyRatings(data);
@@ -540,9 +547,9 @@
    * point the engine converts them into a rostered Athlete.
    * ---------------------------------------------------------------- */
   class Recruit extends Athlete {
-    constructor(data) {
-      super(data);
-      Object.assign(this, {
+    // The recruit-only fields layered over Athlete.defaults().
+    static recruitDefaults() {
+      return {
         isRecruit: true,
         source: 'HS',            // HS | JUCO | International
         country: 'USA',
@@ -590,8 +597,19 @@
         // The player's scouting knowledge of this recruit. `probed` flips true
         // the first time the player spends any recruiting action on them; until
         // then the recruit's potential stays a mystery (shown as "?").
-        playerKnowledge: { scout: 0, revealed: [], probed: false },
+        playerKnowledge: { scout: 0, revealed: [], probed: false }
+      };
+    }
 
+    // Everything a recruit starts with (athlete fields + recruit fields).
+    static defaults() {
+      return { ...Athlete.defaults(), ...Recruit.recruitDefaults() };
+    }
+
+    constructor(data) {
+      super(data);
+      Object.assign(this, {
+        ...Recruit.recruitDefaults(),
         ...data
       });
       this.isRecruit = true;

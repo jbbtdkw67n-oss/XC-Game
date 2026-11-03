@@ -36,6 +36,215 @@
     return 'Offseason';
   }
 
+
+  /*
+   * Save compaction (century-soak save size). Two passes keep a long
+   * dynasty's save lean without touching the in-memory model:
+   *
+   *  1) People (world.athletes / world.recruits): ~100 fields each, and the
+   *     key names alone were over half the bytes. Fields still equal to the
+   *     model's constructor default are omitted (the constructor restores
+   *     them on load), and a few continuously-drifting floats are rounded.
+   *     Each saved athlete stays an ordinary { field: value } object.
+   *
+   *  2) History: the permanent ledgers (alumni, coach registry, awards, hall
+   *     of fame, ...) are thousands of same-shaped records. They are packed
+   *     as tuples against a shared key-schema table, and every string seen
+   *     more than once (labels, names, ids) is stored once in a string
+   *     table. Unpacking restores the exact same data, key order included,
+   *     before anything else reads the save. Unpacked (older) saves load
+   *     unchanged.
+   */
+  const SaveCodec = (function () {
+    const MARK = '\u00a7'; // a tuple's first element: MARK + schema id (base 36)
+    const STR = '\u00b6';  // an interned string: STR + string-table id (base 36)
+    const PACKED = MARK + 'packed';
+    const MIN_INTERN = 4;   // shorter strings cost no more inline than as a reference
+
+    // Never omitted even when default: the Athlete constructor treats a
+    // missing relationship as a pre-Update-5 save and re-seeds it from morale.
+    const KEEP = { id: true, coachRelationship: true, teamRelationship: true };
+    // Drifting floats nothing reads at full precision → decimals kept on save.
+    const ROUND = {
+      confidence: 2, consistency: 2, mentalToughness: 2, hillAdaptation: 2,
+      coachRelationship: 2, teamRelationship: 2,
+      devProgress: 4, devExecAvg: 4, _devCeiling: 3
+    };
+    const roundTo = (x, d) => { const f = Math.pow(10, d); return Math.round(x * f) / f; };
+    const HAS = Object.prototype.hasOwnProperty;
+
+    // Structural equality for the small default objects ({ races: 0, ... }).
+    function same(a, b) {
+      if (a === b) return true;
+      if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
+      if (Array.isArray(a) !== Array.isArray(b)) return false;
+      const ka = Object.keys(a);
+      const kb = Object.keys(b);
+      if (ka.length !== kb.length) return false;
+      for (let i = 0; i < ka.length; i++) {
+        if (ka[i] !== kb[i] || !same(a[ka[i]], b[kb[i]])) return false;
+      }
+      return true;
+    }
+
+    function compactPerson(p, defaults) {
+      const out = {};
+      const keys = Object.keys(p);
+      for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        let v = p[k];
+        if (v === undefined || typeof v === 'function') continue;
+        if (typeof v === 'number' && ROUND[k] !== undefined && !Number.isInteger(v) && isFinite(v)) {
+          v = roundTo(v, ROUND[k]);
+        }
+        if (!KEEP[k] && HAS.call(defaults, k) && same(v, defaults[k])) continue;
+        out[k] = v;
+      }
+      return out;
+    }
+
+    function compactPeople(coll, defaults) {
+      const out = {};
+      if (!coll) return out;
+      Object.keys(coll).forEach((id) => { out[id] = compactPerson(coll[id], defaults); });
+      return out;
+    }
+
+    // Recruits also carry per-school interest maps whose relationship /
+    // interest values drift as long floats.
+    function compactRecruits(coll) {
+      const out = compactPeople(coll, M.Recruit.defaults());
+      Object.keys(out).forEach((id) => {
+        const r = out[id];
+        if (!r.interests || typeof r.interests !== 'object') return;
+        const ints = {};
+        Object.keys(r.interests).forEach((sid) => {
+          const st = r.interests[sid];
+          if (!st || typeof st !== 'object') { ints[sid] = st; return; }
+          const c = Object.assign({}, st);
+          if (typeof c.relationship === 'number') c.relationship = roundTo(c.relationship, 2);
+          if (typeof c.interest === 'number') c.interest = roundTo(c.interest, 2);
+          ints[sid] = c;
+        });
+        r.interests = ints;
+      });
+      return out;
+    }
+
+    // Pack any JSON-able tree with JSON.stringify's semantics (undefined and
+    // function values dropped from objects, null inside arrays; toJSON honored).
+    function pack(root) {
+      const schemas = [];
+      const index = new Map();
+      const counts = new Map();
+      const enc = (v) => {
+        if (typeof v === 'string') {
+          if (v.length >= MIN_INTERN) counts.set(v, (counts.get(v) || 0) + 1);
+          return v;
+        }
+        if (v === null || typeof v !== 'object') return v;
+        if (typeof v.toJSON === 'function') {
+          v = v.toJSON();
+          if (v === null || typeof v !== 'object') return enc(v);
+        }
+        if (Array.isArray(v)) {
+          const out = new Array(v.length);
+          for (let i = 0; i < v.length; i++) {
+            const x = v[i];
+            out[i] = (x === undefined || typeof x === 'function' || typeof x === 'symbol') ? null : enc(x);
+          }
+          // A real array that happens to start with a MARK string is escaped.
+          if (typeof out[0] === 'string' && out[0].charAt(0) === MARK) out.unshift(MARK);
+          return out;
+        }
+        const keys = [];
+        const vals = [null];
+        const ks = Object.keys(v);
+        for (let i = 0; i < ks.length; i++) {
+          const x = v[ks[i]];
+          if (x === undefined || typeof x === 'function' || typeof x === 'symbol') continue;
+          keys.push(ks[i]);
+          vals.push(enc(x));
+        }
+        if (!keys.length) return {};
+        const sig = keys.join('\u0001');
+        let id = index.get(sig);
+        if (id === undefined) { id = schemas.length; schemas.push(keys); index.set(sig, id); }
+        vals[0] = MARK + id.toString(36);
+        return vals;
+      };
+      let d = enc(root);
+
+      // String table: repeated strings, most frequent first (shortest refs).
+      const table = [];
+      counts.forEach((c, x) => { if (c > 1) table.push(x); });
+      table.sort((a, b) => counts.get(b) - counts.get(a));
+      const ref = new Map();
+      table.forEach((x, i) => ref.set(x, STR + i.toString(36)));
+      const str = (x) => {
+        const r = ref.get(x);
+        if (r !== undefined) return r;
+        return x.charAt(0) === STR ? STR + x : x; // escape a literal leading STR
+      };
+      // Only arrays (tuples / real arrays), primitives and {} remain now.
+      const intern = (a) => {
+        const h = a[0];
+        const start = (typeof h === 'string' && h.charAt(0) === MARK) ? 1 : 0; // tuple head / escape
+        for (let i = start; i < a.length; i++) {
+          const x = a[i];
+          if (typeof x === 'string') a[i] = str(x);
+          else if (Array.isArray(x)) intern(x);
+        }
+      };
+      if (typeof d === 'string') d = str(d);
+      else if (Array.isArray(d)) intern(d);
+      return { [PACKED]: 1, s: schemas, t: table, d };
+    }
+
+    function isPacked(x) {
+      return !!(x && typeof x === 'object' && x[PACKED] === 1 && Array.isArray(x.s));
+    }
+
+    function unpack(p) {
+      const S = p.s;
+      const T = p.t || [];
+      const set = (o, k, v) => {
+        if (k === '__proto__') Object.defineProperty(o, k, { value: v, enumerable: true, writable: true, configurable: true });
+        else o[k] = v;
+      };
+      const dec = (v) => {
+        if (typeof v === 'string') {
+          if (v.charAt(0) !== STR) return v;
+          return v.charAt(1) === STR ? v.slice(1) : T[parseInt(v.slice(1), 36)];
+        }
+        if (v === null || typeof v !== 'object') return v;
+        if (Array.isArray(v)) {
+          const h = v[0];
+          if (typeof h === 'string' && h.charAt(0) === MARK) {
+            if (h.length === 1) { // an escaped real array
+              const a = new Array(v.length - 1);
+              for (let i = 1; i < v.length; i++) a[i - 1] = dec(v[i]);
+              return a;
+            }
+            const keys = S[parseInt(h.slice(1), 36)];
+            const o = {};
+            for (let i = 0; i < keys.length; i++) set(o, keys[i], dec(v[i + 1]));
+            return o;
+          }
+          const a = new Array(v.length);
+          for (let i = 0; i < v.length; i++) a[i] = dec(v[i]);
+          return a;
+        }
+        const o = {};
+        Object.keys(v).forEach((k) => set(o, k, dec(v[k])));
+        return o;
+      };
+      return dec(p.d);
+    }
+
+    return { pack, unpack, isPacked, compactPeople, compactRecruits };
+  })();
+
   class GameState {
     constructor() {
       this.dynastyName = '';
@@ -657,7 +866,12 @@
         dynastyName: this.dynastyName,
         dynastyId: this.dynastyId,
         seed: this.seed,
-        world: this.world,
+        // People are saved lean (defaults omitted, drifting floats rounded);
+        // the model constructors restore every omitted field on load.
+        world: Object.assign({}, this.world, {
+          athletes: SaveCodec.compactPeople(this.world.athletes, M.Athlete.defaults()),
+          recruits: SaveCodec.compactRecruits(this.world.recruits)
+        }),
         playerSchoolId: this.playerSchoolId,
         playerCoachId: this.playerCoachId,
         playerRole: this.playerRole,
@@ -666,7 +880,8 @@
         newsLog: this.newsLog,
         createdAt: this.createdAt,
         recruiting: this.recruiting,
-        history: this.history,
+        // The permanent ledgers, tuple-packed (unpacked first thing on load).
+        history: this.history ? SaveCodec.pack(this.history) : this.history,
         training: this.training,
         season: this.season,
         rankings: this.rankings,
@@ -703,6 +918,9 @@
     }
 
     static fromJSON(obj) {
+      // Packed history ledgers (save compaction) unpack before anything reads
+      // them; saves written before compaction carry plain history already.
+      if (obj && SaveCodec.isPacked(obj.history)) obj.history = SaveCodec.unpack(obj.history);
       // Versioned migrations (Part 13): old saves are upgraded in place,
       // never rejected. Each migration moves a save one version forward.
       obj = GameState.migrateSave(obj);
@@ -960,6 +1178,7 @@
   }
 
   GameState.SAVE_VERSION = 5;
+  GameState.SaveCodec = SaveCodec;
 
   // A collision-resistant id for a brand-new dynasty (Phase 5).
   GameState.newDynastyId = function () {

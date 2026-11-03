@@ -96,14 +96,15 @@ async function run() {
   ok(world.champYears >= 100, 'a century of champions must be in the records: ' + world.champYears);
   ok(world.facAvg >= 35 && world.facAvg <= 90, 'AI facility investment must stay believable: avg ' + world.facAvg);
   ok(world.reload, 'the century-old save must round-trip cleanly');
-  // A fresh Update-11 world is ~55 MB: ~34k living athletes plus the
-  // 6,000-recruit national class dominate (storage is IndexedDB, so tens
-  // of MB are fine). The History & Legacy update made every ledger
-  // permanent — every coach, every decorated alumnus, every championship
-  // roster is preserved forever, by design — so history now adds
-  // ~0.8 MB/season and a century lands ~135 MB. Anything near 170 would
+  // The living world (~24k athletes + the 6,000-recruit class) is saved
+  // lean — default-valued fields omitted, drifting floats rounded — at a flat
+  // ~50 MB (it was ~70 MB of mostly repeated key names). The History & Legacy
+  // ledgers are permanent by design (every coach, decorated alumnus and
+  // championship roster is kept forever) but are saved tuple-packed with a
+  // shared string table, so they add ~0.35 MB/season (was ~1 MB) and a
+  // century lands ~87 MB (was ~171 MB unpacked). Anything near 120 would
   // mean genuine bloat/leaked refs rather than intentional history.
-  ok(world.saveMB < 170, 'the save must stay a sane size: ' + world.saveMB + ' MB');
+  ok(world.saveMB < 120, 'the save must stay a sane size: ' + world.saveMB + ' MB');
   console.log('century integrity:', JSON.stringify(world));
   console.log(`100 seasons in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
 
