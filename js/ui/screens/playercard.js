@@ -323,7 +323,16 @@
             const gc = window.XCD.data.growthCurve
               ? window.XCD.data.growthCurve(athlete.devProfile) : null;
             if (!gc) return '';
-            return `<div class="attr-row"><span class="attr-name">Development Curve</span><span title="${Utils.escapeHtml(gc.desc)}">${gc.icon} ${gc.label}</span></div>`;
+            const curveRow = `<div class="attr-row"><span class="attr-name">Development Curve</span><span title="${Utils.escapeHtml(gc.desc)}">${gc.icon} ${gc.label}</span></div>`;
+            // Ceiling Here (Development Rework): how far this athlete will
+            // develop at this program, given their curve.
+            const T = window.XCD.engine.Training;
+            const o = T && T.growthOutlook ? T.growthOutlook(game, athlete) : null;
+            if (!o) return curveRow;
+            const ceilTip = 'How far this athlete will develop here. A better coach, better '
+              + 'facilities and well-executed training raise it toward their potential.';
+            return curveRow
+              + `<div class="attr-row" id="pc-ceiling-here"><span class="attr-name">Ceiling Here</span><span title="${Utils.escapeHtml(ceilTip)}">${o.ceiling} <span style="color:var(--text-faint); font-size:11.5px;">of ${Math.round(athlete.potential)} POT</span></span></div>`;
           })()}
           ${(() => {
             const st = athlete.starRating || 0;

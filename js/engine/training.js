@@ -38,6 +38,9 @@
   // biggest jumps (a 90+ work ethic with headroom can gain +4/+5 overall).
   const OFFSEASON_DEV_RATE = 1.0;
   const OFFSEASON_MAX_POINTS = 30;
+  // Summer points per unit of the shared growth curve (gapGrowth): a 24-point
+  // gap (curve 1.0) is worth ~26 raw points before the summer modifiers.
+  const OFFSEASON_GAP_POINTS = 26.4;
 
   /* ================================================================ *
    * Plans
@@ -621,29 +624,93 @@
    * Development
    * ================================================================ */
 
-  // Development-curve multiplier by career stage (Update 21: visible growth
-  // curves). The multiplier reshapes WHEN a career's growth arrives without
-  // changing how far it ultimately goes — each curve averages ~1.0 across a
-  // five-year clock, so an Early Riser and a Late Bloomer with the same
-  // potential both reach it, just on different timelines. Uses years on campus
-  // (the college clock) so the curve aligns with class year, not raw age.
+  /*
+   * THE DEVELOPMENT CORE (Development Rework). Every athlete in the world —
+   * the player's and the CPU's — grows by the same four rules, in season and
+   * over the summer alike:
+   *
+   *   1. HEADROOM. Growth speed comes from the gap between today's overall
+   *      and the ceiling OPEN to the athlete right now (gapGrowth): a big gap
+   *      grows fast, a raw talent's huge gap surges, the last points crawl.
+   *      Low overall + high potential is therefore the fastest climb there is.
+   *   2. DEVELOPMENT CURVE (visible on the player card). Decides WHEN the
+   *      headroom opens and how hard it is attacked:
+   *        `open` — the share of the climb from where the athlete arrived
+   *                 (devBase) to their ceiling that is available that year.
+   *                 A Late Bloomer's top end stays locked until junior year,
+   *                 then opens all at once — a big gap, so a big jump.
+   *        `pace` — how fast the open headroom is taken that year.
+   *   3. PROGRAM. The coach's development rating and the facilities: how
+   *      fast athletes grow and how much of their potential is realized.
+   *   4. TRAINING QUALITY. How well the weekly plan is built and executed —
+   *      the coach's own lever and the biggest one in their hands.
+   *
+   * Everything else (work ethic, morale, fatigue, culture, altitude,
+   * academics, injuries, luck) is a smaller modifier layered on top.
+   */
+  const DEV_CURVES = {
+    //        share of headroom open, by year on campus   pace, by year on campus
+    normal: { open: [1.00, 1.00, 1.00, 1.00, 1.00], pace: [1.00, 1.00, 1.00, 0.95, 0.90] }, // steady climb
+    early:  { open: [1.00, 1.00, 1.00, 1.00, 1.00], pace: [2.05, 1.60, 0.85, 0.60, 0.50] }, // breakout now, plateaus by junior year
+    late:   { open: [0.25, 0.35, 1.00, 1.00, 1.00], pace: [0.85, 0.85, 2.30, 2.00, 1.50] }, // locked early, explodes as a junior/senior
+    bust:   { open: [0.40, 0.50, 0.58, 0.62, 0.62], pace: [0.70, 0.70, 0.65, 0.60, 0.60] }, // tops out well short of potential
+    legend: { open: [1.00, 1.00, 1.00, 1.00, 1.00], pace: [1.90, 1.85, 1.80, 1.75, 1.70] }  // the rare phenom: fast, every year
+  };
+
+  function devCurve(athlete) {
+    return DEV_CURVES[athlete.devProfile] || DEV_CURVES.normal;
+  }
+
+  function devYearIdx(athlete) {
+    return Math.max(1, Math.min(5, athlete.yearsOnCampus || 1)) - 1;
+  }
+
+  // Pace of growth this year from the development curve (rule 2).
   function devProfileMult(athlete) {
-    const profile = athlete.devProfile || 'normal';
-    const yr = Math.max(1, Math.min(5, athlete.yearsOnCampus || 1));
-    // Per-year curves, indexed [yr-1].
-    // Early risers and late bloomers can SPIKE well past a steady runner's
-    // ~12-overall best season during their surge years — a breakout freshman
-    // or a junior/senior who suddenly puts it together can jump ~20 in a single
-    // season in a strong program (the effective-ceiling cap still stops anyone
-    // from blowing past their potential).
-    const CURVES = {
-      early:  [2.10, 1.65, 0.80, 0.50, 0.40], // front-loaded: freshman/soph breakout, plateaus by junior
-      late:   [0.42, 0.60, 1.75, 2.45, 1.85], // back-loaded: dramatic junior/senior jumps
-      normal: [1.08, 1.05, 1.00, 0.95, 0.90], // steady, gentle taper
-      bust:   [0.48, 0.46, 0.44, 0.42, 0.40], // never quite gets there
-      legend: [1.90, 1.85, 1.80, 1.75, 1.70]  // the 1-in-1000 walk-on who becomes a star
+    return devCurve(athlete).pace[devYearIdx(athlete)];
+  }
+
+  // Where the athlete's development curve starts: their overall the first
+  // time the engine sees them (a signee on arrival; an existing upperclassman
+  // from an older save on load). Never moves after that.
+  function devBaseOf(athlete) {
+    if (athlete.devBase == null) athlete.devBase = athlete.currentOverall;
+    return athlete.devBase;
+  }
+
+  // The ceiling OPEN to the athlete this year: their effective ceiling, less
+  // whatever their development curve still holds back (rule 2).
+  function openCeiling(athlete, ceil) {
+    const base = Math.min(devBaseOf(athlete), ceil);
+    return base + (ceil - base) * devCurve(athlete).open[devYearIdx(athlete)];
+  }
+
+  /*
+   * The development core in player-facing terms (player card): how much room
+   * the athlete has to grow right now, how much more their curve unlocks
+   * later, and the ceiling their current program will realize.
+   */
+  function growthOutlook(gameState, athlete) {
+    const school = gameState.getSchool && gameState.getSchool(athlete.schoolId);
+    if (!school) return null;
+    const coach = gameState.getCoach ? gameState.getCoach(school.coachId) : null;
+    const ceil = effectiveCeiling(athlete, devEnvQuality(athlete, coach, school));
+    const open = openCeiling(athlete, ceil);
+    const ovr = athlete.currentOverall;
+    const curve = devCurve(athlete);
+    const yi = devYearIdx(athlete);
+    // The most the curve will ever open from here, and the year it gets there.
+    const maxShare = Math.max(...curve.open.slice(yi));
+    const unlockIdx = curve.open.findIndex((s, i) => i >= yi && s === maxShare);
+    const base = Math.min(devBaseOf(athlete), ceil);
+    const reachable = base + (ceil - base) * maxShare;
+    return {
+      ceiling: Math.round(reachable),                    // the most this program + curve will realize
+      roomNow: Math.max(0, Math.round(open - ovr)),      // open headroom this year
+      locked: Math.max(0, Math.round(reachable - Math.max(open, ovr))), // held back for now
+      unlockYear: unlockIdx > yi ? unlockIdx + 1 : null, // year on campus it fully opens
+      foundation: ovr < FOUNDATION_OVR                    // the below-75 boost applies
     };
-    return (CURVES[profile] || CURVES.normal)[yr - 1];
   }
 
   /*
@@ -733,18 +800,34 @@
     return Math.min(2.2, 1.25 + (gap - 30) / 26);
   }
 
+  /*
+   * Foundation boost (Development Rework, rule 1). The basics come quickly:
+   * below 75 overall every athlete grows faster — up to +40% at 50 overall and
+   * under, tapering to nothing at 75. Because growth is still driven by
+   * headroom, the boost does the most for the athletes with the most room
+   * (low overall, high potential) and next to nothing for a runner already at
+   * a low ceiling. From 75 up, development runs at the ordinary rate.
+   */
+  const FOUNDATION_OVR = 75;
+  function foundationBoost(overall) {
+    return 1 + 0.40 * Utils.clamp((FOUNDATION_OVR - overall) / 25, 0, 1);
+  }
+
   function devPoints(athlete, coach, school, planMeta, rng) {
     const coachSkill = coach ? (coach.training ?? coach.development ?? 55) : 50;
     // Environment quality sets the athlete's EFFECTIVE ceiling — how much of
     // their potential the program actually unlocks (diversified attainment).
     const env = devEnvQuality(athlete, coach, school);
     const ceil = effectiveCeiling(athlete, env);
-    athlete._devCeiling = ceil; // consumed by applyDevelopment's rating cap
-    // Development slows to a crawl as the athlete nears their effective ceiling.
-    // Banked injury losses come back separately, so the gap is measured from
-    // the runner's healthy level (no double-speed rebuild past the ceiling).
-    const gap = ceil - (athlete.currentOverall + injuryDeficitOverall(athlete));
-    const gapFactor = gapGrowth(gap);
+    const open = openCeiling(athlete, ceil);
+    athlete._devCeiling = ceil; // consumed by applyDevelopment (elite polish)
+    athlete._devOpen = open;    // consumed by applyDevelopment's rating cap
+    // Headroom (rule 1) is measured to the ceiling the development curve has
+    // opened this year. Development slows to a crawl near it. Banked injury
+    // losses come back separately, so the gap is measured from the runner's
+    // healthy level (no double-speed rebuild past the ceiling).
+    const gap = open - (athlete.currentOverall + injuryDeficitOverall(athlete));
+    const gapFactor = gapGrowth(gap) * foundationBoost(athlete.currentOverall + injuryDeficitOverall(athlete));
     // Perfect-storm finishing kick: only a near-max potential unlocked by a
     // near-perfect program (effective ceiling ~98-99) gets a boost on the final,
     // otherwise glacial climb — enough that a genuine 99 overall is reachable
@@ -792,6 +875,13 @@
       devProfileMult(athlete) * careerInjuryDevMult(athlete) * noise;
   }
 
+  // The highest any developed rating may climb: the open ceiling plus a small
+  // headroom so the weighted overall can actually reach it. One cap for the
+  // season and the summer alike.
+  function devRatingCap(openCeil) {
+    return Utils.clamp(Math.round(openCeil) + 4, 20, 99);
+  }
+
   // Spend accumulated development on attributes weighted by the plan.
   // Injury Resistance is essentially innate — it only inches up (rarely) for an
   // athlete who has already maxed everything else at a truly elite program,
@@ -805,7 +895,7 @@
     // needs a near-max effective ceiling — i.e. a near-max potential unlocked by
     // a near-perfect program — making it extraordinarily rare.
     const ceil = athlete._devCeiling ?? athlete.potential;
-    const cap = Utils.clamp(Math.round(ceil) + 4, 20, 99);
+    const cap = devRatingCap(athlete._devOpen ?? ceil);
     while (athlete.devProgress >= 1) {
       athlete.devProgress -= 1;
       // Prefer an uncapped rating so no development point is wasted — this lets
@@ -1993,12 +2083,15 @@
           // Attribute points, not overall: ~5.5 points across the five
           // physical ratings move the overall by 1, so a +4/+5 summer is a
           // ~22-28 point haul — only possible for a grinder with real headroom.
-          const gap = a.potential - a.currentOverall;
-          // Headroom drives growth; a raw talent's huge gap keeps paying out
-          // past the ordinary 20-point mark (Update 25, Stage 4).
-          let pts = (Math.min(gap, 20) * 1.1 + Math.max(0, gap - 20) * 0.5) * OFFSEASON_DEV_RATE;
-          pts = Utils.clamp(pts, 0, 45);
-          if (gap < 5) pts *= 0.3;                          // the plateau near the ceiling
+          // The SAME core as the season (Development Rework): headroom to the
+          // ceiling the program and the development curve have opened this
+          // year, through the same growth curve — a raw talent's huge gap
+          // keeps paying out, the last few points crawl.
+          const ceil = effectiveCeiling(a, devEnvQuality(a, coach, school));
+          const open = openCeiling(a, ceil);
+          const gap = open - a.currentOverall;
+          let pts = gapGrowth(gap) * foundationBoost(a.currentOverall) * OFFSEASON_GAP_POINTS * OFFSEASON_DEV_RATE;
+          if (gap <= 0) pts = 0;                            // nothing open this summer
           // Work Ethic is the LARGEST factor (Section 11): summer is
           // unsupervised, so the grinders separate themselves. The curve is
           // steep — a 90 work ethic gains ~2.5x what a 60 does, ~5x a 40.
@@ -2037,11 +2130,11 @@
             attrs.reduce((o, k) => { o[k] = (philo.attrMult && philo.attrMult[k]) || 1; return o; }, {}), a);
           const attrWeight = (k) => bias[k] || 0.0001;
           const gain = Math.round(pts);
-          const cap = Math.min(97, a.potential + 8);
+          const cap = devRatingCap(open);
           for (let i = 0; i < gain; i++) {
-            const open = attrs.filter((k) => a[k] < cap);
-            if (!open.length) break;
-            const k = rng.weightedChoice(open, attrWeight);
+            const roomy = attrs.filter((k) => a[k] < cap);
+            if (!roomy.length) break;
+            const k = rng.weightedChoice(roomy, attrWeight);
             a[k] += 1;
           }
           for (let i = 0; i < loss; i++) {
@@ -2180,6 +2273,9 @@
     readiness,
     squadCulture,
     devProfileMult,
+    growthOutlook,
+    foundationBoost,
+    DEV_CURVES,
     careerInjuryDevMult,
     majorInjuryCount,
     recordCareerInjury,
