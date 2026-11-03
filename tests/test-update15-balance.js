@@ -184,7 +184,9 @@ const { walkCoachWizard, wireErrors, launchOpts } = require('./helpers');
           // stronger. (The 88-95 OVR stars at the top of today's portal cost
           // 130-230 points each.) The Update 15 design behind the 3-6 band
           // is one star plus value adds: athletes who score for this team
-          // next season, taken cheapest-lock first, since each is a scorer.
+          // next season. Budget them like a coach would: aim for a star and
+          // three adds, and give each add the best scorer whose lock fits
+          // its share of the points left.
           if (g.portal && g.portal.open && !g.portal.summer) {
             const school = g.getPlayerSchool();
             const held = (id) => !!(g.portal.player && g.portal.player.allocations[id]);
@@ -212,12 +214,20 @@ const { walkCoachWizard, wireErrors, launchOpts } = require('./helpers');
             let slot = cands.filter((x) => held(x.a.id)).length;
             // 1) The star: the best name on the board, once per window.
             if (!P.transferPointsSpent(g) && cands.length && pursue(cands[0])) slot++;
-            // 2) Value adds: contributors, cheapest lock first.
-            const adds = cands
-              .filter((x) => !held(x.a.id) && x.a.currentOverall >= scorerBar[x.a.gender])
-              .map((x) => ({ x, lock: P.pointsToLock(g, x.a, school, x.e) }))
-              .sort((p, q) => p.lock - q.lock);
-            for (const { x } of adds) {
+            // 2) Value adds: scorers, each the best one whose lock fits an
+            //    even share of what's left (cheapest if none does).
+            const PLAN = 4; // the star + three adds
+            const adds = cands.filter((x) => !held(x.a.id) && x.a.currentOverall >= scorerBar[x.a.gender]);
+            const lockOf = (x) => P.pointsToLock(g, x.a, school, x.e);
+            while (adds.length && slot < PLAN && P.transferPointsLeft(g) >= 20) {
+              const share = P.transferPointsLeft(g) / (PLAN - slot);
+              let pick = adds.find((x) => lockOf(x) <= share);
+              if (!pick) pick = adds.reduce((m, x) => (lockOf(x) < lockOf(m) ? x : m));
+              adds.splice(adds.indexOf(pick), 1);
+              if (pursue(pick)) slot++;
+            }
+            // 3) Spread whatever's left as stakes on the next-best scorers.
+            for (const x of adds) {
               if (P.transferPointsLeft(g) < 20 || slot >= 7) break;
               if (pursue(x)) slot++;
             }
