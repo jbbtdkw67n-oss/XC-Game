@@ -776,7 +776,9 @@ full onboarding experience — all iPhone-ready.
 - Balance-validated with a **40-season stress sim**
   (`tests/test-update15-balance.js`): a blue-blood player lands 3-6
   transfers per cycle and genuine top-5 classes, while CPU powers still win
-  their share of titles.
+  their share of titles. (Re-baselined in November 2026: as world talent
+  has risen, the same budget buys about two star locks per cycle; see
+  `docs/CODE-REVIEW-2026-10.md`.)
 
 ## Version 11.2 — Update 14: Full iPhone UI Redesign
 
