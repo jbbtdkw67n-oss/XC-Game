@@ -266,12 +266,24 @@
       dbl('M15 17L26.4 5.6', '#b5733e', 1.5) +
       `<path d="M25.2 6.8l-.4-3.8 2.4-1.6.3 3 3 .3-1.6 2.4z" fill="@blue"/><path d="M15 17l3.4-1.2-2.2-2.2z" fill="@steel"/>`],
     ['runner', '🏃', 'Runner',
-      `<path d="M2.5 10h5M1.5 14h4.5M3 18h3" stroke="#93a0b4" stroke-width="1.4"/>` +
-      dbl('M15 18.5l-3.6 4.8H7', SKIN, 3) + dbl('M18.4 11.6l-4 2.6-3.4-1.8', SKIN, 2.6) +
-      dbl('M19.2 10.2L15.4 18.4', '#3d8bfd', 4.4) + `<circle cx="15.2" cy="18.6" r="2.8" fill="@red"/>` +
-      dbl('M15.4 18.6l5.4 2.4-1.2 6.4', SKIN, 3) + dbl('M18.8 11.4l3.4 4 4.2-1.4', SKIN, 2.6) +
-      `<ellipse cx="6.6" cy="23.4" rx="2.2" ry="1.4" fill="@orange"/><ellipse cx="20" cy="28" rx="2.4" ry="1.4" fill="@orange"/>` +
-      `<circle cx="21.6" cy="6.4" r="3.3" fill="@skin"/><path d="M18.4 5.8c.2-1.9 1.6-3.2 3.3-3.2s3.1 1.1 3.3 2.7c-1.5-.5-3.1-.2-4.3.6z" fill="#4b3120"/>`],
+      // A tribute to the 1970s front-runner: shaggy hair, a full mustache, a
+      // green singlet with yellow trim, yellow shorts, all-out forward stride.
+      `<path d="M1.4 10h5M.6 14h4.6M2 18h3.4" stroke="#93a0b4" stroke-width="1.4"/>` +
+      dbl('M19 12.2l-4.2 2.4-2.4-2.8', SKIN, 2.4) +
+      dbl('M15 19.2l-4 3.2-5 2.6', SKIN, 2.8) + dbl('M16.6 19.4l5.4 1.4-1.4 6.2', SKIN, 2.8) +
+      `<ellipse cx="5.2" cy="25.4" rx="2.3" ry="1.4" transform="rotate(-25 5.2 25.4)" fill="@paper"/>` +
+      `<ellipse cx="21" cy="28" rx="2.5" ry="1.4" fill="@paper"/>` +
+      `<path d="M13.4 17.4l4.8 1.4-.8 3.4-5-1z" fill="@yellow"/>` +
+      `<path d="M17.8 10.4l4-.2c.6 2.4.2 5-1.2 7.2l-1.2 2-6.4-1.8 1.6-3.4c.8-1.6 1.8-2.8 3.2-3.8z" fill="#1f8a4c"/>` +
+      `<path d="M18.4 11.2c1 .6 2 .6 2.8 0M14.6 17.6l5.2 1.4" fill="none" stroke="#ffd43a" stroke-width="1"/>` +
+      `<path d="M16.4 13.4c-.6 1-1.2 2.2-1.6 3.4" stroke="#fff" stroke-width=".9" opacity=".35"/>` +
+      dbl('M20.6 12.2l2.8 4 3.8-1.8', SKIN, 2.4) +
+      `<circle cx="22.6" cy="6.4" r="3.7" fill="@skin"/>` +
+      `<path d="M19.2 8.2c-1-3 .6-6 3.6-6.4 2.2-.3 4 .6 4.4 2.4-1-.1-2 .1-2.7.7-.6-.3-1.4-.2-2 .3.2.9.1 1.8-.5 2.4l-.6 2.4c-.8.1-1.6-.2-2.2-.8z" fill="#7a4a24"/>` +
+      `<path d="M19.4 9.4c-.2 1 0 1.8.6 2.4l.8-1.4" fill="#7a4a24" stroke-width=".9"/>` +
+      `<ellipse cx="21.4" cy="7" rx=".8" ry="1" fill="@skin" stroke-width=".8"/>` +
+      `<path d="M23 7.9c.9-.6 2.2-.7 3.3-.2.3.2.3.6-.1.7-1.1.4-2.2.4-3.2 0-.3-.1-.3-.4 0-.5z" fill="#5a3418" stroke-width=".6"/>` +
+      `<circle cx="24.6" cy="5.6" r=".5" fill="${O}" ${N}/>`],
     ['shoe', '👟', 'Running shoe',
       `<path d="M3.5 21.5c-.3-3.4.3-7.4 1.6-10.2.4-.8 1.3-1.1 2.1-.8l3.2 1.4c1 .4 2.1.1 2.7-.7l1.7-2.4c.5-.7 1.5-.8 2.1-.2 2.1 2 4.3 4 7 5.2 2.4 1 4.8 1.6 6 3.4.6.9.8 2.2.6 3.4z" fill="@blue"/>` +
       dbl('M8.5 19.6c3.6-3.6 7.4-5.6 12.4-6.2', '#ff8a2a', 1.8) +
