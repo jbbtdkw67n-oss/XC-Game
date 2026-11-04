@@ -62,11 +62,11 @@
     const road = (icon, title, body) => `<div style="padding:8px 0; border-top:1px solid var(--border);"><strong>${icon} ${title}</strong><div style="color:var(--text-dim); margin-top:2px;">${body}</div></div>`;
     return `
       <details class="card approaches-guide" id="approaches-guide" style="margin-bottom:16px; font-size:13px;">
-        <summary style="cursor:pointer; font-weight:700;">🧭 Training approaches — several ways to a fast November</summary>
+        <summary style="cursor:pointer; font-weight:700;">🧭 Training approaches — no single right way to train</summary>
         <div style="margin-top:8px; color:var(--text-dim);">There is no one right way to train. Pick the road that fits your runners — or mix them runner by runner with individual mileage.</div>
         ${road('🏗️', 'Aerobic base — high volume', `Build each runner up over a few weeks toward their durable limit (🎯 Ideal Mileage). The biggest development there is — in season, at the taper, and next summer. The cost: legs race a little flat until the taper, and only durable runners can carry it. <strong>${durable} of your ${roster.length} healthy runners</strong> can handle ${bigAt}+ mi/wk right now.`)}
-        ${road('⚡', 'Quality on fresh legs — low volume', `Run ${low} mi/wk with intervals, speed, and race simulations every week. The sharpest squad all regular season, the lowest injury risk, and a taper peak just as high — but the slowest-growing engine over a career. Made for fragile talent.`)}
-        ${road('⚖️', 'The balanced middle', `Program-normal volume (${normal} mi/wk) with plans that fit each phase: a little of both.`)}
+        ${road('⚡', 'Speed on fresh legs — low volume', `Run ${low} mi/wk with intervals, speed, and race simulations every week. The sharpest squad all regular season — wins, poll points, invitations — with a low injury risk, which makes it a good home for fragile talent. The price: with no base under it, the same work goes <strong>stale</strong> by championship season, so November is harder and the engine grows slowest. Down weeks and recovery weeks slow the staleness.`)}
+        ${road('⚖️', 'The balanced middle', `Program-normal volume (${normal} mi/wk) with plans that fit each phase: solid all season, never the extreme of either.`)}
         <div style="padding:8px 0 0; border-top:1px solid var(--border);"><strong>Rules of thumb for every approach</strong>
           <ul style="margin:4px 0 0; padding-left:18px; color:var(--text-dim);">
             <li><strong>Base early, sharpen late:</strong> volume and long runs in summer and September; race-specific work (intervals, speed, simulations) in October. The phase banner above shows what fits this week.</li>
