@@ -362,7 +362,14 @@
     const preview = () => {
       const meta = TE().planMetaFor(game.training[activeGender]);
       const miles = game.training.mileage[activeGender];
-      const mMeta = TE().mileageMeta(miles);
+      // Volume effects are per runner now (adaptation, durable limit): show
+      // the squad average at each runner's own miles.
+      const healthy = roster.filter((a) => !a.injury);
+      const metas = (healthy.length ? healthy : [null]).map((a) => a
+        ? TE().mileageMeta(game.training.mileageOverrides[a.id] ?? miles, a.chronicMileage, a)
+        : TE().mileageMeta(miles));
+      const avgOf = (k) => Utils.average(metas.map((m) => m[k]));
+      const mMeta = { fitnessMult: avgOf('fitnessMult'), injuryMult: avgOf('injuryMult'), devMult: avgOf('devMult') };
       const toneColor = { good: 'var(--success)', warn: 'var(--warning)', bad: 'var(--danger)' }[meta.quality.tone];
       const devAttrs = Object.entries(meta.attrWeights)
         .filter(([k]) => ATTR_LABELS[k])
@@ -421,7 +428,7 @@
         else if (realTaper && sf && sf.peakUsed) msg = `📉 Taper miles: ${miles} mi vs ~${avgChronic} mi — your peak is already spent this season, so this only sheds fatigue (and Base fades).`;
         else if (taper && planMeta.qualityDays < 1) msg = `🛌 Recovery week: ${miles} mi with no quality session — fatigue sheds and your peak is saved for later.`;
         else if (taper) msg = `📉 Lighter week: ${miles} mi vs ~${avgChronic} mi recent load — fatigue sheds. (A real taper is about a 30% cut — the Championship taper preset.)`;
-        else if (miles >= heavyAt) msg = `🔥 Heavy volume: maximum aerobic development, but fatigue and injury risk climb — only ${women ? 'exceptionally durable women survive weeks this big (the ceiling sits below the men\'s)' : `durable athletes survive ${miles} miles`}.`;
+        else if (miles >= heavyAt) msg = `🔥 Heavy volume: the biggest development there is — now, at the taper, and next summer — for runners durable enough to carry it and built up to it over a few weeks. Legs race a little flat until the taper; anyone past their durable limit breaks down${women ? ' (women\'s ceiling sits below the men\'s)' : ''}.`;
         else if (miles >= strongAt) msg = `Strong aerobic block: real Stamina/Threshold gains at a manageable cost.`;
         else if (miles <= lowAt) msg = `⚡ Low volume: fresh and sharp with better speed work — but endurance and long-term fitness will stagnate.`;
         else msg = `Moderate volume: balanced development and recovery.`;
