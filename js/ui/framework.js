@@ -291,6 +291,38 @@
   };
 
   /*
+   * Season-by-season result lines (program + coach profiles). `ps` is a
+   * Legacy.programSeason record; `div` the program's division that season.
+   * One line per squad:
+   *   Men: Conference Champion · National Third Place · D1 #3
+   *   Women: Season Complete · D1 #21
+   * Also returns the row's badge + tone from the best result of the year.
+   */
+  const PLACE_WORDS = ['', 'First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
+  UI.seasonResult = function (ps, div) {
+    const Utils = window.XCD.core.Utils;
+    const short = { DI: 'D1', DII: 'D2', DIII: 'D3' }[div] || div || 'D1';
+    const line = (g) => {
+      const sq = ps[g];
+      const parts = [];
+      if (sq.conf) parts.push('<strong>Conference Champion</strong>');
+      if (sq.reg) parts.push('<strong>Regional Champion</strong>');
+      if (sq.nat || sq.natPlace === 1) parts.push('<strong>National Champion</strong>');
+      else if (sq.natPlace) parts.push(`National ${PLACE_WORDS[sq.natPlace] || Utils.ordinal(sq.natPlace)} Place`);
+      if (!parts.length) parts.push('Season Complete');
+      parts.push(sq.rank
+        ? `<span class="season-poll${sq.rank <= 10 ? ' top10' : sq.rank <= 25 ? ' top25' : ''}">${short} #${sq.rank}</span>`
+        : '<span style="color:var(--text-faint);">Final poll not recorded</span>');
+      return `<div class="season-line"><span class="season-sq">${g === 'M' ? 'Men' : 'Women'}:</span><span>${parts.join(' · ')}</span></div>`;
+    };
+    const any = (k) => ps.M[k] || ps.W[k];
+    const natChamp = any('nat') || ps.M.natPlace === 1 || ps.W.natPlace === 1;
+    const badge = natChamp ? '🏆' : any('reg') ? '🚩' : any('conf') ? '🥇' : (ps.M.natPlace || ps.W.natPlace) ? '🇺🇸' : '✓';
+    const tone = natChamp ? 'gold' : any('reg') ? 'accent' : any('conf') ? 'good' : 'muted';
+    return { lines: line('M') + line('W'), badge, tone };
+  };
+
+  /*
    * Meet-results poll tag: "#4 D1" beside a team's name, only for a team that
    * went into the meet ranked in its division's top 25. Uses the rank stamped
    * on the result when the meet ran; results scored before stamping existed

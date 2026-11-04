@@ -518,89 +518,133 @@
   };
 
   /* ---------------- Final polls (season-by-season results) ----------- *
-   * Every program's final men's and women's ranking — its place in its own
-   * division's final poll — is stamped once a year at awards week, along with
-   * the head coach who led that season:
-   *   history.finalRanks[year][schoolId] = [rankM, rankW, coachId]
-   * Program and coach profiles read it to list season-by-season results.
-   * Every year shares the same key set (one per school), so the save codec
-   * packs a year down to a single tuple of small numbers.
+   * Once a year at awards week every program's season is stamped for good:
+   *   history.finalRanks[year][schoolId] =
+   *     [rankM, rankW, coachId, natPlaceM, natPlaceW, divisionIndex]
+   * rankM/rankW — its place in its own division's final poll (which, after
+   * the NCAA meet, mirrors the nationals finish); coachId — the head coach
+   * who led that season; natPlaceM/W — its team place at the NCAA
+   * Championships (0 = did not qualify); divisionIndex — 0 DI, 1 DII,
+   * 2 DIII. Trailing zeros are dropped, so a typical DI program that missed
+   * nationals stores just [rankM, rankW, coachId]. Program and coach profiles
+   * read it for their season-by-season results.
    */
+  const DIV_KEYS = ['DI', 'DII', 'DIII'];
+
   Legacy.recordFinalRanks = function (gameState) {
     const rankings = gameState.rankings || {};
     const H = gameState.history;
-    const byId = {};
-    ['M', 'W'].forEach((g, i) => {
-      (rankings[g] || []).forEach((r) => {
-        (byId[r.schoolId] = byId[r.schoolId] || [null, null, null])[i] = r.rank || null;
+    const rank = { M: {}, W: {} };
+    ['M', 'W'].forEach((g) => (rankings[g] || []).forEach((r) => { rank[g][r.schoolId] = r.rank || 0; }));
+    // This season's NCAA team places, per gender (every division's nationals).
+    const nat = { M: {}, W: {} };
+    const season = gameState.season;
+    if (season && season.year === gameState.year) {
+      (season.byWeek[season.nationalWeek] || []).forEach((id) => {
+        const meet = season.meets[id];
+        if (!meet || meet.type !== 'national') return;
+        ['M', 'W'].forEach((g) => {
+          const res = meet.results && meet.results[g];
+          (res ? res.teamScores : []).forEach((t) => { nat[g][t.schoolId] = t.place; });
+        });
       });
-    });
+    }
     const year = {};
     Object.values(gameState.world.schools).forEach((school) => {
-      const row = byId[school.id] || [null, null, null];
-      row[2] = school.coachId || null;
+      const divIdx = Math.max(0, DIV_KEYS.indexOf(school.division || 'DI'));
+      const row = [rank.M[school.id] || 0, rank.W[school.id] || 0, school.coachId || null,
+        nat.M[school.id] || 0, nat.W[school.id] || 0, divIdx];
+      while (row.length > 3 && !row[row.length - 1]) row.pop();
       year[school.id] = row;
     });
     H.finalRanks = H.finalRanks || {};
     H.finalRanks[gameState.year] = year;
   };
 
-  // A program's final ranks for one season: { M, W, coachId } or null when
-  // that season's final poll was never stamped (in progress, or an old save).
+  // A program's stamped season: { M, W, natM, natW, coachId, division }, or
+  // null when that season was never stamped (in progress, or an old save).
   Legacy.finalRanksFor = function (gameState, schoolId, year) {
     const yr = ((gameState.history || {}).finalRanks || {})[year];
     const row = yr && yr[schoolId];
-    return row ? { M: row[0] || null, W: row[1] || null, coachId: row[2] || null } : null;
+    if (!row) return null;
+    return {
+      M: row[0] || null, W: row[1] || null, coachId: row[2] || null,
+      natM: row[3] || null, natW: row[4] || null,
+      division: DIV_KEYS[row[5] || 0] || 'DI'
+    };
+  };
+
+  // Was this program part of that season's stamped poll? False only when the
+  // year was stamped and the program is missing (it joined the world later).
+  Legacy.programInSeason = function (gameState, schoolId, year) {
+    const yr = ((gameState.history || {}).finalRanks || {})[year];
+    return !yr || !!yr[schoolId];
   };
 
   /*
-   * One program's season: its final ranks plus the team titles it won that
-   * year, each as a list of genders. Titles match the championship metadata
-   * by school id first, then the program's name that season (`name`) for
-   * records written before ids were stamped — the same realignment-safe rule
-   * the coach profile uses.
+   * One program's season, per squad:
+   *   { year, recorded, coachId, division,
+   *     M: { rank, natPlace, conf, reg, nat }, W: { … } }
+   * rank — final poll place (null when not recorded); natPlace — NCAA team
+   * finish (null when it missed nationals or wasn't recorded); conf / reg /
+   * nat — whether that squad won the conference, regional, or national team
+   * title. Titles match the championship metadata by school id, falling back
+   * to the program's name that season (`name`) for records written before
+   * ids were stamped — the realignment-safe rule the coach profile uses.
    */
   Legacy.programSeason = function (gameState, schoolId, year, name) {
     const H = gameState.history || {};
-    const genderOf = (key) => (key.endsWith('-M') ? 'M' : 'W');
-    const nat = [], reg = [], conf = [];
+    const genderOf = (key) => (key.endsWith('M') ? 'M' : 'W');
+    const won = { M: { conf: false, reg: false, nat: false }, W: { conf: false, reg: false, nat: false } };
     // National keys are 'M'/'W' (DI) or 'DII-M' etc.; the gender is the suffix.
     Object.entries((H.nationalChampions || {})[year] || {}).forEach(([key, c]) => {
-      if (c && (c.teamId ? c.teamId === schoolId : c.team === name)) nat.push(key.endsWith('W') ? 'W' : 'M');
+      if (c && (c.teamId ? c.teamId === schoolId : c.team === name)) won[genderOf(key)].nat = true;
     });
-    const titles = (plain, meta, out) => {
+    const titles = (plain, meta, field) => {
       const metaYr = (meta || {})[year] || {};
-      const metaById = Object.values(metaYr).some((m) => m && m.schoolId);
-      if (metaById) {
+      if (Object.values(metaYr).some((m) => m && m.schoolId)) {
         Object.entries(metaYr).forEach(([key, m]) => {
-          if (m && m.schoolId === schoolId) out.push(m.gender || genderOf(key));
+          if (m && m.schoolId === schoolId) won[m.gender || genderOf(key)][field] = true;
         });
       } else {
         Object.entries((plain || {})[year] || {}).forEach(([key, n]) => {
-          if (n === name) out.push(genderOf(key));
+          if (n === name) won[genderOf(key)][field] = true;
         });
       }
     };
-    titles(H.regionalChampions, H.regChampMeta, reg);
-    titles(H.conferenceChampions, H.confChampMeta, conf);
-    const order = (arr) => [...new Set(arr)].sort();
+    titles(H.regionalChampions, H.regChampMeta, 'reg');
+    titles(H.conferenceChampions, H.confChampMeta, 'conf');
     const fr = Legacy.finalRanksFor(gameState, schoolId, year);
+    const squad = (g) => Object.assign({
+      rank: fr ? fr[g] : null,
+      // A national champion finished first even in seasons never stamped.
+      natPlace: fr ? fr[g === 'M' ? 'natM' : 'natW'] : (won[g].nat ? 1 : null)
+    }, won[g]);
     return {
-      year: Number(year),
-      rankM: fr ? fr.M : null, rankW: fr ? fr.W : null, coachId: fr ? fr.coachId : null,
-      nat: order(nat), reg: order(reg), conf: order(conf)
+      year: Number(year), recorded: !!fr,
+      coachId: fr ? fr.coachId : null, division: fr ? fr.division : null,
+      M: squad('M'), W: squad('W')
     };
   };
 
-  // Every completed season on record: years with a stamped final poll or any
-  // team championship, oldest first.
+  // Every finished season on record, oldest first: years with a stamped
+  // final poll or any team championship, before the current year — plus the
+  // current year once its final poll is stamped (the offseason after awards).
   Legacy.completedSeasonYears = function (gameState) {
     const H = gameState.history || {};
     const years = new Set();
     [H.finalRanks, H.nationalChampions, H.regionalChampions, H.conferenceChampions].forEach((m) => {
       Object.keys(m || {}).forEach((y) => years.add(Number(y)));
     });
-    return [...years].filter((y) => !isNaN(y)).sort((a, b) => a - b);
+    const now = gameState.year;
+    const nowDone = !!(H.finalRanks || {})[now];
+    return [...years].filter((y) => !isNaN(y) && (y < now || (y === now && nowDone))).sort((a, b) => a - b);
+  };
+
+  // Is this season finished? Every earlier year is; the current one only
+  // once its final poll has been stamped at awards week.
+  Legacy.seasonFinished = function (gameState, year) {
+    return year < gameState.year || (year === gameState.year && !!((gameState.history || {}).finalRanks || {})[year]);
   };
 
   /* ---------------- Permanent coach registry ------------------------- *
