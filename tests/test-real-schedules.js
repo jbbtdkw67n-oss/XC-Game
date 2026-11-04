@@ -113,9 +113,26 @@ async function run() {
     const sel = [...document.querySelectorAll('select[data-sb-week]')].find((s) => s.value);
     return sel ? sel.dataset.sbWeek : null;
   });
+  await page.evaluate((w) => {
+    window.__sbSel = document.querySelector(`select[data-sb-week="${w}"]`);
+    window.__sbSort = document.getElementById('sb-sort');
+  }, pickWeek);
   await page.selectOption(`select[data-sb-week="${pickWeek}"]`, '');
   await page.waitForTimeout(100);
   ok(await page.evaluate((w) => !window.XCD.ui.state.game.season.playerMeetByWeek[w], pickWeek), 'the drop-down sets an off week');
+  // Safari crashes (the game reloads to the menu) when a <select> is destroyed
+  // while its picker is dismissing: a drop-down change must update the screen
+  // in place, keeping every <select> alive.
+  const kept = await page.evaluate((w) => ({
+    sel: document.querySelector(`select[data-sb-week="${w}"]`) === window.__sbSel,
+    value: window.__sbSel.value,
+    glance: /Off week/.test(document.getElementById('season-schedule').textContent)
+  }), pickWeek);
+  ok(kept.sel && kept.value === '' && kept.glance, 'an off-week pick updates the builder in place, the drop-down survives: ' + JSON.stringify(kept));
+  await page.selectOption('#sb-sort', 'cost');
+  await page.waitForTimeout(100);
+  ok(await page.evaluate(() => document.getElementById('sb-sort') === window.__sbSort && document.getElementById('sb-sort').value === 'cost'),
+    'the meet browser sort drop-down survives its own change');
   // Browser filters.
   await page.click('[data-sb-div="DII"]');
   await page.click('#sb-ranked');

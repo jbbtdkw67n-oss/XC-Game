@@ -499,12 +499,77 @@
       </div>`;
   }
 
-  function wireBuilder(game, container, rerender) {
+  /*
+   * WebKit (Safari, the iPhone app) crashes the page if a <select> is
+   * destroyed while its native picker is still dismissing — which is exactly
+   * what rebuilding the screen from a select's change handler does (the game
+   * reloads to the menu). So a drop-down change never rebuilds the screen:
+   * once the event unwinds, the next frame is drawn off-screen and patched
+   * in, with every <select> kept alive and updated in place.
+   */
+  function syncAttrs(live, fresh) {
+    [...live.attributes].forEach((a) => { if (!fresh.hasAttribute(a.name)) live.removeAttribute(a.name); });
+    [...fresh.attributes].forEach((a) => { if (live.getAttribute(a.name) !== a.value) live.setAttribute(a.name, a.value); });
+  }
+
+  function syncSelect(live, fresh) {
+    syncAttrs(live, fresh);
+    const lo = live.options, fo = fresh.options;
+    for (let i = 0; i < fo.length; i++) {
+      let o = lo[i];
+      if (!o) { o = document.createElement('option'); live.appendChild(o); }
+      if (o.value !== fo[i].value) o.value = fo[i].value;
+      if (o.text !== fo[i].text) o.text = fo[i].text;
+      if (o.disabled !== fo[i].disabled) o.disabled = fo[i].disabled;
+    }
+    while (lo.length > fo.length) lo[lo.length - 1].remove();
+    if (live.value !== fresh.value) live.value = fresh.value;
+  }
+
+  // Make `live` look like `fresh`. Subtrees without a <select> are swapped
+  // wholesale (bringing their freshly wired handlers); a <select> and its
+  // ancestors are kept. False when the shapes differ.
+  function patchKeepingSelects(live, fresh, isRoot) {
+    if (live.nodeName === 'SELECT') { syncSelect(live, fresh); return true; }
+    if (!live.querySelector('select')) { live.replaceWith(fresh); return true; }
+    // Whitespace between tags varies with the template branch; skip it.
+    const kids = (el) => [...el.childNodes].filter((n) => n.nodeType !== 3 || /\S/.test(n.data));
+    const lk = kids(live), fk = kids(fresh);
+    if (lk.length !== fk.length) return false;
+    if (!isRoot) syncAttrs(live, fresh); // the screen wrapper keeps its own
+    for (let i = 0; i < lk.length; i++) {
+      const l = lk[i], f = fk[i];
+      if (l.nodeType !== f.nodeType || l.nodeName !== f.nodeName) {
+        if (l.nodeType === 1 && l.querySelector('select')) return false;
+        l.replaceWith(f);
+      } else if (l.nodeType === 1) {
+        if (!patchKeepingSelects(l, f)) return false;
+      } else if (l.nodeType === 3 && l.data !== f.data) {
+        l.data = f.data;
+      }
+    }
+    return true;
+  }
+
+  function refreshInPlace(container) {
+    setTimeout(() => {
+      if (!container.isConnected || UI.state.currentScreen !== 'schedule') return;
+      const fresh = document.createElement('div');
+      render(container, fresh);
+      // Swap emoji for icons first, the same way the live page was painted,
+      // so the two trees line up node for node.
+      if (window.XCD.icons && window.XCD.icons.paint) window.XCD.icons.paint(fresh);
+      const ok = patchKeepingSelects(container, fresh, true);
+      if (!ok) render(container); // shapes changed: the picker is long gone by now
+    }, 0);
+  }
+
+  function wireBuilder(game, container, rerender, refresh) {
     container.querySelectorAll('[data-sb-week]').forEach((sel) => {
       sel.addEventListener('change', () => {
         const r = MC().selectMeet(game, Number(sel.dataset.sbWeek), sel.value || null);
         UI.toast(r.message, r.ok ? 'success' : 'error');
-        rerender();
+        refresh();
       });
     });
     container.querySelectorAll('[data-sb-browse]').forEach((b) => b.addEventListener('click', () => {
@@ -520,7 +585,7 @@
     const rv = container.querySelector('#sb-rivals');
     if (rv) rv.addEventListener('change', () => { sbRivalsOnly = rv.checked; rerender(); });
     const so = container.querySelector('#sb-sort');
-    if (so) so.addEventListener('change', () => { sbSort = so.value; rerender(); });
+    if (so) so.addEventListener('change', () => { sbSort = so.value; refresh(); });
     container.querySelectorAll('[data-sb-enter]').forEach((b) => b.addEventListener('click', () => {
       const r = MC().selectMeet(game, Number(b.dataset.sbEnterWeek), b.dataset.sbEnter);
       UI.toast(r.message, r.ok ? 'success' : 'error');
@@ -528,7 +593,11 @@
     }));
   }
 
-  function render(container) {
+  function render(container, into) {
+    // `into` (optional): draw into a detached element instead — the in-place
+    // refresh below builds the next frame there. Handlers always act on the
+    // live `container`.
+    const root = into || container;
     const game = UI.state.game;
     const season = game.season;
     const school = game.getPlayerSchool();
@@ -742,7 +811,7 @@
       </div>`;
     }
 
-    container.innerHTML = `
+    root.innerHTML = `
       <div class="screen-header">
         ${UI.screenTitle('Schedule', `${season.year} season · Men ${rankM ? '#' + rankM : '—'} · Women ${rankW ? '#' + rankW : '—'}`)}
         <div class="actions">
@@ -770,33 +839,33 @@
       </div>
       ${previewHtml ? UI.sectionLabel('Around the Nation') + previewHtml : ''}`;
 
-    container.querySelectorAll('[data-meet]').forEach((tr) => {
+    root.querySelectorAll('[data-meet]').forEach((tr) => {
       tr.addEventListener('click', () => {
         const meet = season.meets[tr.dataset.meet];
         meetResultModal(game, meet, 'M');
       });
     });
-    container.querySelectorAll('[data-school]').forEach((el) => {
+    root.querySelectorAll('[data-school]').forEach((el) => {
       el.addEventListener('click', () => {
         const s = game.getSchool(el.dataset.school);
         if (s && UI.showSchoolCard) UI.showSchoolCard(s, game);
       });
     });
     // "In the Field" projected-leader clicks + division/gender filter buttons.
-    container.querySelectorAll('[data-ath]').forEach((el) => {
+    root.querySelectorAll('[data-ath]').forEach((el) => {
       el.addEventListener('click', () => { if (UI.openAthlete) UI.openAthlete(game, el.dataset.ath); });
     });
-    container.querySelectorAll('[data-if-div]').forEach((btn) => {
+    root.querySelectorAll('[data-if-div]').forEach((btn) => {
       btn.addEventListener('click', () => { ifDiv = btn.dataset.ifDiv; render(container); });
     });
-    container.querySelectorAll('[data-if-gender]').forEach((btn) => {
+    root.querySelectorAll('[data-if-gender]').forEach((btn) => {
       btn.addEventListener('click', () => { ifGender = btn.dataset.ifGender; render(container); });
     });
 
-    const rcBtn = container.querySelector('#btn-race-center');
+    const rcBtn = root.querySelector('#btn-race-center');
     if (rcBtn) rcBtn.addEventListener('click', () => UI.navigate('racecenter'));
 
-    container.querySelectorAll('[data-sched-week]').forEach((btn) => {
+    root.querySelectorAll('[data-sched-week]').forEach((btn) => {
       btn.addEventListener('click', () => {
         if (btn.disabled) return;
         const wk = Number(btn.dataset.schedWeek);
@@ -807,10 +876,10 @@
       });
     });
 
-    if (realSchedule) wireBuilder(game, container, () => render(container));
+    if (realSchedule) wireBuilder(game, root, () => render(container), () => refreshInPlace(container));
 
     // Finalize (Section 15): permanently lock the season's slate.
-    const finalizeBtn = container.querySelector('#btn-finalize-schedule');
+    const finalizeBtn = root.querySelector('#btn-finalize-schedule');
     if (finalizeBtn) finalizeBtn.addEventListener('click', () => {
       if (!game.controlsScheduling()) { UI.toast('Only the head coach finalizes the schedule.', 'error'); return; }
       if (realSchedule) {
