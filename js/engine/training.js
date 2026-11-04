@@ -30,6 +30,20 @@
   const HARD_KEYS = Object.keys(D.WORKOUTS).filter((k) => D.WORKOUTS[k].hard);
   const CAL = D.CALENDAR;
 
+  /*
+   * A runner's own natural level for a trait that drifts week to week
+   * (confidence, hill strength). Stable per athlete (hashed from the id, so
+   * no save field), bell-shaped around `mean`. Drifting toward one shared
+   * target made everyone end up the same; each runner now settles at theirs.
+   */
+  function naturalLevel(athlete, tag, mean, spread, min, max) {
+    const F = window.XCD.engine.Followers;
+    if (!F || !F.noise || !athlete.id) return mean;
+    const k = athlete.id + '|' + tag;
+    const bell = (F.noise(k + '1') + F.noise(k + '2') + F.noise(k + '3')) / 3 - 0.5; // sd ~0.167
+    return Utils.clamp(mean + bell * spread * 6, min, max);
+  }
+
   // Global development-rate dial (Update 21). Lower = slower, more realistic
   // multi-year progression. Calibrated so a freshman's first season rises
   // ~7 overall in ordinary conditions and ~12 in a perfect program.
@@ -1657,7 +1671,10 @@
     if (planMeta.hillsDays > 0) {
       athlete.hillAdaptation = Utils.clamp((athlete.hillAdaptation || 40) + 1.2 * planMeta.hillsDays, 0, 95);
     } else {
-      athlete.hillAdaptation = Math.max(30, (athlete.hillAdaptation || 40) - 0.3);
+      // ...back down to the runner's natural hill strength, never below it.
+      const hillBase = naturalLevel(athlete, 'hills', 36, 12, 12, 70);
+      const h = athlete.hillAdaptation || 40;
+      if (h > hillBase) athlete.hillAdaptation = Math.max(hillBase, h - 0.3);
     }
 
     // Development — chemistry lifts everyone; strong captains mentor freshmen;
@@ -1903,7 +1920,8 @@
     // gentle reversion toward a fitness-anchored baseline keeps belief
     // dynamic without letting it drift permanently to the floor or ceiling.
     if (athlete.health !== 'Injured') {
-      const confTarget = Utils.clamp(52 + (athlete.fitness - 50) * 0.35 - (athlete.fatigue > 78 ? 10 : 0), 20, 90);
+      const selfBelief = naturalLevel(athlete, 'belief', 52, 13, 22, 82);
+      const confTarget = Utils.clamp(selfBelief + (athlete.fitness - 50) * 0.35 - (athlete.fatigue > 78 ? 10 : 0), 15, 92);
       athlete.confidence = Utils.clamp(
         (athlete.confidence ?? 60) + (confTarget - (athlete.confidence ?? 60)) * 0.06, 10, 99);
     }
@@ -2150,7 +2168,9 @@
           // rebuilds mental toughness (Update 21) — so a runner who took some
           // knocks can grow back a little tougher heading into the next year.
           if (a.consistency < 92 && rng.bool(0.10 + a.workEthic / 400)) a.consistency += 1;
-          if ((a.careerStats.races || 0) > 0 && a.raceIQ < 90 && rng.bool(0.30)) a.raceIQ += 1;
+          // Film study and time trials: everyone learns a little each summer,
+          // runners with real races to study learn more.
+          if (a.learnRaceCraft) a.learnRaceCraft((a.careerStats.races || 0) > 0 ? 1.4 : 0.6);
           if ((a.seasonRaces || 0) >= 3 && a.mentalToughness < 88 && (a.seasonInjuryWeeks || 0) < 5 && rng.bool(0.35)) {
             a.mentalToughness = Utils.clamp((a.mentalToughness ?? 60) + 1, 10, 99);
           }

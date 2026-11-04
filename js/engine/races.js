@@ -1389,8 +1389,8 @@
       a.mentalToughness = Utils.clamp((a.mentalToughness ?? 60) + dTough, 10, 99);
       a.consistency = Utils.clamp((a.consistency ?? 60) + dCons, 10, 99);
 
-      // Race experience nudges race IQ for young runners
-      if (a.careerStats.races % 6 === 0 && a.raceIQ < 90) a.raceIQ += 1;
+      // Every race teaches race craft; the big stages teach the most.
+      if (a.learnRaceCraft) a.learnRaceCraft(meet.type === 'national' ? 0.9 : (meet.type === 'regional' || meet.type === 'conference') ? 0.7 : 0.5);
 
       // School records
       const school = gameState.getSchool(f.schoolId);

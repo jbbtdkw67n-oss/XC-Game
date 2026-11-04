@@ -66,7 +66,7 @@
     const KEEP = { id: true, coachRelationship: true, teamRelationship: true };
     // Drifting floats nothing reads at full precision → decimals kept on save.
     const ROUND = {
-      confidence: 2, consistency: 2, mentalToughness: 2, hillAdaptation: 2,
+      confidence: 2, consistency: 2, mentalToughness: 2, hillAdaptation: 2, raceIQProgress: 3,
       coachRelationship: 2, teamRelationship: 2,
       devProgress: 4, devExecAvg: 4, _devCeiling: 3
     };

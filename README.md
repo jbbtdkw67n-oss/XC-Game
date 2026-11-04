@@ -14,6 +14,27 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.10 — Runners With Character
+
+- **Race IQ is learned on the course.** Every race teaches a little race
+  craft (championships teach the most), and every runner learns more over
+  the summer, more with a season of races to study. Raw freshmen learn fast;
+  a veteran tactician crawls. Students of the sport (work ethic plus a
+  personal knack) learn quickest, and the old cap at 90 is gone.
+- **Talent and savvy are separate things.** Race IQ and mental toughness now
+  follow ability only loosely, so a gifted runner can be naive or fragile and
+  a modest one tough and race-smart.
+- **Every runner has a build.** New runners get a clear physical strength
+  (often a second) and a real weakness: the kicker who fades at 10K, the big
+  engine with no finishing gear, the grinder, the smooth economist. A few
+  stay well-rounded. Builds change what a runner is good at, not how good.
+- **Ratings no longer bunch up.** Hill strength used to fade to the same 30
+  for almost everyone, and confidence drifted to the same ~52; each runner
+  now settles at their own natural level.
+- **Fixed: the Schedule Builder crash on iPhone.** Switching a week to an off
+  week (or changing any week) no longer crashes Safari back to the home
+  screen.
+
 ## Version 15.9 — The Emoji Update & Top-10 Contenders
 
 - **Every emoji is now the game's own icon.** All 147 emoji the game showed
