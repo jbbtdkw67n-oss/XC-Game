@@ -269,7 +269,7 @@
       // A tribute to the 1970s front-runner: shaggy hair, a full mustache, a
       // green singlet with yellow trim, yellow shorts, all-out forward stride.
       `<path d="M1.4 10h5M.6 14h4.6M2 18h3.4" stroke="#93a0b4" stroke-width="1.4"/>` +
-      dbl('M19 12.2l-4.2 2.4-2.4-2.8', SKIN, 2.4) +
+      dbl('M19.2 12l-6.4.6-1.2 4.2', SKIN, 2.4) +
       dbl('M15 19.2l-4 3.2-5 2.6', SKIN, 2.8) + dbl('M16.6 19.4l5.4 1.4-1.4 6.2', SKIN, 2.8) +
       `<ellipse cx="5.2" cy="25.4" rx="2.3" ry="1.4" transform="rotate(-25 5.2 25.4)" fill="@paper"/>` +
       `<ellipse cx="21" cy="28" rx="2.5" ry="1.4" fill="@paper"/>` +
