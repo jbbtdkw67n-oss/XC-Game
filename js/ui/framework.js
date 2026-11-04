@@ -290,6 +290,30 @@
     return `<span class="rank-chip${tier}"${tip}>#${rank}</span>`;
   };
 
+  /*
+   * Meet-results poll tag: "#4 D1" beside a team's name, only for a team that
+   * went into the meet ranked in its division's top 25. Uses the rank stamped
+   * on the result when the meet ran; results scored before stamping existed
+   * fall back to the current poll. `res` is one gender's meet result.
+   */
+  UI.meetPollTag = function (game, res, schoolId, gender) {
+    let rank = null;
+    let div = null;
+    if (res && res.pollStamped) {
+      const t = (res.teamScores || []).find((x) => x.schoolId === schoolId);
+      if (t && t.pollRank) { rank = t.pollRank; div = t.pollDiv; }
+    } else {
+      const row = UI.pollRow(game, schoolId, gender);
+      if (row && row.rank <= 25) { rank = row.rank; div = row.division; }
+    }
+    if (!rank || rank > 25) return '';
+    const key = div || 'DI';
+    const short = { DI: 'D1', DII: 'D2', DIII: 'D3' }[key] || key;
+    const label = (window.XCD.data.divisionFor(key) || {}).label || key;
+    const tier = rank <= 10 ? ' top10' : '';
+    return `<span class="poll-tag${tier}" title="Ranked #${rank} in ${label} going into this meet">#${rank} ${short}</span> `;
+  };
+
   // A program's poll row for one squad ({ rank, prevRank, divisionSize }),
   // or null when unranked / before the first poll.
   UI.pollRow = function (game, schoolId, gender) {

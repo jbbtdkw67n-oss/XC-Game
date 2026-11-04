@@ -134,7 +134,7 @@
         const mine = t.schoolId === game.playerSchoolId;
         return `<tr class="clickable" data-school="${t.schoolId}" ${mine ? 'style="background:var(--accent-soft);"' : ''}>
           <td>${t.place}</td>
-          <td><strong>${Utils.escapeHtml(school ? school.name : '?')}</strong>${teamBidBadge(t)}</td>
+          <td>${UI.meetPollTag(game, res, t.schoolId, g)}<strong>${Utils.escapeHtml(school ? school.name : '?')}</strong>${teamBidBadge(t)}</td>
           <td class="num">${t.points}</td>
           <td style="color:var(--text-dim); font-size:12px;">${t.scorers.join(' + ')}</td>
           <td class="num">${typeof t.gap === 'number' ? `<span class="pack-gap-chip ${UI.screens.racecenter.gapTone(t.gap, res)}">${Races().formatGap(t.gap)}</span>` : '—'}</td>
@@ -152,7 +152,7 @@
         return `<tr class="clickable" data-ath="${f.athleteId}" ${mine ? 'style="background:var(--accent-soft);"' : ''}>
           <td>${f.place}</td>
           <td>${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: g }, { size: 20 })} ${Utils.escapeHtml(f.name)}${honored ? ` <span title="${honor.label}">${honor.icon}</span>` : ''}${indivQualBadge(f)} <span style="color:var(--text-faint); font-size:11px;">${f.classYear || ''}</span></td>
-          <td>${Utils.escapeHtml(school ? school.name : '?')}</td>
+          <td>${UI.meetPollTag(game, res, f.schoolId, g)}${Utils.escapeHtml(school ? school.name : '?')}</td>
           <td class="num">${ft(f.time)}${UI.crTag ? UI.crTag(f) : ''}${UI.nrTag ? UI.nrTag(f) : ''}</td>
         </tr>`;
       }).join('') +
@@ -163,7 +163,7 @@
         return `<tr class="clickable" data-ath="${d.athleteId}" ${mine ? 'style="background:var(--accent-soft);"' : ''} style="color:var(--text-faint);">
           <td title="Did Not Finish">DNF</td>
           <td>${UI.avatar(game.getAthlete(d.athleteId) || { name: d.name, gender: g }, { size: 20 })} ${Utils.escapeHtml(d.name)} <span style="color:var(--text-faint); font-size:11px;">${d.classYear || ''}</span></td>
-          <td>${Utils.escapeHtml(school ? school.name : '?')}</td>
+          <td>${UI.meetPollTag(game, res, d.schoolId, g)}${Utils.escapeHtml(school ? school.name : '?')}</td>
           <td class="num" title="${d.reason === 'bonk' ? 'Ran out of energy' : 'Injury or mishap'}">DNF</td>
         </tr>`;
       }).join('');

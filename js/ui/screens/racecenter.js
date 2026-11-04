@@ -458,7 +458,7 @@
               <tr ${mine ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>${f.place}</td>
                 <td class="clickable" data-ath="${f.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: activeGender }, { size: 20 })} ${Utils.escapeHtml(f.name)}${honored ? ` <span title="${honor.label}">${honor.icon}</span>` : ''}${indivQualBadge(f)}</td>
-                <td class="clickable" data-school="${f.schoolId}" style="font-size:12px; cursor:pointer;">${Utils.escapeHtml(game.getSchool(f.schoolId)?.name || '?')}</td>
+                <td class="clickable" data-school="${f.schoolId}" style="font-size:12px; cursor:pointer;">${UI.meetPollTag(game, res, f.schoolId, activeGender)}${Utils.escapeHtml(game.getSchool(f.schoolId)?.name || '?')}</td>
                 <td class="num">${ft(f.time)}${UI.crTag ? UI.crTag(f) : ''}${UI.nrTag ? UI.nrTag(f) : ''}</td>
               </tr>`;
             }).join('')}
@@ -468,7 +468,7 @@
               <tr ${mine ? 'style="background:var(--accent-soft); color:var(--text-faint);"' : 'style="color:var(--text-faint);"'}>
                 <td title="Did Not Finish">DNF</td>
                 <td class="clickable" data-ath="${d.athleteId}" style="cursor:pointer;">${UI.avatar(game.getAthlete(d.athleteId) || { name: d.name, gender: activeGender }, { size: 20 })} ${Utils.escapeHtml(d.name)}</td>
-                <td class="clickable" data-school="${d.schoolId}" style="font-size:12px; cursor:pointer;">${Utils.escapeHtml(game.getSchool(d.schoolId)?.name || '?')}</td>
+                <td class="clickable" data-school="${d.schoolId}" style="font-size:12px; cursor:pointer;">${UI.meetPollTag(game, res, d.schoolId, activeGender)}${Utils.escapeHtml(game.getSchool(d.schoolId)?.name || '?')}</td>
                 <td class="num" title="${d.reason === 'bonk' ? 'Ran out of energy' : 'Injury or mishap'}">DNF</td>
               </tr>`;
             }).join('')}
@@ -480,7 +480,7 @@
     board.innerHTML = `<h3>Final Team Scores</h3>
       <div class="attr-row team-score-head"><span>Team</span><span>Pts · <span title="1–5 gap: the time between a team's 1st and 5th scorer">1–5 gap</span></span></div>` + res.teamScores.slice(0, 15).map((t) => `
       <div class="attr-row clickable" data-school="${t.schoolId}" style="padding:3px 0; cursor:pointer;">
-        <span style="${t.schoolId === game.playerSchoolId ? 'color:var(--accent-hover); font-weight:700;' : ''}">${t.place}. ${Utils.escapeHtml(game.getSchool(t.schoolId)?.name || '?')}${teamBidBadge(t)}</span>
+        <span style="${t.schoolId === game.playerSchoolId ? 'color:var(--accent-hover); font-weight:700;' : ''}">${t.place}. ${UI.meetPollTag(game, res, t.schoolId, activeGender)}${Utils.escapeHtml(game.getSchool(t.schoolId)?.name || '?')}${teamBidBadge(t)}</span>
         <span>${t.points}${typeof t.gap === 'number' ? ` <span class="pack-gap-chip ${gapTone(t.gap, res)}">${fg(t.gap)}</span>` : ''}</span>
       </div>`).join('') + (isRegional && res.teamScores.some((t) => t.nationalsBid) ? `
       <div style="color:var(--text-faint); font-size:11px; margin-top:6px;">🎟 <strong style="color:var(--success);">NQ</strong> auto bid · <strong style="color:var(--accent);">AL</strong> at-large · <strong style="color:var(--accent);">IQ</strong> individual → Nationals</div>` : '');

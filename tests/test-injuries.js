@@ -178,6 +178,41 @@ async function run() {
   ok(roundTrip.same, 'save/load must preserve injury ledgers, tolls, and recovery state: ' + JSON.stringify(roundTrip));
   console.log('save round-trip:', JSON.stringify(roundTrip.after));
 
+  // ---- 7) A new season starts healthy: every injury heals at the rollover ----
+  const heal = await page.evaluate(() => {
+    const g = window.XCD.ui.state.game;
+    const W = window.XCD.data.CALENDAR.WEEKS_PER_YEAR;
+    while (g.week !== W) g.advanceWeek();
+    const startYear = g.year;
+    const school = g.getPlayerSchool();
+    // Underclassmen, so both are still on the roster next season.
+    const [a, b] = g.getRoster(school.id, 'M').filter((x) => x.classYear === 'Freshman' || x.classYear === 'Sophomore');
+    a.injury = { type: 'Stress Fracture', weeksRemaining: 12, totalWeeks: 12, overuse: true };
+    b.injury = null; b.health = 'Recovering'; b.recentInjuryWeeks = 6;
+    // A CPU runner too: the whole world heals, not just the player's team.
+    const other = Object.values(g.world.schools).find((s) => s.id !== school.id);
+    const cpu = g.getRoster(other.id, 'W').find((x) => (x.classYear === 'Freshman' || x.classYear === 'Sophomore') && !x.injury);
+    if (cpu) cpu.injury = { type: 'Achilles Tendinitis', weeksRemaining: 9, totalWeeks: 9 };
+    g.advanceWeek();
+    const all = Object.values(g.world.athletes);
+    return {
+      rolled: g.year === startYear + 1 && g.week === 1,
+      injured: all.filter((x) => x.injury).length,
+      recovering: all.filter((x) => x.health === 'Recovering').length,
+      a: { injury: a.injury, health: a.health }, b: { health: b.health, window: b.recentInjuryWeeks },
+      cpuHealed: !!cpu && !!g.world.athletes[cpu.id] && !g.world.athletes[cpu.id].injury,
+      news: (g.newsLog || []).slice(0, 80).some((n) => /fully healed/.test(typeof n === 'string' ? n : (n.text || n.message || '')))
+    };
+  });
+  console.log('new-season heal:', JSON.stringify(heal));
+  ok(heal.rolled, 'the season must roll over to Week 1');
+  ok(heal.injured === 0, 'no athlete may start a new season injured: ' + heal.injured);
+  ok(heal.recovering === 0, 'no athlete may start a new season still Recovering: ' + heal.recovering);
+  ok(!heal.a.injury && heal.a.health === 'Healthy', 'a long injury from the season\'s end heals over the summer');
+  ok(heal.b.health === 'Healthy' && !heal.b.window, 'the Recovering phase clears too');
+  ok(heal.cpuHealed, 'CPU programs\' injuries heal too');
+  ok(heal.news, 'the player is told their injured runners are healed');
+
   ok(errors.length === 0, 'page errors: ' + errors.join(' | '));
 
   await browser.close();

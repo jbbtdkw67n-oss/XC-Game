@@ -1299,6 +1299,24 @@
     return `${m}:${s.padStart(4, '0')}`;
   }
 
+  /*
+   * Meet-results poll tags: each team that entered the meet ranked in its
+   * division's top 25 keeps that rank (and division) on its team score, so
+   * the results read "#4 D1 Stanford" forever, even after the polls move.
+   * `pollStamped` marks results scored with this rule.
+   */
+  function stampPollRanks(gameState, res, gender) {
+    if (!res || !res.teamScores) return;
+    const list = (gameState.rankings && gameState.rankings[gender]) || [];
+    const byId = {};
+    list.forEach((r) => { if (r.rank <= 25) byId[r.schoolId] = r; });
+    res.teamScores.forEach((t) => {
+      const r = byId[t.schoolId];
+      if (r) { t.pollRank = r.rank; t.pollDiv = r.division || 'DI'; }
+    });
+    res.pollStamped = true;
+  }
+
   function applyRaceEffects(gameState, meet, gender, finishers, teamScores, distanceM) {
     const key = distKey(distanceM);
     const isChampionship = meet.type !== 'invite';
@@ -2080,6 +2098,8 @@
         } else {
           meet.results[gender] = simulateRace(gameState, meet, gender, rng, detailed);
         }
+
+        stampPollRanks(gameState, meet.results[gender], gender);
 
         if (meet.type === 'conference') recordConferenceChampions(gameState, meet, gender);
         if (meet.type === 'regional') recordRegionalChampions(gameState, meet, gender);
