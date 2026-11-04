@@ -255,6 +255,17 @@
             seasons.push({ year: y, school: st.school, schoolId: st.schoolId, div, tone, badge, result });
           }
         });
+        // Final poll ranks for each season, read from the yearly stamp (within
+        // the program's division). Seasons in progress or from saves before
+        // the stamp existed simply show no ranks.
+        const Legacy = window.XCD.engine.Legacy;
+        const finalLine = (s) => {
+          const fr = Legacy && Legacy.finalRanksFor && s.schoolId ? Legacy.finalRanksFor(game, s.schoolId, s.year) : null;
+          if (!fr || (!fr.M && !fr.W)) return '';
+          const rk = (g) => `<span style="white-space:nowrap;">${g} ${UI.rankChip(fr[g], { title: `Final ${g === 'M' ? "men's" : "women's"} ${short[s.div] || s.div} ranking${fr[g] ? `: #${fr[g]}` : ': unranked'}` })}</span>`;
+          return ` · Final: ${rk('M')} ${rk('W')}`;
+        };
+        seasons.forEach((s) => { s.result += finalLine(s); });
         if (!seasons.length) return '';
         seasons.sort((a, b) => b.year - a.year); // newest first
         return `

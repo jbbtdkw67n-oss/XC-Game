@@ -814,10 +814,25 @@
       window.XCD.engine.Recruiting.resetForNewYear(this, rng);
 
       // 6) Season development counters reset; stale training overrides clear.
+      //    Every new season starts with a clean bill of health: the summer
+      //    heals any injury still on the books, and the Recovering phase
+      //    with it. (The career injury ledger is permanent and stays.)
+      let playerHealed = 0;
+      const playerSchool = this.getPlayerSchool && this.getPlayerSchool();
+      const playerIds = playerSchool ? new Set([...playerSchool.rosterM, ...playerSchool.rosterW]) : new Set();
       Object.values(this.world.athletes).forEach((a) => {
         a.seasonDev = 0;
         a.seasonInjuryWeeks = 0;
+        if (a.injury || a.health === 'Recovering' || a.recentInjuryWeeks) {
+          if (a.injury && playerIds.has(a.id)) playerHealed += 1;
+          a.injury = null;
+          a.recentInjuryWeeks = 0;
+          a.health = 'Healthy';
+        }
       });
+      if (playerHealed) {
+        this.logNews(`A summer of rest: ${playerHealed} injured runner${playerHealed === 1 ? ' is' : 's are'} fully healed for the new season.`);
+      }
       // 6a) Transfer desire resets with the season (Update 24): moods and
       //     frayed bonds settle back toward a new-season baseline.
       window.XCD.engine.Portal.seasonFreshStart(this);

@@ -440,6 +440,13 @@ table.data .name-cell { white-space: nowrap; }
 .rank-chip.top25 { background: var(--accent-soft); color: var(--accent-hover); }
 .rank-chip.top10 { background: rgba(212, 160, 23, 0.2); color: #f0c34e; }
 .rank-chip.nr { background: transparent; color: var(--text-faint); font-weight: 600; }
+/* Meet-results poll tag: "#4 D1" before a top-25 team's name. */
+.poll-tag {
+  display: inline-block; padding: 0 5px; border-radius: 5px; white-space: nowrap;
+  font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums; vertical-align: 1px;
+  background: var(--accent-soft); color: var(--accent-hover);
+}
+.poll-tag.top10 { background: rgba(212, 160, 23, 0.2); color: #f0c34e; }
 
 /* Program card poll strip: the men's and women's poll rank, front and center. */
 .poll-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
@@ -1864,6 +1871,7 @@ html[data-theme="light"] {
   color-scheme: light;
 }
 html[data-theme="light"] .btn:hover { background: #dde3ec; }
+html[data-theme="light"] .poll-tag.top10 { color: #8a6100; }
 html[data-theme="light"] .stat-tile:hover,
 html[data-theme="light"] .pcard:hover { border-color: #b9c3d3; }
 html[data-theme="light"] .modal-backdrop,

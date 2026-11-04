@@ -14,6 +14,30 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.8 — Season-by-Season Results, Ranked Teams in Meet Results & Healthy New Seasons
+
+- **Program profiles list every season.** A program's **History** tab now
+  opens with **Season-by-Season**: each completed season, newest first, with
+  the program's final men's and women's ranking, every team title won that
+  year (🥇 conference, 🚩 regional, 🏆 national, for men and women), and the
+  head coach who led it. Tap a season to open that coach's profile.
+- **Final rankings on coach profiles.** Each season in a coach's
+  Season-by-Season list now shows the program's final men's and women's
+  ranking alongside the result.
+- **Final rankings are saved every season.** At the awards ceremony, every
+  program's place in its division's final poll is recorded permanently.
+  Seasons played before this update show their titles but no final ranking.
+- **Ranked teams stand out in meet results.** In meet results and the Race
+  Center, a team that went into the meet ranked in its division's top 25
+  shows its rank and division before its name (for example, **#4 D1**).
+  The rank is the one the team held going into the meet, so old results
+  stay accurate as the polls move. Top-10 teams get a gold tag.
+- **Fix: every new season starts healthy.** Injuries used to carry over
+  into the next season. Now the summer heals every injury, and clears the
+  Recovering phase, when the new season begins, for every program. Your
+  News feed tells you how many of your runners are back. The career injury
+  history is kept.
+
 ## Version 15.7 — One Development System
 
 - **Every athlete develops by the same rules, in season and over the

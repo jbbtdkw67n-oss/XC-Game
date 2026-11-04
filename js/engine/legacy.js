@@ -513,6 +513,94 @@
         coach.careerRecord.top25 = (coach.careerRecord.top25 || 0) + t25;
       }
     });
+
+    Legacy.recordFinalRanks(gameState);
+  };
+
+  /* ---------------- Final polls (season-by-season results) ----------- *
+   * Every program's final men's and women's ranking — its place in its own
+   * division's final poll — is stamped once a year at awards week, along with
+   * the head coach who led that season:
+   *   history.finalRanks[year][schoolId] = [rankM, rankW, coachId]
+   * Program and coach profiles read it to list season-by-season results.
+   * Every year shares the same key set (one per school), so the save codec
+   * packs a year down to a single tuple of small numbers.
+   */
+  Legacy.recordFinalRanks = function (gameState) {
+    const rankings = gameState.rankings || {};
+    const H = gameState.history;
+    const byId = {};
+    ['M', 'W'].forEach((g, i) => {
+      (rankings[g] || []).forEach((r) => {
+        (byId[r.schoolId] = byId[r.schoolId] || [null, null, null])[i] = r.rank || null;
+      });
+    });
+    const year = {};
+    Object.values(gameState.world.schools).forEach((school) => {
+      const row = byId[school.id] || [null, null, null];
+      row[2] = school.coachId || null;
+      year[school.id] = row;
+    });
+    H.finalRanks = H.finalRanks || {};
+    H.finalRanks[gameState.year] = year;
+  };
+
+  // A program's final ranks for one season: { M, W, coachId } or null when
+  // that season's final poll was never stamped (in progress, or an old save).
+  Legacy.finalRanksFor = function (gameState, schoolId, year) {
+    const yr = ((gameState.history || {}).finalRanks || {})[year];
+    const row = yr && yr[schoolId];
+    return row ? { M: row[0] || null, W: row[1] || null, coachId: row[2] || null } : null;
+  };
+
+  /*
+   * One program's season: its final ranks plus the team titles it won that
+   * year, each as a list of genders. Titles match the championship metadata
+   * by school id first, then the program's name that season (`name`) for
+   * records written before ids were stamped — the same realignment-safe rule
+   * the coach profile uses.
+   */
+  Legacy.programSeason = function (gameState, schoolId, year, name) {
+    const H = gameState.history || {};
+    const genderOf = (key) => (key.endsWith('-M') ? 'M' : 'W');
+    const nat = [], reg = [], conf = [];
+    // National keys are 'M'/'W' (DI) or 'DII-M' etc.; the gender is the suffix.
+    Object.entries((H.nationalChampions || {})[year] || {}).forEach(([key, c]) => {
+      if (c && (c.teamId ? c.teamId === schoolId : c.team === name)) nat.push(key.endsWith('W') ? 'W' : 'M');
+    });
+    const titles = (plain, meta, out) => {
+      const metaYr = (meta || {})[year] || {};
+      const metaById = Object.values(metaYr).some((m) => m && m.schoolId);
+      if (metaById) {
+        Object.entries(metaYr).forEach(([key, m]) => {
+          if (m && m.schoolId === schoolId) out.push(m.gender || genderOf(key));
+        });
+      } else {
+        Object.entries((plain || {})[year] || {}).forEach(([key, n]) => {
+          if (n === name) out.push(genderOf(key));
+        });
+      }
+    };
+    titles(H.regionalChampions, H.regChampMeta, reg);
+    titles(H.conferenceChampions, H.confChampMeta, conf);
+    const order = (arr) => [...new Set(arr)].sort();
+    const fr = Legacy.finalRanksFor(gameState, schoolId, year);
+    return {
+      year: Number(year),
+      rankM: fr ? fr.M : null, rankW: fr ? fr.W : null, coachId: fr ? fr.coachId : null,
+      nat: order(nat), reg: order(reg), conf: order(conf)
+    };
+  };
+
+  // Every completed season on record: years with a stamped final poll or any
+  // team championship, oldest first.
+  Legacy.completedSeasonYears = function (gameState) {
+    const H = gameState.history || {};
+    const years = new Set();
+    [H.finalRanks, H.nationalChampions, H.regionalChampions, H.conferenceChampions].forEach((m) => {
+      Object.keys(m || {}).forEach((y) => years.add(Number(y)));
+    });
+    return [...years].filter((y) => !isNaN(y)).sort((a, b) => a - b);
   };
 
   /* ---------------- Permanent coach registry ------------------------- *
