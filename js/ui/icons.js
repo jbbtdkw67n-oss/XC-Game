@@ -394,10 +394,15 @@
 
     /* ---- communication ---- */
     ['phone', '📞', 'Phone',
-      dbl('M9.6 9.2C8.4 16 14 23.6 22.4 23.2', '#ea4a40', 3.4) +
-      `<rect x="5.4" y="5" width="8.4" height="5.4" rx="2.6" fill="@red" transform="rotate(-62 9.6 7.7)"/>` +
-      `<rect x="20.4" y="20.6" width="8.4" height="5.4" rx="2.6" fill="@red" transform="rotate(-28 24.6 23.3)"/>` +
-      `<path d="M10 12.6c.4 2.8 2 5.6 4.4 7.6" stroke="#fff" stroke-width="1" opacity=".55"/>`],
+      // A retro handset: long gently bowed handle, shallow flared cups. Drawn
+      // upright, then turned so the earpiece sits top-left.
+      `<g transform="translate(14.6 16) rotate(-45) scale(.92) translate(-13 -16)">` +
+      `<path d="M10.4 2.6L17.6 1.8Q19.8 1.6 19.8 3.8V8.6Q19.8 10.8 17.6 10.6L13.6 10.2C12 13.8 12 18.2 13.6 21.8L17.6 21.4Q19.8 21.2 19.8 23.4V28.2Q19.8 30.4 17.6 30.2L10.4 29.4Q7.6 29 7.2 26C5.8 20 5.8 12 7.2 6Q7.6 3 10.4 2.6z" fill="@red"/>` +
+      `<rect x="18.4" y="1.2" width="3.2" height="10" rx="1.6" fill="#c8302a"/><rect x="18.4" y="20.8" width="3.2" height="10" rx="1.6" fill="#c8302a"/>` +
+      `<path d="M20 3.8v5M20 23.2v5" stroke="#7a1512" stroke-width="1.1" stroke-dasharray=".1 1.65"/>` +
+      `<path d="M8.6 7.6C7.6 12.6 7.6 19.4 8.6 24.4" fill="none" stroke="#fff" stroke-width="1.5" opacity=".55"/>` +
+      `<path d="M11 4l5.4-.8M11 28l5.4.8" stroke="#fff" stroke-width="1" opacity=".45"/>` +
+      `</g><path d="M21.6 3.2c3 .5 5.4 2.9 6 6M20.8 7c1.5.3 2.6 1.4 2.9 2.9" fill="none" stroke="#ffd43a" stroke-width="1.6"/>`],
     ['megaphone', '📣', 'Megaphone',
       `<path d="M10.5 19.5l1.8 6.5h3.4l-1.4-5.5" fill="@dark"/>` +
       `<path d="M4.5 12.5h5L22 5.5v21L9.5 19.5h-5c-.8 0-1.5-.7-1.5-1.5v-4c0-.8.7-1.5 1.5-1.5z" fill="@red"/>` +
