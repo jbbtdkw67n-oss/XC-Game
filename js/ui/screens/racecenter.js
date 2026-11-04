@@ -160,14 +160,20 @@
     let nextEvent = 0;
     const prevPos = new Map(); // athlete order snapshot for movement arrows
 
-    track.innerHTML = `<h2 id="race-clock">0:00</h2>` + shown.map((r, i) => `
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
+    // Each runner gets a lane that slides to its live position, so the bars
+    // re-sort as the race unfolds, the same way the Live Leaders list does.
+    const LANE_H = 22;
+    track.innerHTML = `<h2 id="race-clock" style="margin-bottom:2px;">0:00</h2>
+      <div style="color:var(--text-faint); font-size:11px; margin-bottom:8px;">Leader's bar shows true course progress · gaps behind the leader are magnified so the spread is visible</div>
+      <div class="race-lanes" style="height:${shown.length * LANE_H}px;">` + shown.map((r, i) => `
+      <div class="race-lane" id="lane-${i}" style="height:${LANE_H - 5}px; transform:translateY(${i * LANE_H}px);">
         <div class="race-runner-name" style="width:150px; font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; ${r.mine ? 'color:var(--accent-hover); font-weight:700;' : 'color:var(--text-dim);'}">
           ${Utils.escapeHtml(r.name)}
         </div>
         <div class="meter" style="flex:1; height:9px;"><span id="bar-${i}" style="width:0%; ${r.mine ? '' : 'background:#5a6b85;'}"></span></div>
         <div style="width:52px; text-align:right; font-size:11px; color:var(--text-faint);" id="pos-${i}"></div>
-      </div>`).join('');
+      </div>`).join('') + `</div>`;
+    const lanePos = shown.map((_, i) => i);
 
     ticker.innerHTML = `<h3>📡 Race Feed</h3><div class="race-ticker"><div class="tick">The gun goes off — ${shown.length} runners shown of ${res.finisherCount}.</div></div>`;
 
@@ -201,10 +207,24 @@
         .map((r, i) => ({ r, i, p: progressAt(r, raceT) }))
         .sort((a, b) => (b.p - a.p) || (a.r.time - b.r.time));
 
+      // Real gaps are only a few percent of the course, so plain progress bars
+      // all look the same length. Keep the leader's bar at true progress and
+      // magnify everyone's distance behind the leader, scaled so the shown
+      // field spreads across roughly a third of the leader's bar (at most 8×).
+      const lead = standings[0].p;
+      const maxGap = lead - standings[standings.length - 1].p;
+      const zoom = maxGap > 0 ? Utils.clamp((0.35 * lead) / maxGap, 1, 8) : 8;
+
       standings.forEach((s, pos) => {
         const bar = document.getElementById(`bar-${s.i}`);
         const posEl = document.getElementById(`pos-${s.i}`);
-        if (bar) bar.style.width = `${(s.p * 100).toFixed(1)}%`;
+        const shownP = s.p >= 1 ? 1 : Math.max(0, lead - (lead - s.p) * zoom);
+        if (bar) bar.style.width = `${(shownP * 100).toFixed(1)}%`;
+        if (lanePos[s.i] !== pos) {
+          lanePos[s.i] = pos;
+          const lane = document.getElementById(`lane-${s.i}`);
+          if (lane) lane.style.transform = `translateY(${pos * LANE_H}px)`;
+        }
         if (posEl) posEl.textContent = s.p >= 1 ? `✓ ${Races().formatTime(s.r.time)}` : Utils.ordinal(pos + 1);
       });
 

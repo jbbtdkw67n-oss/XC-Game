@@ -1297,6 +1297,15 @@ details.filter-collapse .filter-body {
   ::-webkit-scrollbar { width: 0; height: 0; } /* iOS-style invisible scrollbars */
 }
 
+/* Race Center live replay: lanes slide to each runner's live position. */
+.race-lanes { position: relative; }
+.race-lane {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; gap: 8px;
+  transition: transform 0.45s ease;
+}
+@media (prefers-reduced-motion: reduce) { .race-lane { transition: none; } }
+
 /* Honor reduced-motion (accessibility + battery) */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
