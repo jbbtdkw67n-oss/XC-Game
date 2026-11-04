@@ -124,7 +124,7 @@
       const ord = (n) => (n ? Utils.ordinal(n) : '—');
       const best = Math.min(p.places.M || 99, p.places.W || 99);
       return {
-        priority: 1, screen: 'schedule', icon: best === 1 ? '🏆' : '🏁',
+        priority: 1, screen: 'schedule', icon: best !== 1 ? '🏁' : p.type === 'national' ? ':trophy-national:' : p.type === 'conference' ? ':trophy-conference:' : '🏆',
         title: `${p.name}: ${best === 1 ? 'a team win!' : 'results are in'}`,
         body: `Men ${ord(p.places.M)} · Women ${ord(p.places.W)}`
       };

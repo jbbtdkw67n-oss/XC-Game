@@ -1543,7 +1543,7 @@
     });
 
     if (champId === gameState.playerSchoolId) {
-      gameState.logNews(`🏆 CONFERENCE CHAMPIONS! Your ${gender === 'M' ? 'men' : 'women'} win the ${meet.conference} title!`);
+      gameState.logNews(`:trophy-conference: CONFERENCE CHAMPIONS! Your ${gender === 'M' ? 'men' : 'women'} win the ${meet.conference} title!`);
     } else if (meet.conference === gameState.getPlayerSchool().conference) {
       gameState.logNews(`${school.name} wins the ${meet.conference} ${gender === 'M' ? "men's" : "women's"} title.`);
     }
@@ -2052,7 +2052,7 @@
 
     const label = gender === 'M' ? "men's" : "women's";
     if (champId === gameState.playerSchoolId) {
-      gameState.logNews(`🏆🏆 NATIONAL CHAMPIONS! Your ${label} team wins the NCAA title!`);
+      gameState.logNews(`:trophy-national: NATIONAL CHAMPIONS! Your ${label} team wins the NCAA title!`);
     } else {
       gameState.logNews(`${school.name} wins the ${label} NCAA team title. ${indiv ? `${indiv.name} takes the individual crown in ${formatTime(indiv.time)}.` : ''}`);
     }

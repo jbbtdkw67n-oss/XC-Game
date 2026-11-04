@@ -611,7 +611,7 @@
             <div class="honor-col">
               <div class="mini-label">${g === 'M' ? 'Men' : 'Women'}</div>
               <div class="honor-row">
-                ${UI.honorTeam(game, '🏆 Team Champion', rec.team, rec.teamId, coachLine(teamCoach, rec.coachId))}
+                ${UI.honorTeam(game, ':trophy-national: Team Champion', rec.team, rec.teamId, coachLine(teamCoach, rec.coachId))}
                 ${UI.honorAthlete(game, '🥇 Individual Champion', { athleteId: rec.individualId, name: rec.individual, school: rec.individualSchool, schoolId: rec.individualSchoolId }, g,
                   `${Utils.escapeHtml(rec.individualSchool || '')}${timeTxt}`)}
               </div>
@@ -666,7 +666,7 @@
             if (!champName) return '<span style="color:var(--text-faint);">—</span>';
             const m = cm[`${name}-${g}`];
             const coach = coachFor(champName, year, m && m.coach, m && m.schoolId);
-            return `<strong>${Utils.escapeHtml(champName)}</strong>${coach ? `<div class="cell-sub">${coachLine(coach, m && m.coachId)}</div>` : ''}`;
+            return `:trophy-conference: <strong>${Utils.escapeHtml(champName)}</strong>${coach ? `<div class="cell-sub">${coachLine(coach, m && m.coachId)}</div>` : ''}`;
           };
           const indivCell = (name, g) => {
             const rec = ci[`${name}-${g}`];

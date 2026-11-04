@@ -12,6 +12,10 @@
  *
  *   XCD.icons.svg('trophy')         → inline markup for one icon
  *   XCD.icons.svg('🏆')             → same, looked up by the emoji it replaces
+ *
+ * Two icons have no emoji of their own: the national and conference
+ * championship trophies. Text (including news saved in a game) marks them
+ * with the shortcodes :trophy-national: and :trophy-conference:.
  *   XCD.icons.sprite()              → the full sprite markup
  *   XCD.icons.list                  → [{ id, emoji, label }]
  */
@@ -182,6 +186,32 @@
       `<rect x="8.5" y="24.6" width="15" height="5" rx="1.2" fill="@wood"/><rect x="12.5" y="26" width="7" height="2.2" rx=".5" fill="@gold" ${N}/>` +
       `<path d="${starD(16, 10.4, 3.6, 1.6)}" fill="#fff3c4" ${N} opacity=".95"/>` +
       `<path d="M10.4 6h2.2v4c0 2.8.9 4.8 2.2 6.2-2.8-.8-4.4-3.4-4.4-6.6z" ${H}/>`],
+    ['trophy-national', ':trophy-national:', 'National championship trophy',
+      // The big one: an ornate gold cup with a star finial, standing in a
+      // laurel wreath on a two-tier navy plinth.
+      `<path d="M7.2 27.6C3.2 25 2 20 3.4 15.6M24.8 27.6c4-2.6 5.2-7.6 3.8-12" fill="none" stroke="#3f8f2a" stroke-width="1.2"/>` +
+      [[3.2, 17.4, -60], [3.6, 21, -40], [5, 24.4, -20], [28.8, 17.4, 60], [28.4, 21, 40], [27, 24.4, 20]]
+        .map(([x, y, r]) => `<ellipse cx="${x}" cy="${y}" rx="1.3" ry="2.4" transform="rotate(${r} ${x} ${y})" fill="@grass" stroke-width=".9"/>`).join('') +
+      dbl('M9.6 8H6.4c0 4 1.8 6.6 5.4 7.2', '#f6bd2f', 1.7) + dbl('M22.4 8h3.2c0 4-1.8 6.6-5.4 7.2', '#f6bd2f', 1.7) +
+      `<path d="M8.8 5.2h14.4v4.6c0 5.4-3.2 8.6-7.2 8.6s-7.2-3.2-7.2-8.6z" fill="@gold"/>` +
+      `<path d="M8.4 4.4h15.2v1.8H8.4z" fill="@gold"/>` +
+      `<path d="${starD(16, 2.6, 2.4, 1.05)}" fill="@gold" stroke-width=".9"/>` +
+      `<path d="M14.4 18.2h3.2l.8 3.6h-4.8z" fill="@gold"/>` +
+      `<rect x="10.4" y="21.6" width="11.2" height="3" rx="1" fill="@blue"/><rect x="8.6" y="24.6" width="14.8" height="4.6" rx="1.2" fill="@blue"/>` +
+      `<rect x="12.4" y="25.8" width="7.2" height="2.2" rx=".5" fill="@gold" ${N}/>` +
+      `<path d="M14.6 8.8l1.6-1.1v6.2" fill="none" stroke="#9a6400" stroke-width="1.5"/>` +
+      `<path d="M11 6.6h2v3.6c0 2.6.8 4.4 2 5.6-2.6-.8-4-3.2-4-6z" ${H}/>`],
+    ['trophy-conference', ':trophy-conference:', 'Conference championship trophy',
+      // A round silver bowl on a slim stem with a blue bow, on a wooden base.
+      `<path d="M15 15.6h2l.6 7.4h-3.2z" fill="@silver"/>` +
+      `<path d="M15.6 16.6l-4.4 6.2 2.2-.2.6 2.2 2.6-6.6zM16.4 16.6l4.4 6.2-2.2-.2-.6 2.2-2.6-6.6z" fill="@blue"/>` +
+      `<path d="M5.6 3.6h20.8c0 7.4-4.2 13-10.4 13S5.6 11 5.6 3.6z" fill="@silver"/>` +
+      `<path d="M6 6.4h20" stroke-width=".9"/>` +
+      `<path d="${starD(16, 10.4, 3.4, 1.5)}" fill="#3d8bfd" ${N}/>` +
+      `<circle cx="16" cy="17" r="1.9" fill="@blue"/>` +
+      `<path d="M11.2 24.6c0-1 1-1.6 2.2-1.6h5.2c1.2 0 2.2.6 2.2 1.6z" fill="@silver"/>` +
+      `<rect x="8" y="24.6" width="16" height="4.8" rx="1.1" fill="@wood"/><rect x="12.6" y="25.9" width="6.8" height="2.2" rx=".5" fill="@silver" ${N}/>` +
+      `<path d="M8.8 7.4h2c.4 2.8 1.6 5 3.4 6.4-2.8-.6-4.8-3-5.4-6.4z" ${hl(0.7)}/>`],
     ['star', '⭐', 'Star', starIcon(16, 17, 13.5, 6, '@gold')],
     ['star-glow', '🌟', 'Glowing star',
       `<circle cx="16" cy="16.5" r="13.5" fill="#ffd43a" ${N} opacity=".22"/>` +
@@ -901,7 +931,7 @@
   const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const alternation = ICONS.map(([, emoji]) => strip(emoji))
     .sort((a, b) => b.length - a.length)
-    .map((e) => Array.from(e).map(escRe).join('\\uFE0F?') + '\\uFE0F?')
+    .map((e) => (e[0] === ':' ? escRe(e) : Array.from(e).map(escRe).join('\\uFE0F?') + '\\uFE0F?'))
     .join('|');
   const RE_TEST = new RegExp(`(?:${alternation})`, 'u');
   const RE_SPLIT = new RegExp(`(${alternation})`, 'u');
@@ -929,10 +959,18 @@
     return el;
   }
 
+  // Championship news written before the two title trophies existed used a
+  // plain trophy; show the right one for those saved lines too.
+  const LEGACY_TITLES = [
+    [/🏆\uFE0F?\s*(?=CONFERENCE CHAMPIONS)/u, ':trophy-conference: '],
+    [/(?:🏆\uFE0F?){1,2}\s*(?=NATIONAL CHAMPIONS)/u, ':trophy-national: ']
+  ];
+
   function paintText(node) {
     const parent = node.parentNode;
     if (!parent || !RE_TEST.test(node.data)) return;
     if (SKIP.has(parent.nodeName)) return;
+    LEGACY_TITLES.forEach(([re, code]) => { if (re.test(node.data)) node.data = node.data.replace(re, code); });
     if (TEXT_ONLY.has(parent.nodeName) || parent.namespaceURI === SVG_NS) {
       node.data = stripEmoji(node.data);
       return;

@@ -29,7 +29,7 @@ async function run() {
       byEmoji: I.svg('🏆').includes('#gi-trophy') && I.svg('⚠️').includes('#gi-warning')
     };
   });
-  ok(sprite.count >= 147, 'icon set covers every emoji: ' + sprite.count);
+  ok(sprite.count >= 149, 'icon set covers every emoji: ' + sprite.count);
   ok(!sprite.missing.length, 'every icon has a sprite symbol: ' + sprite.missing.join(', '));
   ok(sprite.byEmoji, 'icons resolve by emoji, with or without the variation selector');
 
@@ -114,6 +114,33 @@ async function run() {
     box.remove();
     return res;
   });
+  // Championship trophies: the national and conference titles each have their
+  // own trophy, written as shortcodes, and old saved news lines that used a
+  // plain trophy show the right one.
+  const titles = await page.evaluate(async () => {
+    const box = document.createElement('div');
+    box.innerHTML = '<p id="t1">:trophy-national: Team National Championships</p>' +
+      '<p id="t2">:trophy-conference: CONFERENCE CHAMPIONS! Your men win the title!</p>' +
+      '<p id="t3">🏆🏆 NATIONAL CHAMPIONS! Your men\'s team wins the NCAA title!</p>' +
+      '<p id="t4">🏆 CONFERENCE CHAMPIONS! Your women win the title!</p>' +
+      '<p id="t5">🏆 NEW COURSE RECORD</p><span id="t6" title=":trophy-national: 3 titles">x</span>';
+    document.getElementById('screen-container').appendChild(box);
+    await new Promise((r) => setTimeout(r, 0));
+    const icons = (id) => [...box.querySelectorAll(`#${id} use`)].map((u) => u.getAttribute('href'));
+    const res = {
+      national: icons('t1'), conference: icons('t2'), oldNational: icons('t3'), oldConference: icons('t4'),
+      plain: icons('t5'), text: box.querySelector('#t1').textContent.trim(), title: box.querySelector('#t6').getAttribute('title')
+    };
+    box.remove();
+    return res;
+  });
+  ok(titles.national.join() === '#gi-trophy-national', 'national shortcode shows the national trophy: ' + titles.national);
+  ok(titles.conference.join() === '#gi-trophy-conference', 'conference shortcode shows the conference trophy: ' + titles.conference);
+  ok(titles.oldNational.join() === '#gi-trophy-national', 'saved national-title news shows one national trophy: ' + titles.oldNational);
+  ok(titles.oldConference.join() === '#gi-trophy-conference', 'saved conference-title news shows the conference trophy: ' + titles.oldConference);
+  ok(titles.plain.join() === '#gi-trophy', 'other trophies stay the plain trophy: ' + titles.plain);
+  ok(titles.text === 'Team National Championships', 'no shortcode text is left on screen: ' + titles.text);
+  ok(titles.title === '3 titles', 'tooltips drop shortcodes too: ' + titles.title);
   ok(textOnly.option === 'Off week — training block', 'dropdown option keeps its words: ' + textOnly.option);
   ok(textOnly.title === 'Locked until Week 2', 'tooltip keeps its words: ' + textOnly.title);
 

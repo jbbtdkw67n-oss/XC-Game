@@ -603,7 +603,7 @@
           const mine = res && res.teamScores && res.teamScores.find((t) => t.schoolId === this.playerSchoolId);
           places[g] = mine ? mine.place : null;
         });
-        if (places.M || places.W) Events.emit(this, 'race:completed', { meetId: ranMeet.id, name: ranMeet.name, places });
+        if (places.M || places.W) Events.emit(this, 'race:completed', { meetId: ranMeet.id, name: ranMeet.name, type: ranMeet.type, places });
       }
 
       // Nike Cross Nationals runs the same week as NCAA Nationals (Update 5,

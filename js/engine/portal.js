@@ -715,7 +715,7 @@
     // The player's transfer-points budget for this window (Update 15).
     const pp = ensurePlayerPoints(gameState);
     if (pp && pp.titleBonus) {
-      gameState.logNews(`🏆 Recruiting from the podium: the national title boosts your transfer points budget to ${pp.budget}.`);
+      gameState.logNews(`:trophy-national: Recruiting from the podium: the national title boosts your transfer points budget to ${pp.budget}.`);
     } else if (pp && pp.seasonAdj) {
       gameState.logNews(`📉 A down season quiets the pitch: your transfer points budget falls to ${pp.budget} this window.`);
     }
