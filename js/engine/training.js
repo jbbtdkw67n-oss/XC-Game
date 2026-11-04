@@ -382,6 +382,11 @@
     HIGH: { M: 80, W: 66 },     // where high-mileage dividends begin
     DEV_PER_MILE: 0.03,         // in-season development per adapted mile above HIGH
     PEAK_PER_MILE: 0.5, PEAK_MAX_FORM: 15,      // a bigger base, a bigger taper peak (form points)
+    // The other road to a peak: sharp race-specific quality (intervals,
+    // speed, race simulations) on FRESH, lower-volume legs. Full credit at
+    // QUALITY_FRESH below the high-volume line, none by the line itself.
+    QUALITY_PER_STIM: 4.2, QUALITY_MAX_FORM: 15, QUALITY_FRESH: 25,
+    QUALITY_SHARP: 0.55, // share of that quality credit that sharpens every week
     SUMMER_FULL: 420, SUMMER_MAX: 0.3           // season base → summer development
   };
 
@@ -1416,6 +1421,15 @@
     return athlete.peakSeason === gameState.year;
   }
 
+  // The quality road to a peak (see VOLUME): race-specific work carried into
+  // the taper, credited in full on fresh lower-volume legs, fading to nothing
+  // at the high-volume line (where the aerobic base takes over).
+  function qualityPeakForm(athlete, chronic) {
+    const line = VOLUME.HIGH[genderKey(athlete)] + 5;
+    const fresh = Utils.clamp((line - (chronic || line)) / VOLUME.QUALITY_FRESH, 0, 1);
+    return Math.min(VOLUME.QUALITY_MAX_FORM, (athlete.qualityLoad || 0) * VOLUME.QUALITY_PER_STIM) * fresh;
+  }
+
   // Would this week's miles + plan count as the season's taper?
   function isTaperWeek(mileage, chronic, planMeta) {
     if (planMeta && planMeta.downWeek) return false; // a down week saves the peak
@@ -1441,7 +1455,11 @@
     // A real indoor track lets track work push a little past the usual
     // ceiling; a dirt loop holds it back (about −3 to +5).
     const trackLift = planMeta.trackSharp > 0 ? (school.facilities.indoorTrack - 45) * 0.1 : 0;
-    target = Math.min(target, sharpCeiling(athlete) + trackLift);
+    // Quality on fresh legs keeps a runner race-sharp all season (the quality
+    // road — see VOLUME): up to ~+8 on the target and the ceiling.
+    const qualitySharp = qualityPeakForm(athlete, athlete.chronicMileage) * VOLUME.QUALITY_SHARP;
+    target += qualitySharp;
+    target = Math.min(target, sharpCeiling(athlete) + trackLift + qualitySharp);
     // Race rust (Injury System Expansion): a runner rebuilding from injury
     // can't be fully race-sharp until the Recovering window closes.
     if (athlete.health === 'Recovering') target = Math.min(target, 72);
@@ -1471,7 +1489,10 @@
         // that volume cost through the regular season.
         const base = highVolumeMiles(adaptedMiles(chronicBefore || 0, chronicBefore, athlete), athlete);
         const baseForm = Math.min(VOLUME.PEAK_MAX_FORM, base * VOLUME.PEAK_PER_MILE) * Utils.clamp(strength, 0, 1);
-        athlete.peakBonus = Math.round(PEAK_MAX * Utils.clamp(strength, 0.15, 1.15) + baseForm);
+        // ...or sharp quality on fresh legs: a lower-volume, quality-first
+        // program peaks just as high by a different road.
+        athlete.peakBonus = Math.round(PEAK_MAX * Utils.clamp(strength, 0.15, 1.15) +
+          Math.max(baseForm, qualityPeakForm(athlete, chronicBefore) * Utils.clamp(strength, 0, 1)));
         athlete.peakFresh = true;
         athlete.peakSeason = gameState.year;
         athlete.peakWeek = week + 1; // it lands on next week's race
@@ -1676,6 +1697,9 @@
     }
     athlete.chronicIntensity = Math.round(((athlete.chronicIntensity ?? (planMeta.intensity || 0)) * 0.7 +
       (planMeta.intensity || 0) * 0.3) * 10) / 10;
+    // Race-specific quality carried week to week (the quality road to a peak).
+    athlete.qualityLoad = Math.round(((athlete.qualityLoad ?? 0) * 0.75 +
+      ((planMeta.sharpStim || 0) + (planMeta.trackSharp || 0)) * 0.25) * 100) / 100;
 
     // Workload history (Update 6, Phase 2): a week counts as "high load" when
     // the runner is carrying real fatigue, stacking hard days, or pushing past
@@ -2358,6 +2382,7 @@
     mileageMeta,
     adaptedMiles,
     summerBaseMult,
+    qualityPeakForm,
     VOLUME,
     projectedFatigue,
     safeMileage,

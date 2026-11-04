@@ -7,6 +7,9 @@
 //     runner who hasn't built up to it (a ramp) still costs full price
 //   - Women get the same dividend on their lower volume scale
 //   - A season's adapted base grows the summer; a big base grows the taper peak
+//   - The other road: race-specific quality on fresh, lower-volume legs peaks
+//     just as high, and keeps a runner sharper week to week
+//   - The Training screen explains the approaches and the rules of thumb
 const { chromium } = require('playwright');
 const { newDynasty, wireErrors, launchOpts } = require('./helpers');
 
@@ -58,6 +61,12 @@ async function run() {
     };
     out.peak70 = peak(70);
     out.peak110 = peak(110);
+    // Quality road: 55 mi with a quality-heavy history peaks like a big base.
+    const qa = g.world.athletes[keepRoster[0]];
+    qa.qualityLoad = 3.6; out.peakQuality55 = peak(55);
+    qa.qualityLoad = 0; out.peakNoQuality55 = peak(55);
+    const qf = (q, chronic) => T.qualityPeakForm(Object.assign({}, durable, { qualityLoad: q }), chronic);
+    out.qFresh = qf(3.6, 55); out.qHeavy = qf(3.6, 100);
     school.rosterM = keepRoster;
     g.world.schools = keepSchools;
     return out;
@@ -81,6 +90,17 @@ async function run() {
   // Summer and taper.
   ok(r.summerNone === 1 && r.summerFull > 1.25, 'season base grows the summer: ' + r.summerFull);
   ok(r.peak110 >= r.peak70 + 8, 'a big adapted base peaks higher at the taper: ' + r.peak110 + ' vs ' + r.peak70);
+  ok(r.peakQuality55 >= r.peakNoQuality55 + 8 && Math.abs(r.peakQuality55 - r.peak110) <= 3,
+    'quality on fresh legs peaks about as high as a big base: ' + JSON.stringify([r.peakQuality55, r.peakNoQuality55, r.peak110]));
+  ok(r.qFresh > 10 && r.qHeavy === 0, 'quality credit belongs to fresh, lower-volume legs: ' + JSON.stringify([r.qFresh, r.qHeavy]));
+
+  // The approaches guide on the Training screen.
+  await page.evaluate(() => window.XCD.ui.navigate('training'));
+  await page.waitForSelector('#approaches-guide');
+  const guide = await page.evaluate(() => document.querySelector('#approaches-guide').textContent.replace(/\s+/g, ' '));
+  ok(/Aerobic base/.test(guide) && /Quality on fresh legs/.test(guide) && /balanced middle/.test(guide) &&
+    /Taper once/.test(guide) && /Base early, sharpen late/.test(guide) && /healthy runners/.test(guide),
+    'the Training screen lays out the approaches and rules of thumb: ' + guide.slice(0, 200));
 
   ok(errors.length === 0, 'page errors: ' + errors.slice(0, 4).join(' | '));
   await browser.close();

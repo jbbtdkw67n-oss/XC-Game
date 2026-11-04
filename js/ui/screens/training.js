@@ -45,6 +45,39 @@
 
   // Squad Form card (Update 25, Stage 3): Base, Sharpening vs its ceiling,
   // Staleness, the season's one peak, and a form-by-week chart.
+  /*
+   * Training approaches (high-mileage rework): there is no single right way
+   * to train. Three roads all reach a fast November — this card lays them
+   * out, with the rules of thumb that hold for every one of them, and how
+   * many of the squad can carry real volume.
+   */
+  function approachesGuideHtml(game, gender) {
+    const T = TE();
+    const women = gender === 'W';
+    const roster = game.getRoster(game.playerSchoolId, gender).filter((a) => !a.injury);
+    const bigAt = women ? 85 : 100;
+    const durable = roster.filter((a) => T.safeMileage(a) >= bigAt).length;
+    const low = women ? '~45-50' : '~55';
+    const normal = women ? '~60' : '~75';
+    const road = (icon, title, body) => `<div style="padding:8px 0; border-top:1px solid var(--border);"><strong>${icon} ${title}</strong><div style="color:var(--text-dim); margin-top:2px;">${body}</div></div>`;
+    return `
+      <details class="card approaches-guide" id="approaches-guide" style="margin-bottom:16px; font-size:13px;">
+        <summary style="cursor:pointer; font-weight:700;">🧭 Training approaches — several ways to a fast November</summary>
+        <div style="margin-top:8px; color:var(--text-dim);">There is no one right way to train. Pick the road that fits your runners — or mix them runner by runner with individual mileage.</div>
+        ${road('🏗️', 'Aerobic base — high volume', `Build each runner up over a few weeks toward their durable limit (🎯 Ideal Mileage). The biggest development there is — in season, at the taper, and next summer. The cost: legs race a little flat until the taper, and only durable runners can carry it. <strong>${durable} of your ${roster.length} healthy runners</strong> can handle ${bigAt}+ mi/wk right now.`)}
+        ${road('⚡', 'Quality on fresh legs — low volume', `Run ${low} mi/wk with intervals, speed, and race simulations every week. The sharpest squad all regular season, the lowest injury risk, and a taper peak just as high — but the slowest-growing engine over a career. Made for fragile talent.`)}
+        ${road('⚖️', 'The balanced middle', `Program-normal volume (${normal} mi/wk) with plans that fit each phase: a little of both.`)}
+        <div style="padding:8px 0 0; border-top:1px solid var(--border);"><strong>Rules of thumb for every approach</strong>
+          <ul style="margin:4px 0 0; padding-left:18px; color:var(--text-dim);">
+            <li><strong>Base early, sharpen late:</strong> volume and long runs in summer and September; race-specific work (intervals, speed, simulations) in October. The phase banner above shows what fits this week.</li>
+            <li><strong>Taper once:</strong> about a 30% cut with a quality session the week before your target race (the Championship taper preset). It is worth more on race day than any training block.</li>
+            <li><strong>Ramp, don't jump:</strong> raise miles about 20% a week at most — the body adapts to what it has carried, not what you ask of it.</li>
+            <li><strong>Respect the red numbers:</strong> miles past a runner's durable limit break bodies down. Down weeks clear the fatigue when it piles up.</li>
+          </ul>
+        </div>
+      </details>`;
+  }
+
   function squadFormHtml(game, school, gender) {
     const T = TE();
     const f = T.squadForm(game, school, gender);
@@ -242,6 +275,8 @@
         </div>
         <div id="mileage-hint" style="font-size:12.5px; color:var(--text-dim);"></div>
       </div>
+
+      ${approachesGuideHtml(game, activeGender)}
 
       ${UI.sectionLabel('Athletes')}
       <div class="card" style="margin-bottom:16px;">
