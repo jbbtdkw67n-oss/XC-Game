@@ -225,7 +225,7 @@
         <div class="stat-tile"><div class="label">Transfer Points</div><div class="value">${ptsLeft}</div><div class="sub">of ${pp.budget} this window</div></div>
         <div class="stat-tile"><div class="label">Pursuing</div><div class="value">${pursuing}</div><div class="sub">of ${P.PLAYER_OFFER_LIMIT} max</div></div>
         <div class="stat-tile"><div class="label">Budget Source</div>
-          <div class="value" style="font-size:15px;">${pp.titleBonus ? '🏆 Title boost' : pp.seasonAdj ? '📉 Down season' : '📊 Standard'}</div>
+          <div class="value" style="font-size:15px;">${pp.titleBonus ? ':trophy-national: Title boost' : pp.seasonAdj ? '📉 Down season' : '📊 Standard'}</div>
           <div class="sub">prestige + recruiting${pp.titleBonus ? ` +${pp.titleBonus}` : ''}${pp.seasonAdj ? ` ${pp.seasonAdj}` : ''}</div></div>
       </div>
       <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent); padding:10px 14px; font-size:13px;">

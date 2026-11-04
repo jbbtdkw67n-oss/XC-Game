@@ -221,7 +221,7 @@
         <div class="stat-tile"><div class="label">Highest Ranking</div><div class="value">${prog.highestRank ? '#' + prog.highestRank : '—'}</div><div class="sub">prestige ${trendStr}</div></div>
       </div>
 
-      ${sectionTable('🏆 Team National Championships',
+      ${sectionTable(':trophy-national: Team National Championships',
         ['Year', 'Squad', 'Coach', 'Team OVR', 'Score', 'Roster'],
         h.teamNat.map((t, ti) => `<tr>
           <td>${t.year}</td><td>${gTag(t.gender)}</td><td>${coachLink(t.coach)}</td>
@@ -237,7 +237,7 @@
         </tr>`),
         'No individual national champions yet.')}
 
-      ${sectionTable('🏅 Conference Team Championships',
+      ${sectionTable(':trophy-conference: Conference Team Championships',
         ['Year', 'Squad', 'Conference', 'Coach'],
         h.confTeam.map((t) => `<tr><td>${t.year}</td><td>${gTag(t.gender)}</td><td>${Utils.escapeHtml(t.conf)}</td><td>${coachLink(t.coach)}</td></tr>`),
         'No conference team titles recorded yet.')}
@@ -275,7 +275,7 @@
             return `<tr>
               <td>${coachLink(c.name, c.coachId)}</td>
               <td style="color:var(--text-dim);">${c.startYear}–${c.endYear || 'present'}</td>
-              <td class="num">${sr.natTitles}🏆 ${sr.confTitles}🥇</td>
+              <td class="num">${sr.natTitles}:trophy-national: ${sr.confTitles}:trophy-conference:</td>
               <td class="num">${sr.regTitles || '—'}</td>
               <td class="num">${sr.natApps || '—'}</td>
               <td style="font-size:12px; color:var(--text-dim);">${coy.join(' · ') || '—'}</td>
@@ -540,7 +540,7 @@
       </div>
       <div class="grid cols-2">
         <div class="card">
-          <h2>🏆 Championships</h2>
+          <h2>:trophy-national: Championships</h2>
           ${row('National Titles', prog.natTitles || 0)}
           ${row('National Runner-Up Finishes', prog.natRunnerUp || 0)}
           ${row('Top-5 Finishes', prog.top5Finishes || 0, 'at the NCAA Championships')}
@@ -549,7 +549,7 @@
           ${row('Best NCAA Finish', prog.bestFinish ? Utils.ordinal(prog.bestFinish) : '—')}
         </div>
         <div class="card">
-          <h2>🏅 Conference</h2>
+          <h2>:trophy-conference: Conference</h2>
           ${row('Conference Titles', prog.confTitles || 0)}
           ${row('Conference Runner-Up Finishes', prog.confRunnerUp || 0)}
           ${row('Conference Championships Contested', prog.seasonsPlayed || 0, 'one per season, per squad')}
@@ -687,10 +687,10 @@
       </div>
 
       <div class="card">
-        <h2>🏆 Championship Teams — ${teams.length}</h2>
+        <h2>:trophy-national: Championship Teams — ${teams.length}</h2>
         ${teams.length ? teams.map((t, i) => `
           <div class="attr-row clickable" data-hof-team="${i}" style="cursor:pointer; align-items:flex-start; padding:10px 0; gap:10px;">
-            <span style="font-size:24px; flex:0 0 auto;">🏆</span>
+            <span style="font-size:24px; flex:0 0 auto;">:trophy-national:</span>
             <span style="flex:1; min-width:0;">
               <strong>${t.year} ${t.gender === 'M' ? "Men's" : "Women's"} National Champions</strong>
               <div style="font-size:12px; color:var(--text-dim);">
@@ -989,7 +989,7 @@
             <div style="color:var(--text-dim); font-size:12px; margin-top:2px;">
               Age ${c.age} • ${Utils.escapeHtml(c.archetype || '')} •
               ${Utils.escapeHtml((window.XCD.data.trainingPhilosophy(c.trainingPhilosophy) || {}).label || '')}${rp.label ? ` / ${Utils.escapeHtml(rp.label)}` : ''}
-              ${seasons ? ` • ${seasons} season${seasons > 1 ? 's' : ''} coached${cr.nationalTitles ? ` • ${cr.nationalTitles}🏆` : ''}` : ' • First job'}
+              ${seasons ? ` • ${seasons} season${seasons > 1 ? 's' : ''} coached${cr.nationalTitles ? ` • ${cr.nationalTitles}:trophy-national:` : ''}` : ' • First job'}
               • Rep ${Math.round(c.reputation || 0)}
             </div>
             <div style="font-size:12px; margin-top:3px;">

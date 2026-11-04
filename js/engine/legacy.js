@@ -774,7 +774,7 @@
         const g = key.endsWith('W') ? "women's" : "men's";
         if (rec.teamId === sid || rec.team === name) {
           natCount += 1;
-          push(year, '🏆', natCount === 1
+          push(year, ':trophy-national:', natCount === 1
             ? `Won the program's first National Championship (${g}).`
             : `Won the ${g} National Championship — title #${natCount}.`);
         }
@@ -792,7 +792,7 @@
         confCount += 1;
         const conf = key.slice(0, key.lastIndexOf('-'));
         const g = key.endsWith('-W') ? "women's" : "men's";
-        push(year, '🏅', confCount === 1
+        push(year, ':trophy-conference:', confCount === 1
           ? `Won the program's first conference championship (${conf}, ${g}).`
           : `Won the ${conf} ${g} title — conference championship #${confCount}.`);
       });

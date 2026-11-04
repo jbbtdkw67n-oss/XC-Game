@@ -633,9 +633,9 @@
     // Meet cards (phone): date, name, importance, conditions, and — after
     // the race — the result, with a big touch-friendly results button.
     const meetCards = entries.map((e) => {
-      const importance = e.label === 'Nationals' ? '🏆 Nationals'
+      const importance = e.label === 'Nationals' ? ':trophy-national: Nationals'
         : e.label === 'Regional' ? '🌍 Regional'
-        : e.label === 'Conference' ? '🏅 Conference'
+        : e.label === 'Conference' ? ':trophy-conference: Conference'
         : e.label;
       const thisWeek = e.week === game.week;
       return `

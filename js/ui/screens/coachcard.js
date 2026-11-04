@@ -163,7 +163,7 @@
               ['M', 'W'].forEach((g) => {
                 const key = div === 'DI' ? g : `${div}-${g}`;
                 if (nat[key] && nat[key].teamId === st.schoolId) {
-                  add(0, `nat-${div}`, '🏆', `${short[div] || div} National Championships`, y, g);
+                  add(0, `nat-${div}`, ':trophy-national:', `${short[div] || div} National Championships`, y, g);
                 }
               });
               Object.entries((H.regionalChampions || {})[y] || {}).forEach(([rkey, name]) => {
@@ -172,7 +172,7 @@
               });
               Object.entries((H.conferenceChampions || {})[y] || {}).forEach(([ckey, name]) => {
                 if (name !== st.school) return;
-                add(2, 'conf', '🥇', 'Conference Championships', y, `${ckey.slice(0, -2)}, ${ckey.endsWith('-M') ? 'M' : 'W'}`);
+                add(2, 'conf', ':trophy-conference:', 'Conference Championships', y, `${ckey.slice(0, -2)}, ${ckey.endsWith('-M') ? 'M' : 'W'}`);
               });
             }
           });

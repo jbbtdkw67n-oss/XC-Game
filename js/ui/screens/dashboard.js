@@ -445,7 +445,7 @@
               <td class="num hide-mobile">$${o.budget ? (o.budget / 1000).toFixed(0) + 'k' : '—'}</td>
               <td class="num hide-mobile">${o.facilities ?? '—'}</td>
               <td class="num hide-mobile">${o.bestRank ? '#' + o.bestRank : '—'}</td>
-              <td class="num hide-mobile">${o.natTitles || 0}🏆</td>
+              <td class="num hide-mobile">${o.natTitles || 0}:trophy-national:</td>
               <td class="num">${direct
                 ? '<span style="color:var(--success); font-weight:700;" title="They came to you — the job is yours to take">Offer</span>'
                 : `<span style="color:${iColor}; font-weight:700;" title="The school's interest in you — your chance of landing the job if you apply. They may go another direction.">${interest}%</span>`}</td>

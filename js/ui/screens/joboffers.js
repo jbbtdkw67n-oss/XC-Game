@@ -194,7 +194,7 @@
         delta(o.facilities ?? school.facilitiesOverall, cur.facilitiesOverall), `yours: ${cur.facilitiesOverall ?? '—'}`),
       stat('Academics', school.academics ?? o.academics ?? '—',
         delta(school.academics ?? o.academics, cur.academics), `yours: ${cur.academics ?? '—'}`),
-      stat('Titles', `${o.natTitles || 0} 🏆 national`, '',
+      stat('Titles', `${o.natTitles || 0} :trophy-national: national`, '',
         `${o.confTitles || 0} conference title${o.confTitles === 1 ? '' : 's'}`),
       stat('Expectations', `~#${exp} in ${Utils.escapeHtml(o.division || 'DI')}`, '',
         `${(o.expectations ?? 100) >= 100 ? 'High' : (o.expectations ?? 100) >= 80 ? 'Moderate' : 'Low'} hot-seat pressure`)

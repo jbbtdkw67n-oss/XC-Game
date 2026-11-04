@@ -167,6 +167,21 @@
    * one a program matches lowers the lock cost (and raises a CPU suitor's
    * pull), so genuine fits close cheaper — for everyone.
    */
+  /*
+   * Did this program's squad (of the transfer's gender) finish in the top 10
+   * of its division's final poll in the most recently completed season? The
+   * final poll is stamped at awards week, so look at this year first and fall
+   * back to last year while the current season is still unfinished.
+   */
+  function lastSeasonTop10(gameState, schoolId, gender) {
+    const Legacy = window.XCD.engine.Legacy;
+    if (!Legacy || !Legacy.finalRanksFor) return false;
+    const fr = Legacy.finalRanksFor(gameState, schoolId, gameState.year) ||
+      Legacy.finalRanksFor(gameState, schoolId, gameState.year - 1);
+    const rank = fr && fr[gender === 'W' ? 'W' : 'M'];
+    return !!rank && rank <= 10;
+  }
+
   function transferPreferences(gameState, athlete, entry) {
     const RE = window.XCD.engine.Recruiting;
     const R = window.XCD.data.PORTAL_REASONS;
@@ -185,7 +200,12 @@
       });
     }
     if (reason === R.contender || reason === R.moveUp || athlete.currentOverall >= 72) {
-      prefs.push({ key: 'contender', icon: '🏆', label: 'Wants a national contender', match: (s) => s.prestige >= 72 });
+      prefs.push({
+        key: 'contender', icon: '🏆', label: 'Wants a national contender',
+        // A top-10 finish in the season just completed makes a program a
+        // contender regardless of prestige; otherwise prestige decides.
+        match: (s) => s.prestige >= 72 || lastSeasonTop10(gameState, s.id, athlete.gender)
+      });
     }
     if (reason === R.homesick || (athlete.hometownState !== 'INT' && from &&
         RE.distanceMiles(athlete.hometownState, from.state) > 900)) {
@@ -695,7 +715,7 @@
     // The player's transfer-points budget for this window (Update 15).
     const pp = ensurePlayerPoints(gameState);
     if (pp && pp.titleBonus) {
-      gameState.logNews(`🏆 Recruiting from the podium: the national title boosts your transfer points budget to ${pp.budget}.`);
+      gameState.logNews(`:trophy-national: Recruiting from the podium: the national title boosts your transfer points budget to ${pp.budget}.`);
     } else if (pp && pp.seasonAdj) {
       gameState.logNews(`📉 A down season quiets the pitch: your transfer points budget falls to ${pp.budget} this window.`);
     }

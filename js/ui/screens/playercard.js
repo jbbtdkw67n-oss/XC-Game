@@ -20,7 +20,7 @@
   ];
 
   const ACC_ICON = {
-    natChampTeam: '🏆', natChampIndiv: '🥇', natRunnerUp: '🥈', runnerOfYear: '🏅',
+    natChampTeam: ':trophy-national:', natChampIndiv: '🥇', natRunnerUp: '🥈', runnerOfYear: '🏅',
     allAmerican: '🇺🇸', freshmanOfYear: '🌱', regChamp: '🗺', confChamp: '🥇',
     confRunnerOfYear: '🏅', confFreshmanOfYear: '🌱',
     allConference: '🏅', academicAllAmerican: '📚', nxnChampion: '👟', nxnAllAmerican: '🎽',
@@ -599,7 +599,7 @@
     const ft = window.XCD.engine.Races.formatTime;
     UI.showModal(`
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
-      <h2>🏆 ${t.year} ${Utils.escapeHtml(t.school)} — ${gTag} National Champions</h2>
+      <h2>:trophy-national: ${t.year} ${Utils.escapeHtml(t.school)} — ${gTag} National Champions</h2>
       <div style="color:var(--text-dim); font-size:12.5px; margin-bottom:10px;">
         ${DIV_LABELS[t.division] || t.division || 'D1'} • ${Utils.escapeHtml(t.conference || '')} •
         Coach: <span class="clickable" id="champ-team-coach" style="cursor:pointer;">${t.coachName ? UI.personName(game, 'coach', t.coachId, t.coachName, { link: false }) : '—'}</span>
@@ -608,7 +608,7 @@
         <div class="stat-tile"><div class="label">National Finish</div><div class="value">1st</div>${t.teamScore != null ? `<div class="sub">${t.teamScore} points</div>` : ''}</div>
         <div class="stat-tile"><div class="label">Margin</div><div class="value">${t.margin != null ? t.margin : '—'}</div><div class="sub">over the runner-up</div></div>
         <div class="stat-tile"><div class="label">Team Rating</div><div class="value">${t.teamOverall || '—'}</div><div class="sub">scoring five, that season</div></div>
-        <div class="stat-tile"><div class="label">Conference</div><div class="value">${t.wonConference === undefined ? '—' : (t.wonConference ? '🥇 1st' : '—')}</div><div class="sub">${t.wonConference ? 'conference champions' : 'conference finish'}</div></div>
+        <div class="stat-tile"><div class="label">Conference</div><div class="value">${t.wonConference === undefined ? '—' : (t.wonConference ? ':trophy-conference: 1st' : '—')}</div><div class="sub">${t.wonConference ? 'conference champions' : 'conference finish'}</div></div>
       </div>
       ${roster.length ? `
       <div class="card" style="padding:12px;">
