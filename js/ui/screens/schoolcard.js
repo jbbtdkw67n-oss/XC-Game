@@ -103,9 +103,10 @@
       });
     }
 
-    // Season-by-season results: every completed season, newest first, with
-    // the final men's and women's ranking (within the division's final poll),
-    // each team title won, and the head coach who led it.
+    // Season-by-season results (Seasons tab): every finished season the
+    // program played, newest first — one line per squad with the team titles
+    // won, the NCAA finish, and the final poll ranking — plus the head coach
+    // who led it (tap the season to open their profile).
     const seasonCoaches = {}; // year -> coach person (live or registry) for row clicks
     const seasonRows = (() => {
       if (!Legacy || !Legacy.completedSeasonYears) return [];
@@ -123,32 +124,22 @@
         const hit = ledger.find((c) => s.year >= c.startYear && s.year <= (c.endYear || game.year));
         return hit ? { id: hit.coachId, name: hit.name } : null;
       };
-      const gTag = (arr) => arr.length === 2 ? ' (M, W)' : ` (${arr[0]})`;
-      const rk = (g, rank) => `<span style="white-space:nowrap;">${g} ${UI.rankChip(rank, { title: `Final ${g === 'M' ? "men's" : "women's"} ${divLabel} ranking${rank ? `: #${rank}` : ': unranked'}` })}</span>`;
       return Legacy.completedSeasonYears(game)
+        .filter((y) => Legacy.programInSeason(game, school.id, y))
         .map((y) => Legacy.programSeason(game, school.id, y, school.name))
-        .filter((s) => s.rankM || s.rankW || s.nat.length || s.reg.length || s.conf.length)
         .reverse()
         .map((s) => {
-          const titles = [];
-          if (s.nat.length) titles.push(`🏆 National Champions${gTag(s.nat)}`);
-          if (s.reg.length) titles.push(`🚩 Regional Champions${gTag(s.reg)}`);
-          if (s.conf.length) titles.push(`🥇 Conference Champions${gTag(s.conf)}`);
-          const tone = s.nat.length ? 'gold' : s.reg.length ? 'accent' : s.conf.length ? 'good' : 'muted';
-          const badge = s.nat.length ? '🏆' : s.reg.length ? '🚩' : s.conf.length ? '🥇' : '✓';
           const c = coachName(s);
           if (c) {
             // Only a real record (live coach or registry career) opens a profile.
             const person = UI.resolvePerson(game, 'coach', c.id, c.name);
             if (person.id || person.careerRecord) seasonCoaches[s.year] = person;
           }
-          const ranks = (s.rankM || s.rankW)
-            ? `Final: ${rk('M', s.rankM)} ${rk('W', s.rankW)}`
-            : '<span style="color:var(--text-faint);">Final ranking not recorded</span>';
+          const r = UI.seasonResult(s, s.division || school.division || 'DI');
           return UI.listRow({
-            badge, tone,
+            badge: r.badge, tone: r.tone,
             title: `${s.year}${c ? ` <span style="font-weight:400; color:var(--text-dim);">· ${Utils.escapeHtml(c.name)}</span>` : ''}`,
-            sub: `${ranks}${titles.length ? `<br>${titles.join(' · ')}` : ''}`,
+            sub: r.lines,
             attrs: seasonCoaches[s.year] ? { 'season-coach': s.year } : null
           });
         });
@@ -199,6 +190,7 @@
       <div class="pc-tabs" role="tablist">
         <button data-pctab="rosters" class="active">Rosters</button>
         <button data-pctab="season">Season</button>
+        <button data-pctab="seasons">Year by Year</button>
         <button data-pctab="history">History</button>
       </div>
 
@@ -222,13 +214,16 @@
         </div>
       </div>
 
-      <div class="pc-tabpane" data-pcpane="history" hidden>
-        <div class="card" style="padding:12px; margin-bottom:14px;" id="sc-seasons">
+      <div class="pc-tabpane" data-pcpane="seasons" hidden>
+        <div class="card" style="padding:12px;" id="sc-seasons">
           <h3>Season-by-Season${seasonRows.length ? ` — ${seasonRows.length} season${seasonRows.length === 1 ? '' : 's'}` : ''}</h3>
           ${seasonRows.length
             ? UI.listGroup(seasonRows)
-            : '<div style="color:var(--text-dim); font-size:13px;">No completed seasons yet — final rankings are recorded after each NCAA Championships.</div>'}
+            : '<div style="color:var(--text-dim); font-size:13px;">No finished seasons yet — each season is added here after the NCAA Championships.</div>'}
         </div>
+      </div>
+
+      <div class="pc-tabpane" data-pcpane="history" hidden>
         <div class="card" style="padding:12px;">
           <h3>Historical Achievements</h3>
           ${row('National Championships', prog.natTitles || 0)}

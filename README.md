@@ -14,24 +14,33 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
-## Version 15.8 — Season-by-Season Results, Ranked Teams in Meet Results & Healthy New Seasons
+## Version 15.8 — Year-by-Year Results, Ranked Teams in Meet Results & Healthy New Seasons
 
-- **Program profiles list every season.** A program's **History** tab now
-  opens with **Season-by-Season**: each completed season, newest first, with
-  the program's final men's and women's ranking, every team title won that
-  year (🥇 conference, 🚩 regional, 🏆 national, for men and women), and the
-  head coach who led it. Tap a season to open that coach's profile.
-- **Final rankings on coach profiles.** Each season in a coach's
-  Season-by-Season list now shows the program's final men's and women's
-  ranking alongside the result.
-- **Final rankings are saved every season.** At the awards ceremony, every
-  program's place in its division's final poll is recorded permanently.
-  Seasons played before this update show their titles but no final ranking.
-- **Ranked teams stand out in meet results.** In meet results and the Race
-  Center, a team that went into the meet ranked in its division's top 25
-  shows its rank and division before its name (for example, **#4 D1**).
-  The rank is the one the team held going into the meet, so old results
-  stay accurate as the polls move. Top-10 teams get a gold tag.
+- **Every program has a Year by Year tab.** It lists every finished season
+  the program has played, newest first, with one line for the men and one
+  for the women: the titles won, the NCAA team finish, and the final poll
+  ranking.
+
+      2026 · Coach Name
+        Men:   Conference Champion · National Third Place · D1 #3
+        Women: Season Complete · D1 #21
+
+  A season with no titles and no trip to Nationals reads "Season Complete".
+  Tap a season to open the head coach who led it.
+- **Coach profiles use the same lines.** A coach's Season-by-Season list (on
+  the History tab) shows the same Men and Women lines for every finished
+  season of their career, at every school. Assistant-coach years are marked.
+  Only finished seasons are listed; a season is added after its awards.
+- **Every season is saved for good.** At the awards ceremony, every
+  program's final poll ranking, NCAA team finish, and head coach are
+  recorded permanently. Seasons played before this update still list their
+  titles, with "Final poll not recorded".
+- **Ranked teams stand out in meet results.** In the team results (meet
+  results and the Race Center scoreboard), a team that went into the meet
+  ranked in its division's top 25 shows its rank and division before its
+  name, for example **#4 D1**. It's the rank the team held going into the
+  meet, so old results stay accurate as the polls move. Top-10 teams get a
+  gold tag. Individual results are unchanged.
 - **Fix: every new season starts healthy.** Injuries used to carry over
   into the next season. Now the summer heals every injury, and clears the
   Recovering phase, when the new season begins, for every program. Your

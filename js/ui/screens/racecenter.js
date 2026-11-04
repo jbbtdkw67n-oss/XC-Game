@@ -458,7 +458,7 @@
               <tr ${mine ? 'style="background:var(--accent-soft);"' : ''}>
                 <td>${f.place}</td>
                 <td class="clickable" data-ath="${f.athleteId}" style="cursor:pointer; color:var(--accent-hover);">${UI.avatar(game.getAthlete(f.athleteId) || { name: f.name, gender: activeGender }, { size: 20 })} ${Utils.escapeHtml(f.name)}${honored ? ` <span title="${honor.label}">${honor.icon}</span>` : ''}${indivQualBadge(f)}</td>
-                <td class="clickable" data-school="${f.schoolId}" style="font-size:12px; cursor:pointer;">${UI.meetPollTag(game, res, f.schoolId, activeGender)}${Utils.escapeHtml(game.getSchool(f.schoolId)?.name || '?')}</td>
+                <td class="clickable" data-school="${f.schoolId}" style="font-size:12px; cursor:pointer;">${Utils.escapeHtml(game.getSchool(f.schoolId)?.name || '?')}</td>
                 <td class="num">${ft(f.time)}${UI.crTag ? UI.crTag(f) : ''}${UI.nrTag ? UI.nrTag(f) : ''}</td>
               </tr>`;
             }).join('')}
@@ -468,7 +468,7 @@
               <tr ${mine ? 'style="background:var(--accent-soft); color:var(--text-faint);"' : 'style="color:var(--text-faint);"'}>
                 <td title="Did Not Finish">DNF</td>
                 <td class="clickable" data-ath="${d.athleteId}" style="cursor:pointer;">${UI.avatar(game.getAthlete(d.athleteId) || { name: d.name, gender: activeGender }, { size: 20 })} ${Utils.escapeHtml(d.name)}</td>
-                <td class="clickable" data-school="${d.schoolId}" style="font-size:12px; cursor:pointer;">${UI.meetPollTag(game, res, d.schoolId, activeGender)}${Utils.escapeHtml(game.getSchool(d.schoolId)?.name || '?')}</td>
+                <td class="clickable" data-school="${d.schoolId}" style="font-size:12px; cursor:pointer;">${Utils.escapeHtml(game.getSchool(d.schoolId)?.name || '?')}</td>
                 <td class="num" title="${d.reason === 'bonk' ? 'Ran out of energy' : 'Injury or mishap'}">DNF</td>
               </tr>`;
             }).join('')}

@@ -440,6 +440,14 @@ table.data .name-cell { white-space: nowrap; }
 .rank-chip.top25 { background: var(--accent-soft); color: var(--accent-hover); }
 .rank-chip.top10 { background: rgba(212, 160, 23, 0.2); color: #f0c34e; }
 .rank-chip.nr { background: transparent; color: var(--text-faint); font-weight: 600; }
+/* Season-by-season result lines (program + coach profiles). */
+.season-line { display: flex; gap: 6px; margin-top: 2px; }
+.season-sq { flex: none; width: 52px; color: var(--text-faint); font-weight: 600; }
+.season-poll { font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--text); }
+.season-poll.top25 { color: var(--accent-hover); }
+.season-poll.top10 { color: #f0c34e; }
+html[data-theme="light"] .season-poll.top10 { color: #8a6100; }
+
 /* Meet-results poll tag: "#4 D1" before a top-25 team's name. */
 .poll-tag {
   display: inline-block; padding: 0 5px; border-radius: 5px; white-space: nowrap;

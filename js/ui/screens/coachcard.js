@@ -217,67 +217,44 @@
 
       <div class="pc-tabpane" data-pcpane="history" hidden>
       ${(() => {
-        // Season-by-season results (Update 21): a year-by-year log of the
-        // coach's career — the school they led each season and its headline
-        // result, reconstructed from the championship history and their stints.
-        // National title → 🏆, regional → 🚩, conference → 🥇, otherwise a
-        // completed season → ✓; assistant years are marked as such.
-        if (!game || !stints.length) return '';
-        const H = game.history || {};
+        // Season-by-season results: every finished season of the coach's
+        // career, newest first — the school they were at, and one line per
+        // squad with the team titles won, the NCAA finish, and the final poll
+        // ranking (the same lines as the program profile). Assistant years are
+        // marked as such and show the program's results too.
+        const Legacy = window.XCD.engine.Legacy;
+        if (!game || !stints.length || !Legacy || !Legacy.programSeason) return '';
         const short = { DI: 'D1', DII: 'D2', DIII: 'D3' };
-        const nowYear = game.year;
+        const myId = coach.id || coach.coachId || null;
         const seasons = [];
         stints.forEach((st) => {
           const div = st.division || 'DI';
-          const end = st.endYear || nowYear;
+          const end = st.endYear || game.year;
+          const sid = st.schoolId || (schoolFor(null, st.school) || {}).id || null;
           for (let y = st.startYear; y <= end; y++) {
-            if (st.role === 'Assistant') {
-              seasons.push({ year: y, school: st.school, schoolId: st.schoolId, div, tone: 'muted', badge: '👔', result: 'Assistant Coach' });
-              continue;
-            }
-            const natG = [], regG = [], confG = [];
-            const nat = (H.nationalChampions || {})[y] || {};
-            ['M', 'W'].forEach((g) => {
-              const key = div === 'DI' ? g : `${div}-${g}`;
-              if (nat[key] && nat[key].teamId === st.schoolId) natG.push(g);
-            });
-            Object.entries((H.regionalChampions || {})[y] || {}).forEach(([rk, name]) => {
-              if (name === st.school) regG.push(rk.endsWith('-M') ? 'M' : 'W');
-            });
-            Object.entries((H.conferenceChampions || {})[y] || {}).forEach(([ck, name]) => {
-              if (name === st.school) confG.push(ck.endsWith('-M') ? 'M' : 'W');
-            });
-            const gTag = (arr) => arr.length === 2 ? ' (M, W)' : arr.length === 1 ? ` (${arr[0]})` : '';
-            let tone = 'muted', badge = '✓', result = 'Season completed';
-            if (natG.length) { tone = 'gold'; badge = '🏆'; result = `National Champions${gTag(natG)}`; }
-            else if (regG.length) { tone = 'accent'; badge = '🚩'; result = `Regional Champions${gTag(regG)}`; }
-            else if (confG.length) { tone = 'good'; badge = '🥇'; result = `Conference Champions${gTag(confG)}`; }
-            seasons.push({ year: y, school: st.school, schoolId: st.schoolId, div, tone, badge, result });
+            if (!Legacy.seasonFinished(game, y)) continue; // finished seasons only
+            const ps = Legacy.programSeason(game, sid, y, st.school);
+            const assistant = st.role === 'Assistant';
+            // A head coach hired after a season's awards didn't lead it: the
+            // stamped coach for that school-year says who did.
+            if (!assistant && ps.coachId && myId && ps.coachId !== myId) continue;
+            seasons.push({ year: y, school: st.school, schoolId: sid, div: ps.division || div, assistant, ps });
           }
         });
-        // Final poll ranks for each season, read from the yearly stamp (within
-        // the program's division). Seasons in progress or from saves before
-        // the stamp existed simply show no ranks.
-        const Legacy = window.XCD.engine.Legacy;
-        const finalLine = (s) => {
-          const fr = Legacy && Legacy.finalRanksFor && s.schoolId ? Legacy.finalRanksFor(game, s.schoolId, s.year) : null;
-          if (!fr || (!fr.M && !fr.W)) return '';
-          const rk = (g) => `<span style="white-space:nowrap;">${g} ${UI.rankChip(fr[g], { title: `Final ${g === 'M' ? "men's" : "women's"} ${short[s.div] || s.div} ranking${fr[g] ? `: #${fr[g]}` : ': unranked'}` })}</span>`;
-          return ` · Final: ${rk('M')} ${rk('W')}`;
-        };
-        seasons.forEach((s) => { s.result += finalLine(s); });
         if (!seasons.length) return '';
         seasons.sort((a, b) => b.year - a.year); // newest first
         return `
         <div class="card" style="padding:12px; margin-bottom:14px;">
           <h3>Season-by-Season — ${seasons.length} season${seasons.length === 1 ? '' : 's'}</h3>
-          ${UI.listGroup(seasons.map((s) => UI.listRow({
-            badge: s.badge, tone: s.tone,
-            title: `${Utils.escapeHtml(s.school)}${s.div !== 'DI' ? ` <span class="tag">${short[s.div] || s.div}</span>` : ''}`,
-            sub: s.result,
-            meta: `${s.year}`,
-            attrs: schoolAttrs(s.schoolId, s.school)
-          })))}
+          ${UI.listGroup(seasons.map((s) => {
+            const r = UI.seasonResult(s.ps, s.div);
+            return UI.listRow({
+              badge: s.assistant ? '👔' : r.badge, tone: s.assistant ? 'muted' : r.tone,
+              title: `${s.year} <span style="font-weight:400; color:var(--text-dim);">· ${Utils.escapeHtml(s.school)}</span>${s.div !== 'DI' ? ` <span class="tag">${short[s.div] || s.div}</span>` : ''}`,
+              sub: `${s.assistant ? '<div class="season-line" style="color:var(--text-faint);">Assistant Coach</div>' : ''}${r.lines}`,
+              attrs: schoolAttrs(s.schoolId, s.school)
+            });
+          }))}
         </div>`;
       })()}
       <div class="card" style="padding:12px;">
