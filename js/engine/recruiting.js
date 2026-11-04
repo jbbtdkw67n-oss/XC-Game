@@ -265,8 +265,11 @@
       confidence: rng.gaussianRange(58, 15, 15, 99),
       consistency: rng.gaussianRange(55, 14, 15, 99),
       workEthic: rng.gaussianRange(62, 14, 20, 99),
-      mentalToughness: statFor(),
-      raceIQ: rng.gaussianRange(statMean - 8, 10, 10, 95),
+      // Mental makeup follows ability only loosely, and race IQ is mostly
+      // experience a high-schooler hasn't banked yet (it grows with every
+      // college race).
+      mentalToughness: rng.gaussianRange(statMean * 0.65 + 12, 12, 8, 92),
+      raceIQ: rng.gaussianRange((statMean - 8) * 0.45 + 14, 13, 8, 92),
       personality: rng.choice(D.ATHLETE_PERSONALITIES),
 
       preferredDistance: rng.choice(D.PREFERRED_DISTANCES),
@@ -296,6 +299,7 @@
       decisionWeek,
       breakout: rng.bool(0.05)
     });
+    M.Athlete.rollBuild(rng, recruit, 8, 92); // a clear strength and weakness
     recruit.recalculateOverall();
     // A ceiling never sits below today's ability: the deepest bust simply
     // plateaus at their current level (no growth), never regresses on paper.

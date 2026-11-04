@@ -317,7 +317,7 @@
     };
     const any = (k) => ps.M[k] || ps.W[k];
     const natChamp = any('nat') || ps.M.natPlace === 1 || ps.W.natPlace === 1;
-    const badge = natChamp ? ':trophy-national:' : any('reg') ? '🚩' : any('conf') ? ':trophy-conference:' : (ps.M.natPlace || ps.W.natPlace) ? '🇺🇸' : '✓';
+    const badge = natChamp ? ':trophy-national:' : any('reg') ? ':trophy-regional:' : any('conf') ? ':trophy-conference:' : (ps.M.natPlace || ps.W.natPlace) ? '🇺🇸' : '✓';
     const tone = natChamp ? 'gold' : any('reg') ? 'accent' : any('conf') ? 'good' : 'muted';
     return { lines: line('M') + line('W'), badge, tone };
   };

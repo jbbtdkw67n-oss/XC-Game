@@ -123,11 +123,14 @@ async function run() {
       '<p id="t2">:trophy-conference: CONFERENCE CHAMPIONS! Your men win the title!</p>' +
       '<p id="t3">🏆🏆 NATIONAL CHAMPIONS! Your men\'s team wins the NCAA title!</p>' +
       '<p id="t4">🏆 CONFERENCE CHAMPIONS! Your women win the title!</p>' +
+      '<p id="t7">:trophy-regional: REGIONAL CHAMPIONS! Your women win the Mountain Regional!</p>' +
+      '<p id="t8">🏆 REGIONAL CHAMPIONS! Your men win the West Regional!</p>' +
       '<p id="t5">🏆 NEW COURSE RECORD</p><span id="t6" title=":trophy-national: 3 titles">x</span>';
     document.getElementById('screen-container').appendChild(box);
     await new Promise((r) => setTimeout(r, 0));
     const icons = (id) => [...box.querySelectorAll(`#${id} use`)].map((u) => u.getAttribute('href'));
     const res = {
+      regional: icons('t7'), oldRegional: icons('t8'),
       national: icons('t1'), conference: icons('t2'), oldNational: icons('t3'), oldConference: icons('t4'),
       plain: icons('t5'), text: box.querySelector('#t1').textContent.trim(), title: box.querySelector('#t6').getAttribute('title')
     };
@@ -138,6 +141,8 @@ async function run() {
   ok(titles.conference.join() === '#gi-trophy-conference', 'conference shortcode shows the conference trophy: ' + titles.conference);
   ok(titles.oldNational.join() === '#gi-trophy-national', 'saved national-title news shows one national trophy: ' + titles.oldNational);
   ok(titles.oldConference.join() === '#gi-trophy-conference', 'saved conference-title news shows the conference trophy: ' + titles.oldConference);
+  ok(titles.regional.join() === '#gi-trophy-regional', 'regional shortcode shows the regional trophy: ' + titles.regional);
+  ok(titles.oldRegional.join() === '#gi-trophy-regional', 'saved regional-title news shows the regional trophy: ' + titles.oldRegional);
   ok(titles.plain.join() === '#gi-trophy', 'other trophies stay the plain trophy: ' + titles.plain);
   ok(titles.text === 'Team National Championships', 'no shortcode text is left on screen: ' + titles.text);
   ok(titles.title === '3 titles', 'tooltips drop shortcodes too: ' + titles.title);

@@ -247,7 +247,7 @@
         h.indivConf.map((t) => `<tr><td>${t.year}</td><td>${gTag(t.gender)[0]} — ${athLink(t.athlete, t.athleteId, t.gender)}</td><td>${coachLink(t.coach)}</td></tr>`),
         'No individual conference champions yet.')}
 
-      ${sectionTable('🗺 Regional Championships — Team & Individual',
+      ${sectionTable(':trophy-regional: Regional Championships — Team & Individual',
         ['Year', 'Type', 'Detail', 'Coach'],
         [
           ...h.regTeam.map((t) => `<tr><td>${t.year}</td><td>Team (${gTag(t.gender)[0]})</td><td>${Utils.escapeHtml(t.region)} Regional Champions</td><td>${coachLink(t.coach)}</td></tr>`),

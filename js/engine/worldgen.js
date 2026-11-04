@@ -147,6 +147,9 @@
     return { city: rng.choice(towns), state, region };
   }
 
+  // Race IQ banked by class year at world creation (years of races behind them).
+  const RACE_IQ_CLASS_BONUS = { Freshman: 0, Sophomore: 5, Junior: 10, Senior: 14, Graduate: 17 };
+
   function buildAthlete(rng, school, gender) {
     const classYear = rng.weightedChoice(D.CLASS_YEARS, (c) => (c === 'Graduate' ? 6 : 24));
     const devFactor = CLASS_DEV_FACTOR[classYear];
@@ -185,8 +188,11 @@
       confidence: rng.gaussianRange(58, 15, 15, 99),
       consistency: rng.gaussianRange(58, 14, 15, 99),
       workEthic: rng.gaussianRange(62, 14, 20, 99),
-      mentalToughness: statFor(),
-      raceIQ: rng.gaussianRange(statMean - 5, 10, 15, 99),
+      // The mental side follows talent only loosely (a gifted runner can be
+      // fragile or naive; a modest one tough and savvy), and race IQ is
+      // mostly experience: upperclassmen have simply raced more.
+      mentalToughness: rng.gaussianRange(statMean * 0.65 + 15, 13, 10, 99),
+      raceIQ: rng.gaussianRange((statMean - 5) * 0.45 + 13 + RACE_IQ_CLASS_BONUS[classYear], 14, 10, 99),
       personality: rng.choice(D.ATHLETE_PERSONALITIES),
 
       preferredDistance: rng.choice(D.PREFERRED_DISTANCES),
@@ -216,6 +222,7 @@
       yearsOnCampus: { Freshman: 1, Sophomore: 2, Junior: 3, Senior: 4, Graduate: 5 }[classYear],
       schoolId: school.id
     });
+    M.Athlete.rollBuild(rng, athlete, 10, 99); // a clear strength and weakness
     athlete.recalculateOverall();
     return athlete;
   }

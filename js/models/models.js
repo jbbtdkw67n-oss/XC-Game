@@ -34,6 +34,7 @@
         workEthic: 60,
         mentalToughness: 60,
         raceIQ: 55,
+        raceIQProgress: 0, // fraction toward the next race IQ point
         personality: 'Grinder',
         // Relationship attributes (Update 5, Part 7): loyalty is two-sided.
         // Coach Relationship tracks the bond with the head coach (playing
@@ -184,6 +185,25 @@
       for (const key in weights) total += this[key] * weights[key];
       this.currentOverall = Math.round(Utils.clamp(total, 1, 99));
       return this.currentOverall;
+    }
+
+    /*
+     * Race IQ is learned on the course. Each race banks a fraction of a
+     * point: more from championship stakes, more for students of the sport
+     * (work ethic plus a personal knack), and less the more a runner already
+     * knows, so a raw freshman learns fast and a veteran tactician crawls.
+     */
+    learnRaceCraft(amount) {
+      const iq = this.raceIQ ?? 55;
+      const headroom = Math.max(0.05, Math.min(1.3, (99 - iq) / 60));
+      const F = window.XCD.engine && window.XCD.engine.Followers;
+      const knack = F && F.noise ? 0.7 + F.noise(this.id + '|racecraft') * 0.6 : 1;
+      const learner = 0.65 + (this.workEthic ?? 60) / 170;
+      let p = (this.raceIQProgress || 0) + amount * headroom * knack * learner;
+      let next = iq;
+      while (p >= 1 && next < 99) { next += 1; p -= 1; }
+      this.raceIQ = next;
+      this.raceIQProgress = next >= 99 ? 0 : Math.round(p * 1000) / 1000;
     }
 
     isEligible() {
@@ -622,6 +642,48 @@
       return this.interests[schoolId] || null;
     }
   }
+
+  /*
+   * A runner's physical shape at creation. Ratings drawn independently around
+   * one talent level make everyone look the same, so every new runner gets a
+   * build: a clear strength, often a second, and a real weakness (a few stay
+   * well-rounded). The offsets are re-centered on the overall's weights, so
+   * the profile changes WHAT a runner is good at, not HOW good they are.
+   * Training's natural-aptitude bias then keeps a speed type a speed type.
+   *   ratings — { vo2Max, lactateThreshold, runningEconomy, stamina, speed },
+   *   mutated in place and clamped to [min, max].
+   */
+  const PHYSICAL = ['vo2Max', 'lactateThreshold', 'runningEconomy', 'stamina', 'speed'];
+  const PHYS_WEIGHT = { vo2Max: 0.24, lactateThreshold: 0.18, runningEconomy: 0.18, stamina: 0.18, speed: 0.14 };
+  const BUILDS = [
+    // [weight, strong, second, weak]
+    [16, 'speed', 'runningEconomy', 'stamina'],          // miler's kick, fades over 10K
+    [16, 'vo2Max', 'stamina', 'speed'],                  // big engine, no finishing gear
+    [12, 'stamina', 'lactateThreshold', 'speed'],        // grinder: strength over speed
+    [10, 'runningEconomy', 'vo2Max', 'lactateThreshold'],// smooth and efficient, still raw
+    [10, 'lactateThreshold', 'stamina', 'runningEconomy'], // tempo machine, choppy stride
+    [8, 'speed', 'vo2Max', 'lactateThreshold'],          // talented but unrefined
+    [8, 'stamina', 'runningEconomy', 'vo2Max'],          // durable plodder
+    [20, null, null, null]                                // well-rounded
+  ];
+  Athlete.rollBuild = function (rng, ratings, min = 8, max = 99) {
+    const build = rng.weightedChoice(BUILDS, (b) => b[0]);
+    const off = {};
+    PHYSICAL.forEach((k) => { off[k] = 0; });
+    if (build[1]) {
+      off[build[1]] += rng.int(6, 14);
+      if (rng.bool(0.6)) off[build[2]] += rng.int(3, 8);
+      off[build[3]] -= rng.int(6, 14);
+    } else {
+      PHYSICAL.forEach((k) => { off[k] = rng.int(-3, 3); });
+    }
+    const tw = PHYSICAL.reduce((s, k) => s + PHYS_WEIGHT[k], 0);
+    const shift = PHYSICAL.reduce((s, k) => s + off[k] * PHYS_WEIGHT[k], 0) / tw;
+    PHYSICAL.forEach((k) => {
+      ratings[k] = Math.max(min, Math.min(max, Math.round((ratings[k] || 0) + off[k] - shift)));
+    });
+    return ratings;
+  };
 
   M.Athlete = Athlete;
   M.Coach = Coach;

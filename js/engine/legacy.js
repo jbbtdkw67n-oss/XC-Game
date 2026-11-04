@@ -143,7 +143,7 @@
       ['natChamp', '🏆', 'National Champion'],
       ['natRunnerUp', '🥈', 'National Runner-Up'],
       ['allAmerican', '🇺🇸', 'All-American'],
-      ['regChamp', '🗺', 'Regional Champion'],
+      ['regChamp', ':trophy-regional:', 'Regional Champion'],
       ['confChamp', '🥇', 'Conference Champion'],
       ['allConference', '🏅', 'All-Conference'],
       // Nike Cross Nationals prep honors (Update 5, Part 9) — permanent, and
@@ -803,7 +803,7 @@
       Object.keys(slate).forEach((key) => {
         if (slate[key] !== name) return;
         const g = key.endsWith('-W') ? "women's" : "men's";
-        push(year, '🗺', `Won the ${key.slice(0, key.lastIndexOf('-'))} ${g} regional championship.`);
+        push(year, ':trophy-regional:', `Won the ${key.slice(0, key.lastIndexOf('-'))} ${g} regional championship.`);
       });
     });
 

@@ -638,7 +638,7 @@
             const champName = m ? m.school : r[`${rg}-${g}`];
             if (!champName || (!m && (schoolDiv[champName] || 'DI') !== champDiv)) return '<span style="color:var(--text-faint);">—</span>';
             const coach = coachFor(champName, year, m && m.coach, m && m.schoolId);
-            return `<strong>${Utils.escapeHtml(champName)}</strong>${coach ? `<div class="cell-sub">${coachLine(coach, m && m.coachId)}</div>` : ''}`;
+            return `:trophy-regional: <strong>${Utils.escapeHtml(champName)}</strong>${coach ? `<div class="cell-sub">${coachLine(coach, m && m.coachId)}</div>` : ''}`;
           };
           const indivCell = (rg, g) => {
             const rec = ri[`${rg}-${g}`];

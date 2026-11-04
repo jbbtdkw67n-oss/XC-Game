@@ -13,9 +13,10 @@
  *   XCD.icons.svg('trophy')         → inline markup for one icon
  *   XCD.icons.svg('🏆')             → same, looked up by the emoji it replaces
  *
- * Two icons have no emoji of their own: the national and conference
- * championship trophies. Text (including news saved in a game) marks them
- * with the shortcodes :trophy-national: and :trophy-conference:.
+ * Three icons have no emoji of their own: the national, conference and
+ * regional championship trophies. Text (including news saved in a game)
+ * marks them with the shortcodes :trophy-national:, :trophy-conference:
+ * and :trophy-regional:.
  *   XCD.icons.sprite()              → the full sprite markup
  *   XCD.icons.list                  → [{ id, emoji, label }]
  */
@@ -212,6 +213,18 @@
       `<path d="M11.2 24.6c0-1 1-1.6 2.2-1.6h5.2c1.2 0 2.2.6 2.2 1.6z" fill="@silver"/>` +
       `<rect x="8" y="24.6" width="16" height="4.8" rx="1.1" fill="@wood"/><rect x="12.6" y="25.9" width="6.8" height="2.2" rx=".5" fill="@silver" ${N}/>` +
       `<path d="M8.8 7.4h2c.4 2.8 1.6 5 3.4 6.4-2.8-.6-4.8-3-5.4-6.4z" ${hl(0.7)}/>`],
+    ['trophy-regional', ':trophy-regional:', 'Regional championship trophy',
+      // Bronze loving cup with a teal compass star, on a forest-green base.
+      dbl('M9.2 6.2C5.2 6.2 4.8 12.6 10.6 13.6', '#d98a48', 1.7) + dbl('M22.8 6.2c4 0 4.4 6.4-1.4 7.4', '#d98a48', 1.7) +
+      `<path d="M9 3.8h14v3.4c0 5.8-3.2 9.2-7 9.2s-7-3.4-7-9.2z" fill="@bronze"/>` +
+      `<rect x="8.2" y="2.6" width="15.6" height="2.2" rx="1" fill="@bronze"/>` +
+      `<path d="M14.6 16.2h2.8l.7 4.6h-4.2z" fill="@bronze"/><ellipse cx="16" cy="18.4" rx="2.5" ry="1" fill="@bronze" stroke-width=".9"/>` +
+      `<path d="M11.2 23c0-1.3 1.2-2.2 2.7-2.2h4.2c1.5 0 2.7.9 2.7 2.2z" fill="@bronze"/>` +
+      `<rect x="8" y="23" width="16" height="6.4" rx="1.2" fill="@chalk"/><rect x="12.4" y="24.8" width="7.2" height="2.4" rx=".5" fill="@bronze" ${N}/>` +
+      `<circle cx="16" cy="9.4" r="4.4" fill="#7c4a22" ${N} opacity=".35"/>` +
+      `<path d="${starD(16, 9.4, 5, 1.9, 4)}" fill="#5fe3f0" stroke-width=".6"/>` +
+      `<path d="M16 4.4v10M11 9.4h10" stroke="#127c8c" stroke-width=".5"/>` +
+      `<path d="M10.2 5.4h1.6v2.2c0 2.6.6 4.2 1.6 5.4-2.1-.8-3.2-3-3.2-5.6z" ${H}/>`],
     ['star', '⭐', 'Star', starIcon(16, 17, 13.5, 6, '@gold')],
     ['star-glow', '🌟', 'Glowing star',
       `<circle cx="16" cy="16.5" r="13.5" fill="#ffd43a" ${N} opacity=".22"/>` +
@@ -975,6 +988,7 @@
   // plain trophy; show the right one for those saved lines too.
   const LEGACY_TITLES = [
     [/🏆\uFE0F?\s*(?=CONFERENCE CHAMPIONS)/u, ':trophy-conference: '],
+    [/🏆\uFE0F?\s*(?=REGIONAL CHAMPIONS)/u, ':trophy-regional: '],
     [/(?:🏆\uFE0F?){1,2}\s*(?=NATIONAL CHAMPIONS)/u, ':trophy-national: ']
   ];
 
