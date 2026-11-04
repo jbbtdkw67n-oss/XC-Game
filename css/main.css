@@ -361,7 +361,12 @@ button { font-family: inherit; }
 }
 table.data {
   width: 100%;
-  border-collapse: collapse;
+  /* Separate (zero-spaced) borders, not collapse: with collapsed borders the
+     sticky header's border belongs to the table grid, so it scrolls away, and
+     WebKit offsets the sticky cell by a sub-pixel, leaving a 1px strip above
+     the header where scrolled rows show through. */
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 13.5px;
 }
 table.data th, table.data td {
@@ -385,11 +390,14 @@ table.data th {
   position: sticky;
   top: 0;
   background: var(--bg-card);
+  /* Paint 1px above the header too, so no sub-pixel seam can show rows. */
+  box-shadow: 0 -1px 0 var(--bg-card);
   z-index: 1;
 }
 table.data th.sorted-asc::after { content: ' ▲'; font-size: 9px; }
 table.data th.sorted-desc::after { content: ' ▼'; font-size: 9px; }
-table.data tbody tr { border-bottom: 1px solid rgba(42, 51, 65, 0.5); transition: background 0.12s; }
+table.data tbody tr { transition: background 0.12s; }
+table.data tbody td { border-bottom: 1px solid rgba(42, 51, 65, 0.5); }
 table.data tbody tr:hover { background: var(--bg-hover); }
 table.data tbody tr.clickable { cursor: pointer; }
 table.data td.num, table.data th.num { text-align: right; }
@@ -1288,6 +1296,15 @@ details.filter-collapse .filter-body {
 @media (max-width: 760px) {
   ::-webkit-scrollbar { width: 0; height: 0; } /* iOS-style invisible scrollbars */
 }
+
+/* Race Center live replay: lanes slide to each runner's live position. */
+.race-lanes { position: relative; }
+.race-lane {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; gap: 8px;
+  transition: transform 0.45s ease;
+}
+@media (prefers-reduced-motion: reduce) { .race-lane { transition: none; } }
 
 /* Honor reduced-motion (accessibility + battery) */
 @media (prefers-reduced-motion: reduce) {
