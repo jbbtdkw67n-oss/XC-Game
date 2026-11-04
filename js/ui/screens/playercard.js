@@ -21,7 +21,7 @@
 
   const ACC_ICON = {
     natChampTeam: ':trophy-national:', natChampIndiv: '🥇', natRunnerUp: '🥈', runnerOfYear: '🏅',
-    allAmerican: '🇺🇸', freshmanOfYear: '🌱', regChamp: '🗺', confChamp: '🥇',
+    allAmerican: '🇺🇸', freshmanOfYear: '🌱', regChamp: ':trophy-regional:', confChamp: '🥇',
     confRunnerOfYear: '🏅', confFreshmanOfYear: '🌱',
     allConference: '🏅', academicAllAmerican: '📚', nxnChampion: '👟', nxnAllAmerican: '🎽',
     courseRecord: '🏁'

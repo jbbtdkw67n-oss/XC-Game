@@ -24,11 +24,12 @@ Home Screen** — it installs as a full-screen, offline-capable app. See
   team sweatband.
 - **Championship trophies of their own.** National champion teams get an
   ornate gold cup in a laurel wreath; conference champion teams get a silver
-  bowl with a blue ribbon. They mark those titles everywhere: news, the
-  Champions history, program records and Hall of Fame, coach profiles,
-  season badges, and the inbox when you win the meet. Other trophies (course
-  records, dynasty points) keep the plain gold cup, and individual titles keep
-  their medals.
+  bowl with a blue ribbon; regional champions get a bronze loving cup with a
+  compass star (it replaces the map). They mark those titles everywhere:
+  news, the Champions history, program records and Hall of Fame, coach
+  profiles, season badges, the schedule, the Sim menu, and the inbox when you
+  win the meet. Other trophies (course records, dynasty points) keep the plain
+  gold cup, and individual national and conference titles keep their medals.
 - **Works on old saves too.** News, inbox and history text already in a save
   shows the new icons; nothing in the save format changed.
 - **Text-only spots stay clean.** Dropdown options and hover tooltips can't
@@ -39,8 +40,8 @@ Home Screen** — it installs as a full-screen, offline-capable app. See
 
 Under the hood: `js/ui/icons.js` holds the icon art as one SVG sprite and
 swaps emoji for icons as screens draw (`XCD.icons.svg('trophy')` or
-`XCD.icons.svg('🏆')` returns one icon's markup). The two title trophies have no emoji, so
-text marks them `:trophy-national:` and `:trophy-conference:`.
+`XCD.icons.svg('🏆')` returns one icon's markup). The three title trophies have no emoji, so
+text marks them `:trophy-national:`, `:trophy-conference:` and `:trophy-regional:`.
 
 ## Version 15.8 — Year-by-Year Results, Ranked Teams in Meet Results & Healthy New Seasons
 

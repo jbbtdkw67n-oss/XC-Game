@@ -1598,7 +1598,7 @@
     }
 
     if (champId === gameState.playerSchoolId) {
-      gameState.logNews(`🏆 REGIONAL CHAMPIONS! Your ${gender === 'M' ? 'men' : 'women'} win the ${meet.region} Regional!`);
+      gameState.logNews(`:trophy-regional: REGIONAL CHAMPIONS! Your ${gender === 'M' ? 'men' : 'women'} win the ${meet.region} Regional!`);
     }
   }
 

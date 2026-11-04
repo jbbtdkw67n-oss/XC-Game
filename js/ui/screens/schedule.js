@@ -703,7 +703,7 @@
     // the race — the result, with a big touch-friendly results button.
     const meetCards = entries.map((e) => {
       const importance = e.label === 'Nationals' ? ':trophy-national: Nationals'
-        : e.label === 'Regional' ? '🌍 Regional'
+        : e.label === 'Regional' ? ':trophy-regional: Regional'
         : e.label === 'Conference' ? ':trophy-conference: Conference'
         : e.label;
       const thisWeek = e.week === game.week;

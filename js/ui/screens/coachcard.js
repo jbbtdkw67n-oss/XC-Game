@@ -168,7 +168,7 @@
               });
               Object.entries((H.regionalChampions || {})[y] || {}).forEach(([rkey, name]) => {
                 if (name !== st.school) return;
-                add(1, 'reg', '🗺', 'Regional Championships', y, `${rkey.slice(0, -2)}, ${rkey.endsWith('-M') ? 'M' : 'W'}`);
+                add(1, 'reg', ':trophy-regional:', 'Regional Championships', y, `${rkey.slice(0, -2)}, ${rkey.endsWith('-M') ? 'M' : 'W'}`);
               });
               Object.entries((H.conferenceChampions || {})[y] || {}).forEach(([ckey, name]) => {
                 if (name !== st.school) return;

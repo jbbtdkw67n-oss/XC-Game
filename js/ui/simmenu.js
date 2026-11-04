@@ -14,7 +14,7 @@
   const Utils = window.XCD.core.Utils;
 
   const ICONS = {
-    nextRace: '🏃', conference: '🏟', regionals: '🗺', nationals: '🏆',
+    nextRace: '🏃', conference: '🏟', regionals: ':trophy-regional:', nationals: '🏆',
     offseason: '🎖', signingDay: '✍️', nextSeason: '📅'
   };
   const ORDER = ['nextRace', 'conference', 'regionals', 'nationals', 'offseason', 'signingDay', 'nextSeason'];
