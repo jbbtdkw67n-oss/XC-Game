@@ -14,6 +14,26 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.9 — The Emoji Update & Top-10 Contenders
+
+- **Every emoji is now the game's own icon.** All 147 emoji the game showed
+  (trophies, medals, the checkered flag, the bullseye, injury bandages, the
+  team bus, weather, news and inbox markers…) are redrawn as colorful
+  illustrated icons in the game's palette. Each keeps its meaning: a trophy
+  is still a trophy, a bullseye is still a bullseye. Even the faces wear a
+  team sweatband.
+- **Works on old saves too.** News, inbox and history text already in a save
+  shows the new icons; nothing in the save format changed.
+- **Text-only spots stay clean.** Dropdown options and hover tooltips can't
+  hold a picture, so they drop the emoji and keep the words.
+- **Top-10 finishers are national contenders.** A transfer who wants a
+  national contender now counts any program whose squad finished in its
+  division's top 10 last season, not only high-prestige programs.
+
+Under the hood: `js/ui/icons.js` holds the icon art as one SVG sprite and
+swaps emoji for icons as screens draw (`XCD.icons.svg('trophy')` or
+`XCD.icons.svg('🏆')` returns one icon's markup).
+
 ## Version 15.8 — Year-by-Year Results, Ranked Teams in Meet Results & Healthy New Seasons
 
 - **Every program has a Year by Year tab.** It lists every finished season

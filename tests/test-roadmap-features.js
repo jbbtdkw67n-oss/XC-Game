@@ -173,7 +173,7 @@ async function run() {
   }));
   ok(inboxUi.items >= 3 && inboxUi.navBadge && Number(inboxUi.badge) === inbox.n, 'Inbox lists items with unread badges: ' + JSON.stringify(inboxUi));
   await page.click('[data-inbox-filter="results"]');
-  const onlyResults = await page.evaluate(() => [...document.querySelectorAll('.inbox-item-icon')].every((el) => /🏁|🏆|🎟/.test(el.textContent)));
+  const onlyResults = await page.evaluate(() => [...document.querySelectorAll('.inbox-item-icon')].every((el) => /#gi-(finish-flag|trophy|ticket)"/.test(el.innerHTML)));
   ok(onlyResults, 'Results filter shows only race/selection items');
   await page.click('#inbox-read-all');
   await page.waitForTimeout(80);

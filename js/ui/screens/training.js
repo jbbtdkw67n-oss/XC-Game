@@ -81,7 +81,7 @@
     const line = (key) => log.map((r, i) => `${i ? 'L' : 'M'}${x(r.w).toFixed(1)},${y(r[key]).toFixed(1)}`).join(' ');
     const marks = [[CAL.CONFERENCE_WEEK, 'C'], [CAL.REGIONAL_WEEK, 'R'], [CAL.NATIONAL_WEEK, 'N']]
       .map(([w, l]) => `<line x1="${x(w)}" x2="${x(w)}" y1="6" y2="${H - 6}" class="form-mark"/><text x="${x(w)}" y="${H}" class="form-mark-t">${l}</text>`).join('');
-    const peaks = log.filter((r) => r.peak >= 4).map((r) => `<text x="${x(r.w)}" y="${y(r.form) - 4}" class="form-peak">⚡</text>`).join('');
+    const peaks = log.filter((r) => r.peak >= 4).map((r) => `<use href="#gi-bolt" x="${x(r.w) - 5}" y="${y(r.form) - 14}" width="10" height="10" class="form-peak"/>`).join('');
     const chart = log.length >= 2 ? `
       <svg viewBox="0 0 ${W} ${H}" class="form-chart" role="img" aria-label="Squad form by week">
         ${marks}

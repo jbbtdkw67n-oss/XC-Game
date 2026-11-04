@@ -5,13 +5,14 @@
  * always correct; bump CACHE_VERSION whenever shipped files change to make
  * installed players pick up a new build.
  */
-const CACHE_VERSION = 'xcd-v21';
+const CACHE_VERSION = 'xcd-v22';
 
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './css/main.css',
+  './assets/icon.svg',
   './assets/icon-180.png',
   './assets/icon-192.png',
   './assets/icon-512.png',
@@ -53,6 +54,7 @@ const ASSETS = [
   './js/engine/settings.js',
   './js/engine/events.js',
   './js/engine/sim.js',
+  './js/ui/icons.js',
   './js/ui/framework.js',
   './js/ui/avatar.js',
   './js/ui/coachwizard.js',

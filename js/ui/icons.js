@@ -287,11 +287,25 @@
       `<rect x="13.5" y="20" width="5" height="8.5" rx="1" fill="@wood"/><circle cx="17.3" cy="24.4" r=".6" fill="#ffd43a" ${N}/>` +
       `<rect x="8.4" y="19.4" width="3.8" height="3.8" rx=".6" fill="@sky"/><rect x="19.8" y="19.4" width="3.8" height="3.8" rx=".6" fill="@sky"/>`],
     ['stadium', '🏟', 'Stadium',
-      dbl('M4.5 14V5.5', '#a9b5c4', 1.2) + dbl('M27.5 14V5.5', '#a9b5c4', 1.2) +
-      `<rect x="2.6" y="3" width="3.8" height="2.6" rx=".6" fill="@yellow"/><rect x="25.6" y="3" width="3.8" height="2.6" rx=".6" fill="@yellow"/>` +
-      `<ellipse cx="16" cy="18.5" rx="14" ry="9.5" fill="@steel"/><ellipse cx="16" cy="18.4" rx="11.4" ry="7.2" fill="@blue"/>` +
-      `<path d="M7 15.4c2.4-1.8 5.6-2.8 9-2.8s6.6 1 9 2.8M5.6 18.4c2.6-2.6 6.2-4 10.4-4s7.8 1.4 10.4 4" fill="none" stroke="#fff" stroke-width=".8" opacity=".45"/>` +
-      `<ellipse cx="16" cy="19.6" rx="8" ry="4.4" fill="@grass"/><ellipse cx="16" cy="19.6" rx="4.8" ry="2.2" fill="none" stroke="#fff" stroke-width=".9" opacity=".85"/>`],
+      // Floodlight towers behind the bowl.
+      dbl('M4.5 15V5.4M27.5 15V5.4', '#a9b5c4', 1.2) +
+      `<rect x="1.8" y="2" width="5.4" height="3.6" rx=".8" fill="@yellow"/><rect x="24.8" y="2" width="5.4" height="3.6" rx=".8" fill="@yellow"/>` +
+      `<path d="M2.6 3.8h3.8M25.6 3.8h3.8" stroke="#e8a90c" stroke-width=".8"/>` +
+      // Outer wall with depth, then the seating bowl from the rim inward.
+      `<path d="M1.5 17.5v4c0 5 6.5 8.8 14.5 8.8s14.5-3.8 14.5-8.8v-4z" fill="@steel"/>` +
+      `<path d="M1.5 21.5c0 5 6.5 8.8 14.5 8.8s14.5-3.8 14.5-8.8" fill="none" stroke="#6b788a" stroke-width=".7" transform="translate(0 -2.4)"/>` +
+      `<path d="M13.4 30.2v-2.6a2.6 2.6 0 0 1 5.2 0v2.6z" fill="@dark"/>` +
+      `<path d="M6 25.4v-2.2M9.4 27v-2.2M22.6 27v-2.2M26 25.4v-2.2" stroke="#6b788a" stroke-width="1"/>` +
+      `<ellipse cx="16" cy="17.5" rx="14.5" ry="8.6" fill="@steel"/>` +
+      `<ellipse cx="16" cy="17.6" rx="12.8" ry="7.3" fill="@blue"/>` +
+      `<g fill="none" stroke="#fff" stroke-width=".55" opacity=".45"><ellipse cx="16" cy="17.8" rx="11.6" ry="6.5"/><ellipse cx="16" cy="18" rx="10.6" ry="5.8"/></g>` +
+      `<ellipse cx="16" cy="18.4" rx="9.4" ry="4.9" fill="#d9603b" stroke-width="1"/>` +
+      `<ellipse cx="16" cy="18.4" rx="8.4" ry="4.2" fill="none" stroke="#fff" stroke-width=".5" opacity=".8"/>` +
+      `<ellipse cx="16" cy="18.5" rx="6.8" ry="3.2" fill="@grass" stroke-width=".8"/>` +
+      `<path d="M16 15.3v6.4" stroke="#fff" stroke-width=".6" opacity=".7"/>` +
+      // Pennants on the rim.
+      `<path d="M9 10.2V6.4l3 1.2-3 1.2M23 10.2V6.4l-3 1.2 3 1.2" fill="@red" stroke-width=".8"/>` +
+      `<path d="M4.4 14.6c2.8-3.2 6.8-4.8 11.6-4.8" fill="none" stroke="#fff" stroke-width="1" opacity=".6"/>`],
     ['grad-cap', '🎓', 'Graduation cap',
       `<path d="M8.4 14.5v6c0 2 3.4 3.8 7.6 3.8s7.6-1.8 7.6-3.8v-6l-7.6 3.4z" fill="@dark"/>` +
       `<path d="M16 5L30 11.5 16 18 2 11.5z" fill="@dark"/><path d="M16 6.6l10.6 4.9-2.6 1.2L16 9z" ${hl(0.25)}/>` +
@@ -838,13 +852,13 @@
     return { id, emoji, label };
   });
   const resolve = (name) => (BY_ID[name] ? name : BY_EMOJI[strip(name)] || null);
-  const paint = (s) => s.replace(/@([a-z0-9]+)/g, 'url(#gi-g-$1)');
+  const fillTokens = (s) => s.replace(/@([a-z0-9]+)/g, 'url(#gi-g-$1)');
 
   let spriteCache = null;
   function sprite() {
     if (spriteCache) return spriteCache;
     const symbols = ICONS.map(([id, , , body]) =>
-      `<symbol id="gi-${id}" viewBox="0 0 32 32"><g stroke="${O}" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round">${paint(body)}</g></symbol>`).join('');
+      `<symbol id="gi-${id}" viewBox="0 0 32 32"><g stroke="${O}" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round">${fillTokens(body)}</g></symbol>`).join('');
     spriteCache = `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">` +
       `<defs>${DEFS}</defs>${symbols}</svg>`;
     return spriteCache;
@@ -870,6 +884,116 @@
     return `<svg class="gi${opts.cls ? ' ' + opts.cls : ''}" viewBox="0 0 32 32"${style}${label}><use href="#gi-${id}"/></svg>`;
   }
 
-  XCD.icons = { list, svg, sprite, mount, resolve, has: (n) => !!resolve(n) };
+  /* ------------------------------ painter ------------------------------ *
+   * Emoji reach the screen from everywhere: screen templates, engine news
+   * and inbox text, and strings already written into players' saves. Rather
+   * than chase every string, the painter swaps each known emoji for its icon
+   * as the DOM is drawn. Text-only places (dropdown options, tooltips, screen
+   * reader labels, SVG chart text) can't hold an icon, so the emoji is simply
+   * dropped there and the words stay.
+   */
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const alternation = ICONS.map(([, emoji]) => strip(emoji))
+    .sort((a, b) => b.length - a.length)
+    .map((e) => Array.from(e).map(escRe).join('\\uFE0F?') + '\\uFE0F?')
+    .join('|');
+  const RE_TEST = new RegExp(`(?:${alternation})`, 'u');
+  const RE_SPLIT = new RegExp(`(${alternation})`, 'u');
+  const RE_STRIP = new RegExp(`\\s*(?:${alternation})\\s*`, 'gu');
+  const SKIP = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA']);
+  const TEXT_ONLY = new Set(['OPTION', 'OPTGROUP', 'TITLE']);
+  const ATTRS = ['title', 'aria-label', 'placeholder', 'label'];
+
+  // Remove emoji from plain text, keeping single spaces between the words.
+  function stripEmoji(text) {
+    return text.replace(RE_STRIP, (m, off, all) => {
+      const atEdge = off === 0 || off + m.length === all.length;
+      return atEdge || !/\s/.test(m) ? '' : ' ';
+    });
+  }
+
+  function iconNode(doc, id) {
+    const el = doc.createElementNS(SVG_NS, 'svg');
+    el.setAttribute('class', 'gi');
+    el.setAttribute('viewBox', '0 0 32 32');
+    el.setAttribute('aria-hidden', 'true');
+    const use = doc.createElementNS(SVG_NS, 'use');
+    use.setAttribute('href', '#gi-' + id);
+    el.appendChild(use);
+    return el;
+  }
+
+  function paintText(node) {
+    const parent = node.parentNode;
+    if (!parent || !RE_TEST.test(node.data)) return;
+    if (SKIP.has(parent.nodeName)) return;
+    if (TEXT_ONLY.has(parent.nodeName) || parent.namespaceURI === SVG_NS) {
+      node.data = stripEmoji(node.data);
+      return;
+    }
+    const doc = node.ownerDocument;
+    const frag = doc.createDocumentFragment();
+    node.data.split(RE_SPLIT).forEach((part, i) => {
+      if (!part) return;
+      if (i % 2) frag.appendChild(iconNode(doc, BY_EMOJI[strip(part)]));
+      else frag.appendChild(doc.createTextNode(part));
+    });
+    parent.replaceChild(frag, node);
+  }
+
+  function paintAttrs(el) {
+    ATTRS.forEach((a) => {
+      const v = el.getAttribute(a);
+      if (v && RE_TEST.test(v)) el.setAttribute(a, stripEmoji(v));
+    });
+  }
+
+  // Swap every known emoji under (and including) a node.
+  function paint(root) {
+    if (!root) return;
+    if (root.nodeType === 3) { paintText(root); return; }
+    if (root.nodeType !== 1 && root.nodeType !== 11) return;
+    if (root.nodeType === 1) {
+      if (SKIP.has(root.nodeName)) return;
+      paintAttrs(root);
+    }
+    root.querySelectorAll('[title],[aria-label],[placeholder],optgroup[label]').forEach(paintAttrs);
+    if (!RE_TEST.test(root.textContent || '')) return;
+    const doc = root.ownerDocument || root;
+    const walker = doc.createTreeWalker(root, 4 /* NodeFilter.SHOW_TEXT */);
+    const hits = [];
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) if (RE_TEST.test(n.data)) hits.push(n);
+    hits.forEach(paintText);
+  }
+
+  let observer = null;
+  function start(doc) {
+    doc = doc || document;
+    mount(doc);
+    if (doc.title && RE_TEST.test(doc.title)) doc.title = stripEmoji(doc.title);
+    paint(doc.body);
+    if (observer || typeof MutationObserver === 'undefined') return;
+    observer = new MutationObserver((muts) => {
+      muts.forEach((m) => {
+        if (m.type === 'childList') m.addedNodes.forEach(paint);
+        else if (m.type === 'characterData') paintText(m.target);
+        else if (m.type === 'attributes') paintAttrs(m.target);
+      });
+    });
+    observer.observe(doc.body, {
+      childList: true, subtree: true, characterData: true,
+      attributes: true, attributeFilter: ATTRS
+    });
+  }
+
+  XCD.icons = { list, svg, sprite, mount, resolve, has: (n) => !!resolve(n), paint, start, stripEmoji };
+  if (XCD.ui) XCD.ui.icon = svg;
   if (typeof module !== 'undefined' && module.exports) module.exports = XCD.icons;
+
+  // In the game: paint the page now and keep painting as screens render.
+  if (typeof document !== 'undefined' && document.documentElement) {
+    if (document.body) start(document);
+    else document.addEventListener('DOMContentLoaded', () => start(document));
+  }
 })(typeof window !== 'undefined' ? window : globalThis);
