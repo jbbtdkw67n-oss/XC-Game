@@ -346,7 +346,7 @@
   function optionLabel(d, block) {
     const c = d.cost;
     const trip = c.mode === 'home' ? 'Home · free' : `${c.mode === 'flight' ? '✈️' : '🚌'} ${c.miles} mi · ${money(c.total)}`;
-    return `${d.tierIcon ? d.tierIcon + ' ' : ''}${d.meet.name} — ${trip} · ${d.speed.icon ? d.speed.icon + ' ' : ''}${d.speed.label} · ${d.field}/${d.cap} teams${block ? ' · ' + block : ''}`;
+    return `${d.tierMark ? d.tierMark + ' ' : ''}${d.meet.name} — ${trip} · ${d.speed.icon ? d.speed.icon + ' ' : ''}${d.speed.label} · ${d.field}/${d.cap} teams${block ? ' · ' + block : ''}`;
   }
 
   function budgetCard(game, sp, editable) {

@@ -103,8 +103,13 @@ async function run() {
     speedInOptions: [...document.querySelectorAll('select[data-sb-week] option')].some((o) => /Fast|Slow|Average/.test(o.textContent)),
     budget: /Travel budget/.test(document.querySelector('.sb-budget').textContent),
     browser: !!document.querySelector('#meet-browser .sb-meet'),
-    chips: document.querySelectorAll('#meet-browser .sb-chip').length
+    chips: document.querySelectorAll('#meet-browser .sb-chip').length,
+    // The famous invitationals keep their elite star inside the drop-down
+    // (the icon painter strips emoji from <option> text, so it's a text ★).
+    starred: ['Roy Griak Invitational', 'Nuttycombe Wisconsin Invitational'].map((n) =>
+      [...document.querySelectorAll('select[data-sb-week] option')].some((o) => o.textContent.startsWith('★ ' + n)))
   }));
+  ok(ui.starred.every(Boolean), 'Roy Griak and Nuttycombe show the ★ elite mark in the drop-down: ' + JSON.stringify(ui.starred));
   ok(ui.selects === 9, 'one drop-down per regular-season week: ' + ui.selects);
   ok(ui.speed && ui.speedInOptions, 'fast/slow course is listed in the builder');
   ok(ui.budget && ui.browser && ui.chips > 0, 'budget + meet browser with team chips render: ' + JSON.stringify(ui));
