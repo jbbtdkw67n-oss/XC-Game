@@ -569,13 +569,44 @@
       if (useCards) {
         const sortable = config.columns.filter((c) => c.label);
         const gridCls = (config.cardGrid !== false && !mobile) ? ' as-grid' : '';
-        container.innerHTML = `
-          <div class="sort-bar">
-            <select class="search-input" data-sort-select aria-label="Sort by">
-              ${sortable.map((c) => `<option value="${c.key}" ${c.key === state.sortKey ? 'selected' : ''}>Sort: ${c.label}</option>`).join('')}
-            </select>
-            <button class="btn sort-dir" data-sort-dir title="Toggle sort direction">${state.sortDir === 'asc' ? '↑' : '↓'}</button>
-          </div>
+        // The sort bar is built ONCE and then kept alive: only the cards
+        // below it are redrawn. WebKit (Safari / the iPhone app) crashes the
+        // page if a <select> is destroyed while its native picker is still
+        // dismissing — which is exactly what rebuilding the whole container
+        // from the select's own change handler used to do.
+        let bar = container.querySelector(':scope > .sort-bar');
+        let cardsBody = container.querySelector(':scope > [data-cards-body]');
+        // A bar left by an earlier table instance on this container is wired
+        // to that instance's state, so it's rebuilt rather than reused.
+        if (!bar || !cardsBody || bar._sortOwner !== state) {
+          container.innerHTML = `
+            <div class="sort-bar">
+              <select class="search-input" data-sort-select aria-label="Sort by">
+                ${sortable.map((c) => `<option value="${c.key}">Sort: ${c.label}</option>`).join('')}
+              </select>
+              <button class="btn sort-dir" data-sort-dir title="Toggle sort direction"></button>
+            </div>
+            <div data-cards-body></div>`;
+          bar = container.querySelector(':scope > .sort-bar');
+          cardsBody = container.querySelector(':scope > [data-cards-body]');
+          bar._sortOwner = state;
+          const sel = bar.querySelector('[data-sort-select]');
+          sel.addEventListener('change', () => {
+            state.sortKey = sel.value;
+            const newCol = config.columns.find((c) => c.key === state.sortKey);
+            state.sortDir = newCol && newCol.numeric ? 'desc' : 'asc';
+            // Redraw after the event unwinds, with the picker fully closed.
+            setTimeout(() => { if (container.isConnected) draw(); }, 0);
+          });
+          bar.querySelector('[data-sort-dir]').addEventListener('click', () => {
+            state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+            draw();
+          });
+        }
+        const sortSel = bar.querySelector('[data-sort-select]');
+        if (sortable.some((c) => c.key === state.sortKey) && sortSel.value !== state.sortKey) sortSel.value = state.sortKey;
+        bar.querySelector('[data-sort-dir]').textContent = state.sortDir === 'asc' ? '↑' : '↓';
+        cardsBody.innerHTML = `
           <div class="m-cards${gridCls}">
             ${rows.length
               ? rows.map((row, i) => `<div class="m-card ${config.onRowClick ? 'clickable' : ''} ${rowCls(row)}" data-row="${i}">${cardRenderer(row, i)}</div>`).join('')
@@ -583,19 +614,8 @@
           </div>
           ${truncated ? `<div style="color:var(--text-faint); font-size:12px; padding:8px 2px 0;">Showing ${cap} of ${totalRows.toLocaleString()} — narrow with search or sorting.</div>` : ''}`;
 
-        const sel = container.querySelector('[data-sort-select]');
-        sel.addEventListener('change', () => {
-          state.sortKey = sel.value;
-          const newCol = config.columns.find((c) => c.key === state.sortKey);
-          state.sortDir = newCol && newCol.numeric ? 'desc' : 'asc';
-          draw();
-        });
-        container.querySelector('[data-sort-dir]').addEventListener('click', () => {
-          state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
-          draw();
-        });
         if (config.onRowClick) {
-          container.querySelectorAll('.m-card[data-row]').forEach((el) => {
+          cardsBody.querySelectorAll('.m-card[data-row]').forEach((el) => {
             el.addEventListener('click', (e) => {
               if (e.target.closest('button, select, input, a')) return; // in-card actions win
               config.onRowClick(rows[Number(el.dataset.row)]);

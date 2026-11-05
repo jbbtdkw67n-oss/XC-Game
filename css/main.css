@@ -583,6 +583,12 @@ html[data-theme="light"] .season-poll.top10 { color: #8a6100; }
    program list and inside profiles: a leading colored status circle, a bold
    title with a dimmed subtitle, and a trailing value. One idiom everywhere. */
 .lrow-list { display: flex; flex-direction: column; }
+/* Rows never shrink to fit a capped (scrolling) list. Without this, any rule
+   that sets a row's min-height — e.g. the 40px touch target on tappable rows —
+   replaces the "never smaller than content" default, and a long list like a
+   coach's Season-by-Season squeezes every row to 40px with the lines piled on
+   top of each other. The list scrolls instead. */
+.lrow-list > .lrow { flex-shrink: 0; }
 /* A scroll box for long lists inside cards/profiles — a clean history that
    scrolls rather than running off the screen. */
 .lrow-scroll {
