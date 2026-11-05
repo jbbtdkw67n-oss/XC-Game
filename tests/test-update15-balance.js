@@ -42,14 +42,14 @@ const { walkCoachWizard, wireErrors, launchOpts } = require('./helpers');
   // The origin story must show for a brand-new dynasty.
   await page.waitForSelector('#tut-begin');
   const story = await page.textContent('.tutorial-story-text');
-  if (!/back to back state championships at a small Kansas high school/.test(story || '')) {
+  if (!/back to back state championships at a small high school/.test(story || '')) {
     fail('origin story text missing or wrong: ' + story);
   }
   await page.click('#tut-begin');
   await page.waitForSelector('#tut-start');
   // Take the tutorial: walk every step to the end.
   await page.click('#tut-start');
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 25; i++) {
     const next = await page.$('#tut-next');
     if (!next) break;
     await next.click();

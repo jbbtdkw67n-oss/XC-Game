@@ -200,6 +200,31 @@
     }
 
     const data = awardsFor(game, year, awardDiv);
+    // Conference-scope honors for the selected conference. Kept separate so
+    // the conference picker only redraws this block — never the <select>
+    // itself (WebKit crashes if a select is destroyed mid-dismiss).
+    const confContent = () => {
+      if (!data.confMap || !awardConf || !data.confMap[awardConf]) {
+        return `<div class="card" style="color:var(--text-dim);">Conference honors for ${divLabel(awardDiv)} are announced after the conference championships are run.</div>`;
+      }
+      const cb = data.confMap[awardConf];
+      return ['M', 'W'].map((g) => {
+        const slate = cb[g];
+        if (!slate) return '';
+        const gLabel = g === 'M' ? 'Men' : 'Women';
+        const allConf = slate.allConference || [];
+        return `<div class="card" style="margin-bottom:16px;">
+          <div class="card-title"><h2>${gLabel}</h2><span class="phase-pill">${Utils.escapeHtml(awardConf)}</span></div>
+          <div class="honor-row">
+            ${UI.honorAthlete(game, 'Runner of the Year', slate.runnerOfYear, g)}
+            ${UI.honorAthlete(game, 'Freshman of the Year', slate.freshmanOfYear, g)}
+            ${UI.honorCoach(game, 'Coach of the Year', slate.coachOfYear)}
+          </div>
+          ${allConf.length ? `<div class="mini-label">All-Conference Team (${allConf.length})</div>${teamGrid(game, allConf, { gender: g })}` : ''}
+        </div>`;
+      }).join('') || `<div class="card" style="color:var(--text-dim);">No ${Utils.escapeHtml(awardConf)} honors recorded for this season yet.</div>`;
+    };
+
     let content = '';
 
     if (awardScope === 'national') {
@@ -224,38 +249,28 @@
         }).join('');
       }
     } else { // conference scope
-      if (!data.confMap || !awardConf || !data.confMap[awardConf]) {
-        content = `<div class="card" style="color:var(--text-dim);">Conference honors for ${divLabel(awardDiv)} are announced after the conference championships are run.</div>`;
-      } else {
-        const cb = data.confMap[awardConf];
-        content = ['M', 'W'].map((g) => {
-          const slate = cb[g];
-          if (!slate) return '';
-          const gLabel = g === 'M' ? 'Men' : 'Women';
-          const allConf = slate.allConference || [];
-          return `<div class="card" style="margin-bottom:16px;">
-            <div class="card-title"><h2>${gLabel}</h2><span class="phase-pill">${Utils.escapeHtml(awardConf)}</span></div>
-            <div class="honor-row">
-              ${UI.honorAthlete(game, 'Runner of the Year', slate.runnerOfYear, g)}
-              ${UI.honorAthlete(game, 'Freshman of the Year', slate.freshmanOfYear, g)}
-              ${UI.honorCoach(game, 'Coach of the Year', slate.coachOfYear)}
-            </div>
-            ${allConf.length ? `<div class="mini-label">All-Conference Team (${allConf.length})</div>${teamGrid(game, allConf, { gender: g })}` : ''}
-          </div>`;
-        }).join('') || `<div class="card" style="color:var(--text-dim);">No ${Utils.escapeHtml(awardConf)} honors recorded for this season yet.</div>`;
-      }
+      content = confContent();
     }
 
     body.innerHTML = `
       <div class="news-subtabs">${scopeTabs}${divTabs}${confSelector}</div>
       ${recap ? `<div class="talk-blurb">${Utils.escapeHtml(recap)}</div>` : ''}
       <div style="color:var(--text-faint); font-size:12px; margin-bottom:12px;">${year} season${year !== game.year ? ' (most recent completed)' : ''}</div>
-      ${content}`;
+      <div id="award-content">${content}</div>`;
 
     body.querySelectorAll('[data-ascope]').forEach((b) => b.addEventListener('click', () => { awardScope = b.dataset.ascope; render(UI._newsContainer); }));
     body.querySelectorAll('[data-adiv]').forEach((b) => b.addEventListener('click', () => { awardDiv = b.dataset.adiv; awardConf = null; render(UI._newsContainer); }));
     const confSel = body.querySelector('#award-conf');
-    if (confSel) confSel.addEventListener('change', () => { awardConf = confSel.value; render(UI._newsContainer); });
+    if (confSel) confSel.addEventListener('change', () => {
+      awardConf = confSel.value;
+      // Redraw only the honors below, after the event unwinds.
+      setTimeout(() => {
+        const box = body.querySelector('#award-content');
+        if (!box || !box.isConnected) return;
+        box.innerHTML = confContent();
+        wireProfiles(game, box);
+      }, 0);
+    });
     wireProfiles(game, body);
   }
 

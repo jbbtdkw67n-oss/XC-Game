@@ -613,11 +613,13 @@
     // Men's 6K realism: the men only ever contest a 6K early in the season
     // (fresh but under-raced legs, run on the same rugged courses as the 8K),
     // so a pure distance discount makes elite 6K times read unrealistically
-    // fast. A small correction keeps the very best men's 6K in the ~17:1x–17:3x
-    // range instead of dipping under 17:00. Ordering and scoring are unchanged
-    // (every runner in the race takes the same factor); only the clock reads
-    // realistically. Women's 5K/6K are unaffected.
-    if (gender === 'M' && distanceM < 8000) perKm *= 1.03;
+    // fast. A small correction keeps the very best men's 6K from dipping
+    // unrealistically low. Tuned (1.03 → 1.014) so men's 6K fields run ~15–20 s
+    // quicker on average than before — the old factor read too slow next to
+    // real early-season 6K results. Ordering and scoring are unchanged (every
+    // runner in the race takes the same factor); only the clock moves.
+    // Women's 5K/6K are unaffected.
+    if (gender === 'M' && distanceM < 8000) perKm *= 1.014;
     return perKm * km;
   }
 

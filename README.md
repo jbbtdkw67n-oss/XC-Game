@@ -14,6 +14,32 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.11 — Faster Men's 6Ks, Safer Drop-Downs & a New Tutorial
+
+- **Men's 6K times are quicker.** Early-season men's 6K races now run about
+  15–20 seconds faster on average (about 18 s across the field in test
+  seasons; winners about 11–16 s). The 8K, 10K and every women's distance are
+  unchanged, and so are finishing order and scoring.
+- **Drop-downs no longer crash on iPhone.** Safari crashes the page if a
+  drop-down is destroyed while its picker is still closing. Two drop-downs
+  still did that: the **Sort by** box above every card list (roster,
+  recruiting, portal, world and more on phones) and the **conference picker**
+  on News → Awards. Both now stay in place and only the list below them
+  redraws.
+- **Fixed: overlapping text in a coach's History tab on phones and tablets.**
+  The Season-by-Season list squeezed every season into a 40px row on touch
+  screens, piling the Men and Women lines on top of each other. Each season
+  now gets its full height and the list scrolls.
+- **The tutorial covers today's game.** The first-season walkthrough now
+  explains the Inbox and Sim menu, the Week 1 checklist and Schedule Builder,
+  Base and Sharpening, the one peak per season and Down Weeks, how runners
+  develop, the Race-Day Top 7, head-to-head polls and Kolas selection,
+  expectations and the Hot Seat, and the offseason (job offers, runners who
+  follow you, the portal). New first-season tips cover the Inbox, Course
+  Records and Settings.
+- **The origin story no longer names a state:** "After winning back to back
+  state championships at a small high school…".
+
 ## Version 15.10 — Runners With Character
 
 - **Race IQ is learned on the course.** Every race teaches a little race
