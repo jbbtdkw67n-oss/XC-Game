@@ -823,6 +823,7 @@
       Object.values(this.world.athletes).forEach((a) => {
         a.seasonDev = 0;
         a.seasonInjuryWeeks = 0;
+        a.seasonBase = 0;
         if (a.injury || a.health === 'Recovering' || a.recentInjuryWeeks) {
           if (a.injury && playerIds.has(a.id)) playerHealed += 1;
           a.injury = null;

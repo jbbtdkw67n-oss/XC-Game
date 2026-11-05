@@ -325,7 +325,7 @@
       const roll = noise(`${gameState.seed}|${gameState.year}|follow|${a.id}`) * 100;
       const came = roll < ch.pct;
       if (came) commitFollower(gameState, a, from, to, coach, ch.rel);
-      results.push({ athleteId: a.id, name: a.fullName, gender: a.gender, overall: a.currentOverall, pct: ch.pct, roll: Math.round(roll), came });
+      results.push({ athleteId: a.id, name: a.fullName, gender: a.gender, overall: a.currentOverall, pct: ch.pct, roll: Math.floor(roll), came }); // floor: the shown roll reads the same as the decision (pct is whole)
     });
     cf.results = results;
     const yes = results.filter((r) => r.came);

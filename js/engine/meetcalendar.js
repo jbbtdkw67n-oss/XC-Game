@@ -46,6 +46,11 @@
 
   const TIER_LABEL = { elite: 'Elite', prenats: 'Pre-Nationals', major: 'Major', invite: 'Invitational' };
   const TIER_ICON = { elite: '⭐', prenats: '🏆', major: '◆', invite: '' };
+  // Plain-text tier marks for places that can't hold an icon (the Schedule
+  // Builder's dropdown options): the icon painter strips emoji from <option>
+  // text, so the elite ⭐ vanished there. These glyphs aren't emoji, so they
+  // survive the painter and render as text on every platform.
+  const TIER_MARK = { elite: '★', prenats: '★', major: '◆', invite: '' };
 
   /* ================================================================ *
    * Travel cost
@@ -659,6 +664,7 @@
     return {
       meet, cost, access: acc, mine, room, course, speed,
       tierLabel: TIER_LABEL[meet.tier] || 'Invitational', tierIcon: TIER_ICON[meet.tier] || '',
+      tierMark: TIER_MARK[meet.tier] || '',
       field: (meet.schoolIds || []).length, cap: meet.cap || null
     };
   }
@@ -718,7 +724,7 @@
   }
 
   window.XCD.engine.MeetCalendar = {
-    CFG, WEEKS, CAL_VERSION, TIER_LABEL, TIER_ICON, STYLE_LABEL,
+    CFG, WEEKS, CAL_VERSION, TIER_LABEL, TIER_ICON, TIER_MARK, STYLE_LABEL,
     ensureCalendar, buildRegularSeason, tripCost, meetCost, milesTo,
     computePower, powerOf, bestRank, access, travelRating, computeBudget, refreshBudget, updateMomentum,
     scheduleStyle, schoolRacesWeek, scheduleFor, indexSeason, playerSpend, describeMeet,

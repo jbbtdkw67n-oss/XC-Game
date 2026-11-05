@@ -42,7 +42,9 @@ async function run() {
       });
     };
     const out = {};
-    const hard = clone(); setup(hard, 88);
+    // 95 mi: genuinely heavy. (Since the high-mileage rework, volume a durable
+    // runner has adapted to carries less fatigue, so a modest block banks less.)
+    const hard = clone(); setup(hard, 95);
     const weeks = [];
     for (let i = 0; i < 6; i++) {
       T.processWeek(hard, new window.XCD.core.SeededRNG(40 + i));

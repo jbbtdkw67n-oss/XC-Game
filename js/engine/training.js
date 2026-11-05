@@ -18,6 +18,10 @@
  *         lower injury risk — but weak aerobic growth and fading fitness.
  *       - Durability gates volume: only durable runners survive
  *         100-120-mile weeks; fragile ones break down.
+ *       - Adaptation (high-mileage rework): volume a durable runner has
+ *         built up to carries little extra fatigue or injury risk and pays
+ *         a real dividend — faster development, a bigger taper peak, and a
+ *         stronger summer (see VOLUME).
  *       - Tapering: cutting volume below the recent chronic load sheds
  *         fatigue and spikes sharpness while fitness holds — time it
  *         right and your squad flies at championships; taper too long
@@ -355,6 +359,54 @@
   }
 
   /*
+   * Volume adaptation (high-mileage rework). A body adapts to the volume it
+   * has built up to: miles the runner has carried for weeks (their chronic
+   * load) AND that sit inside their durable limit are "adapted" miles. They
+   * cost far less fatigue, add far less injury risk and blunt sharpness only
+   * modestly — and above the high-volume line they pay a real development
+   * dividend, now, at the taper, and over the next summer. Miles past the
+   * chronic load (a ramp) or past the durable limit carry the full old cost,
+   * so the payoff belongs to DURABLE runners built up patiently; fragile
+   * runners still break down when pushed there. Women's high-volume line
+   * sits lower, matching their lower volume ceiling.
+   */
+  const VOLUME = {
+    FATIGUE_FROM: 62,   // volume fatigue starts here
+    FATIGUE_RATE: 0.22, // per mile
+    // Adaptation only discounts volume above a program's normal load (the
+    // default mileage), so ordinary programs play exactly as before.
+    ADAPT_FROM: { M: 75, W: 60 },
+    ADAPT_RELIEF: 1.0,  // share of the fatigue an adapted mile sheds
+    INJ_RELIEF: 0.7,    // share of the volume injury slope it sheds
+    SHARP_RELIEF: 0.5,  // share of the sharpness blunting it sheds
+    HIGH: { M: 80, W: 66 },     // where high-mileage dividends begin
+    DEV_PER_MILE: 0.03,         // in-season development per adapted mile above HIGH
+    PEAK_PER_MILE: 0.5, PEAK_MAX_FORM: 15,      // a bigger base, a bigger taper peak (form points)
+    // The speed road: race-specific quality (intervals, speed, race
+    // simulations) on FRESH, lower-volume legs keeps a squad sharp all
+    // regular season — but without a base under it, the same work goes stale
+    // by championship season. Full credit at QUALITY_FRESH below the
+    // high-volume line, none by the line itself.
+    QUALITY_PER_STIM: 4.2, QUALITY_MAX_FORM: 15, QUALITY_FRESH: 25,
+    QUALITY_SHARP: 0.55,  // share of that quality credit that sharpens every week
+    QUALITY_STALE_FROM: 1.5, QUALITY_STALE: 0.55, // extra staleness per week per unit of quality load above FROM
+    SUMMER_FULL: 420, SUMMER_MAX: 0.3           // season base → summer development
+  };
+
+  const genderKey = (athlete) => (athlete && athlete.gender === 'W' ? 'W' : 'M');
+
+  // Adapted miles: this week's volume the body has built up to and can absorb.
+  function adaptedMiles(mileage, chronicMileage, athlete) {
+    if (!athlete) return 0;
+    return Math.max(0, Math.min(mileage, chronicMileage || mileage, safeMileage(athlete)));
+  }
+
+  // Adapted miles above the high-volume line (0 for everyone else).
+  function highVolumeMiles(adapted, athlete) {
+    return Math.max(0, adapted - VOLUME.HIGH[genderKey(athlete)]);
+  }
+
+  /*
    * Mileage meta: cheap per-athlete arithmetic layered onto the plan meta.
    *   fatigueAdd  — weekly fatigue from volume
    *   fitnessMult — scales the plan's fitness build
@@ -362,22 +414,31 @@
    *   devMult     — long-term adaptation bonus/penalty
    *   sharpTarget — where race sharpness drifts at this volume
    *   taper       — true when cutting well below chronic load
+   *   adapted / highVolume — see VOLUME above (0 without an athlete)
    */
-  function mileageMeta(mileage, chronicMileage) {
+  function mileageMeta(mileage, chronicMileage, athlete) {
     const v = mileage / 70;
     const chronic = chronicMileage || mileage;
     const taper = mileage <= chronic - 15;
+    const adapted = adaptedMiles(mileage, chronic, athlete);
+    const highVolume = highVolumeMiles(adapted, athlete);
+    // Adapted miles above the program-normal load get the discounts below.
+    const relief = athlete ? Math.max(0, adapted - VOLUME.ADAPT_FROM[genderKey(athlete)]) : 0;
     // Freshness from volume. (The old flat taper pop is gone: a real taper
-    // now spends the season's one peak — see applyForm.)
-    const sharpTarget = Utils.clamp(133 - mileage * 0.85, 20, 95);
+    // now spends the season's one peak — see applyForm.) High volume still
+    // leaves legs a little flat before the taper, adapted or not.
+    const sharpTarget = Utils.clamp(133 - mileage * 0.85 + relief * 0.85 * VOLUME.SHARP_RELIEF, 20, 95);
     return {
       mileage,
-      fatigueAdd: (mileage - 62) * 0.22 - (taper ? 3 : 0),
+      fatigueAdd: (mileage - VOLUME.FATIGUE_FROM) * VOLUME.FATIGUE_RATE -
+        relief * VOLUME.FATIGUE_RATE * VOLUME.ADAPT_RELIEF - (taper ? 3 : 0),
       fitnessMult: 0.55 + v * 0.45,
-      injuryMult: v <= 1 ? 0.55 + v * 0.45 : 1 + (mileage - 70) / 95,
-      devMult: 0.82 + v * 0.22,
+      injuryMult: v <= 1 ? 0.55 + v * 0.45 : 1 + ((mileage - 70) - relief * VOLUME.INJ_RELIEF) / 95,
+      devMult: 0.82 + v * 0.22 + highVolume * VOLUME.DEV_PER_MILE,
       sharpTarget,
-      taper
+      taper,
+      adapted,
+      highVolume
     };
   }
 
@@ -1363,6 +1424,22 @@
     return athlete.peakSeason === gameState.year;
   }
 
+  // The speed road (see VOLUME): race-specific work carried week to week,
+  // credited in full on fresh lower-volume legs, fading to nothing at the
+  // high-volume line (where the aerobic base takes over). Sharpens every
+  // week (applyForm) — and, held without a base, goes stale.
+  function qualityCredit(athlete, chronic) {
+    const line = VOLUME.HIGH[genderKey(athlete)] + 5;
+    const fresh = Utils.clamp((line - (chronic || line)) / VOLUME.QUALITY_FRESH, 0, 1);
+    return Math.min(VOLUME.QUALITY_MAX_FORM, (athlete.qualityLoad || 0) * VOLUME.QUALITY_PER_STIM) * fresh;
+  }
+
+  // Extra weekly staleness from sustained quality on low volume (0 on a base).
+  function qualityStale(athlete) {
+    const fresh = qualityCredit(Object.assign({}, athlete, { qualityLoad: VOLUME.QUALITY_MAX_FORM / VOLUME.QUALITY_PER_STIM }), athlete.chronicMileage) / VOLUME.QUALITY_MAX_FORM;
+    return Math.max(0, (athlete.qualityLoad || 0) - VOLUME.QUALITY_STALE_FROM) * VOLUME.QUALITY_STALE * fresh;
+  }
+
   // Would this week's miles + plan count as the season's taper?
   function isTaperWeek(mileage, chronic, planMeta) {
     if (planMeta && planMeta.downWeek) return false; // a down week saves the peak
@@ -1377,6 +1454,9 @@
     // Staleness: sharp work held week after week goes flat.
     let stale = athlete.staleness || 0;
     stale += (planMeta.staleStim + (raced ? 0.3 : 0)) * 3 - 3.5;
+    // The speed road's price: quality-heavy weeks on low volume, held week
+    // after week with no aerobic base under them, flatten out by November.
+    stale += qualityStale(athlete);
     if ((planMeta.hardDays || 0) === 0) stale -= 5; // a true recovery week
     if (planMeta.downWeek) stale -= DOWN_WEEK.STALE;
     athlete.staleness = Math.round(Utils.clamp(stale, 0, 40) * 10) / 10;
@@ -1388,7 +1468,11 @@
     // A real indoor track lets track work push a little past the usual
     // ceiling; a dirt loop holds it back (about −3 to +5).
     const trackLift = planMeta.trackSharp > 0 ? (school.facilities.indoorTrack - 45) * 0.1 : 0;
-    target = Math.min(target, sharpCeiling(athlete) + trackLift);
+    // Quality on fresh legs keeps a runner race-sharp all season (the quality
+    // road — see VOLUME): up to ~+8 on the target and the ceiling.
+    const qualitySharp = qualityCredit(athlete, athlete.chronicMileage) * VOLUME.QUALITY_SHARP;
+    target += qualitySharp;
+    target = Math.min(target, sharpCeiling(athlete) + trackLift + qualitySharp);
     // Race rust (Injury System Expansion): a runner rebuilding from injury
     // can't be fully race-sharp until the Recovering window closes.
     if (athlete.health === 'Recovering') target = Math.min(target, 72);
@@ -1412,7 +1496,13 @@
     if (week >= 2 && isTaperWeek(mMeta.mileage, chronicBefore, planMeta)) {
       if (!peakUsed(gameState, athlete)) {
         const strength = (athlete.taperCharge ?? 0) * Utils.clamp((athlete.fitness ?? 50) / 70, 0.6, 1.15);
-        athlete.peakBonus = Math.round(PEAK_MAX * Utils.clamp(strength, 0.15, 1.15));
+        // A bigger base, a bigger peak: the adapted volume carried into the
+        // taper (high-mileage rework) adds up to ~15 form points, scaled by
+        // how well the taper was earned — enough to win back the flat legs
+        // that volume cost through the regular season.
+        const base = highVolumeMiles(adaptedMiles(chronicBefore || 0, chronicBefore, athlete), athlete);
+        const baseForm = Math.min(VOLUME.PEAK_MAX_FORM, base * VOLUME.PEAK_PER_MILE) * Utils.clamp(strength, 0, 1);
+        athlete.peakBonus = Math.round(PEAK_MAX * Utils.clamp(strength, 0.15, 1.15) + baseForm);
         athlete.peakFresh = true;
         athlete.peakSeason = gameState.year;
         athlete.peakWeek = week + 1; // it lands on next week's race
@@ -1513,7 +1603,7 @@
     const meta = override ? planMetaFor(plan, override) : planMetaFor(plan);
     if (downWeekStatus(gameState, gender).active) meta.downWeek = true;
     const miles = mileageFor(gameState, school, gender, athlete, coach);
-    const mMeta = mileageMeta(miles, athlete.chronicMileage);
+    const mMeta = mileageMeta(miles, athlete.chronicMileage, athlete);
     let after = Math.round(Utils.clamp(f + weeklyFatigueDelta(athlete, school, meta, mMeta, philosophyEffect(coach)), 0, 100));
     // Running past the durable limit grinds on top (see processAthlete).
     athlete.fatigue = after;
@@ -1610,8 +1700,16 @@
     // week after doesn't read as a load spike.
     const keep = planMeta.downWeek ? 0.85 : 0.7;
     athlete.chronicMileage = Math.round((athlete.chronicMileage || mMeta.mileage) * keep + mMeta.mileage * (1 - keep));
+    // The season's aerobic base (high-mileage rework): adapted high-volume
+    // miles banked through Nationals pay off again over the summer.
+    if (gameState.week <= CAL.NATIONAL_WEEK && mMeta.highVolume > 0) {
+      athlete.seasonBase = Math.round(((athlete.seasonBase || 0) + mMeta.highVolume) * 10) / 10;
+    }
     athlete.chronicIntensity = Math.round(((athlete.chronicIntensity ?? (planMeta.intensity || 0)) * 0.7 +
       (planMeta.intensity || 0) * 0.3) * 10) / 10;
+    // Race-specific quality carried week to week (the quality road to a peak).
+    athlete.qualityLoad = Math.round(((athlete.qualityLoad ?? 0) * 0.75 +
+      ((planMeta.sharpStim || 0) + (planMeta.trackSharp || 0)) * 0.25) * 100) / 100;
 
     // Workload history (Update 6, Phase 2): a week counts as "high load" when
     // the runner is carrying real fatigue, stacking hard days, or pushing past
@@ -2043,7 +2141,7 @@
             meta.phaseFit = baseMeta.phaseFit;
           }
           const miles = mileageFor(gameState, school, gender, athlete, coach);
-          const mMeta = mileageMeta(miles, athlete.chronicMileage);
+          const mMeta = mileageMeta(miles, athlete.chronicMileage, athlete);
           processAthlete(gameState, athlete, coach, school, meta, mMeta, rng, isPlayer, culture, philo);
         });
         if (playerPlans) finishDownWeek(gameState, gender);
@@ -2071,6 +2169,11 @@
    * burnout, confidence, consistency, and hidden dev profiles all matter —
    * and regression is genuinely possible.
    */
+  // Summer dividend of the season's adapted high-volume base: up to +30%.
+  function summerBaseMult(athlete) {
+    return 1 + Utils.clamp((athlete.seasonBase || 0) / VOLUME.SUMMER_FULL, 0, 1) * VOLUME.SUMMER_MAX;
+  }
+
   function offseasonDevelopment(gameState, rng) {
     const improvers = [];
     // Offseason Progression Report (spec Part 2, Section 11): every returning
@@ -2126,6 +2229,7 @@
           else if (a.morale > 78) pts *= 1.1;
           if ((a.seasonInjuryWeeks || 0) >= 4) pts *= Math.max(0.35, 1 - a.seasonInjuryWeeks * 0.07);
           pts *= careerInjuryDevMult(a);                    // repeated major injuries shrink the upside
+          pts *= summerBaseMult(a);                         // a big, healthy season base pays off again
           if (a.fatigue > 70) pts *= 0.65;                  // burnout eats the summer
           pts *= 0.7 + rng.next() * 0.6;
           if (!isPlayerSchool) pts *= settingMult(gameState, 'cpuDevelopment'); // difficulty
@@ -2286,6 +2390,11 @@
     aiMileage,
     mileageFor,
     mileageMeta,
+    adaptedMiles,
+    summerBaseMult,
+    qualityCredit,
+    qualityStale,
+    VOLUME,
     projectedFatigue,
     safeMileage,
     idealMileage,

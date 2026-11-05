@@ -45,6 +45,39 @@
 
   // Squad Form card (Update 25, Stage 3): Base, Sharpening vs its ceiling,
   // Staleness, the season's one peak, and a form-by-week chart.
+  /*
+   * Training approaches (high-mileage rework): there is no single right way
+   * to train. Three roads all reach a fast November — this card lays them
+   * out, with the rules of thumb that hold for every one of them, and how
+   * many of the squad can carry real volume.
+   */
+  function approachesGuideHtml(game, gender) {
+    const T = TE();
+    const women = gender === 'W';
+    const roster = game.getRoster(game.playerSchoolId, gender).filter((a) => !a.injury);
+    const bigAt = women ? 85 : 100;
+    const durable = roster.filter((a) => T.safeMileage(a) >= bigAt).length;
+    const low = women ? '~45-50' : '~55';
+    const normal = women ? '~60' : '~75';
+    const road = (icon, title, body) => `<div style="padding:8px 0; border-top:1px solid var(--border);"><strong>${icon} ${title}</strong><div style="color:var(--text-dim); margin-top:2px;">${body}</div></div>`;
+    return `
+      <details class="card approaches-guide" id="approaches-guide" style="margin-bottom:16px; font-size:13px;">
+        <summary style="cursor:pointer; font-weight:700;">🧭 Training approaches — no single right way to train</summary>
+        <div style="margin-top:8px; color:var(--text-dim);">There is no one right way to train. Pick the road that fits your runners — or mix them runner by runner with individual mileage.</div>
+        ${road('🏗️', 'Aerobic base — high volume', `Build each runner up over a few weeks toward their durable limit (🎯 Ideal Mileage). The biggest development there is — in season, at the taper, and next summer. The cost: legs race a little flat until the taper, and only durable runners can carry it. <strong>${durable} of your ${roster.length} healthy runners</strong> can handle ${bigAt}+ mi/wk right now.`)}
+        ${road('⚡', 'Speed on fresh legs — low volume', `Run ${low} mi/wk with intervals, speed, and race simulations every week. The sharpest squad all regular season — wins, poll points, invitations — with a low injury risk, which makes it a good home for fragile talent. The price: with no base under it, the same work goes <strong>stale</strong> by championship season, so November is harder and the engine grows slowest. Down weeks and recovery weeks slow the staleness.`)}
+        ${road('⚖️', 'The balanced middle', `Program-normal volume (${normal} mi/wk) with plans that fit each phase: solid all season, never the extreme of either.`)}
+        <div style="padding:8px 0 0; border-top:1px solid var(--border);"><strong>Rules of thumb for every approach</strong>
+          <ul style="margin:4px 0 0; padding-left:18px; color:var(--text-dim);">
+            <li><strong>Base early, sharpen late:</strong> volume and long runs in summer and September; race-specific work (intervals, speed, simulations) in October. The phase banner above shows what fits this week.</li>
+            <li><strong>Taper once:</strong> about a 30% cut with a quality session the week before your target race (the Championship taper preset). It is worth more on race day than any training block.</li>
+            <li><strong>Ramp, don't jump:</strong> raise miles about 20% a week at most — the body adapts to what it has carried, not what you ask of it.</li>
+            <li><strong>Respect the red numbers:</strong> miles past a runner's durable limit break bodies down. Down weeks clear the fatigue when it piles up.</li>
+          </ul>
+        </div>
+      </details>`;
+  }
+
   function squadFormHtml(game, school, gender) {
     const T = TE();
     const f = T.squadForm(game, school, gender);
@@ -243,6 +276,8 @@
         <div id="mileage-hint" style="font-size:12.5px; color:var(--text-dim);"></div>
       </div>
 
+      ${approachesGuideHtml(game, activeGender)}
+
       ${UI.sectionLabel('Athletes')}
       <div class="card" style="margin-bottom:16px;">
         <h2>Squad Monitor</h2>
@@ -362,7 +397,14 @@
     const preview = () => {
       const meta = TE().planMetaFor(game.training[activeGender]);
       const miles = game.training.mileage[activeGender];
-      const mMeta = TE().mileageMeta(miles);
+      // Volume effects are per runner now (adaptation, durable limit): show
+      // the squad average at each runner's own miles.
+      const healthy = roster.filter((a) => !a.injury);
+      const metas = (healthy.length ? healthy : [null]).map((a) => a
+        ? TE().mileageMeta(game.training.mileageOverrides[a.id] ?? miles, a.chronicMileage, a)
+        : TE().mileageMeta(miles));
+      const avgOf = (k) => Utils.average(metas.map((m) => m[k]));
+      const mMeta = { fitnessMult: avgOf('fitnessMult'), injuryMult: avgOf('injuryMult'), devMult: avgOf('devMult') };
       const toneColor = { good: 'var(--success)', warn: 'var(--warning)', bad: 'var(--danger)' }[meta.quality.tone];
       const devAttrs = Object.entries(meta.attrWeights)
         .filter(([k]) => ATTR_LABELS[k])
@@ -421,7 +463,7 @@
         else if (realTaper && sf && sf.peakUsed) msg = `📉 Taper miles: ${miles} mi vs ~${avgChronic} mi — your peak is already spent this season, so this only sheds fatigue (and Base fades).`;
         else if (taper && planMeta.qualityDays < 1) msg = `🛌 Recovery week: ${miles} mi with no quality session — fatigue sheds and your peak is saved for later.`;
         else if (taper) msg = `📉 Lighter week: ${miles} mi vs ~${avgChronic} mi recent load — fatigue sheds. (A real taper is about a 30% cut — the Championship taper preset.)`;
-        else if (miles >= heavyAt) msg = `🔥 Heavy volume: maximum aerobic development, but fatigue and injury risk climb — only ${women ? 'exceptionally durable women survive weeks this big (the ceiling sits below the men\'s)' : `durable athletes survive ${miles} miles`}.`;
+        else if (miles >= heavyAt) msg = `🔥 Heavy volume: the biggest development there is — now, at the taper, and next summer — for runners durable enough to carry it and built up to it over a few weeks. Legs race a little flat until the taper; anyone past their durable limit breaks down${women ? ' (women\'s ceiling sits below the men\'s)' : ''}.`;
         else if (miles >= strongAt) msg = `Strong aerobic block: real Stamina/Threshold gains at a manageable cost.`;
         else if (miles <= lowAt) msg = `⚡ Low volume: fresh and sharp with better speed work — but endurance and long-term fitness will stagnate.`;
         else msg = `Moderate volume: balanced development and recovery.`;
