@@ -996,6 +996,22 @@
       Object.values(athletes).forEach(fixHometown);
       Object.values(recruits).forEach(fixHometown);
 
+      // Generational talents are all 99-potential Phenoms (generational
+      // rework): older saves' generational recruits and athletes are lifted
+      // to that ceiling and curve. Idempotent; any ceiling an enrolled
+      // athlete has already lost to injury stays lost.
+      const toGenerational = (e) => {
+        if (!e || !e.generational) return;
+        const ceiling = 99 - (e.potentialLostToInjury || 0);
+        if (e.potential < ceiling) {
+          e.potential = ceiling;
+          if ((e.peakOverall || 0) < ceiling) e.peakOverall = ceiling;
+        }
+        e.devProfile = 'legend';
+      };
+      Object.values(athletes).forEach(toGenerational);
+      Object.values(recruits).forEach(toGenerational);
+
       // Altitude as a real location trait (Realism Update): re-stamp each
       // school's altitude to its true, deterministic designation so older saves
       // gain proper high-altitude programs (Northern Arizona, Air Force, the

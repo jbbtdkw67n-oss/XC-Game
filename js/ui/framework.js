@@ -732,10 +732,20 @@
       .filter((g) => g.items.length);
   }
 
-  UI.navigate = function (screenId) {
+  // `tab` (optional) deep-links into one of the screen's tabs — applied
+  // after the screen resets to its defaults on arrival.
+  UI.navigate = function (screenId, tab) {
     UI.state.currentScreen = screenId;
+    UI.state.pendingTab = tab || null;
     UI.renderShell();
   };
+
+  // The screen the shell last drew. Arriving on a DIFFERENT screen (by any
+  // route: the nav, a link, a sim cutting to the Race Center, loading a
+  // save) resets it to its load-in defaults, so tabs, sub-tabs and filters
+  // never linger from an earlier visit. Re-drawing the same screen (a tab
+  // click, a resize, advancing the week) keeps where the player is.
+  let renderedScreen = null;
 
   // Unread count chip for the Inbox nav entry.
   function navBadge(game, id) {
@@ -790,6 +800,7 @@
     if (UI.closeSimMenu) UI.closeSimMenu();
     if (UI.applyDisplaySettings) UI.applyDisplaySettings(game);
     if (!game) {
+      renderedScreen = null;
       UI.screens.menu.render(root);
       return;
     }
@@ -962,7 +973,14 @@
     if (inboxBtn) inboxBtn.addEventListener('click', () => UI.navigate('inbox'));
 
     const container = document.getElementById('screen-container');
-    const screen = UI.screens[UI.state.currentScreen] || UI.screens.dashboard;
+    const screenId = UI.screens[UI.state.currentScreen] ? UI.state.currentScreen : 'dashboard';
+    const screen = UI.screens[screenId];
+    if (screenId !== renderedScreen && screen.reset) screen.reset();
+    renderedScreen = screenId;
+    if (UI.state.pendingTab) {
+      if (screen.openTab) screen.openTab(UI.state.pendingTab);
+      UI.state.pendingTab = null;
+    }
     container.innerHTML = '';
     const wrapper = document.createElement('div');
     wrapper.className = 'screen';

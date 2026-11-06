@@ -138,6 +138,9 @@
         </button>`;
     }).join('');
 
+    // Scout's notebook: only lines that are true of this recruit's real upside.
+    const notes = RE().scoutNotesFor(rec);
+
     UI.showModal(`
       <button class="btn small modal-close" data-modal-close>✕ Close</button>
       <div class="player-card-header">
@@ -165,10 +168,10 @@
         </div>
       </div>
 
-      ${scout >= 35 && rec.scoutNotes && rec.scoutNotes.length ? `
+      ${scout >= 35 && notes.length ? `
       <div class="card" style="padding:8px 12px; margin-bottom:14px; border-left:3px solid var(--accent);">
         <span style="font-size:12px; color:var(--text-dim);">Scout's notebook:</span>
-        <em style="font-size:13px;">&ldquo;${rec.scoutNotes.map((n) => Utils.escapeHtml(n)).join(' ')}&rdquo;</em>
+        <em style="font-size:13px;">&ldquo;${notes.map((n) => Utils.escapeHtml(n)).join(' ')}&rdquo;</em>
       </div>` : ''}
 
       <div class="grid cols-3" style="margin-bottom:14px;">
@@ -617,5 +620,16 @@
     }
   }
 
-  UI.screens.recruiting = { render };
+  // Back to the screen's load-in defaults (tabs, sub-tabs, toggles, filters).
+  // Called by the shell whenever the player navigates INTO this screen, so
+  // leaving a tab and coming back always lands on its default view.
+  function reset() {
+    activeTab = 'board';
+    activeGender = 'M';
+    starFilter = 0;
+    sourceFilter = 'All';
+    classRankDiv = null;
+  }
+
+  UI.screens.recruiting = { render, reset };
 })();

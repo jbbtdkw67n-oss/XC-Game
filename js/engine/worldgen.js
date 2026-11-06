@@ -212,7 +212,8 @@
       sharpness: rng.int(45, 65),
       chronicMileage: gender === 'M' ? rng.int(55, 80) : rng.int(45, 70),
       morale: rng.int(55, 85),
-      devProfile: rng.weightedChoice(D.DEV_PROFILES, (p) => p.weight).type,
+      // Phenom: a very rare ordinary runner develops fast every year.
+      devProfile: rng.bool(D.PHENOM_RATE) ? 'legend' : rng.weightedChoice(D.DEV_PROFILES, (p) => p.weight).type,
 
       // Eligibility (Update 20 — redshirts removed): every athlete gets five
       // straight years; a Freshman has all five, a Senior two, and so on.

@@ -8,6 +8,18 @@
 (function () {
   const Utils = window.XCD.core.Utils;
 
+  // Each team's place within its group (region or conference), ordered by
+  // poll rank: { schoolId: place }.
+  function groupRanks(list, keyFn) {
+    const groups = {};
+    list.forEach((r) => { (groups[keyFn(r)] = groups[keyFn(r)] || []).push(r); });
+    const out = {};
+    Object.values(groups).forEach((g) => {
+      g.slice().sort((a, b) => a.rank - b.rank).forEach((r, i) => { out[r.schoolId] = i + 1; });
+    });
+    return out;
+  }
+
   function teamStrength(gameState, school, gender) {
     const Races = window.XCD.engine.Races;
     const distanceM = gender === 'M' ? 8000 : 6000;
@@ -228,6 +240,26 @@
             ordered.push(r);
           });
         });
+      // Region & conference standings carry their OWN movement: the place
+      // within the team's NCAA region / conference (inside its division),
+      // compared with that same standing in last week's poll — so the
+      // Region and Conference tabs show how a team moved there, not its
+      // national-poll change.
+      const regionKey = (r) => `${r.division || 'DI'}|${r.ncaaRegion || r.region}`;
+      const confKey = (r) => `${r.division || 'DI'}|${r.conference}`;
+      const prevRegion = prev ? groupRanks(prev, regionKey) : {};
+      const prevConf = prev ? groupRanks(prev, confKey) : {};
+      const curRegion = groupRanks(ordered, regionKey);
+      const curConf = groupRanks(ordered, confKey);
+      ordered.forEach((r) => {
+        r.regionRank = curRegion[r.schoolId];
+        r.confRank = curConf[r.schoolId];
+        const old = prev && prev.find((p) => p.schoolId === r.schoolId);
+        // Only comparable when the team sat in the same region/conference
+        // last week (realignment resets the arrow).
+        r.prevRegionRank = old && regionKey(old) === regionKey(r) ? (prevRegion[r.schoolId] ?? null) : null;
+        r.prevConfRank = old && confKey(old) === confKey(r) ? (prevConf[r.schoolId] ?? null) : null;
+      });
       rankings[gender] = ordered;
     });
 

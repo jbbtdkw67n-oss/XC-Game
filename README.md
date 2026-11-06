@@ -14,6 +14,33 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.12 — Honest Scouting Notes, Phenom Generationals & Tabs That Reset
+
+- **The scout's notebook only praises real upside.** Lines like "Late
+  bloomer." or "Huge upside." used to show up on recruits who were already at
+  their potential. Now a recruit gets a line only when their true ceiling is
+  high (66+) and well above their current overall (22+ points). Each line
+  also has to fit the runner: "Late bloomer." and "Body still catching up to
+  the engine." only go to Late Bloomers, and the work-ethic lines only to
+  real grinders. Hidden gems still carry their tells, and enough ordinary
+  high-ceiling recruits share them that a note never gives a gem away. Old
+  notes in existing saves that no longer fit are hidden.
+- **Every generational talent is a 99-potential Phenom.** Generational
+  recruits now always have 99 potential and the Phenom development curve.
+  Generational recruits and athletes in existing saves are upgraded on load,
+  except that potential already lost to injury stays lost. Phenom is still
+  very rare for ordinary runners: about 1 in 700 recruits and generated
+  athletes, plus the rare walk-on legend.
+- **Screens reset when you leave them.** Coming back to a screen now opens
+  its default view, just like a fresh load. For example: My Program →
+  History → Roster → My Program lands on Overview. This covers tabs,
+  sub-tabs, Men/Women toggles and filters. Redrawing the screen you are on
+  (a tab click, advancing the week) keeps your place, and Inbox links still
+  open the tab they point to.
+- **Fixed: Region and Conference rankings showed national poll moves.** The
+  ▲/▼ arrows on the Region and Conference tabs now show how a team moved
+  within that region or conference since last week.
+
 ## Version 15.11 — Faster Men's 6Ks, Safer Drop-Downs & a New Tutorial
 
 - **Men's 6K times are quicker.** Early-season men's 6K races now run about
