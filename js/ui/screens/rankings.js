@@ -138,6 +138,7 @@
   }
 
   function render(container) {
+    deepLinked = false; // a deep link only outlives the arrival reset
     const game = UI.state.game;
     const R = game.rankings;
     const school = game.getPlayerSchool();
@@ -274,13 +275,17 @@
     container.querySelector('#g-w').addEventListener('click', () => { activeGender = 'W'; render(container); });
   }
 
-  // Deep link from the Inbox (e.g. Selection Day → the Selection tab).
-  function openTab(tab) { activeTab = tab; activeDiv = null; }
+  // Deep link from the Inbox (e.g. Selection Day → the Selection tab). It
+  // survives the reset that runs when the screen is entered next, so
+  // `openTab(tab); UI.navigate('rankings')` lands on that tab.
+  let deepLinked = false;
+  function openTab(tab) { activeTab = tab; activeDiv = null; deepLinked = true; }
 
   // Back to the screen's load-in defaults (tabs, sub-tabs, toggles, filters).
   // Called by the shell whenever the player navigates INTO this screen, so
   // leaving a tab and coming back always lands on its default view.
   function reset() {
+    if (deepLinked) return;
     activeTab = 'national';
     activeGender = 'M';
     activeDiv = null;
