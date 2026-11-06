@@ -360,5 +360,12 @@
     });
   };
 
-  UI.screens.courses = { render };
+  // Back to the screen's load-in defaults (tabs, sub-tabs, toggles, filters).
+  // Called by the shell whenever the player navigates INTO this screen, so
+  // leaving a tab and coming back always lands on its default view.
+  function reset() {
+    Object.assign(filters, { query: '', division: '', state: '' });
+  }
+
+  UI.screens.courses = { render, reset };
 })();

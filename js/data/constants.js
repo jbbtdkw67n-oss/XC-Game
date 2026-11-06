@@ -698,6 +698,10 @@
     { type: 'late',   weight: 20 },  // slow start, junior/senior leap
     { type: 'bust',   weight: 11 }   // never quite gets there
   ];
+  // Phenom (the 'legend' curve): every generational talent carries it, and a
+  // very rare ordinary runner does too — about 1 in 700 recruits or
+  // generated athletes (a few per class across the whole country).
+  D.PHENOM_RATE = 0.0015;
 
   /*
    * Development curve (visible profile stat — Development Rework). An
@@ -904,6 +908,13 @@
    * They tend to share tells — huge work ethic, coachability, consistency,
    * late physical growth — surfaced only as soft scouting notes that plenty
    * of ordinary grinders also earn, so nothing ever outs a gem outright.
+   *
+   * The scout's notebook only ever praises REAL upside: a line appears only
+   * for a recruit whose true ceiling sits well above today's ability
+   * (MIN_HEADROOM) and is genuinely high (MIN_CEILING). A runner already at
+   * (or near) their potential never earns one. Each line also has to fit
+   * the athlete: "Late bloomer." only for a Late Bloomer's curve, the
+   * work-ethic lines only for a real grinder.
    */
   D.HIDDEN_GEMS = {
     SHARE_MIN: 0.03,   // 3-7% of each class carries hidden upside
@@ -917,7 +928,13 @@
       'Coaches rave about the work ethic.',
       'Body still catching up to the engine.',
       'Outworked everyone at camp.'
-    ]
+    ],
+    MIN_HEADROOM: 22,  // true potential − current overall needed for ANY note
+    MIN_CEILING: 66,   // and the true ceiling itself must be genuinely high
+    // Lines that need more than headroom to be true of the athlete.
+    LATE_HINTS: ['Late bloomer.', 'Body still catching up to the engine.'],
+    WORK_HINTS: ['Exceptional training habits.', 'Coaches rave about the work ethic.', 'Outworked everyone at camp.'],
+    WORK_ETHIC_MIN: 80
   };
 
   /* ------------------------------------------------------------------ *

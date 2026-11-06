@@ -893,5 +893,18 @@
     });
   }
 
-  UI.screens.schedule = { render };
+  // Back to the screen's load-in defaults (tabs, sub-tabs, toggles, filters).
+  // Called by the shell whenever the player navigates INTO this screen, so
+  // leaving a tab and coming back always lands on its default view.
+  function reset() {
+    ifDiv = null;
+    ifGender = 'M';
+    sbWeek = null;
+    sbDiv = 'all';
+    sbRankedOnly = false;
+    sbRivalsOnly = false;
+    sbSort = 'strength';
+  }
+
+  UI.screens.schedule = { render, reset };
 })();

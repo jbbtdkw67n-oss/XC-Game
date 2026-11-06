@@ -91,8 +91,7 @@
       return;
     }
     const [screen, tab] = String(target).split(':');
-    if (tab && UI.screens[screen] && UI.screens[screen].openTab) UI.screens[screen].openTab(tab);
-    UI.navigate(UI.screens[screen] ? screen : 'dashboard');
+    UI.navigate(UI.screens[screen] ? screen : 'dashboard', tab);
   }
   UI.inboxGo = go;
 
@@ -268,5 +267,12 @@
     if (clear) clear.addEventListener('click', () => { Inbox().clearAll(game, (i) => !i.read); UI.renderShell(); });
   };
 
-  UI.screens.inbox = { render, decisions };
+  // Back to the screen's load-in defaults (tabs, sub-tabs, toggles, filters).
+  // Called by the shell whenever the player navigates INTO this screen, so
+  // leaving a tab and coming back always lands on its default view.
+  function reset() {
+    filter = 'all';
+  }
+
+  UI.screens.inbox = { render, reset, decisions };
 })();

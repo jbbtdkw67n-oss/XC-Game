@@ -287,7 +287,8 @@
       fatigue: rng.int(0, 15),
       fitness: Math.round(Utils.clamp(statMean - rng.int(0, 10), 10, 85)),
       morale: rng.int(60, 90),
-      devProfile: rng.weightedChoice(D.DEV_PROFILES, (p) => p.weight).type,
+      // Phenom: a very rare ordinary recruit develops fast every year.
+      devProfile: rng.bool(D.PHENOM_RATE) ? 'legend' : rng.weightedChoice(D.DEV_PROFILES, (p) => p.weight).type,
       eligibilityRemaining: source === 'JUCO' ? 4 : 5,
 
       source,
@@ -318,7 +319,9 @@
    */
   function elevateToGenerational(rng, rec) {
     const G = D.GENERATIONAL;
-    rec.potential = rng.int(96, 99);
+    // Every generational talent owns the highest ceiling there is, and the
+    // Phenom curve to chase it: fast development every single year.
+    rec.potential = 99;
     rec.peakOverall = rec.potential;
 
     // Capable of contending for the NCAA title as a freshman.
@@ -331,8 +334,7 @@
     rec.injuryResistance = rng.int(40, 95); // durability is NOT guaranteed
     rec.hillAdaptation = rng.int(40, 75);
     rec.fitness = rng.int(70, 85);
-    rec.devProfile = rng.weightedChoice(
-      [{ t: 'normal', w: 60 }, { t: 'early', w: 25 }, { t: 'late', w: 15 }], (p) => p.w).t;
+    rec.devProfile = 'legend';
 
     // The signature: incredible somewhere, mortal somewhere else.
     const profile = rng.choice(G.PROFILES);
@@ -346,10 +348,44 @@
     rec.generational = true;
     rec.genProfile = profile.key;
     rec.breakout = false;
+    rec.scoutNotes = null; // the headline says it all — no notebook hints
+    delete rec.hiddenGem;
+    delete rec.perceivedPotential;
     // National recruitments run long — the circus follows them all fall.
     rec.decisionWeek = rng.int(9, D.RECRUITING.SIGNING_WEEK);
     rec.recalculateOverall();
     return rec;
+  }
+
+  /*
+   * The scout's notebook (scouting-notes rework). A line is praise of real
+   * upside, so it is reserved for recruits whose TRUE ceiling sits well
+   * above their current ability and is genuinely high — never for a runner
+   * already at (or near) their potential.
+   */
+  function hasScoutableUpside(r) {
+    const H = D.HIDDEN_GEMS;
+    return !r.generational && r.potential >= H.MIN_CEILING &&
+      r.potential - r.currentOverall >= H.MIN_HEADROOM;
+  }
+
+  // The lines that are actually TRUE of this recruit: "Late bloomer." only
+  // for a Late Bloomer, the work-ethic lines only for a real grinder.
+  function scoutHintsFor(r) {
+    const H = D.HIDDEN_GEMS;
+    return H.HINTS.filter((h) => {
+      if (H.LATE_HINTS.includes(h)) return r.devProfile === 'late';
+      if (H.WORK_HINTS.includes(h)) return r.workEthic >= H.WORK_ETHIC_MIN;
+      return true;
+    });
+  }
+
+  // The notebook lines the UI may show (also cleans up notes carried by
+  // saves from before the rework).
+  function scoutNotesFor(r) {
+    if (!r || !r.scoutNotes || !r.scoutNotes.length || !hasScoutableUpside(r)) return [];
+    const ok = scoutHintsFor(r);
+    return r.scoutNotes.filter((n) => ok.includes(n));
   }
 
   function generateClass(gameState, rng) {
@@ -413,18 +449,24 @@
         pick.hiddenGem = true;
         pick.perceivedPotential = pick.potential; // what every scout believes
         pick.potential = Utils.clamp(pick.potential + rng.int(12, 32), 72, 96);
+        // A gem's upside is real by definition: its true ceiling always sits
+        // well clear of today's ability.
+        pick.potential = Utils.clamp(Math.max(pick.potential,
+          pick.currentOverall + D.HIDDEN_GEMS.MIN_HEADROOM + rng.int(0, 10)), 72, 99);
         pick.peakOverall = pick.potential;
         pick.workEthic = Math.max(pick.workEthic, rng.int(82, 99));
         pick.consistency = Math.max(pick.consistency, rng.int(66, 92));
         pick.devProfile = rng.bool(0.6) ? 'late' : 'normal'; // late physical growth
-        pick.scoutNotes = rng.shuffle(D.HIDDEN_GEMS.HINTS.slice()).slice(0, 2);
+        pick.scoutNotes = rng.shuffle(scoutHintsFor(pick)).slice(0, 2);
       }
-      // The tells are noisy on purpose: plenty of ordinary grinders earn the
-      // same scouting lines, so a note never outs a gem by itself.
+      // The tells are noisy on purpose: ordinary recruits with genuinely big
+      // upside earn the same scouting lines, so a note never outs a gem by
+      // itself — but nobody without real headroom ever gets one.
       pool.forEach((r) => {
-        if (r.scoutNotes || r.generational) return;
-        if ((r.workEthic >= 84 && rng.bool(0.5)) || rng.bool(0.04)) {
-          r.scoutNotes = [rng.choice(D.HIDDEN_GEMS.HINTS)];
+        if (r.scoutNotes || r.generational || !hasScoutableUpside(r)) return;
+        if (rng.bool(r.workEthic >= D.HIDDEN_GEMS.WORK_ETHIC_MIN ? 0.7 : 0.33)) {
+          const hints = scoutHintsFor(r);
+          if (hints.length) r.scoutNotes = [rng.choice(hints)];
         }
       });
 
@@ -2162,6 +2204,7 @@
 
   window.XCD.engine.Recruiting = {
     generateClass,
+    scoutNotesFor,
     resetForNewYear,
     processWeek,
     startNewWeek,

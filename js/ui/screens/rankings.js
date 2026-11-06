@@ -13,7 +13,12 @@
   // combined across divisions — exactly one division is shown at a time.
   let activeDiv = null; // null | 'DI' | 'DII' | 'DIII'
 
-  function arrow(r) {
+  // Poll movement for the standings being viewed: a Region or Conference
+  // tab compares the team's place in THAT group with last week's place in
+  // it — never the national-poll change.
+  function arrow(r, scope) {
+    if (scope === 'region') return UI.rankMove(r.regionRank, r.prevRegionRank);
+    if (scope === 'conference') return UI.rankMove(r.confRank, r.prevConfRank);
     return UI.rankMove(r.rank, r.prevRank);
   }
 
@@ -224,6 +229,9 @@
           heading = `${divLabel} National Poll`;
         }
       }
+      // Region/Conference standings rank (and show movement) within that
+      // group; the fallback national poll uses the division poll's own.
+      const tabRelative = relative && (activeTab === 'region' || activeTab === 'conference');
       body.innerHTML = `
         <h2>${heading} — Week ${R.computedWeek}</h2>
         <div class="table-wrap"><table class="data">
@@ -231,7 +239,7 @@
           <tbody>
             ${rows.map((r, i) => `
               <tr class="clickable" data-school="${r.schoolId}" ${r.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
-                <td class="col-rank"><strong>#${activeTab === 'national' ? r.rank : i + 1}</strong>${arrow(r)}${activeTab !== 'national' ? ` <span style="color:var(--text-faint); font-size:11px;">div #${r.rank}</span>` : ''}</td>
+                <td class="col-rank"><strong>#${tabRelative ? i + 1 : r.rank}</strong>${arrow(r, tabRelative ? activeTab : 'national')}${activeTab !== 'national' ? ` <span style="color:var(--text-faint); font-size:11px;">div #${r.rank}</span>` : ''}</td>
                 <td class="col-grow"><strong>${Utils.escapeHtml(r.name)}</strong>${UI.isMobile() ? `<div style="font-size:11px; color:var(--text-faint); font-weight:400;">${Utils.escapeHtml(r.conference)}</div>` : ''}</td>
                 <td class="hide-mobile">${Utils.escapeHtml(r.conference)}</td>
                 <td class="hide-mobile">${Utils.escapeHtml(r.ncaaRegion || r.region)}</td>
@@ -269,5 +277,14 @@
   // Deep link from the Inbox (e.g. Selection Day → the Selection tab).
   function openTab(tab) { activeTab = tab; activeDiv = null; }
 
-  UI.screens.rankings = { render, openTab, selectionHtml };
+  // Back to the screen's load-in defaults (tabs, sub-tabs, toggles, filters).
+  // Called by the shell whenever the player navigates INTO this screen, so
+  // leaving a tab and coming back always lands on its default view.
+  function reset() {
+    activeTab = 'national';
+    activeGender = 'M';
+    activeDiv = null;
+  }
+
+  UI.screens.rankings = { render, reset, openTab, selectionHtml };
 })();

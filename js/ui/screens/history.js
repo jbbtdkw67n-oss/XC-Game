@@ -961,5 +961,22 @@
     el.querySelector('#hof-search').addEventListener('input', (e) => table.setQuery(e.target.value));
   }
 
-  UI.screens.history = { render };
+  // Back to the screen's load-in defaults (tabs, sub-tabs, toggles, filters).
+  // Called by the shell whenever the player navigates INTO this screen, so
+  // leaving a tab and coming back always lands on its default view.
+  function reset() {
+    activeTab = 'career';
+    champDiv = 'DI';
+    champYear = '';
+    awardDiv = 'DI';
+    awardYear = '';
+    champShown = YEARS_PAGE;
+    awardShown = YEARS_PAGE;
+    goatSub = 'athletes';
+    boardSub = 'programs';
+    Object.assign(goatFilters, { query: '', division: '', gender: '', status: '' });
+    Object.assign(boardFilters, { query: '', division: '', conference: '' });
+  }
+
+  UI.screens.history = { render, reset };
 })();
