@@ -14,6 +14,39 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.14 — A Fair Conservative Start, Faces With Feelings & Honest Expectations
+
+- **Conservative is no longer a trap.** Its runners used to tuck into the
+  pack around them, and because they started slower the pack around them was
+  a slower one, so they stayed stuck in that traffic all race. They were about
+  4 seconds down at 7K and rarely got it back. Now they run their own steady
+  race (about 2 seconds down at 2K and 3 at 7K) and spend the saved energy in
+  the final third. The late push now depends on how much energy is actually
+  left in the tank. Measured head to head (every team in a 24-team field runs
+  each strategy on the same course):
+  - **Fresh legs at 8K:** all five strategies land within about 0.05 places
+    of each other.
+  - **A tired squad or a 10K:** Conservative is among the best picks (a
+    modest edge, around 0.1 to 0.2 places over Even Pace; Pack Running is
+    close), and Aggressive is the worst.
+  - **A fresh title contender:** Aggressive is the best pick and Conservative
+    the worst. Front-runners get away from you.
+- **Aggressive** goes out a touch less hard and banks 3% more energy. It was
+  a little behind everyone else even on fresh legs. It still runs the
+  fastest raw times, wins the most individual races and fades the most.
+- **Not everyone is smiling.** Athletes and coaches now have one of eight
+  expressions: Smile, Grin, Neutral, Determined, Smirk, Stern, Calm or
+  Worried. Brows, eyes and mouth all change. A person keeps the same
+  expression on every screen. You can pick your own coach's expression in
+  the creator (existing coaches keep their smile).
+- **Preseason expectations follow the roster, not the brand.** Roster talent
+  and the preseason poll now set 70% of the target, last season's finish 20%,
+  and prestige only 10% (prestige used to be 20%). With no finish on record,
+  as in a dynasty's first season, last season's share used to go to prestige.
+  It now goes to talent and the poll. A blue blood with a thin roster is
+  expected to finish mid-pack, and a loaded small program is expected near
+  the top.
+
 ## Version 15.13 — Balanced Philosophies & Strategies, New Course Records, New Faces, Faster Sims
 
 - **Threshold Focus is gone.** It overlapped the Norwegian Method. Coaches

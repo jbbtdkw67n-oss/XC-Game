@@ -421,13 +421,17 @@
    *   teamPack     — the team's five run as one group early and mid-race
    * `pros` / `cons` spell those weights out for the player (keep them in sync).
    *
-   * Balance (measured over full simulated seasons with strategies drawn at
-   * random, so strategy is independent of team quality): every strategy's
-   * teams finish within about one percentile point of where their runners'
-   * ability says they should — it was +5.6 for Sit & Kick and −2.2 for Pack
-   * Running. What differs is HOW: aggressive teams run the fastest raw times
-   * and win the most individual races but blow up most; even-pace teams swing
-   * least; pack teams hold their best runner back and pull the rest along.
+   * Balance (measured head to head: every team in a 24-team DI field takes a
+   * turn running each strategy on the identical field and course): on fresh
+   * legs at 8K all five land within ~0.05 of the same average team place.
+   * What differs is WHERE each one wins. Aggressive gives title contenders
+   * the best shot and wins the most individual races, but is the worst choice
+   * for a tired squad or a 10K. Conservative is among the best for a tired
+   * squad and at 10K, but the worst for a fresh contender chasing a win. Even
+   * Pace swings least; Pack Running holds its best runner back and pulls the
+   * rest along. (Conservative used to tuck into the pack around it, so its
+   * slow start left runners stuck in slower traffic all race: it finished
+   * ~4s behind at 7K and rarely made it back.)
    */
   D.RACE_PHILOSOPHIES = [
     {
@@ -440,16 +444,16 @@
     {
       key: 'aggressive', label: 'Aggressive Front Running', icon: '🔥',
       desc: 'Push the pace from the gun and try to break the field early. The fastest times and the biggest blow-ups.',
-      pros: ['Hardest early pace and 60% more surges — the fastest raw times of any strategy', 'Your front-runners win the most individual races', 'Best when your runners have strong Stamina and Threshold to hold the pace'],
-      cons: ['Weakest finishing kick (−18%)', 'Most late fades and DNFs — one blow-up in your top five costs the team score', 'Biggest swings from race to race'],
-      tactic: { packBias: -0.16, reserveBonus: 0, surge: 1.6, kick: 0.82, earlyPace: 0.982 }
+      pros: ['Hardest early pace and 60% more surges — the fastest raw times of any strategy', 'Your front-runners win the most individual races, and a fresh contender has its best shot at the team title', 'Best when your runners have strong Stamina and Threshold to hold the pace'],
+      cons: ['Weakest finishing kick (−18%)', 'Most late fades and DNFs — the worst strategy for a tired squad or a 10K', 'Biggest swings from race to race'],
+      tactic: { packBias: -0.16, reserveBonus: 0.03, surge: 1.6, kick: 0.82, earlyPace: 0.986 }
     },
     {
       key: 'conservative', label: 'Conservative', icon: '🧊',
       desc: 'Avoid early burnout and grind steadily through the field in the second half.',
-      pros: ['Most energy saved of any strategy (+12%) — protects tired or low-Stamina squads from fading', 'Late-race grind: runners move up through the field over the final third', 'Wastes less energy chasing a fast early pace; modest kick boost (+5%)'],
-      cons: ['Starts slower and gives away the opening stretch', 'Fewer mid-race surges (−25%)', 'Your top runner gives up time to bolder front-runners — fewer individual wins'],
-      tactic: { packBias: 0.08, reserveBonus: 0.12, surge: 0.75, kick: 1.05, earlyPace: 1.010, lateGrind: 1.28 }
+      pros: ['Most energy saved of any strategy (+12%) and the fewest late fades — one of the best strategies for a tired or low-Stamina squad', 'Runs its own steady race instead of getting stuck in slower traffic, then spends the saved energy in the final third to move up', 'Strongest at the longer championship distances (10K); modest kick boost (+5%)'],
+      cons: ['Starts slower: a couple of seconds down at 2K, so expect to see your runners well back early in the broadcast', 'Fewer mid-race surges (−25%)', 'The worst pick for a fresh title contender — bolder front-runners get away and you win fewer races outright'],
+      tactic: { packBias: 0, reserveBonus: 0.12, surge: 0.75, kick: 1.05, earlyPace: 1.008, lateGrind: 1.28 }
     },
     {
       key: 'even', label: 'Even Pace', icon: '📏',

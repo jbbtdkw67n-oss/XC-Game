@@ -163,7 +163,52 @@ async function run() {
   });
   ok(pack.n >= 20, 'enough team races sampled: ' + pack.n);
   ok(pack.pack < pack.aggressive, 'pack-running teams finish with a tighter 1-5 spread: ' + JSON.stringify(pack));
-  console.log('balance:', JSON.stringify({ form, pack }));
+  // ---- 6) Head to head: no strategy is a trap, and each has its spot ----
+  // Every tester team in a 24-team DI field runs each strategy on the same
+  // field and course (fresh legs, then a tired squad). Fresh, no strategy
+  // may sit far from the others; tired, Conservative must beat Aggressive.
+  const h2h = await page.evaluate(() => {
+    const g = window.XCD.ui.state.game, R = window.XCD.engine.Races, D = window.XCD.data, M = window.XCD.models;
+    const RNG = window.XCD.core.SeededRNG;
+    const keys = D.RACE_PHILOSOPHIES.map((p) => p.key);
+    const tmpl = Object.values(g.season.meets).find((m) => m.type === 'invite') || Object.values(g.season.meets)[0];
+    const schools = Object.values(g.world.schools).filter((s) => s.division === 'DI');
+    const keepPhilo = Object.fromEntries(Object.values(g.world.coaches).map((c) => [c.id, c.racePhilosophy]));
+    const out = {};
+    [0, 40].forEach((fatigueAdd) => {
+      const sum = Object.fromEntries(keys.map((k) => [k, { s: 0, n: 0 }]));
+      const rng0 = new RNG(9001);
+      for (let t = 0; t < 30; t++) {
+        const field = rng0.shuffle(schools.slice()).slice(0, 24);
+        const coaches = field.map((s) => g.getCoach(s.coachId));
+        const strat = coaches.map(() => rng0.choice(keys));
+        const ids = []; field.forEach((s) => ids.push(...s.rosterM, ...s.rosterW));
+        const snap = ids.map((id) => JSON.stringify(g.world.athletes[id]));
+        const meet = JSON.parse(JSON.stringify(tmpl));
+        meet.schoolIds = field.map((s) => s.id); meet.type = 'invite'; meet.distances = { M: 8000, W: 6000 };
+        meet.conditions.hilliness = rng0.int(20, 80);
+        field.slice(0, 8).forEach((ts, ti) => keys.forEach((k) => ['M', 'W'].forEach((gd) => {
+          ids.forEach((id, i) => {
+            const a = g.world.athletes[id] = new M.Athlete(JSON.parse(snap[i]));
+            if (a.schoolId === ts.id) a.fatigue = Math.min(100, a.fatigue + fatigueAdd);
+          });
+          coaches.forEach((c, i) => { c.racePhilosophy = i === ti ? k : strat[i]; });
+          const res = R.simulateRace(g, meet, gd, new RNG(t * 131 + ti * 7 + (gd === 'M' ? 3 : 5)), false);
+          const team = res && res.teamScores.find((x) => x.schoolId === ts.id);
+          if (team) { sum[k].s += team.place; sum[k].n++; }
+        })));
+        ids.forEach((id, i) => { g.world.athletes[id] = new M.Athlete(JSON.parse(snap[i])); });
+      }
+      out[fatigueAdd ? 'tired' : 'fresh'] = Object.fromEntries(keys.map((k) => [k, +(sum[k].s / Math.max(1, sum[k].n)).toFixed(2)]));
+    });
+    Object.values(g.world.coaches).forEach((c) => { c.racePhilosophy = keepPhilo[c.id]; });
+    return out;
+  });
+  const fresh = Object.values(h2h.fresh);
+  ok(Math.max(...fresh) - Math.min(...fresh) < 0.7, 'fresh legs: every race strategy lands near the same team place: ' + JSON.stringify(h2h.fresh));
+  ok(h2h.tired.conservative < h2h.tired.aggressive, 'tired squads: Conservative beats Aggressive: ' + JSON.stringify(h2h.tired));
+  ok(h2h.tired.conservative <= h2h.tired.even + 0.15, 'tired squads: Conservative is at least as good as Even Pace: ' + JSON.stringify(h2h.tired));
+  console.log('balance:', JSON.stringify({ form, pack, h2h }));
 
   ok(errors.length === 0, 'page errors: ' + errors.slice(0, 4).join(' | '));
   await browser.close();
