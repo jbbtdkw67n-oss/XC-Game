@@ -40,11 +40,21 @@
    * no save field), bell-shaped around `mean`. Drifting toward one shared
    * target made everyone end up the same; each runner now settles at theirs.
    */
+  // The bell is fixed per athlete + trait, and every athlete asks for theirs
+  // every week, so it is remembered instead of re-hashed (bounded: cleared
+  // once it outgrows a few worlds' worth of runners).
+  const naturalBells = {};
   function naturalLevel(athlete, tag, mean, spread, min, max) {
     const F = window.XCD.engine.Followers;
     if (!F || !F.noise || !athlete.id) return mean;
-    const k = athlete.id + '|' + tag;
-    const bell = (F.noise(k + '1') + F.noise(k + '2') + F.noise(k + '3')) / 3 - 0.5; // sd ~0.167
+    const bells = naturalBells[tag] || (naturalBells[tag] = new Map());
+    let bell = bells.get(athlete.id);
+    if (bell === undefined) {
+      const k = athlete.id + '|' + tag;
+      bell = (F.noise(k + '1') + F.noise(k + '2') + F.noise(k + '3')) / 3 - 0.5; // sd ~0.167
+      if (bells.size > 60000) bells.clear();
+      bells.set(athlete.id, bell);
+    }
     return Utils.clamp(mean + bell * spread * 6, min, max);
   }
 
@@ -146,7 +156,7 @@
     const roll = coachRoll(coach, year, 71);
     if (philo === 'speed') return roll < 0.7 ? 'early' : 'classic';
     if (craft < 45 && roll < 0.4) return 'early';
-    if (['norwegian', 'threshold', 'polarized', 'high-mileage'].includes(philo)) return 'threshold';
+    if (['norwegian', 'polarized', 'high-mileage'].includes(philo)) return 'threshold';
     return 'classic';
   }
 
@@ -258,9 +268,9 @@
     // handle the load best, reach for it a little more often. Lesser staffs
     // leave it alone (they don't understand when to use it).
     const philoKey = coach && coach.trainingPhilosophy;
-    if (craft >= 68 && (philoKey === 'norwegian' || philoKey === 'threshold') &&
+    if (craft >= 68 && philoKey === 'norwegian' &&
         week < CAL.CONFERENCE_WEEK - 2 &&
-        coachRoll(coach, week, 37) < (philoKey === 'norwegian' ? 0.40 : 0.26)) {
+        coachRoll(coach, week, 37) < 0.40) {
       return AI_TEMPLATES.double.slice();
     }
     // Fatigue-responsive recovery (Update X): a tired squad gets an easy
@@ -641,6 +651,13 @@
       devMult: scaleMult(e.devMult),
       fatigueMult: scaleMult(e.fatigueMult),
       injuryMult: scaleMult(e.injuryMult),
+      // Season form: how fast Base and Sharpening build, how fast hard work
+      // goes stale, how big the taper peak is, how fast hill strength builds.
+      baseMult: scaleMult(e.baseMult),
+      sharpMult: scaleMult(e.sharpMult),
+      staleMult: scaleMult(e.staleMult),
+      peakMult: scaleMult(e.peakMult),
+      hillMult: scaleMult(e.hillMult),
       durability: (e.durability || 1),
       strength
     };
@@ -654,21 +671,21 @@
    * intervals faster, and so on. Returns a multiplier (≤1) applied to the
    * week's positive fatigue, so each philosophy has a genuine comfort zone.
    */
-  function philoFatigueRelief(philoKey, planMeta, mileage) {
+  function philoFatigueRelief(philoKey, planMeta, mileage, athlete) {
     let relief = 0; // fraction of positive weekly fatigue to shave off
     switch (philoKey) {
       case 'norwegian':
         relief = (planMeta.doubleDays || 0) * 0.07 + (planMeta.tempoDays || 0) * 0.03;
         break;
-      case 'threshold':
-        relief = (planMeta.tempoDays || 0) * 0.055 + (planMeta.doubleDays || 0) * 0.035;
-        break;
       case 'speed':
         relief = (planMeta.speedDays || 0) * 0.045; // speed + intervals
         break;
-      case 'high-mileage':
-        relief = mileage >= 82 ? Math.min(0.13, 0.05 + (mileage - 82) / 260) : 0;
+      case 'high-mileage': {
+        // A big week starts lower for women (their volume range sits lower).
+        const line = athlete && athlete.gender === 'W' ? 68 : 82;
+        relief = mileage >= line ? Math.min(0.16, 0.06 + (mileage - line) / 220) : 0;
         break;
+      }
       case 'strength-endurance':
         relief = (planMeta.hillsDays || 0) * 0.055 + (planMeta.hasLong ? 0.03 : 0);
         break;
@@ -682,6 +699,19 @@
         relief = 0;
     }
     return Utils.clamp(1 - relief, 0.72, 1);
+  }
+
+  /*
+   * Signature staleness. Polarized training only works when the easy days
+   * are truly easy: with five or more easy/rest days in the week (two hard
+   * sessions) the quality stays fresh; with four it goes stale a touch
+   * faster than normal; cram more quality in and it goes flat faster than
+   * for anyone else. Returns a multiplier on the week's staleness build.
+   */
+  function philoStaleRelief(philoKey, planMeta) {
+    if (philoKey !== 'polarized') return 1;
+    const easy = (planMeta.easyDays || 0) + (planMeta.restDays || 0);
+    return easy >= 5 ? 0.9 : easy >= 4 ? 1.05 : 1.25;
   }
 
   // Apply a philosophy's attribute emphasis to a plan's dev weights.
@@ -1228,7 +1258,11 @@
   const MAJOR_INJURY_WEEKS = 5;
 
   function majorInjuryCount(athlete) {
-    return (athlete.careerInjuries || []).filter((i) => i.major).length;
+    const list = athlete.careerInjuries;
+    if (!list || !list.length) return 0;
+    let n = 0;
+    for (let i = 0; i < list.length; i++) if (list[i].major) n++;
+    return n;
   }
 
   /*
@@ -1411,6 +1445,9 @@
     t.downWeek[gender] = null; // one week only
   }
 
+  // Ceiling points a philosophy's sharpening edge (sharpMult − 1) is worth.
+  const SHARP_CEIL_PER_MULT = 40;
+
   function sharpCeiling(athlete) {
     return Math.round(45 + (athlete.fitness ?? 50) * 0.55);
   }
@@ -1428,16 +1465,22 @@
   // credited in full on fresh lower-volume legs, fading to nothing at the
   // high-volume line (where the aerobic base takes over). Sharpens every
   // week (applyForm) — and, held without a base, goes stale.
-  function qualityCredit(athlete, chronic) {
+  // How fresh (low-volume) the legs are for the speed road: 1 well below the
+  // high-volume line, 0 at it.
+  function qualityFreshness(athlete, chronic) {
     const line = VOLUME.HIGH[genderKey(athlete)] + 5;
-    const fresh = Utils.clamp((line - (chronic || line)) / VOLUME.QUALITY_FRESH, 0, 1);
-    return Math.min(VOLUME.QUALITY_MAX_FORM, (athlete.qualityLoad || 0) * VOLUME.QUALITY_PER_STIM) * fresh;
+    return Utils.clamp((line - (chronic || line)) / VOLUME.QUALITY_FRESH, 0, 1);
+  }
+
+  function qualityCredit(athlete, chronic) {
+    return Math.min(VOLUME.QUALITY_MAX_FORM, (athlete.qualityLoad || 0) * VOLUME.QUALITY_PER_STIM) *
+      qualityFreshness(athlete, chronic);
   }
 
   // Extra weekly staleness from sustained quality on low volume (0 on a base).
   function qualityStale(athlete) {
-    const fresh = qualityCredit(Object.assign({}, athlete, { qualityLoad: VOLUME.QUALITY_MAX_FORM / VOLUME.QUALITY_PER_STIM }), athlete.chronicMileage) / VOLUME.QUALITY_MAX_FORM;
-    return Math.max(0, (athlete.qualityLoad || 0) - VOLUME.QUALITY_STALE_FROM) * VOLUME.QUALITY_STALE * fresh;
+    return Math.max(0, (athlete.qualityLoad || 0) - VOLUME.QUALITY_STALE_FROM) * VOLUME.QUALITY_STALE *
+      qualityFreshness(athlete, athlete.chronicMileage);
   }
 
   // Would this week's miles + plan count as the season's taper?
@@ -1446,24 +1489,29 @@
     return mileage <= (chronic || mileage) * TAPER_RATIO && (planMeta.qualityDays || 0) >= 1;
   }
 
-  function applyForm(gameState, athlete, school, planMeta, mMeta, chronicBefore) {
+  function applyForm(gameState, athlete, school, planMeta, mMeta, chronicBefore, philo) {
+    // The coach's training philosophy shapes the form model too (how fast
+    // sharp work lands, how fast it goes stale, how big the peak is).
+    const sharpMult = (philo && philo.sharpMult) || 1;
+    const staleMult = ((philo && philo.staleMult) || 1) * philoStaleRelief(philo && philo.key, planMeta);
+    const peakMult = (philo && philo.peakMult) || 1;
     const week = gameState.week;
     const inSeason = week <= CAL.NATIONAL_WEEK;
     const raced = athlete.lastRaced === gameState.year * 100 + week;
 
     // Staleness: sharp work held week after week goes flat.
     let stale = athlete.staleness || 0;
-    stale += (planMeta.staleStim + (raced ? 0.3 : 0)) * 3 - 3.5;
+    stale += (planMeta.staleStim + (raced ? 0.3 : 0)) * 3 * staleMult - 3.5;
     // The speed road's price: quality-heavy weeks on low volume, held week
     // after week with no aerobic base under them, flatten out by November.
-    stale += qualityStale(athlete);
+    stale += qualityStale(athlete) * staleMult;
     if ((planMeta.hardDays || 0) === 0) stale -= 5; // a true recovery week
     if (planMeta.downWeek) stale -= DOWN_WEEK.STALE;
     athlete.staleness = Math.round(Utils.clamp(stale, 0, 40) * 10) / 10;
 
     // Sharpening: fast up, fast down, capped by the Base.
     const trackQual = 1 + (school.facilities.indoorTrack - 45) / 160; // indoor track amplifies track work
-    const stim = planMeta.sharpStim + planMeta.trackSharp * trackQual + (raced ? 2.0 : 0); // racing sharpens
+    const stim = (planMeta.sharpStim + planMeta.trackSharp * trackQual) * sharpMult + (raced ? 2.0 : 0); // racing sharpens
     let target = mMeta.sharpTarget * 0.5 + 18 + stim * 7 + (planMeta.restDays || 0) * 3 - athlete.staleness * 0.6;
     // A real indoor track lets track work push a little past the usual
     // ceiling; a dirt loop holds it back (about −3 to +5).
@@ -1472,7 +1520,10 @@
     // road — see VOLUME): up to ~+8 on the target and the ceiling.
     const qualitySharp = qualityCredit(athlete, athlete.chronicMileage) * VOLUME.QUALITY_SHARP;
     target += qualitySharp;
-    target = Math.min(target, sharpCeiling(athlete) + trackLift + qualitySharp);
+    // A sharpening-minded staff squeezes more race sharpness out of the same
+    // Base; a strength- or volume-minded one leaves legs a little flat.
+    const philoLift = (sharpMult - 1) * SHARP_CEIL_PER_MULT;
+    target = Math.min(target, sharpCeiling(athlete) + trackLift + qualitySharp + philoLift);
     // Race rust (Injury System Expansion): a runner rebuilding from injury
     // can't be fully race-sharp until the Recovering window closes.
     if (athlete.health === 'Recovering') target = Math.min(target, 72);
@@ -1502,7 +1553,7 @@
         // that volume cost through the regular season.
         const base = highVolumeMiles(adaptedMiles(chronicBefore || 0, chronicBefore, athlete), athlete);
         const baseForm = Math.min(VOLUME.PEAK_MAX_FORM, base * VOLUME.PEAK_PER_MILE) * Utils.clamp(strength, 0, 1);
-        athlete.peakBonus = Math.round(PEAK_MAX * Utils.clamp(strength, 0.15, 1.15) + baseForm);
+        athlete.peakBonus = Math.round((PEAK_MAX * Utils.clamp(strength, 0.15, 1.15) + baseForm) * peakMult);
         athlete.peakFresh = true;
         athlete.peakSeason = gameState.year;
         athlete.peakWeek = week + 1; // it lands on next week's race
@@ -1581,7 +1632,7 @@
     if (weeklyFatigue > 0) weeklyFatigue *= philo.fatigueMult;
     // Signature fatigue relief (Update 13, Phase 7): the philosophy's own
     // bread-and-butter work tires its athletes a little less.
-    if (weeklyFatigue > 0) weeklyFatigue *= philoFatigueRelief(philo.key, planMeta, mMeta.mileage);
+    if (weeklyFatigue > 0) weeklyFatigue *= philoFatigueRelief(philo.key, planMeta, mMeta.mileage, athlete);
     if (weeklyFatigue > 0) weeklyFatigue += altFatigue;
     if (planMeta.downWeek) { // the down week's whole point
       weeklyFatigue -= DOWN_WEEK.SHED + Math.max(0, athlete.fatigue - DOWN_WEEK.DEEP_FROM) * DOWN_WEEK.DEEP_SHED;
@@ -1684,7 +1735,16 @@
     }
     // Training effectiveness: a modern training center makes every week count.
     const fitnessMult = (0.85 + school.facilities.trainingCenter / 300) * mMeta.fitnessMult;
-    athlete.fitness = Math.round(Utils.clamp(athlete.fitness + planMeta.fitness * fitnessMult - 1.8, 0, 100));
+    // The philosophy's Base edge is applied on its own, by chance in
+    // proportion to its size: Base is a whole number, and folding a small
+    // edge into the rounding either lost it completely or doubled it.
+    const baseBuild = planMeta.fitness * fitnessMult;
+    let philoBase = baseBuild * ((philo.baseMult ?? 1) - 1);
+    if (philoBase) {
+      const whole = Math.trunc(philoBase);
+      philoBase = whole + (rng.bool(Math.abs(philoBase - whole)) ? Math.sign(philoBase) : 0);
+    }
+    athlete.fitness = Math.round(Utils.clamp(athlete.fitness + baseBuild - 1.8 + philoBase, 0, 100));
 
     // Race sharpness (Part 6 + Update 3): drifts toward what this volume
     // allows. Speed work sharpens; tapering off a real base sharpens fastest;
@@ -1693,7 +1753,7 @@
     // Indoor track (facilities overhaul): a real indoor facility makes every
     // speed session and race rehearsal count for more — all-weather, banked,
     // fast. A dirt loop in the rain blunts the same work.
-    applyForm(gameState, athlete, school, planMeta, mMeta, chronicBefore);
+    applyForm(gameState, athlete, school, planMeta, mMeta, chronicBefore, philo);
 
     // Chronic load: the rolling base that makes tapers work — and fade.
     // A down week is a planned dip: it dents the rolling load less, so the
@@ -1767,7 +1827,7 @@
 
     // Hills adaptation: builds with hill work, slowly fades without it.
     if (planMeta.hillsDays > 0) {
-      athlete.hillAdaptation = Utils.clamp((athlete.hillAdaptation || 40) + 1.2 * planMeta.hillsDays, 0, 95);
+      athlete.hillAdaptation = Utils.clamp((athlete.hillAdaptation || 40) + 1.2 * planMeta.hillsDays * (philo.hillMult ?? 1), 0, 95);
     } else {
       // ...back down to the runner's natural hill strength, never below it.
       const hillBase = naturalLevel(athlete, 'hills', 36, 12, 12, 70);

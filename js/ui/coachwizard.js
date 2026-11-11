@@ -186,9 +186,9 @@
     }
 
     /* ---------------- Step 2: Appearance ---------------- *
-     * A human avatar builder (Update 12): choose your gender, then shape
-     * the person with sliders — skin color, hair color, hair style, beard
-     * style, and coaching polo color (Update 13) — over a live preview.
+     * A human avatar builder: choose your gender, then pick skin, hair
+     * color, hair style, facial hair, glasses and polo color from swatches
+     * and face thumbnails, next to a live preview.
      * This face follows the whole career, onto every historical profile.
      */
     function renderAppearance() {
@@ -196,55 +196,96 @@
       const app = spec.appearance;
       app.gender = spec.gender;
       if (spec.gender === 'W') app.beard = 0;
+      if (app.glasses === undefined) app.glasses = false;
+      const male = spec.gender === 'M';
 
-      const slider = (key, label, max) => `
-        <div class="avatar-slider" data-slider="${key}" ${key === 'beard' && spec.gender === 'W' ? 'style="display:none;"' : ''}>
-          <input type="range" min="0" max="${max}" step="1" value="${app[key]}" data-app="${key}">
-          <div class="avatar-slider-label">${label}</div>
+      // Color pickers: a row of swatches. Style pickers: the coach's own face
+      // wearing each option, so what you tap is exactly what you get.
+      const swatches = (key, colors, names) => `
+        <div class="av-swatches" role="radiogroup">
+          ${colors.map((c, i) => `<button type="button" class="av-swatch ${app[key] === i ? 'selected' : ''}" data-app="${key}" data-v="${i}"
+            style="background:${c};" title="${names ? names[i] : ''}" aria-label="${names ? names[i] : key + ' ' + (i + 1)}"></button>`).join('')}
         </div>`;
+      const thumbs = (key, names) => `
+        <div class="av-thumbs" role="radiogroup">
+          ${names.map((n, i) => `<button type="button" class="av-thumb ${app[key] === i ? 'selected' : ''}" data-app="${key}" data-v="${i}" aria-label="${n}">
+            <span data-thumb="${key}:${i}">${UI.avatarSvg(Object.assign({}, app, { [key]: i }), { size: 46, outfit: 'polo' })}</span>
+            <em>${n}</em>
+          </button>`).join('')}
+        </div>`;
+      const group = (label, value, body) => `
+        <div class="av-group">
+          <div class="av-group-head"><span>${label}</span><span class="av-group-val" data-val="${value[0]}">${value[1]}</span></div>
+          ${body}
+        </div>`;
+      const SKIN_NAMES = ['Fair', 'Light', 'Light Tan', 'Tan', 'Medium', 'Medium Brown', 'Brown', 'Deep'];
+      const POLO_NAMES = ['Red', 'Blue', 'Green', 'Gold', 'Purple', 'Orange', 'Teal', 'Rose', 'White', 'Lime'];
+      const styleNames = AV.HAIR_STYLE_NAMES[spec.gender];
 
       root.innerHTML = frame(
         'Your <span>Look</span>',
         'Build your coach — this face follows your whole career, onto every historical profile.',
         `
-        <div class="field" style="margin-bottom:12px;">
-          <label>Coach</label>
-          <div class="pill-tabs" id="gender-tabs">
-            <button type="button" data-g="M" class="${spec.gender === 'M' ? 'active' : ''}">👔 Male Coach</button>
-            <button type="button" data-g="W" class="${spec.gender === 'W' ? 'active' : ''}">👔 Female Coach</button>
-          </div>
-        </div>
         <div class="avatar-builder">
-          <div style="text-align:center;">
-            <div id="coach-avatar-preview">${UI.avatarSvg(app, { size: 132, outfit: 'polo' })}</div>
-            <div style="font-weight:700; font-size:15px; margin-top:6px;">${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)}</div>
-            <div style="color:var(--text-dim); font-size:12.5px;">${spec.startRole === 'Assistant' ? 'Assistant Coach' : 'Head Coach'} • Age ${spec.age}${spec.hometown ? ' • ' + Utils.escapeHtml(spec.hometown) : ''}</div>
-            <button type="button" class="btn" id="rand-avatar" style="margin-top:8px; padding:4px 12px; font-size:12px;">🎲 Randomize</button>
+          <div class="av-stage">
+            <div id="coach-avatar-preview">${UI.avatarSvg(app, { size: 148, outfit: 'polo' })}</div>
+            <div class="av-name">${Utils.escapeHtml(spec.first)} ${Utils.escapeHtml(spec.last)}</div>
+            <div class="av-role">${spec.startRole === 'Assistant' ? 'Assistant Coach' : 'Head Coach'} • Age ${spec.age}${spec.hometown ? ' • ' + Utils.escapeHtml(spec.hometown) : ''}</div>
+            <div class="pill-tabs" id="gender-tabs" style="margin-top:10px;">
+              <button type="button" data-g="M" class="${male ? 'active' : ''}">Male</button>
+              <button type="button" data-g="W" class="${!male ? 'active' : ''}">Female</button>
+            </div>
+            <button type="button" class="btn" id="rand-avatar" style="margin-top:10px;">🎲 Randomize</button>
           </div>
-          <div class="avatar-sliders">
-            ${slider('skin', 'Skin Color', AV.SKIN_TONES.length - 1)}
-            ${slider('hair', 'Hair Color', AV.HAIR_COLORS.length - 1)}
-            ${slider('hairStyle', 'Hair Style', AV.HAIR_STYLE_COUNT - 1)}
-            ${slider('beard', 'Beard Style', AV.BEARD_STYLE_COUNT - 1)}
-            ${slider('polo', 'Polo Color', AV.POLO_COLORS.length - 1)}
+          <div class="av-options">
+            ${group('Skin', ['skin', SKIN_NAMES[app.skin] || ''], swatches('skin', AV.SKIN_TONES, SKIN_NAMES))}
+            ${group('Hair Color', ['hair', AV.HAIR_COLOR_NAMES[app.hair] || ''], swatches('hair', AV.HAIR_COLORS, AV.HAIR_COLOR_NAMES))}
+            ${group('Hair Style', ['hairStyle', styleNames[app.hairStyle] || ''], thumbs('hairStyle', styleNames))}
+            ${male ? group('Facial Hair', ['beard', AV.BEARD_NAMES[app.beard] || ''], thumbs('beard', AV.BEARD_NAMES)) : ''}
+            ${group('Glasses', ['glasses', app.glasses ? 'On' : 'Off'], `
+              <div class="pill-tabs">
+                <button type="button" data-app="glasses" data-v="0" class="${app.glasses ? '' : 'active'}">None</button>
+                <button type="button" data-app="glasses" data-v="1" class="${app.glasses ? 'active' : ''}">Glasses</button>
+              </div>`)}
+            ${group('Polo', ['polo', POLO_NAMES[app.polo] || ''], swatches('polo', AV.POLO_COLORS, POLO_NAMES) +
+              '<div class="av-note">Worn until you take a job — then you dress in your program\'s colors.</div>')}
           </div>
         </div>`,
         { nextLabel: 'Next: Archetype →' }
       );
 
-      const redraw = () => {
-        root.querySelector('#coach-avatar-preview').innerHTML = UI.avatarSvg(app, { size: 132, outfit: 'polo' });
+      const NAMES = { skin: SKIN_NAMES, hair: AV.HAIR_COLOR_NAMES, hairStyle: styleNames, beard: AV.BEARD_NAMES, polo: POLO_NAMES };
+      // Redraw in place (no re-render, so nothing scrolls or loses focus):
+      // the big preview, every style thumbnail (they wear the current skin
+      // and hair color), the selected marks, and the value labels.
+      const sync = () => {
+        root.querySelector('#coach-avatar-preview').innerHTML = UI.avatarSvg(app, { size: 148, outfit: 'polo' });
+        root.querySelectorAll('[data-thumb]').forEach((el) => {
+          const [key, v] = el.dataset.thumb.split(':');
+          el.innerHTML = UI.avatarSvg(Object.assign({}, app, { [key]: Number(v) }), { size: 46, outfit: 'polo' });
+        });
+        root.querySelectorAll('[data-app]').forEach((btn) => {
+          const key = btn.dataset.app;
+          const on = key === 'glasses' ? (!!app.glasses) === (btn.dataset.v === '1') : app[key] === Number(btn.dataset.v);
+          btn.classList.toggle(key === 'glasses' ? 'active' : 'selected', on);
+        });
+        root.querySelectorAll('[data-val]').forEach((el) => {
+          const key = el.dataset.val;
+          el.textContent = key === 'glasses' ? (app.glasses ? 'On' : 'Off') : ((NAMES[key] || [])[app[key]] || '');
+        });
       };
-      root.querySelectorAll('[data-app]').forEach((inp) => {
-        inp.addEventListener('input', () => {
-          app[inp.dataset.app] = Number(inp.value);
-          redraw();
+      root.querySelectorAll('[data-app]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const key = btn.dataset.app;
+          app[key] = key === 'glasses' ? btn.dataset.v === '1' : Number(btn.dataset.v);
+          sync();
         });
       });
       root.querySelectorAll('#gender-tabs [data-g]').forEach((btn) => {
         btn.addEventListener('click', () => {
+          if (spec.gender === btn.dataset.g) return;
           spec.gender = btn.dataset.g;
-          renderAppearance(); // re-render: beard slider shows/hides with gender
+          renderAppearance(); // re-render: hair styles and facial hair follow the gender
         });
       });
       root.querySelector('#rand-avatar').addEventListener('click', () => {
@@ -253,8 +294,8 @@
         app.hairStyle = Math.floor(Math.random() * AV.HAIR_STYLE_COUNT);
         app.beard = spec.gender === 'M' ? Math.floor(Math.random() * AV.BEARD_STYLE_COUNT) : 0;
         app.polo = Math.floor(Math.random() * AV.POLO_COLORS.length);
-        root.querySelectorAll('[data-app]').forEach((inp) => { inp.value = app[inp.dataset.app]; });
-        redraw();
+        app.glasses = Math.random() < 0.2;
+        sync();
       });
 
       wireNav(() => { app.gender = spec.gender; });

@@ -123,7 +123,10 @@ async function run() {
   };
   await run1('roster', '[data-sort-select]');
   await run1('world', '[data-sort-select]');
-  await run1('courses', '[data-sort-select]');
+  await run1('courses', '[data-sort-select]', async () => { // the sortable list lives on the All Courses tab
+    await page.click('[data-cr-tab="all"]');
+    await page.waitForTimeout(80);
+  });
   await run1('news', '#award-conf', async () => {
     await page.click('[data-ntab="awards"]');
     await page.waitForTimeout(80);

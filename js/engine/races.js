@@ -518,9 +518,12 @@
       .map((id) => gameState.world.athletes[id])
       .filter((a) => a && !a.injury);
     if (!usesPlayerLineup(gameState, school)) {
+      // Rate each runner once, not once per comparison.
       return healthy
-        .sort((a, b) => (raceRating(b, distanceM) + b.fitness * 0.1) - (raceRating(a, distanceM) + a.fitness * 0.1))
-        .slice(0, LINEUP_SIZE);
+        .map((a) => ({ a, v: raceRating(a, distanceM) + a.fitness * 0.1 }))
+        .sort((x, y) => y.v - x.v)
+        .slice(0, LINEUP_SIZE)
+        .map((x) => x.a);
     }
     const lu = lineupSettings(gameState, gender);
     const best = healthy.slice().sort(byOverall);
@@ -854,6 +857,17 @@
     });
 
     const fieldPace = median(runners.map((r) => r.segBase));
+    // Pack-running teams (race philosophy) run to their own group's pace: the
+    // natural pace of the middle runner of the team's five quickest on the day.
+    const teamPace = {};
+    {
+      const byTeam = {};
+      runners.forEach((r) => { if (!r.individual && r.tactic.teamPack) (byTeam[r.schoolId] = byTeam[r.schoolId] || []).push(r.segBase); });
+      Object.keys(byTeam).forEach((sid) => {
+        const five = byTeam[sid].sort((a, b) => a - b).slice(0, 5);
+        teamPace[sid] = five[Math.floor(five.length / 2)]; // the middle of the scoring group
+      });
+    }
     const events = [];
     const cums = new Array(runners.length).fill(0);
     let lastLeaderId = null;
@@ -888,8 +902,9 @@
         let t = r.segBase;
 
         // Cost of covering this segment (drained from the tank). A strong
-        // threshold makes hard running cheaper.
-        let cost = 6.6 - a.lactateThreshold * 0.016;
+        // threshold makes hard running cheaper; an evenly-paced or shared
+        // effort (race philosophy) is cheaper still.
+        let cost = (6.6 - a.lactateThreshold * 0.016) * (tac.costMult || 1);
 
         // Race philosophy shifts pack discipline: sit-and-kick / pack runners
         // tuck in tighter (blend toward the group), aggressive front-runners
@@ -917,10 +932,23 @@
           // Conservative staffs waste less energy chasing an early pace.
           cost += overreach * 150 * (tac.earlyPace > 1 ? 0.8 : 1);
         }
+        // Pack running: through the early and middle miles the team runs as
+        // one group. The front runners are held back to the group (and save
+        // energy doing it); the back of the group is pulled along, which
+        // costs them — but less than chasing strangers, because teammates
+        // share the work.
+        const tp = tac.teamPack && !r.individual && s > 0 && (isEarly || isMid) ? teamPace[r.schoolId] : 0;
+        if (tp) {
+          const w = (isEarly ? 0.18 : 0.12) * tac.teamPack;
+          const pull = (r.segBase - tp) / r.segBase; // > 0: slower than the group
+          t += (tp - r.segBase) * w;
+          cost += pull * w * (pull > 0 ? 110 : 60);
+        }
 
         if (isMid) {
           // Mid-race drift: weak thresholds leak time as the pace tells.
-          t *= 1 + 0.010 * (1.35 - a.lactateThreshold / 100) * ((s - 2) / 5);
+          // Metronomic pacing (race philosophy) leaks less.
+          t *= 1 + 0.010 * (1.35 - a.lactateThreshold / 100) * ((s - 2) / 5) * (tac.drift ?? 1);
 
           // Surges: confident, race-smart runners attack mid-race — how often
           // is shaped by the coach's race philosophy.

@@ -60,8 +60,42 @@ async function run() {
   });
   ok(screenOk, 'the Course Records screen must render');
 
-  // 4) Course Records filters: only search, division, and state remain, and
-  //    the State filter genuinely narrows the list to that state's courses.
+  // 3b) The screen is organized into tabs under a summary: My Program (home
+  //     course, this season's schedule, records held), Featured, All Courses,
+  //     Record Log. Every tab renders, and a course opens its record book.
+  const tabs = await page.evaluate(async () => {
+    const UI = window.XCD.ui;
+    const c = document.querySelector('#screen-container');
+    const out = { tabs: [...c.querySelectorAll('[data-cr-tab]')].map((b) => b.dataset.crTab), tiles: c.querySelectorAll('#cr-root .stat-tile').length,
+      active: (c.querySelector('[data-cr-tab].active') || {}).dataset.crTab,
+      mineSections: [...c.querySelectorAll('.section-label')].map((e) => e.textContent.trim()) };
+    for (const t of out.tabs) {
+      c.querySelector(`[data-cr-tab="${t}"]`).click();
+      await new Promise((r) => setTimeout(r, 30));
+      out[t] = document.querySelector('#cr-body').children.length;
+    }
+    UI.navigate('courses', 'featured');
+    await new Promise((r) => setTimeout(r, 30));
+    out.featuredCards = document.querySelectorAll('#cr-body .m-card[data-course]').length;
+    document.querySelector('#cr-body .m-card[data-course]').click();
+    await new Promise((r) => setTimeout(r, 60));
+    out.modal = !!document.querySelector('[data-modal-close]');
+    UI.closeModal();
+    UI.navigate('dashboard'); UI.navigate('courses');
+    out.resetTo = (document.querySelector('[data-cr-tab].active') || {}).dataset.crTab;
+    UI.navigate('courses', 'all');
+    await new Promise((r) => setTimeout(r, 30));
+    return out;
+  });
+  ok(JSON.stringify(tabs.tabs) === JSON.stringify(['mine', 'featured', 'all', 'log']), 'Course Records tabs: ' + tabs.tabs);
+  ok(tabs.active === 'mine' && tabs.resetTo === 'mine', 'Course Records opens on (and resets to) My Program: ' + JSON.stringify(tabs));
+  ok(tabs.tiles >= 4, 'Course Records shows its summary tiles: ' + tabs.tiles);
+  ok(['Home Course', 'On Your Schedule'].every((l) => tabs.mineSections.includes(l)), 'My Program is grouped into sections: ' + tabs.mineSections);
+  ok(tabs.tabs.every((t) => tabs[t] > 0), 'every Course Records tab renders content: ' + JSON.stringify(tabs));
+  ok(tabs.featuredCards > 0 && tabs.modal, 'a featured course opens its record book: ' + JSON.stringify(tabs));
+
+  // 4) Course Records filters (All Courses tab): only search, division, and
+  //    state remain, and the State filter genuinely narrows the list.
   const filt = await page.evaluate(async () => {
     const c = document.querySelector('#screen-container');
     const sel = c.querySelector('#cr-state');

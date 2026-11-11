@@ -14,6 +14,83 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.13 — Balanced Philosophies & Strategies, New Course Records, New Faces, Faster Sims
+
+- **Threshold Focus is gone.** It overlapped the Norwegian Method. Coaches
+  who ran it (yours included, in existing saves) now run the Norwegian
+  Method.
+- **Every training philosophy is a real trade-off.** Before, Polarized,
+  Norwegian and Balanced had no downsides at all, and High Mileage was plainly
+  the worst pick. Each philosophy now has ratings it develops *slower*, and
+  each one also shapes your season form:
+  - **Norwegian Method:** Threshold +25%, the fewest injuries, less fatigue.
+    Speed develops 15% slower and legs sharpen a little slower.
+  - **High Mileage:** Stamina +30%, Base builds 18% faster, and the taper
+    peak is 13% bigger. Legs are flat all regular season, injuries are up 5%,
+    and Speed develops 15% slower. Its big-week fatigue relief now also works
+    for women (68+ miles) instead of only at 82+.
+  - **Polarized:** VO2 Max +20% and the best fatigue control. Threshold
+    develops 18% slower and injuries are up 6%. With five or more easy or rest
+    days in the week your quality stays fresh; cram in more hard days and the
+    squad goes stale faster than anyone's.
+  - **Speed Development:** Speed +32%, Economy +12%, and Sharpening builds 14%
+    faster, so you are quickest in September and October. Stamina develops 12%
+    slower, the base is thinner, and the taper peak is 5% smaller.
+  - **Strength Endurance:** Economy +20%, injuries down 12%, hill strength
+    builds 50% faster, and runners gain Injury Resistance over a career. VO2
+    Max develops 5% slower and legs sharpen slower.
+  - **Balanced:** nothing develops slower and everything is slightly safer,
+    but nothing is ever the best in the field and the taper peak is 6% smaller.
+- **How balanced?** Measured on identical squads running identical plans (a
+  season plus what it leaves behind): the old philosophies ranged from 5
+  seconds per 8K better than the field (Polarized) to 8 seconds worse (High
+  Mileage). The new ones average within about a second of each other across
+  six ways of training. Each specialist is 1.5 to 5 seconds better on the
+  training it is built around, and none is better on every style.
+- **Race strategies are balanced too.** Over full seasons with strategies
+  dealt at random, Sit & Kick teams used to finish 5.6 percentile points above
+  what their runners' ability predicted and Pack Running teams 2.2 below. All
+  five now land within about one point, each in its own way:
+  - **Sit & Kick:** the best kick (+22%), which lifts your 4th and 5th
+    runners most. It no longer gets a free fast start.
+  - **Aggressive:** the fastest raw times and the most individual wins, the
+    weakest kick, and the most fades and DNFs.
+  - **Conservative:** the most energy saved and a stronger late grind. It
+    gives away the opening stretch and wins fewer individual races.
+  - **Even Pace:** the steadiest results, less mid-race drift, and the fewest
+    surges.
+  - **Pack Running** now really runs as a pack. Your top five run to the
+    group's pace through the early and middle miles: the spread is tighter and
+    the work is shared, but your best runner is held back several seconds.
+- **Course Records, reorganized.** The screen opens with the record book at a
+  glance, then four tabs:
+  - **My Program:** your home course, every course on this season's schedule
+    with the records to chase, and every record your program holds.
+  - **Featured:** national championship venues and the famous invitational
+    courses.
+  - **All Courses:** the full book with the same search, division and state
+    filters.
+  - **Record Log:** every record broken, grouped by season, with the mark it
+    replaced. Filter to men, women, or your own program.
+
+  Each course's record book is cleaner too: both records side by side, the
+  course at a glance, every distance in one table, and the record history as
+  a timeline. A course on your schedule that nobody has raced yet opens a
+  blank book instead of an error.
+- **New avatars.** Everyone is redrawn in the same illustrated style as the
+  game's icons, with outlines and real faces. This fixes several appearance
+  bugs: blank faces (beards and mustaches floated on nothing), men's long
+  hair drawn as two bars under the ears, hair that vanished against a
+  matching skin tone, and dark team kits that vanished into the background.
+  Some people now wear glasses, and older coaches look their age.
+- **New avatar creator.** Sliders are replaced by named color swatches and
+  thumbnails of your own coach wearing each hair style and beard, with a
+  glasses option and a bigger live preview.
+- **Faster simulation.** A full simulated season takes about 40% less time
+  (15.9 s down to 9.6 s in testing; the weekly training step is 2.4 times
+  faster). The speed-ups change no results: a 30-week seeded world came out
+  identical before and after.
+
 ## Version 15.12 — Honest Scouting Notes, Phenom Generationals & Tabs That Reset
 
 - **The scout's notebook only praises real upside.** Lines like "Late
@@ -278,7 +355,7 @@ text marks them `:trophy-national:`, `:trophy-conference:` and `:trophy-regional
   peak week with ⚡.
 - **The CPU plays by the same rules.** Each CPU staff picks a season style:
   interval-first (speed-minded and poor staffs), threshold-first
-  (Norwegian, threshold, polarized, high-mileage), or classic. Each week
+  (Norwegian, polarized, high-mileage), or classic. Each week
   until mid-October it reads where its team stands. Contenders peak for
   Nationals, bubble teams for Regionals (they must earn the bid), and
   everyone else for their Conference meet. Poor staffs misjudge their team

@@ -320,7 +320,7 @@
     if (t.includes('mileage-heavy') && rng.bool(0.6)) return 'high-mileage';
     if (t.includes('low-mileage') && rng.bool(0.6)) return 'speed';
     if (coach.archetype === 'Developer' && rng.bool(0.4)) return 'polarized';
-    if (coach.archetype === 'Tactician' && rng.bool(0.4)) return 'threshold';
+    if (coach.archetype === 'Tactician' && rng.bool(0.4)) return 'strength-endurance';
     if (coach.lactateThreshold >= 72 && rng.bool(0.4)) return 'norwegian';
     return rng.choice(D.TRAINING_PHILOSOPHIES).key;
   }

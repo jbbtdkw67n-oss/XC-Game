@@ -41,6 +41,7 @@ node tests/test-sw-precache.js     # Offline install: sw.js precaches every scri
 node tests/test-update23.js        # Difficulty-scaled transfer pressure (player only, reasons only), Auto Recruiting works board picks first (offers, stays on board, staff tags, removed picks stay off), one-click ideal mileage, one-line names in the Training squad monitor
 node tests/test-dev-rework.js     # Development Rework: visible curves (Limited/Phenom), foundation boost below 75, Late Bloomer lock → junior breakout, summer obeys the open ceiling, Ceiling Here on the player card
 node tests/test-followers.js     # Following the coach: per-athlete coach-relationship spread (rapport, Top 7, new-coach reset), Bring Your Runners pitch (3 picks, bond + fit odds, never 100%, one roll), rollover move with bond intact, CPU followers, Transferred-from pill + ledger, save round-trip
+node tests/test-balance.js         # Philosophy & strategy balance: no Threshold Focus (old saves migrate), every philosophy and race strategy has mechanical strengths AND weaknesses, none dominates, form effects reach the engine, pack running tightens the 1-5 spread
 node tests/test-update24.js        # Race-day Top 7 (Highest Overall preset, custom picks, injured-pick cover, cap, save round-trip, Roster card + toggles), transfer desire resets each season, whole-number offseason report, championship-day variance, wide-screen squad monitor, transfer points reset on retirement
 ```
 

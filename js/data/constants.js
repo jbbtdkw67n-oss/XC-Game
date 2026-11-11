@@ -317,75 +317,84 @@
    * ratings: its effectiveness scales with the coach's Training attribute
    * (higher Training = better execution), but it is never "upgraded" directly.
    *
-   * Effects are deliberately balanced trade-offs so every philosophy is
-   * viable and none is objectively best. Effects feed the training engine:
+   * Every philosophy is a real trade-off: each one is clearly the best at
+   * something and pays for it somewhere else, and none is best overall.
+   * Effects feed the training engine:
    *   attrMult   — multipliers on which core ratings a week develops
+   *                (below 1 = that rating develops slower)
    *   devMult    — flat development-rate multiplier
    *   fatigueMult— weekly fatigue accumulation multiplier
    *   injuryMult — overtraining/injury-risk multiplier
-   *   durability — tiny bonus chance to build Injury Resistance
+   *   baseMult   — how fast Base builds (the sharpening ceiling)
+   *   sharpMult  — how fast Sharpening builds, and how high it can go
+   *   staleMult  — how fast hard work goes stale
+   *   peakMult   — size of the season's one taper peak
+   *   hillMult   — how fast hill strength builds from hill sessions
+   *   durability — bonus chance to build Injury Resistance
    * The magnitude of every bonus/penalty scales with Training via
-   * Training.philosophyEffect(coach).
+   * Training.philosophyEffect(coach). Each philosophy also has a signature
+   * comfort zone in the engine (philoFatigueRelief / philoStaleRelief).
+   *
+   * Balance (measured, one season + what it leaves behind, identical squads
+   * on identical plans): on a textbook week every philosophy lands within
+   * about a second or two per 8K of the others; each is 1.5-5 seconds better
+   * than the field on the training it is built around; and no philosophy is better
+   * than another on every style. Speed squads are quickest in September and
+   * October and give it back in November; High Mileage is the mirror image.
    * `pros` / `cons` are the player-facing strengths and weaknesses shown
    * wherever a philosophy is picked or displayed — keep them in sync with
-   * `effects` (and the signature fatigue relief in the training engine).
+   * `effects` (and the signature relief in the training engine).
+   * (The old "Threshold Focus" was folded into the Norwegian Method; saves
+   * that carry it are moved across on load.)
    */
   D.TRAINING_PHILOSOPHIES = [
     {
       key: 'norwegian', label: 'Norwegian Method', icon: '🇳🇴',
-      short: 'Threshold-driven, controlled, low-risk.',
-      desc: 'Double-threshold work and tight pace control. Threshold sessions land harder, aerobic development gets a bump, and disciplined intensity reduces overtraining risk.',
-      pros: ['Lactate Threshold develops 22% faster', 'Lowest injury risk of any philosophy (−14%)', 'Less weekly fatigue (−6%); double-threshold & tempo weeks recover easier'],
-      cons: ['No boost to Speed or Running Economy — runners can get out-kicked', 'Needs threshold-heavy plans (doubles, tempos) to earn its fatigue relief'],
-      effects: { attrMult: { lactateThreshold: 1.22, vo2Max: 1.06, stamina: 1.05 }, devMult: 1.04, fatigueMult: 0.94, injuryMult: 0.86 }
+      short: 'Controlled threshold work, healthy legs.',
+      desc: 'Double-threshold work and tight pace control. Threshold sessions land harder and disciplined intensity keeps runners healthy — but the legs rarely touch race speed.',
+      pros: ['Lactate Threshold develops 25% faster (Stamina +5%)', 'Lowest injury risk of any philosophy (−14%)', 'Less weekly fatigue (−4%); double-threshold & tempo weeks recover easier'],
+      cons: ['Speed develops 15% slower — runners can get out-kicked', 'Controlled paces leave legs a little blunt: Sharpening builds 5% slower and tops out lower', 'Needs threshold-heavy plans (doubles, tempos) to earn its fatigue relief'],
+      effects: { attrMult: { lactateThreshold: 1.25, stamina: 1.05, speed: 0.85 }, devMult: 1.0, fatigueMult: 0.96, injuryMult: 0.86, sharpMult: 0.95 }
     },
     {
       key: 'high-mileage', label: 'High Mileage', icon: '🛣️',
-      short: 'Relentless aerobic volume.',
-      desc: 'Big weeks build enormous engines. Easy runs and long runs pay off more and endurance soars — at the cost of extra fatigue.',
-      pros: ['Biggest Stamina boost in the game (+28%)', 'VO2 Max +8% — builds huge aerobic engines', 'Big weeks (82+ mpw) cost less fatigue than for anyone else'],
-      cons: ['Most fatigue of any philosophy (+14% weekly)', 'Highest injury risk (+6%)', 'No help for Speed, Economy, or Threshold'],
-      effects: { attrMult: { stamina: 1.28, vo2Max: 1.08 }, devMult: 1.03, fatigueMult: 1.14, injuryMult: 1.06 }
+      short: 'A huge aerobic base and the biggest November peak.',
+      desc: 'Big weeks build enormous engines. The base is deeper and the taper peak is bigger than anyone else\'s — at the cost of flat legs through the regular season and more injuries.',
+      pros: ['Biggest Stamina boost in the game (+30%), VO2 Max +8%', 'Base builds 18% faster and the taper peak is 13% bigger — built for championships', 'Big weeks (82+ mpw men, 68+ women) cost less fatigue than for anyone else; overall development +3%'],
+      cons: ['Flat legs all regular season: Sharpening builds 10% slower and tops out lower', 'Higher injury risk (+5%)', 'Speed develops 15% slower'],
+      effects: { attrMult: { stamina: 1.3, vo2Max: 1.08, speed: 0.85 }, devMult: 1.03, fatigueMult: 1.0, injuryMult: 1.05, baseMult: 1.18, sharpMult: 0.9, peakMult: 1.13 }
     },
     {
       key: 'polarized', label: 'Polarized Training', icon: '🎿',
       short: 'Easy days easy, hard days hard.',
-      desc: 'Most running truly easy, the rest genuinely hard. Easy days become more productive, hard workouts more impactful, and fatigue is well managed.',
-      pros: ['Broad aerobic gains: VO2 Max +16%, Stamina +12%, Threshold +8%', 'Best fatigue control (−10% weekly)', 'Tied for the fastest overall development (+5%)'],
-      cons: ['No boost to Speed or Running Economy', 'Fatigue relief needs 4+ truly easy days a week — cramming hard days wastes it'],
-      effects: { attrMult: { vo2Max: 1.16, stamina: 1.12, lactateThreshold: 1.08 }, devMult: 1.05, fatigueMult: 0.9, injuryMult: 0.95 }
-    },
-    {
-      key: 'threshold', label: 'Threshold Focus', icon: '⏱️',
-      short: 'Tempo and lactate threshold.',
-      desc: 'Tempo work is the centerpiece. Lactate threshold develops noticeably faster and race-pace strength comes early.',
-      pros: ['Fastest Lactate Threshold growth in the game (+30%)', 'Running Economy +8%', 'Tempo-heavy weeks cost less fatigue'],
-      cons: ['Narrow: little help for VO2 Max, Stamina, or Speed', 'Tied for the slowest overall development rate (+2%)', 'No reduction in weekly fatigue'],
-      effects: { attrMult: { lactateThreshold: 1.3, runningEconomy: 1.08 }, devMult: 1.02, fatigueMult: 1.0, injuryMult: 0.96 }
+      desc: 'Most running truly easy, the rest genuinely hard. Fresh legs and big VO2 engines — as long as the easy days stay easy. It skips the middle zone, and the hard days carry real risk.',
+      pros: ['Biggest VO2 Max boost in the game (+20%), Stamina +5%', 'Best fatigue control (−5% weekly, more with 4+ easy days)', 'With 5+ easy or rest days in the week, hard work goes stale 10% slower'],
+      cons: ['Skips the middle: Lactate Threshold develops 18% slower', 'Hard days hit harder: injury risk +6%', 'Cram in quality (3 or fewer easy days) and the squad goes stale 25% faster'],
+      effects: { attrMult: { vo2Max: 1.2, stamina: 1.05, lactateThreshold: 0.82 }, devMult: 1.0, fatigueMult: 0.95, injuryMult: 1.06 }
     },
     {
       key: 'speed', label: 'Speed Development', icon: '⚡',
-      short: 'Sharp legs and a finishing kick.',
-      desc: 'Interval and speed sessions cut deeper. Raw speed, economy, and the finishing kick sharpen faster — endurance builds a touch slower.',
-      pros: ['Biggest Speed boost in the game (+32%) — best finishing kicks', 'Running Economy +12%, VO2 Max +6%', 'Interval & speed weeks recover faster'],
-      cons: ['Stamina develops 5% SLOWER — the only philosophy with a penalty', 'Slightly more weekly fatigue (+2%)', 'No injury-risk protection'],
-      effects: { attrMult: { speed: 1.32, runningEconomy: 1.12, vo2Max: 1.06, stamina: 0.95 }, devMult: 1.02, fatigueMult: 1.02, injuryMult: 1.0 }
+      short: 'Race-sharp early, with a kick to finish.',
+      desc: 'Interval and speed sessions cut deeper. Raw speed, economy, and race sharpness come fast — the quickest squad in September and October — on a thinner base that gives some of it back in November.',
+      pros: ['Biggest Speed boost in the game (+32%), Running Economy +12% — best finishing kicks', 'Sharpening builds 14% faster and tops out higher — the fastest squad of the regular season', 'Interval & speed weeks recover faster; overall development +3%'],
+      cons: ['Stamina develops 12% slower', 'Thin base: Base builds 6% slower and the taper peak is 5% smaller — fades in November', 'Slightly higher injury risk (+3%)'],
+      effects: { attrMult: { speed: 1.32, runningEconomy: 1.12, stamina: 0.88 }, devMult: 1.03, fatigueMult: 1.0, injuryMult: 1.03, sharpMult: 1.14, peakMult: 0.95, baseMult: 0.94 }
     },
     {
       key: 'strength-endurance', label: 'Strength Endurance', icon: '⛰️',
-      short: 'Hills, strength, late-race power.',
-      desc: 'Hill work and strength sessions matter more. Late-race strength and durability improve, so your runners are still moving up when others fade.',
-      pros: ['Running Economy +18%, Stamina +12%, Speed +6%', 'Lower injury risk (−10%) and builds Injury Resistance over time', 'Hill and long-run weeks cost less fatigue'],
-      cons: ['No boost to Lactate Threshold or VO2 Max', 'Tied for the slowest overall development rate (+2%)', 'No reduction in weekly fatigue'],
-      effects: { attrMult: { runningEconomy: 1.18, stamina: 1.12, speed: 1.06 }, devMult: 1.02, fatigueMult: 1.0, injuryMult: 0.9, durability: 1.6 }
+      short: 'Hills, durability, late-race power.',
+      desc: 'Hill work and strength sessions matter more. Runners get more economical, more durable, and stronger on hard courses — heavy legs take longer to sharpen.',
+      pros: ['Running Economy +20%, Stamina +10%', 'Injury risk −12%, and runners build Injury Resistance over a career', 'Hill strength builds 50% faster (gains time on hilly courses); Base +5%; hill and long-run weeks cost less fatigue'],
+      cons: ['VO2 Max develops 5% slower', 'Heavy legs: Sharpening builds 4% slower and tops out lower', 'Its edge is durability over a career — the smallest payoff in any single season'],
+      effects: { attrMult: { runningEconomy: 1.2, stamina: 1.1, vo2Max: 0.95 }, devMult: 1.0, fatigueMult: 1.0, injuryMult: 0.88, baseMult: 1.05, sharpMult: 0.96, hillMult: 1.5, durability: 1.6 }
     },
     {
       key: 'balanced', label: 'Balanced', icon: '⚖️',
-      short: 'A little of everything, no weaknesses.',
-      desc: 'Small, steady improvements across every workout type. No glaring strengths, but no weaknesses either — supremely dependable.',
-      pros: ['+6% to all five core ratings — no blind spots', 'Tied for the fastest overall development (+5%)', 'Slightly less fatigue and injury risk (−3% each)'],
-      cons: ['No standout strength — specialists out-develop it in their focus area', 'Weakest signature fatigue relief of any philosophy'],
-      effects: { attrMult: { vo2Max: 1.06, stamina: 1.06, lactateThreshold: 1.06, runningEconomy: 1.06, speed: 1.06 }, devMult: 1.05, fatigueMult: 0.97, injuryMult: 0.97 }
+      short: 'Steady everywhere, special nowhere.',
+      desc: 'Small, steady improvements across every workout type. Nothing develops slowly and nothing goes badly wrong — but nothing is ever the best in the field either.',
+      pros: ['No blind spots: no rating develops slower', 'Slightly faster overall development (+2%)', 'Slightly less fatigue and injury risk (−2% each)'],
+      cons: ['No rating develops faster — specialists out-develop it in their focus area', 'Never hits the highest peak: the taper peak is 6% smaller', 'No signature: the weakest fatigue relief, and no form edge at any point in the season'],
+      effects: { attrMult: {}, devMult: 1.02, fatigueMult: 0.98, injuryMult: 0.98, peakMult: 0.94 }
     }
   ];
 
@@ -399,44 +408,62 @@
    * changed after creation (on the My Program screen). It shapes how a coach's
    * athletes behave in a race — pack discipline, energy conservation, surging,
    * and the finish. Every option is a genuine trade-off; none dominates.
-   * The race engine reads these `tactic` weights per runner; `pros` / `cons`
-   * spell those weights out for the player (keep them in sync).
+   * The race engine reads these `tactic` weights per runner:
+   *   packBias     — how tightly runners tuck into the pack around them
+   *   reserveBonus — extra (or less) energy in the tank at the gun
+   *   surge        — how often runners throw in a mid-race surge
+   *   kick         — strength of the finishing kick
+   *   earlyPace    — pace off the line (below 1 = out hard, above 1 = held back)
+   *   lateGrind    — time won back through the final third
+   *   evenness     — steadier day-to-day form
+   *   drift        — mid-race pace drift (below 1 = holds pace better)
+   *   costMult     — energy cost of every stretch (below 1 = cheaper running)
+   *   teamPack     — the team's five run as one group early and mid-race
+   * `pros` / `cons` spell those weights out for the player (keep them in sync).
+   *
+   * Balance (measured over full simulated seasons with strategies drawn at
+   * random, so strategy is independent of team quality): every strategy's
+   * teams finish within about one percentile point of where their runners'
+   * ability says they should — it was +5.6 for Sit & Kick and −2.2 for Pack
+   * Running. What differs is HOW: aggressive teams run the fastest raw times
+   * and win the most individual races but blow up most; even-pace teams swing
+   * least; pack teams hold their best runner back and pull the rest along.
    */
   D.RACE_PHILOSOPHIES = [
     {
       key: 'sit-and-kick', label: 'Sit &amp; Kick', icon: '🏹',
       desc: 'Stay tucked in the pack, conserve energy, and unleash a decisive kick over the final stretch.',
-      pros: ['Strongest finishing kick in the game (+35%)', 'Banks 10% extra energy by sitting in the pack', 'Tucks in tight — sheltered from early pace mistakes'],
-      cons: ['Surges 40% less often — can leave a gap to front-runners', 'Only as good as your Speed; slow kickers gain little', 'Goes out a touch quick with the field, so a hot early pace can still bite'],
-      tactic: { packBias: 0.18, reserveBonus: 0.10, surge: 0.6, kick: 1.35, earlyPace: 0.99 }
+      pros: ['Strongest finishing kick in the game (+22%)', 'Banks 5% extra energy by sitting in the pack', 'The kick lifts your 4th and 5th runners most — places stolen late'],
+      cons: ['Surges 40% less often — gives up time mid-race to front-runners', 'Only as good as your Speed and Economy; slow kickers gain little', 'Tucked in tight: your runners run the pack\'s race, not their own'],
+      tactic: { packBias: 0.18, reserveBonus: 0.05, surge: 0.6, kick: 1.22, earlyPace: 1.0 }
     },
     {
       key: 'aggressive', label: 'Aggressive Front Running', icon: '🔥',
-      desc: 'Push the pace from the gun and try to break the field early. High reward, higher fade risk.',
-      pros: ['Surges 70% more often than baseline — can break a field', 'Hardest early pace — runs its own race instead of the pack\'s', 'Best when your runners have strong Stamina and Threshold'],
-      cons: ['Starts with 6% LESS energy — the highest fade risk', 'Weaker finishing kick (−15%)', 'Chasing a hot early pace burns extra energy'],
-      tactic: { packBias: -0.16, reserveBonus: -0.06, surge: 1.7, kick: 0.85, earlyPace: 0.975 }
+      desc: 'Push the pace from the gun and try to break the field early. The fastest times and the biggest blow-ups.',
+      pros: ['Hardest early pace and 60% more surges — the fastest raw times of any strategy', 'Your front-runners win the most individual races', 'Best when your runners have strong Stamina and Threshold to hold the pace'],
+      cons: ['Weakest finishing kick (−18%)', 'Most late fades and DNFs — one blow-up in your top five costs the team score', 'Biggest swings from race to race'],
+      tactic: { packBias: -0.16, reserveBonus: 0, surge: 1.6, kick: 0.82, earlyPace: 0.982 }
     },
     {
       key: 'conservative', label: 'Conservative', icon: '🧊',
       desc: 'Avoid early burnout and grind steadily through the field in the second half.',
-      pros: ['Most energy saved of any tactic (+12%)', 'Late-race grind moves runners up through the field', 'Wastes less energy chasing a fast early pace'],
-      cons: ['Starts slower — can get stuck too far back', 'Fewer mid-race surges (−25%)', 'Only a modest kick (+5%)'],
-      tactic: { packBias: 0.08, reserveBonus: 0.12, surge: 0.75, kick: 1.05, earlyPace: 1.012, lateGrind: 1.18 }
+      pros: ['Most energy saved of any strategy (+12%) — protects tired or low-Stamina squads from fading', 'Late-race grind: runners move up through the field over the final third', 'Wastes less energy chasing a fast early pace; modest kick boost (+5%)'],
+      cons: ['Starts slower and gives away the opening stretch', 'Fewer mid-race surges (−25%)', 'Your top runner gives up time to bolder front-runners — fewer individual wins'],
+      tactic: { packBias: 0.08, reserveBonus: 0.12, surge: 0.75, kick: 1.05, earlyPace: 1.010, lateGrind: 1.28 }
     },
     {
       key: 'even', label: 'Even Pace', icon: '📏',
       desc: 'Run metronomic, evenly-paced efforts. Fewer highs and lows, very consistent finishes.',
-      pros: ['Steadiest day-to-day form of any tactic (swings −28%)', 'No real weaknesses — a safe default', 'Small energy saving (+5%)'],
-      cons: ['Lowest ceiling: fewest surges (−45%) and no extra kick', 'Rarely produces a breakout upset performance'],
-      tactic: { packBias: 0.02, reserveBonus: 0.05, surge: 0.55, kick: 1.0, earlyPace: 1.0, evenness: 1.0 }
+      pros: ['Steadiest day-to-day form of any strategy (swings −28%)', 'Metronomic pacing: 15% less mid-race drift and slightly cheaper running', 'Small energy saving (+5%) and the fewest DNFs'],
+      cons: ['Fewest surges of any strategy (−45%)', 'No extra kick', 'Lowest ceiling — rarely produces a breakout upset'],
+      tactic: { packBias: 0.02, reserveBonus: 0.05, surge: 0.55, kick: 1.0, earlyPace: 1.0, evenness: 1.0, drift: 0.85, costMult: 0.98 }
     },
     {
       key: 'pack', label: 'Pack Running', icon: '🐺',
-      desc: 'Teammates run together as long as possible for stronger, more consistent team scoring.',
-      pros: ['Runs together for tighter team spreads and scoring', 'Steadier form (swings −18%)', 'Tucks in tightest of any tactic; modest kick boost (+8%)'],
-      cons: ['Your stars get held back running with the group', 'Fewer surges (−30%)', 'Only a small energy saving (+6%)'],
-      tactic: { packBias: 0.22, reserveBonus: 0.06, surge: 0.7, kick: 1.08, earlyPace: 1.0, teamPack: 1.0 }
+      desc: 'Your top five run together through the early and middle miles for a tighter, steadier team score.',
+      pros: ['Runs as one group: a tighter 1-5 spread and steadier team scores (swings −18%)', 'Shared work makes the running 7% cheaper, and your 4th and 5th are pulled along', 'Modest kick boost (+10%)'],
+      cons: ['Your best runner is held back to the group — several seconds slower and the fewest individual wins', 'Fewer surges (−30%)', 'The back of the group pays extra energy to hang on'],
+      tactic: { packBias: 0.22, reserveBonus: 0.04, surge: 0.7, kick: 1.10, earlyPace: 1.0, teamPack: 0.7, costMult: 0.93 }
     }
   ];
 

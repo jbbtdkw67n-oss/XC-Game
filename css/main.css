@@ -661,8 +661,40 @@ html[data-theme="light"] .season-poll.top10 { color: #8a6100; }
 .person-list { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; justify-content: flex-end; }
 /* The season a course record was set, shown beside every record time. */
 .cr-year {
-  display: inline-block; font-size: 10.5px; font-weight: 600; color: var(--text-faint);
+  display: inline-block; white-space: nowrap; font-size: 10.5px; font-weight: 600; color: var(--text-faint);
   background: var(--bg-hover); border-radius: 6px; padding: 1px 6px; vertical-align: middle;
+}
+
+/* ---------- Course Records screen ----------
+   One record per line on a course card: a fixed label column so the men's
+   and women's marks line up, then the time, the season, and the holder. */
+.cr-recs { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.cr-rec { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; }
+.cr-rec-g { flex: none; width: 74px; color: var(--text-faint); font-size: 11.5px; }
+.cr-rec strong { font-variant-numeric: tabular-nums; }
+.cr-rec-none { color: var(--text-faint); }
+.cr-rec-who { min-width: 0; margin-left: auto; overflow: hidden; }
+.cr-rec-who .person-name { max-width: 100%; }
+/* Men's + women's record side by side, on every screen size. */
+.cr-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.cr-pair .stat-tile { min-width: 0; }
+.cr-pair .stat-tile .value { overflow-wrap: anywhere; }
+.cr-home-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.cr-home-sub { color: var(--text-dim); font-size: 13px; margin-top: 3px; }
+.cr-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.cr-filters #cr-search { flex: 1 1 200px; max-width: 280px; }
+.cr-filters select.search-input { padding: 6px 10px; max-width: 190px; }
+.cr-count { margin-left: auto; color: var(--text-faint); font-size: 12px; white-space: nowrap; }
+.cr-foot { color: var(--text-faint); font-size: 11.5px; margin-top: 10px; }
+.stat-tile.clickable:hover { border-color: var(--accent); }
+@media (max-width: 760px) {
+  .cr-filters #cr-search { max-width: none; flex-basis: 100%; }
+  .cr-filters select.search-input { flex: 1; max-width: none; }
+  .cr-count { margin-left: 0; flex-basis: 100%; }
+  .cr-rec-g { width: 66px; }
+  .cr-pair { gap: 8px; }
+  .cr-pair .stat-tile { padding: 10px; }
+  .cr-pair .stat-tile .value { font-size: 19px !important; }
 }
 
 /* ---------- Profile tabs (UI overhaul) ----------
@@ -1435,27 +1467,49 @@ details.filter-collapse .filter-body {
   display: flex; align-items: center; justify-content: center;
   border: 1px solid var(--border); border-radius: 50%; background: var(--accent-soft);
 }
-/* Avatar builder (Update 12): live human preview + appearance sliders */
-.avatar-builder {
-  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
-  border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 4px;
+/* Avatar builder: a live preview beside swatch and face-thumbnail pickers */
+.avatar-builder { display: flex; align-items: flex-start; gap: 18px; margin-bottom: 4px; }
+.av-stage {
+  flex: 0 0 200px; position: sticky; top: 0; text-align: center;
+  border: 1px solid var(--border); border-radius: 14px; padding: 16px 12px;
+  background: linear-gradient(180deg, var(--accent-soft), transparent 70%);
 }
-.avatar-builder > div:first-child { flex: 0 0 auto; margin: 0 auto; }
-.avatar-sliders { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 14px; }
-.avatar-slider input[type="range"] {
-  -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
-  border-radius: 3px; background: var(--accent-soft); outline: none; cursor: pointer;
-  accent-color: var(--accent);
+.av-stage #coach-avatar-preview svg { box-shadow: 0 0 0 3px var(--bg-card, #161b22), 0 0 0 5px var(--accent); }
+.av-name { font-weight: 800; font-size: 16px; margin-top: 10px; overflow-wrap: anywhere; }
+.av-role { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+.av-stage .pill-tabs { display: inline-flex; }
+.av-options { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.av-group-head {
+  display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim);
 }
-.avatar-slider input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none; width: 22px; height: 22px;
-  border-radius: 50%; background: var(--accent); border: none; cursor: pointer;
+.av-group-val { color: var(--text-faint); font-weight: 600; text-transform: none; letter-spacing: 0; font-size: 12px; }
+.av-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.av-swatch {
+  width: 30px; height: 30px; border-radius: 50%; padding: 0; cursor: pointer;
+  border: 2px solid rgba(27, 36, 51, 0.9); box-shadow: 0 0 0 1px var(--border);
+  transition: transform 0.1s ease, box-shadow 0.12s ease;
 }
-.avatar-slider input[type="range"]::-moz-range-thumb {
-  width: 22px; height: 22px; border-radius: 50%; background: var(--accent); border: none; cursor: pointer;
+.av-swatch:hover { transform: scale(1.1); }
+.av-swatch.selected { box-shadow: 0 0 0 2px var(--bg-card, #161b22), 0 0 0 4px var(--accent); }
+.av-thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.av-thumb {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 2px 5px;
+  border: 1px solid var(--border); border-radius: 10px; background: transparent; color: var(--text-dim);
+  cursor: pointer; transition: border-color 0.12s, background 0.12s;
 }
-.avatar-slider-label {
-  text-align: center; font-size: 12.5px; color: var(--text-dim); margin-top: 4px;
+.av-thumb em { font-style: normal; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+.av-thumb:hover { border-color: var(--accent); }
+.av-thumb.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.av-note { color: var(--text-faint); font-size: 11.5px; margin-top: 6px; }
+@media (max-width: 760px) {
+  .avatar-builder { flex-direction: column; align-items: stretch; }
+  .av-stage { flex: none; position: static; display: grid; grid-template-columns: auto 1fr; column-gap: 12px; text-align: left; align-items: center; padding: 12px; }
+  .av-stage #coach-avatar-preview { grid-row: 1 / span 4; }
+  .av-stage #coach-avatar-preview svg { width: 104px; height: 104px; }
+  .av-name { margin-top: 0; }
+  .av-swatch { width: 34px; height: 34px; }
+  .av-thumbs { grid-template-columns: repeat(4, 1fr); }
 }
 
 .wizard-summary-box {
@@ -1475,9 +1529,6 @@ details.filter-collapse .filter-body {
     min-height: var(--tap);
     background: linear-gradient(var(--bg-hover), var(--bg-hover)) center / 100% 6px no-repeat;
     border-radius: 0;
-  }
-  .avatar-slider input[type="range"] {
-    background: linear-gradient(var(--accent-soft), var(--accent-soft)) center / 100% 5px no-repeat;
   }
 }
 
