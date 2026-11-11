@@ -320,6 +320,47 @@
     return out;
   }
 
+  // Every current course record a program holds (the Course Records screen's
+  // "My Program" tab). One entry per record, newest first.
+  function heldBySchool(gameState, schoolId) {
+    if (!schoolId) return [];
+    const out = [];
+    Object.values(book(gameState)).forEach((entry) => {
+      Object.values(entry.records).forEach((rec) => {
+        if (rec.schoolId !== schoolId) return;
+        out.push({
+          courseKey: entry.key, courseName: entry.name,
+          gender: rec.gender, distanceKey: rec.distanceKey,
+          time: rec.time, year: rec.year, meet: rec.meet,
+          athleteId: rec.athleteId, name: rec.name, schoolId: rec.schoolId,
+          city: entry.city, state: entry.state, inaugural: !!rec.inaugural
+        });
+      });
+    });
+    out.sort((a, b) => (b.year - a.year) || a.courseName.localeCompare(b.courseName) || a.gender.localeCompare(b.gender));
+    return out;
+  }
+
+  // The record book at a glance, for the Course Records screen's summary.
+  function summary(gameState) {
+    const entries = Object.values(book(gameState));
+    let withRecords = 0, records = 0, oldest = null;
+    entries.forEach((entry) => {
+      const recs = Object.values(entry.records);
+      if (recs.length) withRecords++;
+      recs.forEach((rec) => {
+        records++;
+        if (!oldest || rec.year < oldest.year) oldest = { year: rec.year, courseKey: entry.key, courseName: entry.name };
+      });
+    });
+    const log = gameState.history.courseRecordLog || [];
+    return {
+      courses: entries.length, withRecords, records, oldest,
+      brokenThisSeason: log.filter((e) => e.year === gameState.year).length,
+      brokenAllTime: log.length
+    };
+  }
+
   // Distinct number of courses an athlete currently holds a record on.
   function courseHoldCount(gameState, athleteId) {
     const held = heldByAthlete(gameState, athleteId);
@@ -363,7 +404,7 @@
 
   window.XCD.engine.Courses = {
     identify, homeCourseMeta, ensure, considerRace,
-    countHeldBySchool, programStats, heldByAthlete, courseHoldCount,
+    countHeldBySchool, programStats, heldByAthlete, heldBySchool, summary, courseHoldCount,
     recordFor, entryForMeet, list, registerRealCourses, isNotableCourse,
     book
   };

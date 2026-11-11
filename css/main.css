@@ -661,8 +661,40 @@ html[data-theme="light"] .season-poll.top10 { color: #8a6100; }
 .person-list { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; justify-content: flex-end; }
 /* The season a course record was set, shown beside every record time. */
 .cr-year {
-  display: inline-block; font-size: 10.5px; font-weight: 600; color: var(--text-faint);
+  display: inline-block; white-space: nowrap; font-size: 10.5px; font-weight: 600; color: var(--text-faint);
   background: var(--bg-hover); border-radius: 6px; padding: 1px 6px; vertical-align: middle;
+}
+
+/* ---------- Course Records screen ----------
+   One record per line on a course card: a fixed label column so the men's
+   and women's marks line up, then the time, the season, and the holder. */
+.cr-recs { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.cr-rec { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; }
+.cr-rec-g { flex: none; width: 74px; color: var(--text-faint); font-size: 11.5px; }
+.cr-rec strong { font-variant-numeric: tabular-nums; }
+.cr-rec-none { color: var(--text-faint); }
+.cr-rec-who { min-width: 0; margin-left: auto; overflow: hidden; }
+.cr-rec-who .person-name { max-width: 100%; }
+/* Men's + women's record side by side, on every screen size. */
+.cr-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.cr-pair .stat-tile { min-width: 0; }
+.cr-pair .stat-tile .value { overflow-wrap: anywhere; }
+.cr-home-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.cr-home-sub { color: var(--text-dim); font-size: 13px; margin-top: 3px; }
+.cr-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.cr-filters #cr-search { flex: 1 1 200px; max-width: 280px; }
+.cr-filters select.search-input { padding: 6px 10px; max-width: 190px; }
+.cr-count { margin-left: auto; color: var(--text-faint); font-size: 12px; white-space: nowrap; }
+.cr-foot { color: var(--text-faint); font-size: 11.5px; margin-top: 10px; }
+.stat-tile.clickable:hover { border-color: var(--accent); }
+@media (max-width: 760px) {
+  .cr-filters #cr-search { max-width: none; flex-basis: 100%; }
+  .cr-filters select.search-input { flex: 1; max-width: none; }
+  .cr-count { margin-left: 0; flex-basis: 100%; }
+  .cr-rec-g { width: 66px; }
+  .cr-pair { gap: 8px; }
+  .cr-pair .stat-tile { padding: 10px; }
+  .cr-pair .stat-tile .value { font-size: 19px !important; }
 }
 
 /* ---------- Profile tabs (UI overhaul) ----------
