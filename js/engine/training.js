@@ -40,11 +40,21 @@
    * no save field), bell-shaped around `mean`. Drifting toward one shared
    * target made everyone end up the same; each runner now settles at theirs.
    */
+  // The bell is fixed per athlete + trait, and every athlete asks for theirs
+  // every week, so it is remembered instead of re-hashed (bounded: cleared
+  // once it outgrows a few worlds' worth of runners).
+  const naturalBells = {};
   function naturalLevel(athlete, tag, mean, spread, min, max) {
     const F = window.XCD.engine.Followers;
     if (!F || !F.noise || !athlete.id) return mean;
-    const k = athlete.id + '|' + tag;
-    const bell = (F.noise(k + '1') + F.noise(k + '2') + F.noise(k + '3')) / 3 - 0.5; // sd ~0.167
+    const bells = naturalBells[tag] || (naturalBells[tag] = new Map());
+    let bell = bells.get(athlete.id);
+    if (bell === undefined) {
+      const k = athlete.id + '|' + tag;
+      bell = (F.noise(k + '1') + F.noise(k + '2') + F.noise(k + '3')) / 3 - 0.5; // sd ~0.167
+      if (bells.size > 60000) bells.clear();
+      bells.set(athlete.id, bell);
+    }
     return Utils.clamp(mean + bell * spread * 6, min, max);
   }
 
@@ -1228,7 +1238,11 @@
   const MAJOR_INJURY_WEEKS = 5;
 
   function majorInjuryCount(athlete) {
-    return (athlete.careerInjuries || []).filter((i) => i.major).length;
+    const list = athlete.careerInjuries;
+    if (!list || !list.length) return 0;
+    let n = 0;
+    for (let i = 0; i < list.length; i++) if (list[i].major) n++;
+    return n;
   }
 
   /*
@@ -1428,16 +1442,22 @@
   // credited in full on fresh lower-volume legs, fading to nothing at the
   // high-volume line (where the aerobic base takes over). Sharpens every
   // week (applyForm) — and, held without a base, goes stale.
-  function qualityCredit(athlete, chronic) {
+  // How fresh (low-volume) the legs are for the speed road: 1 well below the
+  // high-volume line, 0 at it.
+  function qualityFreshness(athlete, chronic) {
     const line = VOLUME.HIGH[genderKey(athlete)] + 5;
-    const fresh = Utils.clamp((line - (chronic || line)) / VOLUME.QUALITY_FRESH, 0, 1);
-    return Math.min(VOLUME.QUALITY_MAX_FORM, (athlete.qualityLoad || 0) * VOLUME.QUALITY_PER_STIM) * fresh;
+    return Utils.clamp((line - (chronic || line)) / VOLUME.QUALITY_FRESH, 0, 1);
+  }
+
+  function qualityCredit(athlete, chronic) {
+    return Math.min(VOLUME.QUALITY_MAX_FORM, (athlete.qualityLoad || 0) * VOLUME.QUALITY_PER_STIM) *
+      qualityFreshness(athlete, chronic);
   }
 
   // Extra weekly staleness from sustained quality on low volume (0 on a base).
   function qualityStale(athlete) {
-    const fresh = qualityCredit(Object.assign({}, athlete, { qualityLoad: VOLUME.QUALITY_MAX_FORM / VOLUME.QUALITY_PER_STIM }), athlete.chronicMileage) / VOLUME.QUALITY_MAX_FORM;
-    return Math.max(0, (athlete.qualityLoad || 0) - VOLUME.QUALITY_STALE_FROM) * VOLUME.QUALITY_STALE * fresh;
+    return Math.max(0, (athlete.qualityLoad || 0) - VOLUME.QUALITY_STALE_FROM) * VOLUME.QUALITY_STALE *
+      qualityFreshness(athlete, athlete.chronicMileage);
   }
 
   // Would this week's miles + plan count as the season's taper?

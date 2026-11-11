@@ -203,6 +203,10 @@
       const byDivision = {};
       rows.forEach((r) => { (byDivision[r.division] = byDivision[r.division] || []).push(r); });
       const prev = gameState.rankings && gameState.rankings[gender];
+      // Last week's row per school, looked up once (first match wins, as
+      // .find did) instead of scanning the whole poll for every team.
+      const prevById = new Map();
+      if (prev) prev.forEach((p) => { if (!prevById.has(p.schoolId)) prevById.set(p.schoolId, p); });
       const Legacy = window.XCD.engine.Legacy;
       // After Nationals, the championship results override the formula
       // (Phase 2): the final poll mirrors what happened on the course.
@@ -230,7 +234,7 @@
           list.forEach((r, i) => {
             r.rank = i + 1;
             r.divisionSize = list.length;
-            const old = prev && prev.find((p) => p.schoolId === r.schoolId);
+            const old = prevById.get(r.schoolId);
             r.prevRank = old ? old.rank : null;
             // Permanent program ledger: highest poll ranking ever (Part 8).
             if (r.rank <= 50) {
@@ -254,7 +258,7 @@
       ordered.forEach((r) => {
         r.regionRank = curRegion[r.schoolId];
         r.confRank = curConf[r.schoolId];
-        const old = prev && prev.find((p) => p.schoolId === r.schoolId);
+        const old = prevById.get(r.schoolId);
         // Only comparable when the team sat in the same region/conference
         // last week (realignment resets the arrow).
         r.prevRegionRank = old && regionKey(old) === regionKey(r) ? (prevRegion[r.schoolId] ?? null) : null;
@@ -275,12 +279,12 @@
           if (!a) return;
           const bests = a.careerStats.personalBests || {};
           let bestPace = null;
-          Object.entries(bests).forEach(([key, time]) => {
+          for (const key in bests) {
             const km = parseFloat(key);
-            if (!km) return;
-            const pace = time / km;
+            if (!km) continue;
+            const pace = bests[key] / km;
             if (bestPace === null || pace < bestPace) bestPace = pace;
-          });
+          }
           if (bestPace === null) return;
           rows.push({
             athleteId: a.id, name: a.fullName, classYear: a.classYear,

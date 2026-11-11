@@ -518,9 +518,12 @@
       .map((id) => gameState.world.athletes[id])
       .filter((a) => a && !a.injury);
     if (!usesPlayerLineup(gameState, school)) {
+      // Rate each runner once, not once per comparison.
       return healthy
-        .sort((a, b) => (raceRating(b, distanceM) + b.fitness * 0.1) - (raceRating(a, distanceM) + a.fitness * 0.1))
-        .slice(0, LINEUP_SIZE);
+        .map((a) => ({ a, v: raceRating(a, distanceM) + a.fitness * 0.1 }))
+        .sort((x, y) => y.v - x.v)
+        .slice(0, LINEUP_SIZE)
+        .map((x) => x.a);
     }
     const lu = lineupSettings(gameState, gender);
     const best = healthy.slice().sort(byOverall);
