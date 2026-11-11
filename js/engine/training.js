@@ -1735,7 +1735,16 @@
     }
     // Training effectiveness: a modern training center makes every week count.
     const fitnessMult = (0.85 + school.facilities.trainingCenter / 300) * mMeta.fitnessMult;
-    athlete.fitness = Math.round(Utils.clamp(athlete.fitness + planMeta.fitness * fitnessMult * (philo.baseMult ?? 1) - 1.8, 0, 100));
+    // The philosophy's Base edge is applied on its own, by chance in
+    // proportion to its size: Base is a whole number, and folding a small
+    // edge into the rounding either lost it completely or doubled it.
+    const baseBuild = planMeta.fitness * fitnessMult;
+    let philoBase = baseBuild * ((philo.baseMult ?? 1) - 1);
+    if (philoBase) {
+      const whole = Math.trunc(philoBase);
+      philoBase = whole + (rng.bool(Math.abs(philoBase - whole)) ? Math.sign(philoBase) : 0);
+    }
+    athlete.fitness = Math.round(Utils.clamp(athlete.fitness + baseBuild - 1.8 + philoBase, 0, 100));
 
     // Race sharpness (Part 6 + Update 3): drifts toward what this volume
     // allows. Speed work sharpens; tapering off a real base sharpens fastest;

@@ -337,8 +337,8 @@
    *
    * Balance (measured, one season + what it leaves behind, identical squads
    * on identical plans): on a textbook week every philosophy lands within
-   * about a second per 8K of the others; each is 2-4 seconds better than the
-   * field on the training it is built around; and no philosophy is better
+   * about a second or two per 8K of the others; each is 1.5-5 seconds better
+   * than the field on the training it is built around; and no philosophy is better
    * than another on every style. Speed squads are quickest in September and
    * October and give it back in November; High Mileage is the mirror image.
    * `pros` / `cons` are the player-facing strengths and weaknesses shown
@@ -360,9 +360,9 @@
       key: 'high-mileage', label: 'High Mileage', icon: '🛣️',
       short: 'A huge aerobic base and the biggest November peak.',
       desc: 'Big weeks build enormous engines. The base is deeper and the taper peak is bigger than anyone else\'s — at the cost of flat legs through the regular season and more injuries.',
-      pros: ['Biggest Stamina boost in the game (+30%), VO2 Max +8%', 'Base builds 13% faster and the taper peak is 13% bigger — built for championships', 'Big weeks (82+ mpw men, 68+ women) cost less fatigue than for anyone else; overall development +3%'],
+      pros: ['Biggest Stamina boost in the game (+30%), VO2 Max +8%', 'Base builds 18% faster and the taper peak is 13% bigger — built for championships', 'Big weeks (82+ mpw men, 68+ women) cost less fatigue than for anyone else; overall development +3%'],
       cons: ['Flat legs all regular season: Sharpening builds 10% slower and tops out lower', 'Higher injury risk (+5%)', 'Speed develops 15% slower'],
-      effects: { attrMult: { stamina: 1.3, vo2Max: 1.08, speed: 0.85 }, devMult: 1.03, fatigueMult: 1.0, injuryMult: 1.05, baseMult: 1.13, sharpMult: 0.9, peakMult: 1.13 }
+      effects: { attrMult: { stamina: 1.3, vo2Max: 1.08, speed: 0.85 }, devMult: 1.03, fatigueMult: 1.0, injuryMult: 1.05, baseMult: 1.18, sharpMult: 0.9, peakMult: 1.13 }
     },
     {
       key: 'polarized', label: 'Polarized Training', icon: '🎿',
