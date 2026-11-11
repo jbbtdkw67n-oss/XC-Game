@@ -17,7 +17,7 @@ const { newDynasty, skipTutorial, wireErrors, launchOpts } = require('./helpers'
   await page.click('#btn-next');
   // Update 12: the appearance step is a human avatar builder with sliders.
   await page.waitForSelector('#coach-avatar-preview');
-  await page.$eval('[data-app="skin"]', (el) => { el.value = '5'; el.dispatchEvent(new Event('input')); });
+  await page.click('[data-app="skin"][data-v="5"]');
   await page.click('#btn-next');
   await page.waitForSelector('[data-arch]');
   const nextDisabled = await page.$eval('#btn-next', (b) => b.disabled);
