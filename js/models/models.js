@@ -351,7 +351,7 @@
         if (t.includes('mileage-heavy')) key = 'high-mileage';
         else if (t.includes('low-mileage')) key = 'speed';
         else if (this.archetype === 'Developer') key = 'polarized';
-        else if (this.archetype === 'Tactician') key = 'threshold';
+        else if (this.archetype === 'Tactician') key = 'strength-endurance';
         else if (this.lactateThreshold >= 70) key = 'norwegian';
         else if ((this.id || '').length) key = TP[(this.id.charCodeAt(this.id.length - 1)) % TP.length].key;
         this.trainingPhilosophy = key;
@@ -366,9 +366,13 @@
         else if ((this.id || '').length) key = RP[(this.id.charCodeAt(this.id.length - 1)) % RP.length].key;
         this.racePhilosophy = key;
       }
-      // Validate against the current catalogs (defensive).
-      if (!window.XCD.data.trainingPhilosophy(this.trainingPhilosophy)) this.trainingPhilosophy = 'balanced';
-      if (!window.XCD.data.racePhilosophy(this.racePhilosophy)) this.racePhilosophy = 'even';
+      // Threshold Focus was folded into the Norwegian Method (its closest
+      // relative): coaches who ran it carry on with that.
+      if (this.trainingPhilosophy === 'threshold') this.trainingPhilosophy = 'norwegian';
+      // Validate against the current catalogs (the lookups fall back to a
+      // default for unknown keys, so compare the key that comes back).
+      if (window.XCD.data.trainingPhilosophy(this.trainingPhilosophy).key !== this.trainingPhilosophy) this.trainingPhilosophy = 'balanced';
+      if (window.XCD.data.racePhilosophy(this.racePhilosophy).key !== this.racePhilosophy) this.racePhilosophy = 'even';
     }
 
     // Saves from before Update 2: derive the new fields from what exists.
