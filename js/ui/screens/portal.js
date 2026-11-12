@@ -10,6 +10,7 @@
   const Portal = () => window.XCD.engine.Portal;
 
   let activeGender = 'M';
+  let statusFilter = 'all'; // all | open | mine | done
 
   // Is the player allowed to work the current window?
   function playerEligible(game) {
@@ -170,32 +171,69 @@
     });
   }
 
+  /* ---------------- Closed window ----------------
+   * Between windows the screen is a briefing: when the next window opens,
+   * how the last one went for the country and for the player's program, who
+   * on the roster might leave next, and how the two windows work.
+   */
+  function renderClosed(game, container) {
+    const P = Portal();
+    const school = game.getPlayerSchool();
+    const last = (game.history.portalSummaries || {})[game.year - 1] || null;
+    const summers = game.history.summerPortals || {};
+    const lastSummer = summers[game.year] || summers[game.year - 1] || null;
+    const haul = last && last.inBySchool && last.inBySchool[school.id];
+    const lost = (last && last.outBySchool && last.outBySchool[school.id]) || 0;
+    const weeksOut = P.ENTRY_WEEK - game.week;
+
+    // Who might leave next: the roster's highest transfer risks.
+    const risks = ['M', 'W'].flatMap((g) => game.getRoster(school.id, g))
+      .map((a) => ({ a, r: P.transferRisk(game, a) }))
+      .filter((x) => x.r && !x.r.graduating && (x.r.score || 0) > 0)
+      .sort((x, y) => (y.r.score || 0) - (x.r.score || 0));
+    const worried = risks.filter((x) => (x.r.score || 0) >= 35);
+    const riskRows = (worried.length ? worried : risks).slice(0, 6).map(({ a, r }) => UI.listRow({
+      badge: UI.avatar(a, { size: 40 }),
+      title: Utils.escapeHtml(a.fullName),
+      tag: `${a.gender === 'M' ? 'Men' : 'Women'} · ${a.classYear}`,
+      sub: `${Math.round(a.currentOverall)} OVR${(r.reasons || []).length ? ` · ${Utils.escapeHtml(r.reasons[0].label || r.reasons[0])}` : ''}`,
+      meta: `<div style="color:${r.level.color}; font-weight:700;">${r.level.label}</div><div class="small">transfer risk</div>`,
+      attrs: { ath: a.id }
+    }));
+
+    const tile = (label, value, sub) => `<div class="stat-tile"><div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
+    const how = (icon, title, text) => `<div class="card how-card"><h3>${icon} ${title}</h3><div class="note-card">${text}</div></div>`;
+    container.innerHTML = `
+      <div class="screen-header">${UI.screenTitle('Portal', 'Transfer portal · closed')}</div>
+      <div class="grid cols-4" style="margin-bottom:16px;">
+        ${tile('Window Opens', weeksOut > 0 ? `${weeksOut} wk` : `Week ${P.ENTRY_WEEK}`, weeksOut > 0 ? `Week ${P.ENTRY_WEEK}, after nationals` : 'after next season\'s nationals')}
+        ${tile('Last Cycle', last ? last.moved : '—', last ? `transfers from ${last.entries} portal entries` : 'no window has closed yet')}
+        ${tile(`${Utils.escapeHtml(school.name)} Landed`, haul ? haul.count : (last ? 0 : '—'), haul ? `best ${Math.round(haul.best)} OVR${haul.elite ? ` · ${haul.elite} elite` : ''}` : 'transfers in last cycle')}
+        ${tile(`${Utils.escapeHtml(school.name)} Lost`, last ? lost : '—', 'transfers out last cycle')}
+      </div>
+      ${UI.sectionLabel('Who Might Leave')}
+      ${riskRows.length
+        ? `<div class="card">${UI.listGroup(riskRows, { scroll: false })}
+            <div class="foot-note">Transfer risk builds from morale, playing time, development and the season the team had. Open a runner for the reasons, and what would keep them.</div></div>`
+        : '<div class="card note-card">Nobody on the roster is thinking about leaving right now.</div>'}
+      ${UI.sectionLabel('How the Portal Works')}
+      <div class="grid cols-3">
+        ${how('🎯', 'Transfer Points', `Each window your program earns a points budget from prestige and your recruiting skill. Slide points onto portal athletes: enough points locks a commit at 100%, or divide the budget to chase several at once. A national title raises the next budget; a poor season lowers it.`)}
+        ${how('🍂', 'Fall Window', `Opens after nationals (Week ${P.ENTRY_WEEK}) and closes at Week ${P.DECISION_WEEK}. Every division can recruit it. A transfer costs the athlete a year of eligibility.`)}
+        ${how('☀️', 'Summer Window', `Weeks 1-${P.SUMMER_FINAL_WEEK}, for Division II and III programs only, stocked with Division I roster cuts.${lastSummer ? ` Last summer ${lastSummer.entries} cuts entered and ${lastSummer.placed} found a new program.` : ''}`)}
+      </div>`;
+    container.querySelectorAll('[data-ath]').forEach((el) => {
+      el.addEventListener('click', () => UI.openAthlete(game, el.dataset.ath));
+    });
+  }
+
   /* ---------------- Main render ---------------- */
   function render(container) {
     const game = UI.state.game;
     const portal = game.portal;
     const P = Portal();
 
-    if (!portal) {
-      const lastSummary = game.history.portalSummaries &&
-        game.history.portalSummaries[game.year - 1];
-      const lastSummer = game.history.summerPortals &&
-        (game.history.summerPortals[game.year] || game.history.summerPortals[game.year - 1]);
-      container.innerHTML = `
-        <div class="screen-header">${UI.screenTitle('Portal', 'Transfer portal · closed')}</div>
-        <div class="card" style="color:var(--text-dim);">
-          The portal window opens after nationals (Week ${P.ENTRY_WEEK}) and closes at
-          Week ${P.DECISION_WEEK}. ${lastSummary ? `Last cycle: ${lastSummary.entries} entries, ${lastSummary.moved} transfers.` : ''}
-          <br><br>🎯 <strong>Transfer Points:</strong> each window your program earns a points budget from
-          prestige and your recruiting skill. Slide points onto portal athletes — enough points locks a
-          commit at 100%, or divide the budget to chase several at once. Winning a national title raises
-          next window's budget; a poor season lowers it.
-          <br><br>☀️ The <strong>summer window</strong> (Weeks 1-${P.SUMMER_FINAL_WEEK}) reopens the portal
-          exclusively for Division II and III programs, stocked with Division I roster cuts.
-          ${lastSummer ? `Last summer: ${lastSummer.entries} cuts entered, ${lastSummer.placed} continued their careers at DII/DIII programs.` : ''}
-        </div>`;
-      return;
-    }
+    if (!portal) { renderClosed(game, container); return; }
     const summer = !!portal.summer;
     const eligible = playerEligible(game);
     const pp = eligible ? P.ensurePlayerPoints(game) : (portal.player || null);
@@ -207,6 +245,12 @@
 
     const pursuing = portal.entries.filter((e) => !e.destination && e.offers.includes(game.playerSchoolId)).length;
     const myDepartures = portal.entries.filter((e) => e.fromSchoolId === game.playerSchoolId);
+    // Status filter: everyone, still deciding, the player's targets, committed.
+    const inStatus = (e, id) => id === 'all' ? true
+      : id === 'open' ? !e.destination
+      : id === 'mine' ? e.offers.includes(game.playerSchoolId) || e.destination === game.playerSchoolId
+      : !!e.destination;
+    const statusCount = (id) => entries.filter((x) => inStatus(x.e, id)).length;
 
     container.innerHTML = `
       <div class="screen-header">
@@ -220,19 +264,18 @@
         </div>
       </div>
 
-      ${eligible && pp ? `
-      <div class="grid cols-3" style="margin-bottom:16px;">
-        <div class="stat-tile"><div class="label">Transfer Points</div><div class="value">${ptsLeft}</div><div class="sub">of ${pp.budget} this window</div></div>
-        <div class="stat-tile"><div class="label">Pursuing</div><div class="value">${pursuing}</div><div class="sub">of ${P.PLAYER_OFFER_LIMIT} max</div></div>
-        <div class="stat-tile"><div class="label">Budget Source</div>
-          <div class="value" style="font-size:15px;">${pp.titleBonus ? ':trophy-national: Title boost' : pp.seasonAdj ? '📉 Down season' : '📊 Standard'}</div>
-          <div class="sub">prestige + recruiting${pp.titleBonus ? ` +${pp.titleBonus}` : ''}${pp.seasonAdj ? ` ${pp.seasonAdj}` : ''}</div></div>
+      <div class="grid cols-4" style="margin-bottom:16px;">
+        ${eligible && pp ? `
+        <div class="stat-tile"><div class="label">Transfer Points</div><div class="value">${ptsLeft}</div>
+          <div class="sub">of ${pp.budget} · ${pp.titleBonus ? `title boost +${pp.titleBonus}` : pp.seasonAdj ? `down season ${pp.seasonAdj}` : 'prestige + recruiting'}</div></div>
+        <div class="stat-tile"><div class="label">Pursuing</div><div class="value">${pursuing}</div><div class="sub">of ${P.PLAYER_OFFER_LIMIT} max</div></div>` : `
+        <div class="stat-tile"><div class="label">Window</div><div class="value">${portal.open ? 'Open' : 'Closed'}</div><div class="sub">${summer ? 'Division II and III only' : `decisions by Week ${P.DECISION_WEEK}`}</div></div>
+        <div class="stat-tile"><div class="label">Committed</div><div class="value">${portal.entries.filter((e) => e.destination).length}</div><div class="sub">have picked a new program</div></div>`}
+        <div class="stat-tile"><div class="label">In the Portal</div><div class="value">${portal.entries.length}</div>
+          <div class="sub">${portal.entries.filter((e) => !e.destination).length} still deciding</div></div>
+        <div class="stat-tile"><div class="label">Leaving You</div><div class="value">${myDepartures.length}</div>
+          <div class="sub">${myDepartures.length ? `${myDepartures.filter((e) => e.destination).length} have committed elsewhere` : 'nobody from your roster'}</div></div>
       </div>
-      <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent); padding:10px 14px; font-size:13px;">
-        🎯 Tap an athlete to open their pursuit profile, then slide points onto them.
-        Enough points <strong>locks the commit at 100%</strong> — or divide the budget across several targets
-        and take your chances when the window closes. Matching an athlete's preferences makes them cheaper to land.
-      </div>` : ''}
 
       ${summer ? `
         <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent); padding:10px 14px; font-size:13px;">
@@ -243,18 +286,34 @@
         </div>` : ''}
       ${UI.followersCard ? UI.followersCard(game) : ''}
       ${myDepartures.length ? `
-        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--danger);">
-          <h2>Leaving Your Program</h2>
-          ${myDepartures.map((e) => {
+        ${UI.sectionLabel('Leaving Your Program')}
+        <div class="card" style="margin-bottom:4px;">
+          ${UI.listGroup(myDepartures.map((e) => {
             const a = game.getAthlete(e.athleteId);
             if (!a) return '';
-            return `<div class="attr-row"><span>${UI.personName(game, 'ath', a.id, a.fullName, { person: a, link: false })} (${a.currentOverall} OVR, ${a.classYear})</span>
-              <span style="color:var(--text-dim);">${Utils.escapeHtml(e.reason)}</span>
-              <span>${e.destination ? '→ ' + Utils.escapeHtml(game.getSchool(e.destination)?.name || '?') : (portal.open ? 'Deciding...' : 'Staying')}</span></div>`;
-          }).join('')}
+            const to = e.destination && game.getSchool(e.destination);
+            return UI.listRow({
+              badge: UI.avatar(a, { size: 40 }),
+              title: Utils.escapeHtml(a.fullName),
+              tag: `${a.gender === 'M' ? 'Men' : 'Women'} · ${a.classYear}`,
+              sub: `${Math.round(a.currentOverall)} OVR · ${Utils.escapeHtml(e.reason)}`,
+              meta: to ? `<div style="color:var(--danger); font-weight:700;">→ ${Utils.escapeHtml(to.name)}</div><div class="small">committed</div>`
+                : `<div>${portal.open ? 'Deciding' : 'Staying'}</div><div class="small">${e.offers.length} school${e.offers.length === 1 ? '' : 's'} pursuing</div>`,
+              attrs: { ath: a.id }
+            });
+          }), { scroll: false })}
         </div>` : ''}
 
-      <div class="card"><div id="portal-table"></div></div>`;
+      ${UI.sectionLabel(summer ? 'Division I Cuts' : 'The Portal')}
+      <div class="filter-bar">
+        <div class="pill-tabs" id="portal-status">
+          ${[['all', 'All'], ['open', 'Deciding'], ['mine', 'My Targets'], ['done', 'Committed']].map(([id, label]) =>
+            `<button data-pstatus="${id}" class="${statusFilter === id ? 'active' : ''}">${label} <span class="pill-count">${statusCount(id)}</span></button>`).join('')}
+        </div>
+        <span class="count-note">${entries.length} ${activeGender === 'M' ? 'men' : 'women'} in the portal</span>
+      </div>
+      <div class="card"><div id="portal-table"></div></div>
+      <div class="foot-note">${eligible && pp ? 'Tap a runner to slide points onto them: enough points locks the commit at 100%, or divide the budget across several targets. ' : ''}A transfer costs a year of eligibility, so Elig is the seasons a runner would give your program. Matching a runner's preferences makes them cheaper to land.</div>`;
 
     // Eligibility a transfer will actually give the new program. Transferring
     // costs a year — the athlete ages a class at the rollover — so a fall
@@ -286,7 +345,8 @@
     };
 
     const table = UI.renderSortableTable(container.querySelector('#portal-table'), {
-      rows: entries.map(({ e, a }) => ({
+      emptyMessage: 'Nobody in the portal matches this filter.',
+      rows: entries.filter((x) => inStatus(x.e, statusFilter)).map(({ e, a }) => ({
         e, a,
         name: a.fullName,
         lastName: a.lastName,
@@ -322,7 +382,7 @@
           </div>
           <div class="m-actions">${statusHtml(r)}</div>`,
       columns: [
-        { key: 'name', label: 'Runner', render: (r) => `${UI.avatar(r.a, { size: 24 })} <strong>${Utils.escapeHtml(r.name)}</strong>` },
+        { key: 'name', label: 'Runner', grow: true, sortValue: (r) => `${r.lastName} ${r.firstName}`, render: (r) => `<span class="name-cell">${UI.avatar(r.a, { size: 24 })} <strong>${Utils.escapeHtml(r.name)}</strong></span>` },
         { key: 'classYear', label: 'Class' },
         {
           key: 'eligLeft', label: 'Elig', numeric: true,
@@ -355,6 +415,12 @@
       if (entry) showPursuit(game, entry, container);
     }, true);
 
+    container.querySelectorAll('[data-pstatus]').forEach((btn) => {
+      btn.addEventListener('click', () => { statusFilter = btn.dataset.pstatus; render(container); });
+    });
+    container.querySelectorAll('.lrow[data-ath]').forEach((el) => {
+      el.addEventListener('click', () => UI.openAthlete(game, el.dataset.ath));
+    });
     container.querySelector('#g-m').addEventListener('click', () => { activeGender = 'M'; render(container); });
     container.querySelector('#g-w').addEventListener('click', () => { activeGender = 'W'; render(container); });
     const followersBtn = container.querySelector('[data-open-followers]');
@@ -366,6 +432,7 @@
   // leaving a tab and coming back always lands on its default view.
   function reset() {
     activeGender = 'M';
+    statusFilter = 'all';
   }
 
   UI.screens.portal = { render, reset };

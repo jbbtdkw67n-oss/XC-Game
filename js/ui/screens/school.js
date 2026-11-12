@@ -146,6 +146,7 @@
         <div class="actions">
           <div class="pill-tabs">
             <button data-stab="overview" class="${activeTab === 'overview' ? 'active' : ''}">Overview</button>
+            <button data-stab="staff" class="${activeTab === 'staff' ? 'active' : ''}">Staff</button>
             <button data-stab="history" class="${activeTab === 'history' ? 'active' : ''}">History</button>
           </div>
           <span style="color:var(--text-dim); font-size:13px;">
@@ -157,6 +158,7 @@
 
     const body = container.querySelector('#school-body');
     if (activeTab === 'history') renderHistoryTab(game, school, body);
+    else if (activeTab === 'staff') renderStaffTab(game, school, coach, body, container);
     else renderOverview(game, school, coach, body, container);
 
     container.querySelectorAll('[data-stab]').forEach((btn) => {
@@ -725,6 +727,288 @@
   }
 
   /* ---------------- Overview tab ---------------- */
+  // One staff member: avatar, role, name, a line of identity, and the OVR.
+  function staffCard(c, role, you, actions) {
+    return `
+      <div class="staff-card ${you ? 'you' : ''}">
+        <div class="staff-top">
+          ${UI.avatar(c, { size: 52, outfit: 'suit' })}
+          <div class="staff-id">
+            <div class="staff-role">${role}${you ? ' · You' : ''}${c.interim ? ' · <span style="color:var(--warning);">Interim</span>' : ''}</div>
+            <div class="staff-name ${you ? '' : 'clickable'}" ${you ? '' : 'id="btn-partner-coach"'}>${Utils.escapeHtml(c.fullName)}</div>
+            <div class="staff-sub">${Utils.escapeHtml(c.archetype || '')} · Age ${c.age} · Year ${(c.yearsAtSchool || 0) + 1}</div>
+          </div>
+          <div class="staff-ovr">${UI.ratingBadge(c.overallRating)}<span>OVR</span></div>
+        </div>
+        ${actions ? `<div class="staff-actions">${actions}</div>` : ''}
+      </div>`;
+  }
+
+  /* ================================================================ *
+   * Staff tab: the staff you have and the market you can hire from.
+   *   Your Staff    — head coach and assistant, and what the assistant adds
+   *   Staff Market  — applicants, free agents, assistants on other staffs
+   *                   and head coaches at smaller programs, with the
+   *                   program's hiring reach and each coach's interest
+   * ================================================================ */
+  const STAFF_SOURCES = [
+    ['all', 'All'],
+    ['applicant', 'Applicants'],
+    ['freeAgent', 'Free Agents'],
+    ['assistant', 'Assistants'],
+    ['head', 'Head Coaches']
+  ];
+  const SOURCE_LABEL = { applicant: 'Applicant', freeAgent: 'Free agent', assistant: 'Assistant', head: 'Head coach' };
+  // The crafts an assistant brings, and what each one does for the program.
+  const STAFF_CRAFTS = [
+    ['recruiting', 'Rec', 'Recruiting: adds weekly recruiting points'],
+    ['training', 'Dev', 'Development: multiplies weekly development'],
+    ['peaking', 'Peak', 'Peaking: sharpens championship race day'],
+    ['culture', 'Cul', 'Culture: feeds squad chemistry'],
+    ['motivation', 'Mot', "Motivation: lifts struggling athletes' morale"],
+    ['relationships', 'Com', 'Communication: bonds that keep athletes home'],
+    ['talentEval', 'Eval', 'Evaluation: scouting accuracy']
+  ];
+  const staffView = { source: 'all', query: '', reachable: false };
+
+  function interestChip(row) {
+    if (row.locked) return `<span class="interest-chip locked" title="${Utils.escapeHtml(row.locked)}">🔒 Out of reach</span>`;
+    if (row.declined) return '<span class="interest-chip no" title="Turned the job down this offseason">Said no</span>';
+    if (row.source === 'applicant') return '<span class="interest-chip yes" title="Applied for the job: a yes if you offer">Applied</span>';
+    const tier = row.interest >= 70 ? 'yes' : row.interest >= 40 ? 'maybe' : 'low';
+    return `<span class="interest-chip ${tier}" title="Interest: the chance this coach accepts your offer">${row.interest}%</span>`;
+  }
+
+  // Where a candidate is now: their job, or how they reached the market.
+  function nowLine(row) {
+    const c = row.coach;
+    if (row.from) {
+      return `${SOURCE_LABEL[row.source]} · <span class="clickable" data-school="${row.from.id}">${Utils.escapeHtml(row.from.name)}</span> <span style="color:var(--text-faint);">${row.from.prestige} prestige</span>`;
+    }
+    return Utils.escapeHtml(c.origin || SOURCE_LABEL[row.source]);
+  }
+
+  function renderStaffTab(game, school, coach, body, outerContainer) {
+    const Coaching = window.XCD.engine.Coaching;
+    const D = window.XCD.data;
+    const isHead = coach.role !== 'Assistant';
+    const partnerId = isHead ? school.assistantId : school.coachId;
+    const partner = partnerId && partnerId !== coach.id ? game.getCoach(partnerId) : null;
+    const assistant = isHead ? partner : coach;
+    const market = isHead ? Coaching.staffMarket(game) : null;
+    const rerender = () => render(outerContainer);
+
+    const tile = (label, value, sub) => `<div class="stat-tile"><div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
+    let tiles = '';
+    if (market) {
+      const r = market.reach;
+      const gate = market.gate;
+      const open = market.rows.filter((x) => !x.locked && !x.declined).length;
+      tiles = `
+        <div class="grid cols-4" style="margin-bottom:16px;">
+          ${tile('Hiring Reach', r.cap, `highest reputation you can attract`)}
+          ${tile('Staff Hire', gate.ok ? (gate.vacancy ? 'Vacancy' : 'Open') : (game.staffHiredYear === game.year ? 'Used' : 'Closed'),
+            gate.ok ? (gate.vacancy ? 'fill the empty chair any time' : 'one hire this offseason') : (game.staffHiredYear === game.year ? 'one hire per offseason' : 'opens in the offseason'))}
+          ${tile('Assistant', assistant ? UI.ratingBadge(assistant.overallRating) : '—',
+            assistant ? `${Utils.escapeHtml(assistant.fullName)} · year ${(assistant.yearsAtSchool || 0) + 1}` : 'the chair is empty')}
+          ${tile('On the Market', open, `${market.counts.applicant} applicants · ${market.counts.freeAgent} free agents · ${market.counts.assistant + market.counts.head} with jobs`)}
+        </div>`;
+    }
+
+    // What the assistant adds, one craft per chip.
+    const crafts = (c) => `<div class="craft-row">${STAFF_CRAFTS.map(([k, short, tip]) =>
+      `<span class="craft" title="${tip}"><span class="k">${short}</span>${UI.ratingBadge(c[k] ?? 55)}</span>`).join('')}</div>`;
+    const mine = staffCard(coach, isHead ? 'Head Coach' : 'Assistant Coach', true,
+      '<button class="btn small" id="btn-coach-profile">Full Profile</button>');
+    const other = partner
+      ? staffCard(partner, partner.role === 'Assistant' ? 'Assistant Coach' : 'Head Coach', false,
+        `<button class="btn small" id="btn-partner-profile">Profile</button>`) 
+      : (isHead ? `
+        <div class="staff-card vacant">
+          <div class="staff-role">Assistant Coach</div>
+          <div class="staff-name" style="color:var(--warning);">⚠️ Vacant</div>
+          <div class="staff-sub">Recruiting, development and chemistry all lean on the staff. Hire from the market below.</div>
+        </div>` : '');
+    const asstRep = assistant ? (assistant.reputationLevel || {}) : {};
+    const asstImpact = assistant ? `
+      <div class="card" style="margin-top:12px;">
+        <div class="cr-home-head">
+          <div>
+            <h3 style="margin:0;">What ${Utils.escapeHtml(assistant.fullName)} adds</h3>
+            <div class="cr-home-sub">${asstRep.icon || ''} ${Utils.escapeHtml(asstRep.label || '')} · reputation ${Math.round(assistant.reputation || 0)}${assistant.origin ? ` · ${Utils.escapeHtml(assistant.origin)}` : ''}</div>
+          </div>
+        </div>
+        ${crafts(assistant)}
+        <div class="foot-note">Dev multiplies weekly development, Rec adds recruiting points, Cul feeds chemistry, Mot lifts struggling athletes, and Peak sharpens championship day.</div>
+      </div>` : '';
+
+    body.innerHTML = `
+      ${tiles}
+      ${UI.sectionLabel('Your Staff')}
+      <div class="staff-grid">${mine}${other}</div>
+      ${asstImpact}
+      ${UI.sectionLabel('Staff Market')}
+      <div id="staff-market"></div>`;
+
+    const profileBtn = body.querySelector('#btn-coach-profile');
+    if (profileBtn) profileBtn.addEventListener('click', () => UI.showCoachCard(coach, game));
+    body.querySelectorAll('#btn-partner-profile, #btn-partner-coach').forEach((el) => {
+      el.addEventListener('click', () => { if (partner) UI.showCoachCard(partner, game); });
+    });
+
+    const mEl = body.querySelector('#staff-market');
+    if (!market) {
+      mEl.innerHTML = `<div class="card" style="color:var(--text-dim); font-size:13px;">Only a head coach hires the staff. Earn a head-coaching job and the market opens here.</div>`;
+      return;
+    }
+
+    const gate = market.gate;
+    const r = market.reach;
+    const count = (id) => id === 'all' ? market.rows.length : market.counts[id] || 0;
+    mEl.innerHTML = `
+      ${gate.ok ? '' : `<div class="card note-warn" style="margin-bottom:12px;">🔒 ${Utils.escapeHtml(gate.why)} You can still scout the market.</div>`}
+      <div class="filter-bar">
+        <div class="pill-tabs" id="staff-source">
+          ${STAFF_SOURCES.map(([id, label]) => `<button data-staff-src="${id}" class="${staffView.source === id ? 'active' : ''}">${label} <span class="pill-count">${count(id)}</span></button>`).join('')}
+        </div>
+        <input type="text" id="staff-search" class="search-input" placeholder="Search coaches, schools…" value="${Utils.escapeHtml(staffView.query)}">
+        <label class="check-pill"><input type="checkbox" id="staff-reachable" ${staffView.reachable ? 'checked' : ''}> Within reach</label>
+        <span id="staff-count" class="count-note"></span>
+      </div>
+      <div id="staff-table"></div>
+      <div class="foot-note" style="margin-top:10px;">
+        <strong>Hiring reach ${r.cap}</strong> = program prestige (${r.parts.program}) + your reputation (${r.parts.name}) + Staff Management (${r.parts.staff >= 0 ? '+' : ''}${r.parts.staff}) + ${r.parts.base}. A coach whose reputation is above it will not take your assistant's chair.
+        An assistant only leaves a job for a program at least ${Coaching.STAFF_STEP_UP} prestige bigger; a head coach gives up their own program only for one at least ${Coaching.STAFF_HEAD_GAP} bigger.
+        Interest is the chance a coach says yes. A no keeps your hire open, and that coach will not reconsider this offseason.
+      </div>`;
+
+    const filtered = () => {
+      const q = staffView.query.trim().toLowerCase();
+      return market.rows.filter((row) => {
+        if (staffView.source !== 'all' && row.source !== staffView.source) return false;
+        if (staffView.reachable && (row.locked || row.declined)) return false;
+        if (q && !(`${row.coach.fullName} ${row.from ? row.from.name : ''} ${row.coach.origin || ''} ${row.coach.archetype || ''}`.toLowerCase().includes(q))) return false;
+        return true;
+      });
+    };
+    const offerBtn = (row) => {
+      const off = !gate.ok || row.locked || row.declined;
+      const why = !gate.ok ? gate.why : row.locked || (row.declined ? 'Turned the job down this offseason' : '');
+      return `<button class="btn small primary" data-hire="${row.key}" ${off ? `disabled title="${Utils.escapeHtml(why)}"` : ''}>${row.source === 'applicant' || row.source === 'freeAgent' ? 'Hire' : 'Offer'}</button>`;
+    };
+    const cell = (k) => ({ key: k[0], label: k[1], numeric: true, sortValue: (row) => row.coach[k[0]] ?? 55, render: (row) => UI.ratingBadge(row.coach[k[0]] ?? 55) });
+    const columns = [
+      { key: 'name', label: 'Coach', grow: true, sortValue: (row) => row.coach.lastName || row.coach.fullName, render: (row) => `
+        <div class="coach-cell">${UI.avatar(row.coach, { size: 30, outfit: 'suit' })}
+          <div><strong>${Utils.escapeHtml(row.coach.fullName)}</strong>
+          <div class="coach-cell-sub">${nowLine(row)}</div></div></div>` },
+      { key: 'age', label: 'Age', numeric: true, sortValue: (row) => row.coach.age, render: (row) => row.coach.age },
+      { key: 'ovr', label: 'OVR', numeric: true, sortValue: (row) => row.coach.overallRating, render: (row) => UI.ratingBadge(row.coach.overallRating) },
+      cell(STAFF_CRAFTS[0]), cell(STAFF_CRAFTS[1]), cell(STAFF_CRAFTS[2]), cell(STAFF_CRAFTS[3]),
+      { key: 'rep', label: 'Rep', numeric: true, sortValue: (row) => row.coach.reputation || 0, render: (row) => Math.round(row.coach.reputation || 0) },
+      { key: 'interest', label: 'Interest', numeric: true, sortValue: (row) => row.locked ? -2 : row.declined ? -1 : row.interest, render: (row) => interestChip(row) },
+      { key: 'act', label: '', sortValue: () => 0, render: (row) => `<div class="row-actions">${offerBtn(row)}<button class="btn small" data-view-cand="${row.key}">Profile</button></div>` }
+    ];
+    const card = (row) => `
+      <div class="m-head">
+        <div class="m-title">${UI.avatar(row.coach, { size: 26, outfit: 'suit' })} ${Utils.escapeHtml(row.coach.fullName)}
+          <div class="m-sub">${nowLine(row)} · age ${row.coach.age} · rep ${Math.round(row.coach.reputation || 0)}</div>
+        </div>
+        <div class="m-badge">${UI.ratingBadge(row.coach.overallRating)}</div>
+      </div>
+      ${`<div class="craft-row">${STAFF_CRAFTS.map(([k, short, tip]) => `<span class="craft" title="${tip}"><span class="k">${short}</span>${UI.ratingBadge(row.coach[k] ?? 55)}</span>`).join('')}</div>`}
+      <div class="m-actions">${interestChip(row)}<span style="flex:1;"></span>${offerBtn(row)}<button class="btn small" data-view-cand="${row.key}">Profile</button></div>`;
+
+    const tableEl = mEl.querySelector('#staff-table');
+    const countEl = mEl.querySelector('#staff-count');
+    let rows = filtered();
+    const table = UI.renderSortableTable(tableEl, {
+      columns, rows,
+      defaultSort: 'ovr', defaultDir: 'desc',
+      maxRows: 200,
+      cardsOnDesktop: false,
+      emptyMessage: 'No coaches match the current filters.',
+      rowClass: (row) => row.locked || row.declined ? 'dimmed' : '',
+      mobileCard: card
+    });
+    const apply = () => {
+      rows = filtered();
+      countEl.textContent = `${rows.length} of ${market.rows.length}`;
+      table.setRows(rows);
+    };
+    countEl.textContent = `${rows.length} of ${market.rows.length}`;
+
+    mEl.querySelectorAll('[data-staff-src]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        staffView.source = btn.dataset.staffSrc;
+        mEl.querySelectorAll('[data-staff-src]').forEach((b) => b.classList.toggle('active', b === btn));
+        apply();
+      });
+    });
+    mEl.querySelector('#staff-search').addEventListener('input', (e) => { staffView.query = e.target.value; apply(); });
+    mEl.querySelector('#staff-reachable').addEventListener('change', (e) => { staffView.reachable = e.target.checked; apply(); });
+
+    // One listener for the whole market: profile, school, and the offer.
+    const byKey = (key) => market.rows.find((row) => row.key === key);
+    tableEl.addEventListener('click', (ev) => {
+      const view = ev.target.closest('[data-view-cand]');
+      if (view) { const row = byKey(view.dataset.viewCand); if (row) UI.showCoachCard(row.coach, game); return; }
+      const sch = ev.target.closest('[data-school]');
+      if (sch) { const s = game.getSchool(sch.dataset.school); if (s) UI.showSchoolCard(s, game); return; }
+      const hire = ev.target.closest('[data-hire]');
+      if (hire && !hire.disabled) { const row = byKey(hire.dataset.hire); if (row) confirmStaffOffer(game, school, assistant, row, rerender); }
+    });
+  }
+
+  // The offer, laid out before it is made: the candidate against the coach
+  // they would replace, what a yes costs, and what a no costs.
+  function confirmStaffOffer(game, school, current, row, rerender) {
+    const c = row.coach;
+    const sure = row.source === 'applicant';
+    const line = (k, short, tip) => {
+      const a = Math.round(c[k] ?? 55);
+      const b = current ? Math.round(current[k] ?? 55) : null;
+      const d = b == null ? '' : a === b ? '<span class="delta flat">–</span>'
+        : `<span class="delta ${a > b ? 'up' : 'down'}">${a > b ? '▲' : '▼'}${Math.abs(a - b)}</span>`;
+      return `<tr title="${tip}"><td>${short}</td><td class="num">${UI.ratingBadge(a)}</td><td class="num">${b == null ? '—' : UI.ratingBadge(b)}</td><td class="num">${d}</td></tr>`;
+    };
+    const stakes = [];
+    if (current) stakes.push(`<strong>${Utils.escapeHtml(current.fullName)}</strong> is let go to make room.`);
+    if (row.source === 'head') stakes.push(`${Utils.escapeHtml(row.from.name)} loses its head coach and opens a search.`);
+    if (row.source === 'assistant') stakes.push(`${Utils.escapeHtml(row.from.name)} has to replace its assistant.`);
+    stakes.push(sure ? 'They applied for the job, so this is a yes.'
+      : `Interest is <strong>${row.interest}%</strong>. If they say no, your hire stays open and they will not reconsider this offseason.`);
+    UI.showModal(`
+      <button class="btn small modal-close" data-modal-close>✕ Close</button>
+      <h2 style="margin:0 0 2px;">${sure || row.source === 'freeAgent' ? 'Hire' : 'Make an offer to'} ${Utils.escapeHtml(c.fullName)}</h2>
+      <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">${nowLine(row)} · age ${c.age} · reputation ${Math.round(c.reputation || 0)}</div>
+      <div class="pair-grid" style="margin-bottom:12px;">
+        <div class="stat-tile"><div class="label">Candidate</div><div class="value">${UI.ratingBadge(c.overallRating)}</div><div class="sub">${Utils.escapeHtml(c.fullName)}</div></div>
+        <div class="stat-tile"><div class="label">Current assistant</div><div class="value">${current ? UI.ratingBadge(current.overallRating) : '—'}</div><div class="sub">${current ? Utils.escapeHtml(current.fullName) : 'the chair is empty'}</div></div>
+      </div>
+      <div class="card" style="padding:12px; margin-bottom:12px;">
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th class="col-grow">Craft</th><th class="num">Candidate</th><th class="num">Current</th><th class="num">Change</th></tr></thead>
+          <tbody>${STAFF_CRAFTS.map(([k, short, tip]) => line(k, tip.split(':')[0], tip)).join('')}</tbody>
+        </table></div>
+      </div>
+      <ul class="stakes">${stakes.map((t) => `<li>${t}</li>`).join('')}</ul>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
+        <button class="btn" data-modal-close-2>Cancel</button>
+        <button class="btn primary" id="btn-confirm-hire">${sure || row.source === 'freeAgent' ? 'Hire' : 'Make the offer'}</button>
+      </div>
+    `, (modal) => {
+      modal.querySelector('[data-modal-close-2]').addEventListener('click', UI.closeModal);
+      modal.querySelectorAll('[data-school]').forEach((el) => el.classList.remove('clickable'));
+      modal.querySelector('#btn-confirm-hire').addEventListener('click', () => {
+        const res = window.XCD.engine.Coaching.offerAssistantJob(game, row.key);
+        UI.closeModal();
+        UI.toast(res.message, res.ok ? 'success' : 'error');
+        rerender();
+      });
+    });
+  }
+
   function renderOverview(game, school, coach, container, outerContainer) {
     const b = school.budget;
     const h = school.historicalSuccess;
@@ -759,19 +1043,7 @@
         const partnerId = coach.role === 'Assistant' ? school.coachId : school.assistantId;
         const partner = partnerId && partnerId !== coach.id ? game.getCoach(partnerId) : null;
         const isHead = coach.role !== 'Assistant';
-        const card = (c, role, you, actions) => `
-          <div class="staff-card ${you ? 'you' : ''}">
-            <div class="staff-top">
-              ${UI.avatar(c, { size: 52, outfit: 'suit' })}
-              <div class="staff-id">
-                <div class="staff-role">${role}${you ? ' · You' : ''}${c.interim ? ' · <span style="color:var(--warning);">Interim</span>' : ''}</div>
-                <div class="staff-name ${you ? '' : 'clickable'}" ${you ? '' : 'id="btn-partner-coach"'}>${Utils.escapeHtml(c.fullName)}</div>
-                <div class="staff-sub">${Utils.escapeHtml(c.archetype || '')} · Age ${c.age} · Year ${(c.yearsAtSchool || 0) + 1}</div>
-              </div>
-              <div class="staff-ovr">${UI.ratingBadge(c.overallRating)}<span>OVR</span></div>
-            </div>
-            ${actions ? `<div class="staff-actions">${actions}</div>` : ''}
-          </div>`;
+        const card = staffCard;
         const mine = card(coach, isHead ? 'Head Coach' : 'Assistant Coach', true, [
           '<button class="btn small" id="btn-coach-profile">Full Profile</button>',
           window.XCD.engine.Careers.canRetire(game) ? '<button class="btn small" id="btn-retire-coach" title="Retire this coach — the dynasty continues with a successor you create">🏁 Retire</button>' : ''
@@ -781,7 +1053,7 @@
         // the program stuck without an assistant (which blocks the season).
         const other = partner
           ? card(partner, partner.role === 'Assistant' ? 'Assistant Coach' : 'Head Coach', false,
-              isHead ? '<button class="btn small" id="btn-manage-staff" title="Compare assistant candidates and reshape your staff">Manage Staff</button>' : '')
+              isHead ? '<button class="btn small" id="btn-manage-staff" title="Open the staff market: applicants, free agents, and coaches on other staffs">Staff Market</button>' : '')
           : (isHead ? `
             <div class="staff-card vacant">
               <div class="staff-role">Assistant Coach</div>
@@ -965,83 +1237,9 @@
       if (partner) UI.showCoachCard(partner, game);
     });
 
-    // Staff management (Update 6, Section 9): compare candidates, hire, and
-    // let the incumbent go — head coaches only, and never an empty seat.
+    // Staff management lives on its own tab: the staff market.
     const staffBtn = container.querySelector('#btn-manage-staff');
-    if (staffBtn) staffBtn.addEventListener('click', () => {
-      const Coaching = window.XCD.engine.Coaching;
-      const current = school.assistantId && game.getCoach(school.assistantId);
-      const candidates = Coaching.assistantCandidates(game);
-      // Full comparison profiles (spec Part 2, Section 12): philosophy,
-      // every craft that feeds gameplay, experience, career record, and
-      // reputation — enough to genuinely weigh candidates.
-      const row = (c, tag, btnHtml) => {
-        const cr = c.careerRecord || {};
-        const seasons = cr.seasons || 0;
-        const veteran = !!window.XCD.ui.state.game.world.coaches[c.id];
-        const rp = (window.XCD.data.racePhilosophy(c.racePhilosophy) || {});
-        return `
-        <div class="attr-row" style="align-items:flex-start; padding:8px 0;">
-          <div style="flex:1;">
-            <div><strong>${UI.avatar(c, { size: 22, outfit: 'suit' })} ${Utils.escapeHtml(c.fullName)}</strong>
-              <span style="color:var(--text-faint); font-size:11.5px;"> ${tag}</span>
-              ${c.origin && !tag ? `<span class="rating r-good" style="font-size:10px;" title="Where this candidate comes from — every hire is a real career, not a generic name">${Utils.escapeHtml(c.origin)}</span>` : (veteran && !tag ? '<span class="rating r-good" style="font-size:10px;" title="A real free agent from the coaching pool — career history and all">Free Agent</span>' : '')}</div>
-            <div style="color:var(--text-dim); font-size:12px; margin-top:2px;">
-              Age ${c.age} • ${Utils.escapeHtml(c.archetype || '')} •
-              ${Utils.escapeHtml((window.XCD.data.trainingPhilosophy(c.trainingPhilosophy) || {}).label || '')}${rp.label ? ` / ${Utils.escapeHtml(rp.label)}` : ''}
-              ${seasons ? ` • ${seasons} season${seasons > 1 ? 's' : ''} coached${cr.nationalTitles ? ` • ${cr.nationalTitles}:trophy-national:` : ''}` : ' • First job'}
-              • Rep ${Math.round(c.reputation || 0)}
-            </div>
-            <div style="font-size:12px; margin-top:3px;">
-              <span title="Recruiting pull — adds weekly recruiting points">Rec <strong>${c.recruiting}</strong></span> •
-              <span title="Development — multiplies every athlete's weekly growth">Dev <strong>${c.training}</strong></span> •
-              <span title="Peaking — sharpens championship race day">Peak <strong>${c.peaking}</strong></span> •
-              <span title="Culture — feeds squad chemistry">Cul <strong>${c.culture}</strong></span> •
-              <span title="Motivation — lifts struggling athletes' morale">Mot <strong>${c.motivation ?? 55}</strong></span> •
-              <span title="Communication — bonds that keep athletes home">Com <strong>${c.relationships ?? 55}</strong></span> •
-              <span title="Scouting accuracy">Eval <strong>${c.talentEval}</strong></span>
-            </div>
-          </div>
-          <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">${btnHtml}</div>
-        </div>`;
-      };
-      const gate = Coaching.canHireAssistant(game);
-      UI.showModal(`
-        <button class="btn small modal-close" data-modal-close>✕ Close</button>
-        <h2>👥 Assistant Staff</h2>
-        <p style="color:var(--text-dim); font-size:12.5px; margin:6px 0 10px;">
-          Better Staff Management attracts stronger applicants. Hiring replaces your
-          current assistant, and a program makes <strong>one staff hire per offseason</strong> —
-          coaches finish the season they signed on for.
-        </p>
-        ${gate.ok ? '' : `<div style="color:var(--warning); font-size:12.5px; margin:0 0 10px;">🔒 ${gate.why}</div>`}
-        <h3>Current</h3>
-        ${current ? row(current, `• Year ${(current.yearsAtSchool || 0) + 1} on staff`, `<button class="btn small" id="btn-view-current">Profile</button>`) : '<div style="color:var(--text-dim); font-size:13px;">Vacant (a hire below fills it).</div>'}
-        <h3 style="margin-top:12px;">Candidates This Week</h3>
-        ${candidates.map((c, i) => row(c, '', `
-          <button class="btn small primary" data-hire="${i}" ${gate.ok ? '' : `disabled title="${gate.why}"`}>Hire</button>
-          <button class="btn small" data-view-cand="${i}">Profile</button>`)).join('')}
-        <div style="color:var(--text-faint); font-size:11.5px; margin-top:8px;">
-          A strong assistant genuinely matters: Dev multiplies weekly development, Rec adds recruiting
-          points, Cul feeds chemistry, Mot lifts struggling athletes, and Peak sharpens championship day.
-        </div>
-      `, (modal) => {
-        const viewBtn = modal.querySelector('#btn-view-current');
-        if (viewBtn) viewBtn.addEventListener('click', () => UI.showCoachCard(current, game));
-        modal.querySelectorAll('[data-view-cand]').forEach((btn) => {
-          btn.addEventListener('click', () => UI.showCoachCard(candidates[Number(btn.dataset.viewCand)], game));
-        });
-        modal.querySelectorAll('[data-hire]').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            const cand = candidates[Number(btn.dataset.hire)];
-            const res = window.XCD.engine.Coaching.hireAssistant(game, cand);
-            UI.toast(res.message, res.ok ? 'success' : 'error');
-            UI.closeModal();
-            if (res.ok) render(outerContainer);
-          });
-        });
-      });
-    });
+    if (staffBtn) staffBtn.addEventListener('click', () => { activeTab = 'staff'; render(outerContainer); });
 
     container.querySelectorAll('[data-train-philo]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -1106,7 +1304,13 @@
     activeTab = 'overview';
     histSub = 'archive';
     hofSort = 'legacy';
+    Object.assign(staffView, { source: 'all', query: '', reachable: false });
   }
 
-  UI.screens.school = { render, reset };
+  // Deep link: UI.navigate('school', 'staff' | 'history' | 'overview').
+  function openTab(tab) {
+    if (['overview', 'staff', 'history'].includes(tab)) activeTab = tab;
+  }
+
+  UI.screens.school = { render, reset, openTab };
 })();

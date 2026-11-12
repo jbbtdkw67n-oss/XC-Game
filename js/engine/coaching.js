@@ -663,30 +663,21 @@
     return { ok: true };
   }
 
-  function hireAssistant(gameState, candidate) {
+  // The shared install: let the incumbent go and seat the new coordinator.
+  // Every route onto the player's staff — an applicant, a free agent, a
+  // coach hired away from another program — ends here.
+  function installAssistant(gameState, candidate, wasVacancy) {
     const Legacy = window.XCD.engine.Legacy;
     const school = gameState.getPlayerSchool();
     const coach = gameState.getPlayerCoach();
-    const gate = canHireAssistant(gameState);
-    if (!gate.ok) return { ok: false, message: gate.why };
-    const wasVacancy = !!gate.vacancy;
-    // Safety net for the former-staff rule (Update 19): even if a stale
-    // candidate list slips a departed coach through, the hire itself refuses
-    // anyone who has already left this program.
-    if (candidate && Legacy.hasLeftSchool(school, candidate.id)) {
-      return { ok: false, message: `${candidate.fullName} left ${school.name} — the program won't bring them back.` };
-    }
-    const current = school.assistantId && gameState.world.coaches[school.assistantId];
-    if (current && current.isPlayer) return { ok: false, message: 'You cannot replace yourself.' };
-    if (current) {
-      Legacy.closeStint(gameState, current, school, gameState.year, 'released');
-      Legacy.recordRetiredCoach(gameState, current, 'released'); // history keeps every career (Phase 3)
-      delete gameState.world.coaches[current.id];
-      gameState.logNews(`Staff change: ${school.name} lets assistant ${current.fullName} go.`);
-    }
+    releaseCurrentAssistant(gameState);
     candidate.schoolId = school.id;
     candidate.yearsAtSchool = 0;
     candidate.role = 'Assistant';
+    candidate.hotSeat = 0;
+    candidate.hotSeatYears = 0;
+    candidate.podiumMissStreak = 0;
+    candidate.poolYears = 0;
     gameState.world.coaches[candidate.id] = candidate;
     school.assistantId = candidate.id;
     Legacy.openStint(gameState, candidate, school, gameState.year);
@@ -698,7 +689,275 @@
     gameState.assistantDeparture = null; // the vacancy is resolved (Update 16)
     if (gameState.week === 1 && gameState.week1) gameState.week1.staffConfirmed = true; // checklist: staff settled
     gameState.logNews(`Staff hire: ${candidate.fullName} joins ${school.name} as assistant coach under ${coach.fullName}.`);
+  }
+
+  // The incumbent is let go (history keeps the career). No-op on an empty seat.
+  function releaseCurrentAssistant(gameState) {
+    const Legacy = window.XCD.engine.Legacy;
+    const school = gameState.getPlayerSchool();
+    const current = school.assistantId && gameState.world.coaches[school.assistantId];
+    if (!current || current.isPlayer) return;
+    Legacy.closeStint(gameState, current, school, gameState.year, 'released');
+    Legacy.recordRetiredCoach(gameState, current, 'released'); // history keeps every career (Phase 3)
+    delete gameState.world.coaches[current.id];
+    school.assistantId = null;
+    gameState.logNews(`Staff change: ${school.name} lets assistant ${current.fullName} go.`);
+  }
+
+  function hireAssistant(gameState, candidate) {
+    const Legacy = window.XCD.engine.Legacy;
+    const school = gameState.getPlayerSchool();
+    const gate = canHireAssistant(gameState);
+    if (!gate.ok) return { ok: false, message: gate.why };
+    // Safety net for the former-staff rule (Update 19): even if a stale
+    // candidate list slips a departed coach through, the hire itself refuses
+    // anyone who has already left this program.
+    if (candidate && Legacy.hasLeftSchool(school, candidate.id)) {
+      return { ok: false, message: `${candidate.fullName} left ${school.name} — the program won't bring them back.` };
+    }
+    const current = school.assistantId && gameState.world.coaches[school.assistantId];
+    if (current && current.isPlayer) return { ok: false, message: 'You cannot replace yourself.' };
+    installAssistant(gameState, candidate, !!gate.vacancy);
     return { ok: true, message: `${candidate.fullName} joins your staff.` };
+  }
+
+  /* ---------------- The staff market ---------------- *
+   * A head coach can fill the assistant's chair from four places:
+   *   applicant  — this week's applicants (assistantCandidates): they came
+   *                to you, so they always say yes
+   *   freeAgent  — every coach out of work, career history and all
+   *   assistant  — an assistant on another program's staff, who only moves
+   *                for a real step up
+   *   head       — a HEAD coach at a much smaller program, who gives up
+   *                their own chair to join a big staff
+   *
+   * Two rules keep it honest:
+   *   Hiring reach — a program can only attract coaches up to a reputation
+   *     cap set by its prestige (most of it), the head coach's own name, and
+   *     Staff Management. A blue blood reaches nearly everyone; a rebuilding
+   *     program reaches unknowns. Anyone above the cap is out of reach.
+   *   Interest — a coach with a job has to want the move. Their interest is
+   *     the literal chance they accept, and the answer is settled per coach
+   *     per offseason, so asking again never rerolls a no. Being turned down
+   *     does not spend the program's one hire.
+   */
+  const STAFF_STEP_UP = 6;   // an assistant moves only to a program this much bigger
+  const STAFF_HEAD_GAP = 22; // a head coach gives up the chair only for one this much bigger
+  const STAFF_LIST = { assistant: 60, head: 30, locked: 6 };
+
+  function hiringReach(gameState) {
+    const school = gameState.getPlayerSchool();
+    const coach = gameState.getPlayerCoach();
+    const parts = {
+      program: Math.round((school.prestige || 0) * 0.6),
+      name: Math.round((coach.reputation || 0) * 0.2),
+      staff: Math.round(((coach.staffManagement ?? 55) - 50) * 0.15),
+      base: 6
+    };
+    const cap = Utils.clamp(parts.program + parts.name + parts.staff + parts.base, 18, 90);
+    return { cap, parts, prestige: school.prestige || 0 };
+  }
+
+  const ambitionOf = (coach) => D.coachAmbition(coach && coach.ambition) ||
+    { weightHC: 1, weightLateral: 1, prestigePull: 1, stay: 1 };
+  const DIV_ORDER = { DI: 3, DII: 2, DIII: 1 };
+
+  // How much a coach wants the player's assistant chair, 0-100. `from` is the
+  // program they work for now (null for a free agent).
+  function staffInterest(gameState, coach, source, from) {
+    const school = gameState.getPlayerSchool();
+    const boss = gameState.getPlayerCoach();
+    const P = school.prestige || 0;
+    const am = ambitionOf(coach);
+    const bossPull = ((boss.reputation || 20) - 40) * 0.2;
+    if (source === 'freeAgent') {
+      return Math.round(Utils.clamp(68 + (P - (coach.reputation || 0)) * 0.5 + (coach.poolYears || 0) * 8, 25, 97));
+    }
+    const divStep = (DIV_ORDER[school.division || 'DI'] || 3) - (DIV_ORDER[(from && from.division) || 'DI'] || 3);
+    const gap = P - ((from && from.prestige) || 0);
+    let p;
+    if (source === 'assistant') {
+      p = 28 + Utils.clamp(gap, 0, 60) * (0.6 + 0.4 * am.prestigePull);
+      p += (Utils.clamp(am.weightLateral / Math.max(0.5, am.stay), 0.45, 1.6) - 1) * 22;
+      if (coach.ambition === 'recruiter' && P >= 72) p += 10;
+      if ((coach.yearsAtSchool || 0) === 0) p -= 10;      // only just arrived
+      else if ((coach.yearsAtSchool || 0) >= 6) p -= 6;   // settled
+    } else {
+      p = 12 + Math.max(0, gap - STAFF_HEAD_GAP) * 1.3 * (0.6 + 0.4 * am.prestigePull);
+      const seat = D.seatStatus(coach.hotSeat || 0).key;
+      p += seat === 'hot' ? 25 : seat === 'warm' ? 12 : 0; // jump before the push
+      p += { recruiter: 10, prestigeChaser: 8, moneyFocused: 8, loyal: -15, careerBuilder: -12, builder: -10 }[coach.ambition] || 0;
+      const cr = coach.careerRecord || {};
+      p -= Math.min(24, (cr.nationalTitles || 0) * 8) + Math.min(10, (cr.conferenceTitles || 0) * 2);
+      if ((coach.yearsAtSchool || 0) >= 8) p -= 8;        // an institution where they are
+      if ((coach.age || 45) < 40) p += 6;                 // young and hungry for the big stage
+      else if ((coach.age || 45) >= 58) p -= 10;
+    }
+    p += divStep > 0 ? 8 : divStep < 0 ? -25 : 0;         // the ladder runs up the divisions
+    p += bossPull;
+    return Math.round(Utils.clamp(p, source === 'head' ? 3 : 5, source === 'head' ? 85 : 95));
+  }
+
+  // The answer a coach will give this offseason, fixed per coach/program/year.
+  function staffRoll(gameState, coachId) {
+    const key = `${coachId}|${gameState.playerSchoolId}`;
+    let h = 0;
+    for (let i = 0; i < key.length; i++) h = ((h * 31) + key.charCodeAt(i)) >>> 0;
+    return new window.XCD.core.SeededRNG((gameState.seed ^ (gameState.year * 197) ^ h) >>> 0).next();
+  }
+
+  function declinedThisYear(gameState, coachId) {
+    const d = gameState.staffDeclined;
+    return !!(d && d.year === gameState.year && d.ids.includes(coachId));
+  }
+
+  /*
+   * Everyone the player could put in the assistant's chair right now.
+   * Returns { reach, gate, counts, rows } — each row:
+   *   { key, coach, source, from (school | null), interest, locked (reason |
+   *     null), declined }
+   * Sitting coaches are listed best-first and capped (the top of the market
+   * is what matters); a few just beyond the reach cap are shown locked so the
+   * cap is visible.
+   */
+  function staffMarket(gameState) {
+    const Legacy = window.XCD.engine.Legacy;
+    const school = gameState.getPlayerSchool();
+    const reach = hiringReach(gameState);
+    const gate = canHireAssistant(gameState);
+    const rows = [];
+    if (!school || gameState.isAssistant()) return { reach, gate, rows, counts: {} };
+    const tooBig = (c) => Math.round(c.reputation || 0) > reach.cap
+      ? `Reputation ${Math.round(c.reputation || 0)} is beyond your hiring reach (${reach.cap})` : null;
+    const push = (coach, source, from, key) => rows.push({
+      key: key || coach.id, coach, source, from: from || null,
+      interest: source === 'applicant' ? 100 : staffInterest(gameState, coach, source, from),
+      locked: source === 'applicant' ? null : tooBig(coach),
+      declined: declinedThisYear(gameState, coach.id)
+    });
+
+    // Applicants: the weekly shortlist. (A real free agent on it is listed
+    // with the free agents instead.)
+    const inWorld = (c) => !!gameState.world.coaches[c.id];
+    assistantCandidates(gameState).forEach((c, i) => { if (!inWorld(c)) push(c, 'applicant', null, String(i)); });
+
+    // Free agents: every coach out of work.
+    Object.values(gameState.world.coaches)
+      .filter((c) => !c.schoolId && !c.isPlayer && (c.age || 40) < 68 && !Legacy.hasLeftSchool(school, c.id))
+      .sort((a, b) => b.overallRating - a.overallRating)
+      .forEach((c) => push(c, 'freeAgent', null));
+
+    // Coaches with jobs elsewhere: assistants a step below, head coaches well
+    // below. Best first; the list is capped, plus a few beyond the reach cap.
+    const sitting = { assistant: [], head: [] };
+    Object.values(gameState.world.schools).forEach((s) => {
+      if (s.id === school.id) return;
+      const gap = (school.prestige || 0) - (s.prestige || 0);
+      const a = s.assistantId && gameState.world.coaches[s.assistantId];
+      if (a && !a.isPlayer && gap >= STAFF_STEP_UP && (a.age || 40) < 68 && !Legacy.hasLeftSchool(school, a.id)) {
+        sitting.assistant.push({ c: a, s });
+      }
+      const h = s.coachId && gameState.world.coaches[s.coachId];
+      if (h && !h.isPlayer && gap >= STAFF_HEAD_GAP && (h.age || 45) < 68 && !Legacy.hasLeftSchool(school, h.id)) {
+        sitting.head.push({ c: h, s });
+      }
+    });
+    ['assistant', 'head'].forEach((source) => {
+      const list = sitting[source].sort((x, y) => y.c.overallRating - x.c.overallRating);
+      list.filter((x) => !tooBig(x.c)).slice(0, STAFF_LIST[source]).forEach((x) => push(x.c, source, x.s));
+      list.filter((x) => tooBig(x.c)).slice(0, STAFF_LIST.locked).forEach((x) => push(x.c, source, x.s));
+    });
+
+    const counts = { applicant: 0, freeAgent: 0, assistant: 0, head: 0 };
+    rows.forEach((r) => { counts[r.source]++; });
+    return { reach, gate, rows, counts };
+  }
+
+  // A fresh young assistant for a program whose seat just opened.
+  function newAssistantFor(gameState, school, rng) {
+    const a = window.XCD.engine.WorldGenerator.buildAssistant(rng, school);
+    a.age = rng.int(25, 40);
+    a.reputation = Utils.clamp(a.reputation || 12, 3, 28);
+    a.yearsAtSchool = 0;
+    a.careerRecord.seasons = 0;
+    a.stints = [{ schoolId: school.id, school: school.name, division: school.division || 'DI', startYear: gameState.year, endYear: null }];
+    return a;
+  }
+
+  /*
+   * Offer the assistant's chair to anyone on the staff market (by row key).
+   * Applicants and free agents who want the job simply sign. A coach with a
+   * job answers by their interest; a yes pulls them out of their old program,
+   * which fills the hole behind them — an assistant's seat with a new hire, a
+   * head coach's chair through the real carousel (chains and all).
+   */
+  function offerAssistantJob(gameState, key) {
+    const Legacy = window.XCD.engine.Legacy;
+    const school = gameState.getPlayerSchool();
+    const gate = canHireAssistant(gameState);
+    if (!gate.ok) return { ok: false, message: gate.why };
+    const row = staffMarket(gameState).rows.find((r) => r.key === key);
+    if (!row) return { ok: false, message: 'That coach is no longer on the market.' };
+    const c = row.coach;
+    if (row.source === 'applicant') return hireAssistant(gameState, c);
+    if (row.locked) return { ok: false, message: `${c.fullName} is out of reach — ${row.locked.charAt(0).toLowerCase()}${row.locked.slice(1)}.` };
+    if (row.declined) return { ok: false, message: `${c.fullName} already turned ${school.name} down this offseason.` };
+    const current = school.assistantId && gameState.world.coaches[school.assistantId];
+    if (current && current.isPlayer) return { ok: false, message: 'You cannot replace yourself.' };
+
+    if (staffRoll(gameState, c.id) >= row.interest / 100) {
+      if (!gameState.staffDeclined || gameState.staffDeclined.year !== gameState.year) {
+        gameState.staffDeclined = { year: gameState.year, ids: [] };
+      }
+      gameState.staffDeclined.ids.push(c.id);
+      const where = row.from ? ` and stays at ${row.from.name}` : '';
+      return { ok: false, declined: true, message: `${c.fullName} turns the job down${where}. Your hire is still open.` };
+    }
+
+    const wasVacancy = !!gate.vacancy;
+    const from = row.from;
+    if (row.source === 'freeAgent') {
+      if (!c.origin) c.origin = 'Free agent';
+      installAssistant(gameState, c, wasVacancy);
+      return { ok: true, message: `${c.fullName} joins your staff.` };
+    }
+
+    // A coach with a job: the incumbent goes first, then the old program
+    // fills the hole, then the new coordinator is seated — so the carousel
+    // that fills a head chair never sees the player's staff mid-move.
+    const rng = new window.XCD.core.SeededRNG((gameState.seed + gameState.year * 59 + gameState.week * 13 + from.id.length) >>> 0);
+    releaseCurrentAssistant(gameState);
+    Legacy.closeStint(gameState, c, from, gameState.year, 'left');
+    c.schoolId = school.id;
+    if (row.source === 'assistant') {
+      from.assistantId = null;
+      const fill = newAssistantFor(gameState, from, rng);
+      gameState.world.coaches[fill.id] = fill;
+      from.assistantId = fill.id;
+      Legacy.linkStaff(gameState, from, gameState.year);
+      c.origin = `Hired from the ${from.name} staff`;
+      gameState.logNews(`STAFF RAID: ${school.name} hires assistant ${c.fullName} away from ${from.name}.`);
+    } else {
+      c.role = 'Assistant';
+      c.reputation = Math.min(c.reputation || 0, 92); // the assistant ladder tops out lower
+      from.coachId = null;
+      from.coachChangedYear = gameState.year;
+      c.origin = `Former head coach at ${from.name}`;
+      gameState.logNews(`STAFF COUP: ${c.fullName} gives up the head job at ${from.name} to join the ${school.name} staff. ${from.name} opens a head-coaching search.`);
+      window.XCD.engine.Careers.fillVacancy(gameState, from, rng, 0);
+      // Filling a head chair can promote another program's assistant. That
+      // seat would otherwise sit empty until the next offseason, so every
+      // program the chain touched is given a coordinator now.
+      Object.values(gameState.world.schools).forEach((s) => {
+        if (s.id === school.id || (s.assistantId && gameState.world.coaches[s.assistantId])) return;
+        const a = newAssistantFor(gameState, s, rng);
+        gameState.world.coaches[a.id] = a;
+        s.assistantId = a.id;
+        Legacy.linkStaff(gameState, s, gameState.year);
+      });
+    }
+    installAssistant(gameState, c, wasVacancy);
+    return { ok: true, poached: true, message: `${c.fullName} leaves ${from.name} to join your staff.` };
   }
 
   /*
@@ -757,6 +1016,12 @@
     assistantCandidates,
     canHireAssistant,
     hireAssistant,
+    hiringReach,
+    staffInterest,
+    staffMarket,
+    offerAssistantJob,
+    STAFF_STEP_UP,
+    STAFF_HEAD_GAP,
     CORE_RATINGS: CORE,
     SECONDARY_RATINGS: SECONDARY
   };

@@ -14,6 +14,79 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.15 — The Staff Market, a Restless Carousel & Organized Screens
+
+- **The staff market.** My Program has a new **Staff** tab. Instead of three
+  candidates a week, a head coach now hires an assistant from the whole
+  market:
+  - **Applicants:** this week's applicants. They came to you, so they say yes.
+  - **Free agents:** every coach out of work, career history and all.
+  - **Assistants on other staffs,** who only move for a program at least 6
+    prestige bigger than their own.
+  - **Head coaches at smaller programs,** who give up their own chair only
+    for a program at least 22 prestige bigger. A blue blood has dozens to
+    choose from; a rebuilding program has none.
+- **Hiring reach.** A program can only attract coaches up to a reputation
+  cap: 60% of program prestige, plus 20% of your own reputation, plus a
+  little for Staff Management. Anyone above it is shown locked, out of reach.
+  Colorado (90 prestige) with a first-year coach reaches 63; a 34-prestige
+  program reaches 29.
+- **Interest.** A coach with a job has to want the move. Interest is the
+  chance they accept, and it depends on how big the step up is, their hidden
+  ambition, how long they have been where they are, and for a head coach how
+  hot their seat is and how much they have won. The answer is fixed for the
+  offseason: asking again never changes a no, and a no does not spend your
+  one hire.
+- **A yes moves the coach for real.** Hire an assistant away and their old
+  program replaces them. Hire a head coach and their program opens a real
+  search, filled through the carousel with all its chain reactions. The offer
+  dialog compares the candidate with your current assistant, craft by craft,
+  before you commit.
+- **CPU blue bloods do it too.** A program at 78+ prestige with an open
+  assistant seat sometimes talks a small-program head coach onto its staff.
+- **A livelier coaching carousel.** Coaches used to stay too long: after 15
+  seasons the average head coach had been at their program 11 years and half
+  had been there 10 or more. Now about one program in eight changes head
+  coaches each year (it was one in sixteen), the average tenure settles
+  near 6 years, and under 10% of coaches reach 15 years at one program.
+  - **Shock exits:** each offseason about 1% of head coaches resign, are
+    dismissed after an internal review, retire without warning, or leave for
+    a professional training group. Any program can be hit, so the top of the
+    job board is never predictable.
+  - **Long tenures run their course:** past seven or eight seasons a coach
+    and a program are steadily more likely to part ways.
+  - **Late dominoes:** another surprise exit can fall in any offseason week,
+    and the chair joins your job board that week.
+  - **Deeper poaching chains:** a hire can now set off three moves instead of
+    two, near-lateral moves happen, and a Loyal coach can turn a job down.
+  - **Earlier retirements:** the retirement window opens at 60 and widens
+    every year.
+  - Moves at small programs outside your conference stay out of the news
+    feed, so the bigger carousel does not bury everything else.
+- **Every menu brought up to the Course Records standard:** a four-tile
+  summary on top, clear sections, filters with a running count, and a short
+  note explaining what you are looking at.
+  - **News:** stories are grouped by week and filter to My Program, Coaching,
+    Recruiting, Transfers, Results or Injuries, with a search box. Stories
+    about your program are highlighted.
+  - **Portal:** between windows it is now a briefing (when the next window
+    opens, how the last one went for you, who on your roster might leave, and
+    how the windows work). During a window you can filter to runners still
+    deciding, your targets, or those who have committed.
+  - **World:** summary tiles, a filter bar, and a Coaches view that shows the
+    year each coach is in at their program, their job security, and the free
+    agents.
+  - **Rankings:** your men's and women's poll rank, conference standing and
+    regional standing sit above every tab, and your program is always shown
+    in the national poll even outside the Top 25.
+  - **Roster, Schedule and Save / Load** each open with a summary of the
+    squad, the season, and the save.
+  - **History → My Career:** one card per season with the men's and women's
+    finish side by side, in the order the season was run.
+  - **Available Jobs:** summary tiles and filters (Good Odds, Step Up, My
+    Division) for a job board that is now much longer.
+- **Tests:** `test-staff-market` covers the market, the reach cap, the offer
+  flow, and ten seasons of carousel turnover.
 ## Version 15.14 — A Fair Conservative Start, Faces With Feelings & Honest Expectations
 
 - **Conservative is no longer a trap.** Its runners used to tuck into the

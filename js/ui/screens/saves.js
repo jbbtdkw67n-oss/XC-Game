@@ -28,11 +28,22 @@
         </div>
       </div>
 
+      ${(() => {
+        // This dynasty at a glance: where it is, and when it was last saved.
+        const mine = game ? slots.find((s) => s.dynastyId === game.dynastyId) : null;
+        const when = (t) => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+        const behind = mine && game && (mine.year !== game.year || mine.week !== game.week);
+        const tile = (label, value, sub) => `<div class="stat-tile"><div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
+        return `
+        <div class="grid cols-4" style="margin-bottom:16px;">
+          ${tile('This Dynasty', `<span class="tile-text">${Utils.escapeHtml((game && game.dynastyName) || (mine && mine.dynastyName) || '—')}</span>`, game ? Utils.escapeHtml(game.getPlayerSchool().name) : 'no dynasty loaded')}
+          ${tile('Now', game ? `Wk ${game.week}, ${game.year}` : '—', game ? Utils.escapeHtml(game.seasonPhase || '') : '')}
+          ${tile('Last Saved', mine ? `<span class="tile-text">${when(mine.savedAt)}</span>` : 'Never', mine ? `${mine.isAuto ? 'autosave' : 'manual save'} · Wk ${mine.week}, ${mine.year}${behind ? ' · behind the game' : ''}` : 'press Save Game to keep it')}
+          ${tile('Dynasties', slots.length, 'saved on this device')}
+        </div>`;
+      })()}
+      ${UI.sectionLabel('Dynasties')}
       <div class="card">
-        <h2>Dynasties</h2>
-        <div style="color:var(--text-faint); font-size:12px; margin:-4px 0 10px;">
-          Each dynasty has one save. It updates automatically every week and whenever you press Save Game — whichever happened last.
-        </div>
         ${slots.length ? `
           <div class="table-wrap"><table class="data">
             <thead><tr><th class="col-grow">Dynasty</th><th>School</th><th class="hide-mobile">Coach</th><th class="num hide-mobile">Team Wins</th><th>Season</th><th class="hide-mobile">Last Saved</th><th class="col-actions"></th></tr></thead>
@@ -53,7 +64,8 @@
                 </tr>`).join('')}
             </tbody>
           </table></div>`
-        : '<div style="color:var(--text-dim);">No dynasties saved yet. Your game auto-saves each week.</div>'}
+        : '<div class="note-card">No dynasties saved yet. Your game saves itself every week.</div>'}
+        <div class="foot-note">Each dynasty has one save. It updates automatically every week and whenever you press Save Game, whichever happened last. Export JSON makes a file you can keep or move to another device.</div>
       </div>`;
 
     container.querySelector('#btn-save-now').addEventListener('click', async () => {

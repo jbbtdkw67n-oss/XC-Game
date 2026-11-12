@@ -141,7 +141,7 @@ async function run() {
     ok(s.noTeamQualifiers, `${gender}: no individual qualifier comes from a qualifying team`);
     ok(s.alFlag, `${gender}: at-large individuals are flagged on the regional results`);
   });
-  await page.evaluate(() => { window.XCD.ui.screens.rankings.openTab('selection'); window.XCD.ui.navigate('rankings'); });
+  await page.evaluate(() => window.XCD.ui.navigate('rankings', 'selection')); // deep link (screens reset to their default tab on arrival)
   await page.waitForSelector('.sel-tiles');
   const selUi = await page.evaluate(() => ({
     rows: document.querySelectorAll('#rank-body tbody tr').length,

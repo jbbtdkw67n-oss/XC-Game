@@ -811,6 +811,30 @@
       </div>`;
     }
 
+    // The season at a glance: the next race, how many are run, the best
+    // finish so far, and the travel budget (or the squads' peak week).
+    const meetEntries = entries.filter((e) => e.meet);
+    const ran = meetEntries.filter((e) => e.done);
+    const next = meetEntries.find((e) => !e.done && e.week >= game.week);
+    let best = null;
+    ran.forEach((e) => ['M', 'W'].forEach((g) => {
+      const res = e.meet.results[g];
+      const mine = res && res.teamScores.find((t) => t.schoolId === game.playerSchoolId);
+      if (mine && (!best || mine.place < best.place)) best = { place: mine.place, g, meet: e.meet.name, of: res.teamScores.length };
+    }));
+    const sTile = (label, value, sub) => `<div class="stat-tile"><div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
+    const spend = realSchedule ? MC().playerSpend(game) : null;
+    const peakList = Object.keys(peakWeeks).map(Number).sort((a, b) => a - b);
+    const seasonTiles = `
+      <div class="grid cols-4" style="margin-bottom:16px;">
+        ${sTile('Next Race', next ? (next.week === game.week ? 'This week' : `Week ${next.week}`) : '—', next ? Utils.escapeHtml(next.meet.name) : (ran.length ? 'the season is run' : 'no meets scheduled yet'))}
+        ${sTile('Races Run', `${ran.length}<span class="tile-of"> / ${meetEntries.length}</span>`, `${meetEntries.length - ran.length} still to come`)}
+        ${sTile('Best Finish', best ? `${best.g} ${Utils.ordinal(best.place)}` : '—', best ? `of ${best.of} at the ${Utils.escapeHtml(best.meet)}` : 'no results yet')}
+        ${spend
+          ? sTile('Travel', money(spend.spent), `of ${money(spend.budget)} for ${spend.count} meet${spend.count === 1 ? '' : 's'}`)
+          : sTile('Peak Week', peakList.length ? `Week ${peakList[0]}` : '—', peakList.length ? `your ${peakWeeks[peakList[0]].join(' & ')}` : 'no peak planned yet')}
+      </div>`;
+
     root.innerHTML = `
       <div class="screen-header">
         ${UI.screenTitle('Schedule', `${season.year} season · Men ${rankM ? '#' + rankM : '—'} · Women ${rankW ? '#' + rankW : '—'}`)}
@@ -819,6 +843,7 @@
             ? '<button class="btn primary" id="btn-race-center">📺 Race Center (last meet)</button>' : ''}
         </div>
       </div>
+      ${seasonTiles}
       ${UI.sectionLabel('Your Season')}
       ${scheduleHtml}
       ${browserCard}
@@ -835,7 +860,7 @@
           <tbody>${rows}</tbody>
         </table></div>
         <div class="card-list mobile-only">${meetCards}</div>
-        <div style="color:var(--text-faint); font-size:12px; margin-top:8px;">Tap a completed meet for full results.</div>
+        <div class="foot-note">Tap a completed meet for full results. ⚡ marks the week a squad's one peak of the season lands; weather is forecast the week before a race.</div>
       </div>
       ${previewHtml ? UI.sectionLabel('Around the Nation') + previewHtml : ''}`;
 

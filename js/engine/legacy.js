@@ -419,7 +419,8 @@
     if (entry.reason) {
       const map = {
         fired: 'Fired', retired: 'Retired', released: 'Let go',
-        left: 'Left for another program', promoted: 'Promoted away', faded: 'Left the profession'
+        left: 'Left for another program', promoted: 'Promoted away', faded: 'Left the profession',
+        parted: 'Parted ways', resigned: 'Resigned', dismissed: 'Dismissed', pro: 'Left for the pros'
       };
       return { label: map[entry.reason] || entry.reason };
     }
@@ -427,7 +428,8 @@
     const reg = (gameState.history.coachRegistry || []).slice().reverse().find((r) =>
       (entry.coachId && r.coachId === entry.coachId) || r.name === entry.name);
     if (reg && Math.abs((reg.year || 0) - entry.endYear) <= 1) {
-      return { label: reg.reason === 'retired' ? 'Retired' : reg.reason === 'faded' ? 'Left the profession' : 'Let go' };
+      return { label: reg.reason === 'retired' ? 'Retired' : reg.reason === 'faded' ? 'Left the profession'
+        : reg.reason === 'pro' ? 'Left for the pros' : 'Let go' };
     }
     // A later stint elsewhere: they left for another job.
     const live = entry.coachId && gameState.getCoach && gameState.getCoach(entry.coachId);

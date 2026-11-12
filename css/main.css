@@ -675,27 +675,104 @@ html[data-theme="light"] .season-poll.top10 { color: #8a6100; }
 .cr-rec-none { color: var(--text-faint); }
 .cr-rec-who { min-width: 0; margin-left: auto; overflow: hidden; }
 .cr-rec-who .person-name { max-width: 100%; }
-/* Men's + women's record side by side, on every screen size. */
-.cr-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.cr-pair .stat-tile { min-width: 0; }
-.cr-pair .stat-tile .value { overflow-wrap: anywhere; }
-.cr-home-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
-.cr-home-sub { color: var(--text-dim); font-size: 13px; margin-top: 3px; }
-.cr-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
-.cr-filters #cr-search { flex: 1 1 200px; max-width: 280px; }
-.cr-filters select.search-input { padding: 6px 10px; max-width: 190px; }
-.cr-count { margin-left: auto; color: var(--text-faint); font-size: 12px; white-space: nowrap; }
-.cr-foot { color: var(--text-faint); font-size: 11.5px; margin-top: 10px; }
+/* ---------- Screen kit ----------
+   The pieces every organized screen is built from (first used on Course
+   Records): a two-up tile pair, a card header with an action, a filter bar
+   with a running count, and a quiet footnote. */
+.cr-pair, .pair-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.cr-pair .stat-tile, .pair-grid .stat-tile { min-width: 0; }
+.cr-pair .stat-tile .value, .pair-grid .stat-tile .value { overflow-wrap: anywhere; }
+.cr-home-head, .kit-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.cr-home-sub, .kit-sub { color: var(--text-dim); font-size: 13px; margin-top: 3px; }
+.cr-filters, .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.cr-filters #cr-search, .filter-bar input.search-input { flex: 1 1 200px; max-width: 280px; }
+.cr-filters select.search-input, .filter-bar select.search-input { padding: 6px 10px; max-width: 190px; }
+.cr-count, .count-note { margin-left: auto; color: var(--text-faint); font-size: 12px; white-space: nowrap; }
+.cr-foot, .foot-note { color: var(--text-faint); font-size: 11.5px; margin-top: 10px; line-height: 1.5; }
+.foot-note strong { color: var(--text-dim); }
+.stat-tile.clickable { cursor: pointer; }
 .stat-tile.clickable:hover { border-color: var(--accent); }
-@media (max-width: 760px) {
-  .cr-filters #cr-search { max-width: none; flex-basis: 100%; }
-  .cr-filters select.search-input { flex: 1; max-width: none; }
-  .cr-count { margin-left: 0; flex-basis: 100%; }
-  .cr-rec-g { width: 66px; }
-  .cr-pair { gap: 8px; }
-  .cr-pair .stat-tile { padding: 10px; }
-  .cr-pair .stat-tile .value { font-size: 19px !important; }
+.stat-tile .value .rating { font-size: 18px; padding: 2px 9px; }
+.stat-tile .value .tile-pair { display: inline-block; margin-right: 12px; font-size: 19px; }
+.stat-tile .value .rank-move { font-size: 12px; vertical-align: middle; }
+.stat-tile .value .tile-text { font-size: 17px; overflow-wrap: anywhere; }
+.stat-tile .value .tile-of { font-size: 14px; font-weight: 600; color: var(--text-faint); }
+/* A plain explanatory card (empty states, how-it-works notes). */
+.note-card { color: var(--text-dim); font-size: 13px; line-height: 1.5; }
+.note-warn { color: var(--warning); font-size: 12.5px; border-left: 3px solid var(--warning); }
+/* A checkbox dressed as a filter pill. */
+.check-pill {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-dim);
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; cursor: pointer;
 }
+.check-pill input { accent-color: var(--accent); margin: 0; }
+table.data tbody tr.dimmed td { opacity: 0.55; }
+table.data tbody tr.dimmed td:last-child, table.data tbody tr.dimmed td:nth-last-child(2) { opacity: 1; }
+.m-card.dimmed { opacity: 0.7; }
+.row-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: nowrap; }
+@media (max-width: 760px) {
+  .cr-filters #cr-search, .filter-bar input.search-input { max-width: none; flex-basis: 100%; }
+  .cr-filters select.search-input, .filter-bar select.search-input { flex: 1; max-width: none; }
+  .cr-count, .count-note { margin-left: 0; flex-basis: 100%; }
+  .filter-bar .pill-tabs { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .filter-bar .pill-tabs::-webkit-scrollbar { display: none; }
+  .filter-bar .pill-tabs button { flex: none; white-space: nowrap; }
+  .cr-rec-g { width: 66px; }
+  .cr-pair, .pair-grid { gap: 8px; }
+  .cr-pair .stat-tile, .pair-grid .stat-tile { padding: 10px; }
+  .cr-pair .stat-tile .value, .pair-grid .stat-tile .value { font-size: 19px !important; }
+}
+
+/* My Career: one card per season, the men's and women's finish per meet. */
+.career-season { margin-bottom: 12px; }
+.career-season .lrow-list { margin-top: 8px; }
+.career-place {
+  display: inline-block; margin-left: 6px; font-size: 12px; font-weight: 700; white-space: nowrap;
+  background: var(--bg-hover); color: var(--text-dim); border-radius: 6px; padding: 2px 8px;
+}
+.career-place.pod { background: rgba(46, 204, 138, 0.16); color: var(--success); }
+.career-place.win { background: rgba(212, 160, 23, 0.2); color: #f0c34e; }
+
+/* A head coach's job security, as a quiet tag. */
+.seat-tag { font-size: 11.5px; font-weight: 600; white-space: nowrap; color: var(--text-faint); }
+.seat-tag.warm { color: var(--warning); }
+.seat-tag.hot { color: var(--danger); }
+
+/* A short explainer card in a how-it-works grid. */
+.how-card h3 { margin: 0 0 6px; font-size: 14.5px; }
+.how-card .note-card { font-size: 12.5px; }
+
+/* ---------- News feed ---------- */
+.news-week { padding: 6px 14px; }
+.news-week .lrow { padding: 9px 4px; }
+.news-week .lrow-badge { width: 30px; height: 30px; font-size: 14px; }
+.news-text { font-weight: 500; font-size: 13.5px; line-height: 1.45; white-space: normal; }
+.news-week .lrow-title { white-space: normal; overflow: visible; }
+
+/* ---------- Staff market ---------- */
+.coach-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.coach-cell > svg, .coach-cell > img { flex: none; }
+.coach-cell-sub { color: var(--text-faint); font-size: 11.5px; font-weight: 400; }
+.coach-cell-sub .clickable { color: var(--text-dim); cursor: pointer; }
+.coach-cell-sub .clickable:hover { color: var(--accent-hover); text-decoration: underline; }
+.interest-chip {
+  display: inline-block; white-space: nowrap; font-size: 11.5px; font-weight: 700;
+  border-radius: 999px; padding: 2px 9px; background: var(--bg-hover); color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.interest-chip.yes { background: rgba(46, 204, 138, 0.16); color: var(--success); }
+.interest-chip.maybe { background: rgba(240, 180, 41, 0.16); color: var(--warning); }
+.interest-chip.low { background: rgba(240, 82, 82, 0.14); color: var(--danger); }
+.interest-chip.no, .interest-chip.locked { background: var(--bg-hover); color: var(--text-faint); font-weight: 600; }
+.craft-row { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-top: 10px; }
+.craft { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; }
+.craft .k { color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; font-size: 10.5px; }
+.delta { font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.delta.up { color: var(--success); }
+.delta.down { color: var(--danger); }
+.delta.flat { color: var(--text-faint); }
+.stakes { margin: 0; padding-left: 18px; color: var(--text-dim); font-size: 12.5px; line-height: 1.6; }
+.stakes strong { color: var(--text); }
 
 /* ---------- Profile tabs (UI overhaul) ----------
    Coaching and player profiles split their content across tabs (Overview /
@@ -1798,6 +1875,18 @@ img, canvas, video { max-width: 100%; height: auto; }
 .job-current-label {
   font-size: 10.5px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.06em; color: var(--accent-hover);
+}
+.job-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.job-tile { background: var(--bg-inset); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; min-width: 0; }
+.job-tile .l { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
+.job-tile .v { font-size: 19px; font-weight: 700; line-height: 1.25; }
+.job-tile .s { font-size: 11px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job-filters { margin-top: 12px; overflow-x: auto; scrollbar-width: none; }
+.job-filters::-webkit-scrollbar { display: none; }
+.job-filters .pill-tabs { flex-wrap: nowrap; }
+.job-filters .pill-tabs button { flex: none; white-space: nowrap; }
+@media (max-width: 560px) {
+  .job-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .job-sort {
   display: flex; align-items: center; justify-content: space-between;

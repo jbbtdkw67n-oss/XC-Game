@@ -137,6 +137,33 @@
       ${explainer}`;
   }
 
+  // Where the player's program stands, above every tab: each squad's place
+  // in the division poll, then both squads in the conference and the region.
+  function standingTiles(game, school, playerDiv) {
+    const short = { DI: 'D1', DII: 'D2', DIII: 'D3' }[playerDiv] || playerDiv;
+    const row = { M: UI.pollRow(game, school.id, 'M'), W: UI.pollRow(game, school.id, 'W') };
+    const poll = (g) => {
+      const r = row[g];
+      const label = g === 'M' ? "Men's Poll" : "Women's Poll";
+      return `<div class="stat-tile clickable" data-rank-goto="national:${g}">
+        <div class="label">${label}</div>
+        <div class="value">${r ? `#${r.rank} ${UI.rankMove(r.rank, r.prevRank)}` : 'NR'}</div>
+        <div class="sub">${r ? `of ${r.divisionSize} in ${short}` : 'polls publish after the first meets'}</div>
+      </div>`;
+    };
+    const pair = (label, key, goto, sub) => `<div class="stat-tile clickable" data-rank-goto="${goto}">
+        <div class="label">${label}</div>
+        <div class="value">${['M', 'W'].map((g) => `<span class="tile-pair">${g} ${row[g] && row[g][key] ? `#${row[g][key]}` : '—'}</span>`).join('')}</div>
+        <div class="sub">${sub}</div>
+      </div>`;
+    return `
+      <div class="grid cols-4" style="margin-bottom:16px;">
+        ${poll('M')}${poll('W')}
+        ${pair(Utils.escapeHtml(school.conference), 'confRank', 'conference', 'conference standing')}
+        ${pair(`${Utils.escapeHtml(window.XCD.data.ncaaRegionFor(school))} Region`, 'regionRank', 'region', 'regional standing')}
+      </div>`;
+  }
+
   function render(container) {
     const game = UI.state.game;
     const R = game.rankings;
@@ -168,9 +195,18 @@
           </div>
         </div>
       </div>
+      ${standingTiles(game, school, playerDiv)}
       <div class="card" id="rank-body"></div>`;
 
     const body = container.querySelector('#rank-body');
+    container.querySelectorAll('[data-rank-goto]').forEach((tile) => {
+      tile.addEventListener('click', () => {
+        const [tab, gender] = tile.dataset.rankGoto.split(':');
+        activeTab = tab; activeDiv = null;
+        if (gender) activeGender = gender;
+        render(container);
+      });
+    });
 
     if (activeTab === 'selection') {
       body.innerHTML = selectionHtml(game, viewDiv, activeGender);
@@ -205,7 +241,7 @@
               </tr>`).join('')}
           </tbody>
         </table></div>`
-        : '<div style="color:var(--text-dim);">No race results yet this season — rankings publish after the first meets.</div>';
+        : '<div class="note-card">No race results yet this season. Rankings publish after the first meets.</div>';
     } else {
       const divLabel = window.XCD.data.divisionFor(viewDiv).label;
       // Every poll is scoped to the SELECTED division (never combined).
@@ -224,7 +260,11 @@
         rows = rows.filter((r) => r.conference === school.conference);
         heading = `${school.conference} Standings`;
       } else {
-        rows = rows.slice(0, 25); // national polls show the Top 25
+        // National polls show the Top 25, and the player's own program below
+        // it when it sits outside.
+        const mine = viewDiv === playerDiv ? rows.find((r) => r.schoolId === game.playerSchoolId) : null;
+        rows = rows.slice(0, 25);
+        if (mine && mine.rank > 25) rows.push(mine);
         if (!relative && (activeTab === 'region' || activeTab === 'conference')) {
           heading = `${divLabel} National Poll`;
         }
@@ -240,13 +280,16 @@
             ${rows.map((r, i) => `
               <tr class="clickable" data-school="${r.schoolId}" ${r.schoolId === game.playerSchoolId ? 'style="background:var(--accent-soft);"' : ''}>
                 <td class="col-rank"><strong>#${tabRelative ? i + 1 : r.rank}</strong>${arrow(r, tabRelative ? activeTab : 'national')}${activeTab !== 'national' ? ` <span style="color:var(--text-faint); font-size:11px;">div #${r.rank}</span>` : ''}</td>
-                <td class="col-grow"><strong>${Utils.escapeHtml(r.name)}</strong>${UI.isMobile() ? `<div style="font-size:11px; color:var(--text-faint); font-weight:400;">${Utils.escapeHtml(r.conference)}</div>` : ''}</td>
+                <td class="col-grow"><span class="school-cell">${UI.kitSwatch(game.getSchool(r.schoolId) || { name: r.name }, 18)}<span><strong>${Utils.escapeHtml(r.name)}</strong>${r.schoolId === game.playerSchoolId ? ' <span style="color:var(--accent);">★</span>' : ''}${UI.isMobile() ? `<div style="font-size:11px; color:var(--text-faint); font-weight:400;">${Utils.escapeHtml(r.conference)}</div>` : ''}</span></span></td>
                 <td class="hide-mobile">${Utils.escapeHtml(r.conference)}</td>
                 <td class="hide-mobile">${Utils.escapeHtml(r.ncaaRegion || r.region)}</td>
                 <td class="num">${r.score}</td>
               </tr>`).join('')}
           </tbody>
-        </table></div>`;
+        </table></div>
+        <div class="foot-note">${tabRelative
+          ? 'Ranked within this group, with each team\'s division poll rank beside it. Movement is against last week\'s standing in the same group.'
+          : 'The Top 25 of the division poll, built from results and head-to-head finishes this season. Your program is always shown.'} Click a team for its program profile.</div>`;
     }
 
     // Universal profile navigation (Update 4, Part 4): every row opens a profile.

@@ -65,7 +65,7 @@
     }
     const C = window.XCD.engine.Coaching;
     if (!game.isAssistant() && C && C.assistantSeatVacant && C.assistantSeatVacant(game)) {
-      out.push({ key: 'asst', icon: '🧑‍🏫', title: 'Your assistant chair is empty', body: game.assistantDeparture ? `${game.assistantDeparture.coachName} left — hire a replacement from the pool.` : 'Hire a coordinator from the pool.', go: 'school', cta: 'My Program' });
+      out.push({ key: 'asst', icon: '🧑‍🏫', title: 'Your assistant chair is empty', body: game.assistantDeparture ? `${game.assistantDeparture.coachName} left. Hire a replacement from the staff market.` : 'Hire a coordinator from the staff market.', go: 'school:staff', cta: 'Staff Market' });
     }
     if (game.week === 1 && !game.isAssistant() && game.rosterLimitStatus) {
       const rl = game.rosterLimitStatus();

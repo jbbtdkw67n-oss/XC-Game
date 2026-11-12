@@ -103,17 +103,139 @@
     });
   }
 
-  /* ================= NEWS TAB ================= */
+  /* ================= NEWS TAB ================= *
+   * The running feed, organized: a four-tile summary, filters by what a
+   * story is about (your program, the coaching carousel, recruiting,
+   * transfers, results, injuries), a search box, and the stories grouped by
+   * week with the newest first. Stories about the player's program are
+   * highlighted wherever they appear.
+   */
+  const NEWS_FILTERS = [
+    ['all', 'All'],
+    ['mine', 'My Program'],
+    ['coaching', 'Coaching'],
+    ['recruiting', 'Recruiting'],
+    ['transfers', 'Transfers'],
+    ['results', 'Results'],
+    ['health', 'Injuries']
+  ];
+  const NEWS_KIND = {
+    coaching: { icon: '📋', tone: 'warn' },
+    recruiting: { icon: '🎯', tone: 'accent' },
+    transfers: { icon: '🔄', tone: 'muted' },
+    results: { icon: '🏁', tone: 'gold' },
+    health: { icon: '🩹', tone: 'bad' },
+    league: { icon: '📰', tone: 'muted' }
+  };
+  const NEWS_PAGE = 80;
+  const newsView = { filter: 'all', query: '', shown: NEWS_PAGE };
+
+  // What a story is about, read from its headline.
+  function newsKind(text) {
+    if (/🩹|🚑|\bDNF\b|\binjur|\bout ~\d/i.test(text)) return 'health';
+    if (/\b(FIRED|POACHED|RETIREMENT|SECOND ACT|COACHING CHANGE|SHOCK EXIT|STAFF (COUP|RAID|DEPARTURE)|PROMOTION|CAREER MOVE|COACHING MOVE|FRESH START|HOT SEAT|END OF AN ERA|A NEW ERA|COACHING RÉSUMÉ)\b/.test(text) ||
+        /Staff (hire|change|shake-up)|Passed over|Job market|New opening|Warm seat|head coach|head-coaching|coaching (carousel|market)|assistant (job|post|coach)|recruiting coordinator|turn down outside interest/i.test(text)) return 'coaching';
+    if (/transfer|portal|summer window|FOLLOWING THE COACH|Roster (cut|deadline)/i.test(text)) return 'transfers';
+    if (/commits to|SIGNING DAY|SIGNED|recruit|Late riser|GENERATIONAL|BLOCKBUSTER|NXN|NIKE CROSS|decommit/i.test(text)) return 'recruiting';
+    if (/UPSET|Poll surge|#1|career win|RECORD|PRE-NATIONALS|AT-LARGE|champion|Regionals|title|climbs|wins /i.test(text)) return 'results';
+    return 'league';
+  }
+
+  const escRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // A leading emoji (or icon shortcode) becomes the story's badge.
+  const LEAD_ICON = /^((?:\p{Extended_Pictographic}|️|‍|:trophy-[a-z]+:)+)\s*/u;
+
+  function newsStories(game) {
+    const school = game.getPlayerSchool();
+    // The program's name as a whole name ("Colorado", not "Colorado State").
+    const mineRe = new RegExp(`(^|[^A-Za-z])${escRe(school.name)}(?![A-Za-z]| State| Tech| A&M| Christian| Mesa)`);
+    return game.newsLog.map((n) => {
+      const lead = LEAD_ICON.exec(n.text);
+      const text = lead ? n.text.slice(lead[0].length) : n.text;
+      const kind = newsKind(n.text);
+      return {
+        n, text, kind,
+        icon: lead ? lead[1] : NEWS_KIND[kind].icon,
+        mine: mineRe.test(n.text) || /\b(you|your)\b/i.test(n.text)
+      };
+    });
+  }
+
   function renderNews(game, body) {
-    body.innerHTML = `
-      <div class="card">
-        ${game.newsLog.length
-          ? game.newsLog.map((n) => `
-              <div class="news-item">
-                <span class="when">Wk ${n.week}, ${n.year}</span>${Utils.escapeHtml(n.text)}
-              </div>`).join('')
-          : '<div style="color:var(--text-dim);">Nothing has happened yet. Advance the week to get the season moving.</div>'}
+    const school = game.getPlayerSchool();
+    const stories = newsStories(game);
+    const count = (id) => id === 'all' ? stories.length
+      : id === 'mine' ? stories.filter((x) => x.mine).length
+      : stories.filter((x) => x.kind === id).length;
+    const thisWeek = stories.filter((x) => x.n.week === game.week && x.n.year === game.year);
+    const marks = stories.filter((x) => /RECORD|UPSET/.test(x.n.text)).length;
+    const tile = (label, value, sub, filter) => `
+      <div class="stat-tile${filter ? ' clickable' : ''}"${filter ? ` data-news-goto="${filter}"` : ''}>
+        <div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub}</div>
       </div>`;
+
+    if (!stories.length) {
+      body.innerHTML = '<div class="card note-card">Nothing has happened yet. Advance the week to get the season moving.</div>';
+      return;
+    }
+
+    body.innerHTML = `
+      <div class="grid cols-4" style="margin-bottom:16px;">
+        ${tile('This Week', thisWeek.length, `${thisWeek.filter((x) => x.mine).length} about ${Utils.escapeHtml(school.name)}`, 'all')}
+        ${tile(Utils.escapeHtml(school.name), count('mine'), 'stories about your program', 'mine')}
+        ${tile('Coaching Carousel', count('coaching'), 'hires, firings and exits', 'coaching')}
+        ${tile('Records & Upsets', marks, 'in the feed right now', 'results')}
+      </div>
+      <div class="filter-bar">
+        <div class="pill-tabs" id="news-filters">
+          ${NEWS_FILTERS.map(([id, label]) => `<button data-news-filter="${id}" class="${newsView.filter === id ? 'active' : ''}">${label} <span class="pill-count">${count(id)}</span></button>`).join('')}
+        </div>
+        <input type="text" id="news-search" class="search-input" placeholder="Search the news…" value="${Utils.escapeHtml(newsView.query)}">
+        <span id="news-count" class="count-note"></span>
+      </div>
+      <div id="news-feed"></div>`;
+
+    const feed = body.querySelector('#news-feed');
+    const countEl = body.querySelector('#news-count');
+    const draw = () => {
+      const q = newsView.query.trim().toLowerCase();
+      const rows = stories.filter((x) =>
+        (newsView.filter === 'all' || (newsView.filter === 'mine' ? x.mine : x.kind === newsView.filter)) &&
+        (!q || x.n.text.toLowerCase().includes(q)));
+      const shown = rows.slice(0, newsView.shown);
+      countEl.textContent = `${rows.length} of ${stories.length} stories`;
+      // Grouped by week, newest first (the log is already newest-first).
+      const groups = [];
+      shown.forEach((x) => {
+        const last = groups[groups.length - 1];
+        if (last && last.week === x.n.week && last.year === x.n.year) last.items.push(x);
+        else groups.push({ week: x.n.week, year: x.n.year, items: [x] });
+      });
+      const row = (x) => UI.listRow({
+        badge: x.icon,
+        tone: x.mine ? 'accent' : NEWS_KIND[x.kind].tone,
+        mine: x.mine,
+        title: `<span class="news-text">${Utils.escapeHtml(x.text)}</span>`,
+        clickable: false
+      });
+      feed.innerHTML = groups.length
+        ? groups.map((g) => `${UI.sectionLabel(g.week === game.week && g.year === game.year ? `This Week · Week ${g.week}, ${g.year}` : `Week ${g.week}, ${g.year}`)}
+            <div class="card news-week">${UI.listGroup(g.items.map(row), { scroll: false })}</div>`).join('') +
+          (rows.length > shown.length ? `<div style="text-align:center; margin-top:12px;"><button class="btn" id="news-more">Show more (${rows.length - shown.length} older)</button></div>` : '')
+        : '<div class="card note-card">No stories match this filter.</div>';
+      const more = feed.querySelector('#news-more');
+      if (more) more.addEventListener('click', () => { newsView.shown += NEWS_PAGE; draw(); });
+    };
+    const setFilter = (id) => {
+      newsView.filter = id;
+      newsView.shown = NEWS_PAGE;
+      body.querySelectorAll('[data-news-filter]').forEach((b) => b.classList.toggle('active', b.dataset.newsFilter === id));
+      draw();
+    };
+    body.querySelectorAll('[data-news-filter]').forEach((b) => b.addEventListener('click', () => setFilter(b.dataset.newsFilter)));
+    body.querySelectorAll('[data-news-goto]').forEach((t) => t.addEventListener('click', () => setFilter(t.dataset.newsGoto)));
+    body.querySelector('#news-search').addEventListener('input', (e) => { newsView.query = e.target.value; newsView.shown = NEWS_PAGE; draw(); });
+    draw();
   }
 
   /* ================= AWARDS TAB ================= */
@@ -359,6 +481,7 @@
     awardDiv = null;
     awardConf = null;
     watchDiv = null;
+    Object.assign(newsView, { filter: 'all', query: '', shown: NEWS_PAGE });
   }
 
   UI.screens.news = { render, reset };
