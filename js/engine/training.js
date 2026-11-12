@@ -355,6 +355,13 @@
       if (week >= CAL.OFFSEASON_START) ideal *= 0.8;
       m = Math.round(m + (ideal - m) * smart);
     }
+    // Never spend the peak by accident (as the player's Ideal Mileage): a
+    // runner built up to a big chronic load must not read a race-week or
+    // championship-round trim as a taper. Only the plan's taper week cuts
+    // that deep.
+    if (week <= CAL.NATIONAL_WEEK && !(peak && week === peak.taperWeek)) {
+      m = Math.max(m, Math.round((athlete.chronicMileage || m) * TAPER_RATIO) + 3);
+    }
     // Smart AI staffs protect fragile runners from crushing volume —
     // poor talent evaluators don't notice until it's too late.
     const safe = safeMileage(athlete);
