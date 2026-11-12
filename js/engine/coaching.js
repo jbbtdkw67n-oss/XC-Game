@@ -204,46 +204,54 @@
     else if (rank <= 15) delta += 0.4;
     else if (rank <= 40) delta += 0.15;
 
-    // Titles are the currency of legend — the dominant, lasting input.
+    // Honors (Version 15.16). National honors (a national title, runner-up,
+    // national Coach of the Year, an individual national champion) are the
+    // currency of a legend: kept apart from the results, which taper hard
+    // near the summit, they taper only lightly, so every one visibly moves
+    // even a decorated coach. Routine honors (conference and regional
+    // titles, a podium, All-Americans, conference Coach of the Year) come
+    // every year at a strong program, so they count with the results.
+    let honors = 0;
+    const division = school.division || 'DI';
     const conf = (gameState.history.conferenceChampions || {})[year] || {};
-    if (conf[`${school.conference}-M`] === school.name) delta += 1.1;
-    if (conf[`${school.conference}-W`] === school.name) delta += 1.1;
+    if (conf[`${school.conference}-M`] === school.name) delta += 0.8;
+    if (conf[`${school.conference}-W`] === school.name) delta += 0.8;
+    const reg = (gameState.history.regionalChampions || {})[year] || {};
+    ['M', 'W'].forEach((g) => { if (reg[`${school.region}-${g}`] === school.name) delta += 0.4; });
     const nat = (gameState.history.nationalChampions || {})[year] || {};
-    // A national title is the pinnacle of the sport, and a Division I crown —
-    // the deepest, most-scrutinized field in the country — makes a coach's
-    // name more than any other single result (user request). The DI-title
-    // reward is tracked separately and added AFTER the yearly delta cap and
-    // the diminishing-returns taper below, so winning it always visibly moves
-    // a coach's reputation even when they are already decorated.
-    let bigTitleBonus = 0;
     ['M', 'W'].forEach((g) => {
-      const division = school.division || 'DI';
-      const key = division === 'DI' ? g : `${school.division}-${g}`;
-      if (nat[key] && nat[key].teamId === school.id) {
-        if (division === 'DI') { delta += 4.0; bigTitleBonus += 3.5; }
-        else delta += 4.0;
-      }
-      // National runner-up / podium team also builds a name (Update 13).
+      const key = division === 'DI' ? g : `${division}-${g}`;
+      // A Division I crown (the deepest field in the country) makes a name
+      // more than any other single result.
+      if (nat[key] && nat[key].teamId === school.id) honors += division === 'DI' ? 7.0 : 5.0;
       else {
+        // National runner-up / podium team also builds a name (Update 13).
         const row = gameState.rankings && gameState.rankings[g].find((r) => r.schoolId === school.id);
-        if (row && row.rank === 2) delta += 1.6;
+        if (row && row.rank === 2) honors += 2.2;
         else if (row && row.rank <= 4) delta += 0.9;
       }
     });
 
-    // Coach of the Year is a marquee honor — it should move the needle. This
-    // runs once per coach per rollover, so newly-won awards (the difference
-    // since last season's baseline) add reputation exactly once.
+    // Coach of the Year is a marquee honor. This runs once per coach per
+    // rollover, so newly won awards (the difference since last season's
+    // baseline) add reputation exactly once.
     const cr = coach.careerRecord || {};
     const gainedNat = (cr.natCOY || 0) - (cr._repNatCOY || 0);
     const gainedConf = (cr.confCOY || 0) - (cr._repConfCOY || 0);
-    if (gainedNat > 0) delta += gainedNat * 1.2;
-    if (gainedConf > 0) delta += gainedConf * 0.4;
+    if (gainedNat > 0) honors += gainedNat * 2.5;
+    if (gainedConf > 0) delta += gainedConf * 0.5;
     cr._repNatCOY = cr.natCOY || 0;
     cr._repConfCOY = cr.confCOY || 0;
 
-    // Development & All-Americans: turning rosters into better runners, and
-    // producing national-caliber athletes, gets a coach noticed.
+    // All-Americans and individual national champions the program produced.
+    const H = gameState.history.seasonStaffHonors || {};
+    const made = (H[year] || {})[school.id] || (H[gameState.year] || {})[school.id];
+    if (made) {
+      delta += Math.min(1.2, (made.allAmericans || 0) * 0.12);
+      honors += Math.min(2.0, (made.indivNatChamps || 0) * 1.0);
+    }
+
+    // Development: turning rosters into better runners gets a coach noticed.
     const roster = gameState.getRoster(school.id, 'M').concat(gameState.getRoster(school.id, 'W'));
     if (roster.length) {
       const avgDev = Utils.average(roster.map((a) => a.seasonDev || 0));
@@ -269,17 +277,32 @@
     if (coach.reputation >= 70 && rank > 40) delta -= 0.8;
 
     delta += (rng.next() - 0.5) * 0.4; // media noise
-    // Diminishing returns near the summit (Update 13): reaching Legend
-    // requires DECADES of success — each rung above National Coach is
-    // harder to climb, so multi-title dynasties rise steadily while average
-    // coaches plateau well short of the top tiers.
-    let applied = Utils.clamp(delta, -5, 6);
-    if (applied > 0) applied *= Utils.clamp(1 - (coach.reputation || 20) / 155, 0.28, 1);
-    // A Division I national title lands on top, only lightly tapered — a
-    // decades-long legend still feels every crown, and it can push a coach
-    // over the line into the sport's top tier faster than anything else.
-    if (bigTitleBonus > 0) applied += bigTitleBonus * Utils.clamp(1 - (coach.reputation || 20) / 240, 0.7, 1);
-    coach.reputation = Utils.clamp(Math.round((coach.reputation + applied) * 10) / 10, 1, 99);
+    const rep = coach.reputation || 20;
+    // Results (and routine honors) taper hard near the summit: winning
+    // seasons alone carry a coach into the 80s and no further.
+    let applied = Utils.clamp(delta, -5, 4);
+    if (applied > 0) applied *= Utils.clamp(1 - rep / 120, 0.05, 1);
+    // Honors taper only lightly.
+    applied += Math.min(honors, 12) * Utils.clamp(1 - rep / 320, 0.7, 1);
+    // The last rungs are the hardest: gains above 90 count 60%, above 95
+    // just 30%, so the very top spreads out instead of piling up at 99.
+    let next = rep + applied;
+    if (applied > 0) {
+      const squeeze = (from, to, line, keep) => (to <= line ? to : Math.max(from, line) + (to - Math.max(from, line)) * keep);
+      next = squeeze(rep, next, 90, 0.6);
+      next = squeeze(Math.max(rep, 90), next, 95, 0.5); // 0.6 × 0.5 = 30% of the raw gain above 95
+    }
+    // Upkeep: a big name fades unless it is renewed. Above 85, a coach loses
+    // a tenth of a point a year for every point of reputation over 85, so
+    // the 90s belong to coaches still winning national honors.
+    if (rep > 85) next -= (rep - 85) * 0.1;
+    // A legacy floor: national titles and national Coach of the Year awards
+    // are never forgotten. A champion's name can fade, but not below what
+    // the hardware earned (a title is worth 7 points, a national COY 3, on
+    // top of 50; at most 88).
+    const titles = cr.nationalTitles || 0;
+    if (titles > 0) next = Math.max(next, Math.min(88, 50 + titles * 7 + (cr.natCOY || 0) * 3));
+    coach.reputation = Utils.clamp(Math.round(next * 10) / 10, 1, 99);
   }
 
   /*
@@ -744,6 +767,16 @@
   const STAFF_STEP_UP = 6;   // an assistant moves only to a program this much bigger
   const STAFF_HEAD_GAP = 22; // a head coach gives up the chair only for one this much bigger
   const STAFF_LIST = { assistant: 60, head: 30, locked: 6 };
+  // Stature (Version 15.16): a head coach with a 75+ reputation has outgrown
+  // an assistant's chair. Sitting head coaches and out-of-work former heads
+  // at that level are never offered one, by the player or a CPU staff.
+  const STAFF_HEAD_REP_MAX = 75;
+  const tooProminent = (c, source) => {
+    const head = source === 'head' || (source === 'freeAgent' && (c.role || 'Head') === 'Head');
+    const rep = Math.round(c.reputation || 0);
+    return head && rep >= STAFF_HEAD_REP_MAX
+      ? `Reputation ${rep}: a head coach of this stature won't take an assistant's job` : null;
+  };
 
   function hiringReach(gameState) {
     const school = gameState.getPlayerSchool();
@@ -832,7 +865,7 @@
     const push = (coach, source, from, key) => rows.push({
       key: key || coach.id, coach, source, from: from || null,
       interest: source === 'applicant' ? 100 : staffInterest(gameState, coach, source, from),
-      locked: source === 'applicant' ? null : tooBig(coach),
+      locked: source === 'applicant' ? null : (tooProminent(coach, source) || tooBig(coach)),
       declined: declinedThisYear(gameState, coach.id)
     });
 
@@ -864,8 +897,9 @@
     });
     ['assistant', 'head'].forEach((source) => {
       const list = sitting[source].sort((x, y) => y.c.overallRating - x.c.overallRating);
-      list.filter((x) => !tooBig(x.c)).slice(0, STAFF_LIST[source]).forEach((x) => push(x.c, source, x.s));
-      list.filter((x) => tooBig(x.c)).slice(0, STAFF_LIST.locked).forEach((x) => push(x.c, source, x.s));
+      const out = (c) => tooBig(c) || tooProminent(c, source);
+      list.filter((x) => !out(x.c)).slice(0, STAFF_LIST[source]).forEach((x) => push(x.c, source, x.s));
+      list.filter((x) => out(x.c)).slice(0, STAFF_LIST.locked).forEach((x) => push(x.c, source, x.s));
     });
 
     const counts = { applicant: 0, freeAgent: 0, assistant: 0, head: 0 };
@@ -1022,6 +1056,7 @@
     offerAssistantJob,
     STAFF_STEP_UP,
     STAFF_HEAD_GAP,
+    STAFF_HEAD_REP_MAX,
     CORE_RATINGS: CORE,
     SECONDARY_RATINGS: SECONDARY
   };

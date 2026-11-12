@@ -91,14 +91,17 @@
 
     // Budgets scale by conference tier AND by division: DII operates on a
     // fraction of DI money, DIII on far less (data-driven via divisionFor).
-    const budgetScale = ({ 1: 1.0, 2: 0.65, 3: 0.4, 4: 0.22 }[tier]) * divRules.budgetScale;
+    // Elite parity (Version 15.16): an 85+ DI program starts with a power
+    // school's money whatever its conference.
+    const budgetTier = division === 'DI' && prestige >= D.ELITE_PARITY_PRESTIGE ? 1 : tier;
+    const budgetScale = ({ 1: 1.0, 2: 0.65, 3: 0.4, 4: 0.22 }[budgetTier]) * divRules.budgetScale;
     const budgetTotal = Math.round((300000 + prestige * 4000) * budgetScale);
     const budget = {
       total: budgetTotal,
       recruiting: Math.round(budgetTotal * 0.16),
       travel: Math.round(budgetTotal * 0.22),
       scholarships: divRules.scholarshipModel === 'none' ? 0 : Math.round(budgetTotal * 0.42),
-      nil: divRules.nil ? Math.round(budgetTotal * 0.08 * (tier === 1 ? 2 : 1)) : 0,
+      nil: divRules.nil ? Math.round(budgetTotal * 0.08 * (budgetTier === 1 ? 2 : 1)) : 0,
       facilitiesFund: Math.round(budgetTotal * 0.12)
     };
 
@@ -231,7 +234,7 @@
   function buildCoach(rng, school, isPlayer, role = 'Head') {
     const gender = rng.bool(0.75) ? 'M' : 'W';
     const firstName = gender === 'M' ? rng.choice(D.FIRST_NAMES_M) : rng.choice(D.FIRST_NAMES_W);
-    const tierBonus = { 1: 14, 2: 6, 3: 0, 4: -6 }[school.conferenceTier];
+    const tierBonus = { 1: 14, 2: 6, 3: 0, 4: -6 }[D.effectiveTier(school)]; // elite parity (Version 15.16)
     // Strong programs are led by strong coaches (Realism Update): a head
     // coach's quality tracks the PROGRAM'S prestige and heritage, so an elite
     // historical program is never handed a poor coach — even when it sits in a

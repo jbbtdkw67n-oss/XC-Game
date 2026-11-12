@@ -460,6 +460,7 @@
       careerRecord: { ...coach.careerRecord },
       winPct: coach.winPct,
       stints: (coach.stints || []).map((s) => ({ ...s, endYear: s.endYear || gameState.year })),
+      seatLog: coach.seatLog ? { ...coach.seatLog } : undefined,
       trainingPhilosophy: coach.trainingPhilosophy || 'balanced',
       racePhilosophy: coach.racePhilosophy || 'even',
       coachAccolades: (coach.coachAccolades || []).slice(),

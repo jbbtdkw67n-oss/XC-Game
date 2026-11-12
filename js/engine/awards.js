@@ -544,7 +544,7 @@
       // heats. CPU athletic directors are also more impulsive than the
       // player's, with a little year-to-year unpredictability.
       const struggle = Utils.clamp((actualPct - STRUGGLE_LINE) / (1 - STRUGGLE_LINE), 0, 1);
-      let volatility = 1 + big * 0.55 + ((school.division || 'DI') === 'DI' && school.conferenceTier === 1 ? 0.15 : 0) +
+      let volatility = 1 + big * 0.55 + ((school.division || 'DI') === 'DI' && window.XCD.data.effectiveTier(school) === 1 ? 0.15 : 0) +
         struggle * 0.6;
       if (!coach.isPlayer) volatility *= 1.2 * (0.85 + rng.next() * 0.3);
 
@@ -614,6 +614,10 @@
       // of a slide does not by itself save the job.
       const onHotSeat = window.XCD.data.seatStatus(coach.hotSeat).key === 'hot';
       coach.hotSeatYears = onHotSeat ? (coach.hotSeatYears || 0) + 1 : 0;
+      // The season's job security goes in the coach's permanent ledger
+      // (Version 15.16): Coach Profile → History shows it beside each season.
+      coach.seatLog = coach.seatLog || {};
+      coach.seatLog[gameState.year] = Math.round(coach.hotSeat);
 
       // Repeated failure to meet the podium expectations the program was
       // handed is itself a firing offense (user request): three straight

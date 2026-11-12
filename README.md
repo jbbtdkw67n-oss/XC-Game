@@ -14,6 +14,79 @@ On an iPhone: serve the folder over HTTPS, open it in Safari, and **Add to
 Home Screen** — it installs as a full-screen, offline-capable app. See
 [`docs/APP-STORE.md`](docs/APP-STORE.md) for the full path to the App Store.
 
+## Version 15.16 — Smarter CPU Staffs, Earned Legends & Elite Parity
+
+- **CPU programs develop runners like a good player does.** On the same
+  school with the same coach, a season run by the CPU used to develop runners
+  7-14% less than a sensible player plan. Three fixes close that gap:
+  - **They train through regular-season meets.** A week's training happens
+    after its meet, so the CPU's "race week" mini-taper was just a lost week
+    of development (five of the eight build weeks for some staffs). Competent
+    staffs now run a real week: two quality sessions, a rest day and the long
+    run. Only poor staffs still waste it sometimes.
+  - **They set mileage runner by runner,** like the player's Ideal Mileage:
+    durable runners build toward what their body can absorb, fragile ones
+    stay lower. Better staffs get closer; low-mileage believers only go part
+    of the way. Taper and championship weeks are unchanged.
+  - **A 5% base development rate** for every CPU program. The difficulty
+    slider multiplies on top, so Rookie, Normal, Veteran and Legend keep
+    their spacing. Your own roster is never scaled.
+- **Coach reputation is earned with hardware.** Results alone now carry a
+  coach into the 80s and no further. Titles and awards do the rest, and they
+  count far more than before:
+  - **National honors** move a name most and taper only lightly: a
+    Division I national title is worth 7 points (5 in DII/DIII), a national
+    runner-up 2.2, national Coach of the Year 2.5, and each individual
+    national champion 1 (up to 2).
+  - **Routine honors** come every year at a strong program, so they count
+    with the results: a conference title 0.8, a regional title 0.4, a
+    national podium 0.9, conference Coach of the Year 0.5, and each
+    All-American 0.12 (up to 1.2).
+  - The top spreads out instead of piling up at 99: gains above 90 count
+    60%, and above 95 just 30%.
+  - **A legacy floor:** a national champion's name never falls below
+    50 + 7 per national title + 3 per national Coach of the Year (at most 88).
+  - **Upkeep:** above 85, a name fades a tenth of a point a year for every
+    point over 85 unless national honors renew it, so the 90s belong to
+    coaches who are still winning.
+- **Reputation decides who will be an assistant.** No head coach with a
+  reputation of 75 or more takes an assistant's job: sitting heads and
+  out-of-work former heads at that level show as "Too prominent" on the
+  Staff market, CPU staffs never raid them, and you stop getting assistant
+  offers yourself once you reach 75.
+- **Elite parity.** A Division I program at 85+ prestige now gets exactly
+  what a power-conference program gets, whatever league it plays in: the
+  same budget and NIL money, travel budget, school size (fundraising and
+  recruits' size preference), portal pull, appeal to recruits who want a
+  big-conference stage, assistant quality and Hot Seat volatility. Below 85
+  the conference applies as before.
+- **Falls are real but rarely permanent.** Every program still slides when
+  it stops winning, just less steeply: the penalty for stacked poor seasons
+  is gentler (−0.35 a year, at most −1.0), a fallen power is pulled back
+  toward 65% of its heritage (was 55%), and heritage erodes after five poor
+  seasons (was four).
+- **Three new recruiting motivations,** hidden until you scout them like the
+  others:
+  - **Wants a stable coaching staff:** favors a head coach who has been
+    there a while with a safe seat. A staff that just turned over, a hot or
+    warm seat, or a coach near retirement all cost you. Calls, home visits
+    and overnights from a long-tenured coach build more trust.
+  - **Believes in a specific training philosophy:** the recruit names one
+    (Norwegian, High Mileage, Polarized, Speed or Strength Endurance) once
+    revealed. A coach who trains that way gets a big boost and pitches land
+    harder; a Balanced coach is neutral; any other style is a mismatch.
+  - **Wants a program that produces All-Americans:** reads each school's
+    recent record (All-Americans and individual national champions, fading
+    30% a year). Campus visits and Meet the Team land harder at a program
+    full of them.
+- **Job security in the coach history.** Coach Profile → History now shows
+  each head-coaching season's job security beside the school name: 🟢 Stable,
+  🟠 Warm Seat or 🔥 Hot Seat, and 🚪 Fired (or Dismissed) on the last season
+  of a tenure that ended in a firing. Firings show for older saves too;
+  seat statuses are recorded from this version on.
+- **Training screen:** the Freshmen and Recovery mileage presets are gone.
+  +10, −10, Championship taper, Ideal Mileage and Down Week remain.
+
 ## Version 15.15 — The Staff Market, a Restless Carousel & Organized Screens
 
 - **The staff market.** My Program has a new **Staff** tab. Instead of three

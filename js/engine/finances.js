@@ -73,7 +73,7 @@
     const div = school.division || 'DI';
     if (div === 'DII') return 0.55;
     if (div === 'DIII') return 0.4;
-    return ({ 1: 1.5, 2: 1.15, 3: 0.9 }[school.conferenceTier] || 0.9);
+    return ({ 1: 1.5, 2: 1.15, 3: 0.9 }[window.XCD.data.effectiveTier(school)] || 0.9);
   }
 
   function schoolSizeLabel(school) {
@@ -146,13 +146,15 @@
       // Budgets track prestige slowly (booster enthusiasm), scaled by the
       // school's division (Part 13): DII/DIII operate on far less money.
       const division = window.XCD.data.divisionFor(school);
-      const tierScale = ({ 1: 1.0, 2: 0.65, 3: 0.4, 4: 0.22 }[school.conferenceTier] || 0.4) * division.budgetScale;
+      // Elite parity (Version 15.16): an 85+ program budgets like a power school.
+      const effTier = window.XCD.data.effectiveTier(school);
+      const tierScale = ({ 1: 1.0, 2: 0.65, 3: 0.4, 4: 0.22 }[effTier] || 0.4) * division.budgetScale;
       const target = Math.round((300000 + school.prestige * 4000) * tierScale);
       school.budget.total = Math.round(school.budget.total * 0.85 + target * 0.15) + bonus;
       school.budget.recruiting = Math.round(school.budget.total * 0.16);
       school.budget.travel = Math.round(school.budget.total * 0.22);
       school.budget.scholarships = division.scholarshipModel === 'none' ? 0 : Math.round(school.budget.total * 0.42);
-      school.budget.nil = division.nil ? Math.round(school.budget.total * 0.08 * (school.conferenceTier === 1 ? 2 : 1)) : 0;
+      school.budget.nil = division.nil ? Math.round(school.budget.total * 0.08 * (effTier === 1 ? 2 : 1)) : 0;
       // The alumni center quietly compounds: a strong donor network tops up
       // the facilities fund a little faster every year.
       const alumniTopUp = 1 + ((school.facilities.alumniCenter || 35) - 35) / 220;

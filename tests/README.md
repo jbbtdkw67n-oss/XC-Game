@@ -44,6 +44,7 @@ node tests/test-dev-rework.js     # Development Rework: visible curves (Limited/
 node tests/test-followers.js     # Following the coach: per-athlete coach-relationship spread (rapport, Top 7, new-coach reset), Bring Your Runners pitch (3 picks, bond + fit odds, never 100%, one roll), rollover move with bond intact, CPU followers, Transferred-from pill + ledger, save round-trip
 node tests/test-balance.js         # Philosophy & strategy balance: no Threshold Focus (old saves migrate), every philosophy and race strategy has mechanical strengths AND weaknesses, none dominates, form effects reach the engine, pack running tightens the 1-5 spread
 node tests/test-update24.js        # Race-day Top 7 (Highest Overall preset, custom picks, injured-pick cover, cap, save round-trip, Roster card + toggles), transfer desire resets each season, whole-number offseason report, championship-day variance, wide-screen squad monitor, transfer points reset on retirement
+node tests/test-update30.js        # Version 15.16: no Freshmen/Recovery presets, CPU trains through meets + per-runner mileage + 5% base dev, 85+ elite parity across conferences, stability/philosophy-fit/pro-pipeline motivations, honors-driven reputation (title weight, 95+ taper, legacy floor), 75+ rep heads never assistants, job security pills in coach History
 ```
 
 Each script prints `PASS` or `FAIL` with details and exits non-zero on failure.

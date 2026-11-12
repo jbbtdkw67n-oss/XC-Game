@@ -308,7 +308,7 @@
       kind: crossDiv && (s.division === 'DII' || s.division === 'DIII') && (school.division === 'DI')
           ? `Move to ${s.division}`
         : crossDiv && school.division !== 'DI' && s.division === 'DI' ? 'Jump to DI'
-        : s.prestige >= 85 && s.conferenceTier === 1 ? 'Dream job'
+        : s.prestige >= 85 && window.XCD.data.effectiveTier(s) === 1 ? 'Dream job'
         : s.prestige >= school.prestige + 10 ? 'Step up'
         : s.prestige >= school.prestige - 8 ? 'Lateral move'
         : 'Step down'
@@ -417,6 +417,9 @@
     if (!coach || gameState.isAssistant()) return;
     const rep = coach.reputation || 20;
     if (rep < 22) return;               // big staffs don't court total unknowns
+    // Stature (Version 15.16): nobody offers a 75+ reputation head coach an
+    // assistant's job.
+    if (rep >= (window.XCD.engine.Coaching.STAFF_HEAD_REP_MAX || 75)) return;
     // The weaker the current program (and the hotter the seat), the more
     // attractive the springboard — and the more often the phone rings.
     let chance = 0.22;
@@ -1357,6 +1360,7 @@
           .filter(({ c, s }) => c && !c.isPlayer && (c.age || 45) < 58 &&
             s.coachChangedYear !== gameState.year &&
             (c.reputation || 0) >= school.prestige * 0.3 && (c.reputation || 0) <= school.prestige * 0.75 &&
+            (c.reputation || 0) < (window.XCD.engine.Coaching.STAFF_HEAD_REP_MAX || 75) && // stature: never a 75+ head coach
             !['loyal', 'careerBuilder', 'builder'].includes(c.ambition) &&
             !Legacy.hasLeftSchool(school, c.id))
           .sort((a, b) => b.c.overallRating - a.c.overallRating);

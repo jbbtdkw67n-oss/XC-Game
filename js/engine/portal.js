@@ -808,7 +808,7 @@
       trainingFit * 0.05 +
       academicsFit * academicWeight +
       nilScore * 0.03 +
-      (school.conferenceTier === 1 ? 5 : 0) +
+      (window.XCD.data.effectiveTier(school) === 1 ? 5 : 0) +
       (school.prestige > (fromSchool ? fromSchool.prestige : 50) ? 4 : 0) +
       // Coaching stability (Update 11): a staff that just turned over is a
       // gamble no transfer needs to take.

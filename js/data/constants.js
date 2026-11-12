@@ -32,6 +32,22 @@
   };
 
   /*
+   * Elite parity (Version 15.16): a Division I program at 85+ prestige is
+   * treated as a power-conference program whatever league it plays in —
+   * the same budget, NIL, travel money, school size, portal pull and
+   * big-stage recruiting appeal, and the same volatile Hot Seat. Northern
+   * Arizona in the Big Sky competes on the same footing as Oregon. Below 85
+   * the conference tier applies as before.
+   */
+  D.ELITE_PARITY_PRESTIGE = 85;
+  D.effectiveTier = function (school) {
+    if (!school) return 3;
+    const tier = school.conferenceTier || (D.CONFERENCES[school.conference] || { tier: 3 }).tier;
+    if ((school.division || 'DI') === 'DI' && (school.prestige || 0) >= D.ELITE_PARITY_PRESTIGE) return 1;
+    return tier;
+  };
+
+  /*
    * Real-world program heritage (Update 4, Part 8). Historically successful
    * cross country programs start with elevated prestige AND a `heritage`
    * value that gives resilience: a blue blood must have several poor seasons
@@ -556,8 +572,29 @@
     { key: 'altitude-seeker', label: 'Believes in altitude training' },
     { key: 'family-first', label: 'Parents heavily influence the decision' },
     { key: 'spotlight', label: 'Wants big-conference atmosphere' },
-    { key: 'underdog', label: 'Likes the idea of building something new' }
+    { key: 'underdog', label: 'Likes the idea of building something new' },
+    // Version 15.16: three more reasons a kid picks a school.
+    // A staff that will still be there in four years: a long-tenured head
+    // coach with a safe seat, never a staff that just turned over.
+    { key: 'stability', label: 'Wants a stable coaching staff' },
+    // A believer in one way of training. The recruit's style is stored on
+    // `philosophyPref` and named once the motivation is revealed.
+    { key: 'philosophy-fit', label: 'Believes in a specific training philosophy' },
+    // Wants to go where runners become All-Americans and national champions
+    // (the school's rolling `pipeline` score, see Prestige.yearlyUpdate).
+    { key: 'pro-pipeline', label: 'Wants a program that produces All-Americans' }
   ];
+
+  // A motivation's label for one recruit: the philosophy believer names
+  // their philosophy.
+  D.motivationLabel = function (key, rec) {
+    const m = D.MOTIVATIONS.find((x) => x.key === key);
+    if (key === 'philosophy-fit' && rec && rec.philosophyPref) {
+      const p = (D.TRAINING_PHILOSOPHIES || []).find((x) => x.key === rec.philosophyPref);
+      if (p) return `Believes in ${p.label} training`;
+    }
+    return m ? m.label : key;
+  };
 
   D.RECRUIT_SOURCES = ['HS', 'JUCO', 'International'];
 
@@ -989,9 +1026,7 @@
     PRESETS: [
       { key: 'plus10',    label: '+10 mi',                   desc: 'Bump every runner +10 miles from their current load', delta: +10, filter: 'all' },
       { key: 'minus10',   label: '−10 mi',                   desc: 'Ease every runner −10 miles from their current load',  delta: -10, filter: 'all' },
-      { key: 'freshmen',  label: 'Freshmen preset',          desc: 'New arrivals absorb less volume', delta: -15, filter: 'freshmen' },
-      { key: 'taper',     label: 'Championship taper',       desc: 'Cut volume, sharpen, race fast',   scale: 0.55, filter: 'all' },
-      { key: 'recovery',  label: 'Recovery preset',          desc: 'Back off everyone to recharge',    absolute: 42, filter: 'all' }
+      { key: 'taper',     label: 'Championship taper',       desc: 'Cut volume, sharpen, race fast',   scale: 0.55, filter: 'all' }
     ]
   };
 
