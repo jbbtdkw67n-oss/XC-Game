@@ -46,7 +46,7 @@ Home Screen** — it installs as a full-screen, offline-capable app. See
     60%, and above 95 just 30%.
   - **A legacy floor:** a national champion's name never falls below
     50 + 7 per national title + 3 per national Coach of the Year (at most 88).
-  - **Upkeep:** above 85, a name fades 0.13 a year for every point over 85
+  - **Upkeep:** above 85, a name fades 0.115 a year for every point over 85
     unless national honors renew it, so the 90s belong to
     coaches who are still winning.
 - **Reputation decides who will be an assistant.** No head coach with a

@@ -293,9 +293,9 @@
       next = squeeze(Math.max(rep, 90), next, 95, 0.5); // 0.6 × 0.5 = 30% of the raw gain above 95
     }
     // Upkeep: a big name fades unless it is renewed. Above 85, a coach loses
-    // 0.13 a year for every point of reputation over 85, so
+    // 0.115 a year for every point of reputation over 85, so
     // the 90s belong to coaches still winning national honors.
-    if (rep > 85) next -= (rep - 85) * 0.13;
+    if (rep > 85) next -= (rep - 85) * 0.115;
     // A legacy floor: national titles and national Coach of the Year awards
     // are never forgotten. A champion's name can fade, but not below what
     // the hardware earned (a title is worth 7 points, a national COY 3, on
