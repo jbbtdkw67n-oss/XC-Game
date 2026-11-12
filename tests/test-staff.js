@@ -6,7 +6,7 @@
 //     to the assistant's real ratings (CPU pushes included)
 //   - the unemployed coach pool feeds the weekly candidate list, and a
 //     real free agent can be hired with career history intact
-//   - the Manage Staff panel shows full comparison profiles with impact
+//   - the Staff tab (the staff market) shows the crafts with impact
 //     explanations and per-candidate Profile cards
 //   - the head-coach job market grows (up to 6 first-wave offers) and
 //     keeps evolving through the offseason (new openings, filled ones)
@@ -94,14 +94,14 @@ async function run() {
   ok(pool.historyKept !== false, 'a hired free agent must keep their career history');
   console.log('free-agent pool:', JSON.stringify(pool));
 
-  // ---- 3) The Manage Staff panel: full comparison + profiles ----
+  // ---- 3) The Staff tab: full comparison + profiles ----
   await page.evaluate(() => { window.XCD.ui.state.game.staffHiredYear = null; }); // reopen the window for the UI check
   await page.click('[data-nav="school"]');
   await page.waitForSelector('#btn-manage-staff');
-  await page.click('#btn-manage-staff');
+  await page.click('#btn-manage-staff'); // opens the Staff tab (the staff market)
   await page.waitForSelector('[data-view-cand]');
   const panel = await page.evaluate(() => {
-    const m = document.querySelector('.modal-backdrop');
+    const m = document.querySelector('#school-body');
     const text = m ? m.textContent : '';
     return {
       crafts: ['Rec', 'Dev', 'Peak', 'Cul', 'Mot', 'Com', 'Eval'].every((k) => text.includes(k)),
@@ -109,7 +109,7 @@ async function run() {
       profiles: document.querySelectorAll('[data-view-cand]').length
     };
   });
-  await page.click('[data-view-cand="0"]');
+  await page.click('[data-view-cand]');
   await page.waitForTimeout(200);
   const profileOpened = await page.evaluate(() => {
     const cards = document.querySelectorAll('.modal-backdrop');

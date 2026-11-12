@@ -21,6 +21,7 @@
   let conferenceFilter = 'All';
   let divisionFilter = 'All';
   let genderFilter = 'All'; // athletes view only
+  let roleFilter = 'All';   // coaches view only: All | Head | Assistant | Free
 
   function teamStrength(game, school, gender) {
     const roster = game.getRoster(school.id, gender)
@@ -175,31 +176,50 @@
   }
 
   /* ---------------- Coaches ---------------- */
+  // Every coach with a job (head and assistant), plus the free agents: the
+  // coaches out of work and waiting for a call.
   function coachRows(game, schools) {
     const rows = [];
-    schools.filter(passesFilters).forEach((s) => {
-      [[s.coachId, 'Head Coach'], [s.assistantId, 'Assistant']].forEach(([id, role]) => {
-        const c = id && game.getCoach(id);
-        if (!c) return;
-        const cr = c.careerRecord || {};
-        rows.push({
-          c,
-          school: s,
-          fullName: c.fullName,
-          schoolName: s.name,
-          conference: s.conference,
-          division: s.division || 'DI',
-          role,
-          archetype: c.archetype || '',
-          overall: c.overallRating,
-          age: c.age,
-          reputation: Math.round(c.reputation || 0),
-          natTitles: cr.nationalTitles || 0
+    const add = (c, s, role) => {
+      const cr = c.careerRecord || {};
+      rows.push({
+        c,
+        school: s,
+        fullName: c.fullName,
+        schoolName: s ? s.name : 'Free agent',
+        conference: s ? s.conference : '',
+        division: s ? (s.division || 'DI') : '',
+        role,
+        archetype: c.archetype || '',
+        overall: c.overallRating,
+        age: c.age,
+        tenure: s ? (c.yearsAtSchool || 0) + 1 : 0,
+        seat: s && role === 'Head Coach' ? D.seatStatus(c.hotSeat || 0) : null,
+        reputation: Math.round(c.reputation || 0),
+        natTitles: cr.nationalTitles || 0
+      });
+    };
+    if (roleFilter !== 'Free') {
+      schools.filter(passesFilters).forEach((s) => {
+        [[s.coachId, 'Head Coach'], [s.assistantId, 'Assistant']].forEach(([id, role]) => {
+          const c = id && game.getCoach(id);
+          if (!c) return;
+          if (roleFilter === 'Head' && role !== 'Head Coach') return;
+          if (roleFilter === 'Assistant' && role !== 'Assistant') return;
+          add(c, s, role);
         });
       });
-    });
+    }
+    // Free agents belong to no division or conference, so they show only
+    // when those filters are off.
+    if ((roleFilter === 'All' || roleFilter === 'Free') && divisionFilter === 'All' && conferenceFilter === 'All') {
+      Object.values(game.world.coaches).filter((c) => !c.schoolId && !c.isPlayer).forEach((c) => add(c, null, 'Free Agent'));
+    }
     return rows;
   }
+
+  const seatTag = (seat) => !seat ? '<span style="color:var(--text-faint);">—</span>'
+    : `<span class="seat-tag ${seat.key}" title="${Utils.escapeHtml(seat.desc)}">${seat.label}</span>`;
 
   function coachTable(game, el, rows) {
     return UI.renderSortableTable(el, {
@@ -209,29 +229,54 @@
       defaultSort: 'reputation',
       defaultDir: 'desc',
       searchKeys: ['fullName', 'schoolName', 'conference', 'archetype', 'role'],
-      rowClass: (r) => (r.school.id === game.playerSchoolId ? 'mine' : ''),
+      rowClass: (r) => (r.school && r.school.id === game.playerSchoolId ? 'mine' : ''),
       onRowClick: (r) => UI.showCoachCard(r.c, game),
       emptyMessage: 'No coaches match — try another name, school, or filter.',
       mobileCard: (r) => `
         <div class="m-head">
           ${UI.avatar(r.c, { size: 42, outfit: 'suit' })}
           <div class="m-title">${Utils.escapeHtml(r.fullName)}${r.c.isPlayer ? ' <span style="color:var(--accent);">(You)</span>' : ''}
-            <div class="m-sub">${UI.kitSwatch(r.school, 13)} ${Utils.escapeHtml(r.schoolName)} • ${r.role} • ${Utils.escapeHtml(r.archetype)}</div>
+            <div class="m-sub">${r.school ? `${UI.kitSwatch(r.school, 13)} ${Utils.escapeHtml(r.schoolName)} • ` : ''}${r.role} • ${Utils.escapeHtml(r.archetype)}</div>
+            <div class="m-sub">Age ${r.age}${r.school ? ` • year ${r.tenure}` : ''} • reputation ${r.reputation}${r.seat && r.seat.key !== 'stable' ? ` • ${r.seat.label}` : ''}</div>
           </div>
-          <div class="m-badge">${UI.ratingBadge(r.overall)}<div class="m-sub">Age ${r.age}</div></div>
+          <div class="m-badge">${UI.ratingBadge(r.overall)}<div class="m-sub">OVR</div></div>
         </div>`,
       columns: [
         { key: 'fullName', label: 'Coach', grow: true, sortValue: (r) => `${r.c.lastName} ${r.c.firstName}`, render: (r) => `<span class="name-cell">${UI.avatar(r.c, { size: 24, outfit: 'suit' })} <strong>${Utils.escapeHtml(r.fullName)}</strong>${r.c.isPlayer ? ' <span style="color:var(--accent);">(You)</span>' : ''}</span>` },
         { key: 'role', label: 'Role' },
         { key: 'schoolName', label: 'School', render: (r) => schoolCell(r.school, game) },
-        { key: 'division', label: 'Div', sortValue: (r) => divIdx(r.division), render: (r) => `<span class="div-chip">${r.division}</span>` },
+        { key: 'division', label: 'Div', sortValue: (r) => divIdx(r.division), render: (r) => r.division ? `<span class="div-chip">${r.division}</span>` : '' },
         { key: 'archetype', label: 'Style' },
         { key: 'overall', label: 'OVR', numeric: true, render: (r) => UI.ratingBadge(r.overall) },
         { key: 'age', label: 'Age', numeric: true },
-        { key: 'reputation', label: 'Prestige', numeric: true },
+        { key: 'tenure', label: 'Year', numeric: true, render: (r) => r.school ? r.tenure : '<span style="color:var(--text-faint);">—</span>' },
+        { key: 'seat', label: 'Seat', sortValue: (r) => r.seat ? r.c.hotSeat || 0 : -1, numeric: true, align: 'left', render: (r) => seatTag(r.seat) },
+        { key: 'reputation', label: 'Rep', numeric: true },
         { key: 'natTitles', label: 'Natl Titles', numeric: true }
       ]
     });
+  }
+
+  // The world at a glance: four tiles above every view.
+  function summaryTiles(game, schools) {
+    const divs = { DI: 0, DII: 0, DIII: 0 };
+    schools.forEach((s) => { divs[s.division || 'DI'] = (divs[s.division || 'DI'] || 0) + 1; });
+    const athletes = schools.reduce((n, s) => n + s.rosterM.length + s.rosterW.length, 0);
+    const heads = schools.map((s) => ({ s, c: s.coachId && game.getCoach(s.coachId) })).filter((x) => x.c);
+    const fresh = heads.filter((x) => (x.c.yearsAtSchool || 0) === 0).length;
+    const dean = heads.slice().sort((x, y) => (y.c.yearsAtSchool || 0) - (x.c.yearsAtSchool || 0))[0];
+    const freeAgents = Object.values(game.world.coaches).filter((c) => !c.schoolId && !c.isPlayer).length;
+    const tile = (label, value, sub, goto) => `
+      <div class="stat-tile${goto ? ' clickable' : ''}"${goto ? ` data-world-goto="${goto}"` : ''}>
+        <div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub}</div>
+      </div>`;
+    return `
+      <div class="grid cols-4" style="margin-bottom:16px;">
+        ${tile('Schools', schools.length, `${divs.DI} D1 • ${divs.DII} D2 • ${divs.DIII} D3`, 'schools')}
+        ${tile('Athletes', athletes.toLocaleString(), 'on rosters this season', 'athletes')}
+        ${tile('New Head Coaches', fresh, `in their first season • ${freeAgents} free agent${freeAgents === 1 ? '' : 's'}`, 'coaches')}
+        ${tile('Longest Tenure', dean ? `${(dean.c.yearsAtSchool || 0) + 1} yrs` : '—', dean ? `${Utils.escapeHtml(dean.c.fullName)} • ${Utils.escapeHtml(dean.s.name)}` : 'no coaches on file', 'coaches')}
+      </div>`;
   }
 
   const VIEW_IMPL = {
@@ -244,6 +289,7 @@
     const game = UI.state.game;
     if (!VIEW_IMPL[view]) view = 'schools';
     if (!['All', 'M', 'W'].includes(genderFilter)) genderFilter = 'All';
+    if (!['All', 'Head', 'Assistant', 'Free'].includes(roleFilter)) roleFilter = 'All';
     const schools = Object.values(game.world.schools);
     const conferences = ['All', ...[...new Set(schools.map((s) => s.conference))].sort()];
     if (!conferences.includes(conferenceFilter)) conferenceFilter = 'All';
@@ -255,28 +301,41 @@
       : view === 'coaches' ? `${coachCount.toLocaleString()} coaches`
         : `${schools.length} schools`;
 
+    const FOOT = {
+      schools: 'Ranked by division, then each squad\'s current poll. Click a column to re-sort; click a school for its program profile.',
+      athletes: 'The 200 best matches are shown. Narrow with the filters or search by name, school or hometown.',
+      coaches: 'Year is the season a coach is in at their program. Free agents are out of work and can be hired; they show when the division and conference filters are off.'
+    };
     container.innerHTML = `
       <div class="screen-header">
         ${UI.screenTitle('World', subtitle)}
         <div class="actions">
-          <select class="search-input" id="div-filter" style="min-width:110px;">
-            ${['All', 'DI', 'DII', 'DIII'].map((d) => `<option value="${d}" ${d === divisionFilter ? 'selected' : ''}>${d === 'All' ? 'All Divisions' : d}</option>`).join('')}
-          </select>
-          <select class="search-input" id="conf-filter" style="min-width:160px;">
-            ${conferences.map((c) => `<option value="${Utils.escapeHtml(c)}" ${c === conferenceFilter ? 'selected' : ''}>${c === 'All' ? 'All Conferences' : Utils.escapeHtml(c)}</option>`).join('')}
-          </select>
-          ${view === 'athletes' ? `
-          <select class="search-input" id="gender-filter" style="min-width:110px;">
-            ${[['All', 'Men & Women'], ['M', 'Men'], ['W', 'Women']].map(([k, l]) => `<option value="${k}" ${k === genderFilter ? 'selected' : ''}>${l}</option>`).join('')}
-          </select>` : ''}
-          <input class="search-input" id="world-search" placeholder="${impl.placeholder}">
+          <div class="pill-tabs" id="world-views">
+            ${VIEWS.map(([k, label]) => `<button data-view="${k}" class="${view === k ? 'active' : ''}">${label}</button>`).join('')}
+          </div>
         </div>
       </div>
-      <div class="pill-tabs world-views" id="world-views">
-        ${VIEWS.map(([k, label]) => `<button data-view="${k}" class="${view === k ? 'active' : ''}">${label}</button>`).join('')}
+      ${summaryTiles(game, schools)}
+      <div class="filter-bar">
+        <input class="search-input" id="world-search" placeholder="${impl.placeholder}">
+        <select class="search-input" id="div-filter">
+          ${['All', 'DI', 'DII', 'DIII'].map((d) => `<option value="${d}" ${d === divisionFilter ? 'selected' : ''}>${d === 'All' ? 'All Divisions' : d}</option>`).join('')}
+        </select>
+        <select class="search-input" id="conf-filter">
+          ${conferences.map((c) => `<option value="${Utils.escapeHtml(c)}" ${c === conferenceFilter ? 'selected' : ''}>${c === 'All' ? 'All Conferences' : Utils.escapeHtml(c)}</option>`).join('')}
+        </select>
+        ${view === 'athletes' ? `
+        <select class="search-input" id="gender-filter">
+          ${[['All', 'Men & Women'], ['M', 'Men'], ['W', 'Women']].map(([k, l]) => `<option value="${k}" ${k === genderFilter ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>` : ''}
+        ${view === 'coaches' ? `
+        <select class="search-input" id="role-filter">
+          ${[['All', 'All Roles'], ['Head', 'Head Coaches'], ['Assistant', 'Assistants'], ['Free', 'Free Agents']].map(([k, l]) => `<option value="${k}" ${k === roleFilter ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>` : ''}
+        <span id="world-count" class="count-note"></span>
       </div>
       <div class="card"><div id="world-table"></div>
-        ${view === 'schools' ? `<div style="color:var(--text-faint); font-size:12px; margin-top:8px;">Ranked by division, then each squad's current poll. Click a column to re-sort; click a school for its program profile.</div>` : ''}
+        <div class="foot-note">${FOOT[view]}</div>
       </div>`;
 
     let query = '';
@@ -285,8 +344,11 @@
     function drawTable() {
       const tableEl = container.querySelector('#world-table');
       if (!tableEl) return null; // navigated away
-      const table = impl.table(game, tableEl, impl.rows(game, schools));
+      const rows = impl.rows(game, schools);
+      const table = impl.table(game, tableEl, rows);
       if (query) table.setQuery(query);
+      const countEl = container.querySelector('#world-count');
+      if (countEl) countEl.textContent = `${rows.length.toLocaleString()} ${view}`;
       return table;
     }
 
@@ -307,6 +369,15 @@
     onFilter('#conf-filter', (v) => { conferenceFilter = v; });
     onFilter('#div-filter', (v) => { divisionFilter = v; });
     onFilter('#gender-filter', (v) => { genderFilter = v; });
+    onFilter('#role-filter', (v) => { roleFilter = v; });
+
+    container.querySelectorAll('[data-world-goto]').forEach((tile) => {
+      tile.addEventListener('click', () => {
+        if (view === tile.dataset.worldGoto) return;
+        view = tile.dataset.worldGoto;
+        render(container);
+      });
+    });
 
     container.querySelectorAll('[data-view]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -325,7 +396,13 @@
     conferenceFilter = 'All';
     divisionFilter = 'All';
     genderFilter = 'All';
+    roleFilter = 'All';
   }
 
-  UI.screens.world = { render, reset };
+  // Deep link: UI.navigate('world', 'schools' | 'athletes' | 'coaches').
+  function openTab(tab) {
+    if (VIEW_IMPL[tab]) view = tab;
+  }
+
+  UI.screens.world = { render, reset, openTab };
 })();

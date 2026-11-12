@@ -135,10 +135,10 @@
       body: 'Week 1 is season setup: review progression, finalize the roster and schedule, settle your staff, then confirm.'
     }),
     'staff:assistantLeft': (p) => ({
-      priority: 3, screen: 'school', icon: '📣',
+      priority: 3, screen: 'school:staff', icon: '📣',
       title: `Your assistant ${p.name} is leaving`,
-      body: p.kind === 'retired' ? 'Retiring after a long career. Hire a replacement from the pool on My Program.'
-        : `Off to ${p.school || 'a new job'}. Hire a replacement from the pool on My Program.`
+      body: p.kind === 'retired' ? 'Retiring after a long career. Hire a replacement from the staff market (My Program → Staff).'
+        : `Off to ${p.school || 'a new job'}. Hire a replacement from the staff market (My Program → Staff).`
     }),
     'recruit:decommitted': (p) => ({
       priority: 2, screen: 'recruiting', icon: '💔',

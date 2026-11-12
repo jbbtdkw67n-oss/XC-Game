@@ -44,6 +44,28 @@
       return `<span class="lineup-chip${auto ? ' auto' : ''}" title="${auto ? 'Open spot — filled by the best healthy runner by overall' : 'In the Top 7'}">${Utils.escapeHtml(a.lastName)} <b>${Math.round(a.currentOverall)}</b></span>`;
     }).join('');
 
+    // The squad at a glance: size, the race-day seven, health, and who
+    // might be looking to leave.
+    const squad = game.getRoster(school.id, activeGender);
+    const seven = lineup.ids.map((id) => game.getAthlete(id)).filter(Boolean);
+    const sevenAvg = seven.length ? Math.round(seven.reduce((t, a) => t + a.currentOverall, 0) / seven.length) : 0;
+    const ace = squad.slice().sort((a, b) => b.currentOverall - a.currentOverall)[0];
+    const hurt = squad.filter((a) => a.injury).length;
+    const leaving = squad.filter((a) => a.eligibilityRemaining < 2).length;
+    const atRisk = squad.filter((a) => {
+      const r = window.XCD.engine.Portal.transferRisk(game, a);
+      return r && !r.graduating && (r.score || 0) >= 50;
+    }).length;
+    const morale = squad.length ? Math.round(squad.reduce((t, a) => t + (a.morale || 0), 0) / squad.length) : 0;
+    const tile = (label, value, sub) => `<div class="stat-tile"><div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
+    const tiles = `
+      <div class="grid cols-4" style="margin-bottom:16px;">
+        ${tile('Squad', `${squad.length}${rl.limit !== Infinity ? `<span class="tile-of"> / ${rl.limit}</span>` : ''}`, `${leaving} in their final season`)}
+        ${tile('Top 7 Average', sevenAvg ? UI.ratingBadge(sevenAvg) : '—', ace ? `best: ${Utils.escapeHtml(ace.lastName)} ${Math.round(ace.currentOverall)}` : 'no runners yet')}
+        ${tile('Available', squad.length - hurt, hurt ? `${hurt} injured` : 'everyone healthy')}
+        ${tile('Morale', morale, atRisk ? `${atRisk} at high transfer risk` : 'nobody at high transfer risk')}
+      </div>`;
+
     container.innerHTML = `
       <div class="screen-header">
         ${UI.screenTitle('Roster', `${Utils.escapeHtml(game.getPlayerSchool().name)} · ${game.year} season`)}
@@ -56,6 +78,8 @@
           ${canManage ? `<button class="btn" id="btn-ideal-mileage" title="Set every runner on both squads to their own ideal weekly mileage — the most their body can absorb right now, built up gradually. Fine-tune any runner on the Training screen.">🎯 Ideal Mileage</button>` : ''}
         </div>
       </div>
+      ${tiles}
+      ${UI.sectionLabel('Leadership & Lineup')}
       <div class="card lead-card" style="margin-bottom:14px;">
         <div class="lead-score ${lead >= 75 ? 'strong' : lead >= 60 ? 'ok' : 'weak'}">${lead == null ? '—' : lead}</div>
         <div>
@@ -88,8 +112,10 @@
           open any profile for the full picture. Cut athletes enter the portal and land elsewhere.
         </div>
       </div>` : ''}
+      ${UI.sectionLabel(`${activeGender === 'M' ? "Men's" : "Women's"} Squad`)}
       <div class="card">
         <div id="roster-table"></div>
+        <div class="foot-note">Click a column to sort and a runner for the full profile. FTG is fatigue (lower is fresher), MOR is morale, and Risk is how likely a runner is to enter the transfer portal. “wo” marks a walk-on.</div>
       </div>`;
 
     const roster = game.getRoster(school.id, activeGender);

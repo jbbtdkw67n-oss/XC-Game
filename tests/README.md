@@ -24,6 +24,7 @@ node tests/test-transferrisk.js # Transfer Desire levels, reasons/anchors reveal
 node tests/test-hspb.js        # HS 5K PBs: gender distributions, ability correlation + potential independence, state champions, NXN finishes, prep history through enrollment, UI, save round-trip
 node tests/test-livescore.js   # Live team score projection: dynamic per-frame scoring from real splits, convergence to the official final, lock timing, player scoring panel, broadcast render
 node tests/test-week1.js       # Week 1 admin phase: checklist gates Week 2, schedule finalization + Pre-Nationals lock, DI 14-athlete limit with player cuts + CPU trim, rollover reset
+node tests/test-staff-market.js # Staff market: applicants/free agents/other staffs/small-program head coaches, hiring reach cap, interest + fixed answers, a yes refills the old chair, Staff tab UI; carousel: shock exits, tenure-weighted partings, ~1 in 8 programs changing coaches a year
 node tests/test-staff.js       # Assistant value (dev/chemistry/morale/recruiting/peaking wiring), free-agent pool, comparison panel + profiles, open job market (all chairs, Interest %, apply/reject flow, offseason-only)
 node tests/test-facilities.js  # Five-facility overhaul: shape + old-save migration, rehab/indoor-track/training-center implications, success+size fundraising, panel UI
 node tests/test-100seasons.js  # Century soak (~9 min): talent stability, health rates, staffing/roster/facility integrity, records, save size + round-trip

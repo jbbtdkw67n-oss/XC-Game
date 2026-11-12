@@ -468,7 +468,7 @@
 
     logNews(text) {
       this.newsLog.unshift({ year: this.year, week: this.week, text, id: Utils.generateId('news') });
-      if (this.newsLog.length > 300) this.newsLog.length = 300;
+      if (this.newsLog.length > 400) this.newsLog.length = 400;
     }
 
     getSchool(id) { return this.world.schools[id]; }
@@ -652,7 +652,10 @@
       window.XCD.engine.Careers.expireOffers(this);
       // The offseason job market keeps evolving week to week (spec Part 2):
       // fresh openings surface, others get filled behind the scenes.
-      if (this.week > AWARDS_WEEK) window.XCD.engine.Careers.evolveJobMarket(this, rng);
+      if (this.week > AWARDS_WEEK) {
+        window.XCD.engine.Careers.offseasonChurn(this, rng); // late dominoes fall all offseason
+        window.XCD.engine.Careers.evolveJobMarket(this, rng);
+      }
 
       // The transfer portal window.
       window.XCD.engine.Portal.processWeek(this, rng);
@@ -915,6 +918,9 @@
         weeklyFlow: this.weeklyFlow,
         offseasonReport: this.offseasonReport || null,
         staffHiredYear: this.staffHiredYear || null,
+        // Coaches who turned the player's assistant job down this offseason.
+        staffDeclined: this.staffDeclined || null,
+        marketStirredYear: this.marketStirredYear || null,
         // The player's coordinator left this offseason (Update 16): a pending
         // vacancy the player resolves from the hiring pool.
         assistantDeparture: this.assistantDeparture || null,
@@ -1070,6 +1076,8 @@
       gs.weeklyFlow = obj.weeklyFlow || { trainingConfirmed: false, recruitingDone: false };
       gs.offseasonReport = obj.offseasonReport || null;
       gs.staffHiredYear = obj.staffHiredYear || null;
+      gs.staffDeclined = obj.staffDeclined || null;
+      gs.marketStirredYear = obj.marketStirredYear || null;
       gs.assistantDeparture = obj.assistantDeparture || null;
       gs.coachFollowers = obj.coachFollowers || null;
       // Tutorial state (Update 15): null for older saves — never shown to them.

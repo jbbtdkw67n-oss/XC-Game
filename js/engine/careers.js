@@ -64,22 +64,40 @@
    */
   function ensureMarketInventory(gameState, rng) {
     const Legacy = window.XCD.engine.Legacy;
+    // The market is stirred once per offseason (the player's job board and
+    // an assistant's promotion board both call in).
+    if (gameState.marketStirredYear === gameState.year) return;
+    gameState.marketStirredYear = gameState.year;
     const schools = Object.values(gameState.world.schools);
     const occupied = (s) => s.coachId && gameState.world.coaches[s.coachId];
+
+    // Shock exits first: no chair is ever completely safe.
+    const shocks = shockExits(gameState, rng);
+
     let vacant = schools.filter((s) => s.id !== gameState.playerSchoolId && !occupied(s)).length;
-    // A realistic active market scales to the size of the world.
-    const floor = Utils.clamp(Math.round(schools.length * 0.02), 10, 16);
-    if (vacant >= floor) return;
+    // A realistic active market scales to the size of the world: about one
+    // program in twenty changes coaches through a parting or a step-down,
+    // on top of the firings, retirements and shock exits.
+    const floor = Utils.clamp(Math.round(schools.length * MARKET_FLOOR_SHARE), 12, 60);
+    if (vacant >= floor) {
+      if (shocks) gameState.logNews(`📋 The coaching carousel heats up: ${shocks} surprise exit${shocks === 1 ? '' : 's'} shake the market this offseason.`);
+      return;
+    }
 
     const pool = schools.filter((s) => s.id !== gameState.playerSchoolId && occupied(s) &&
       !gameState.world.coaches[s.coachId].isPlayer);
     const weightOf = (s) => {
       const c = gameState.world.coaches[s.coachId];
+      const years = c.yearsAtSchool || 0;
       let w = 0.5;
       w += (c.hotSeat || 0) / 18;                       // pressure — the obvious moves
       w += Math.max(0, (c.age || 45) - 60) * 0.18;      // veterans eyeing the exit
       w += Math.max(0, 55 - (s.prestige || 50)) / 26;   // weaker programs churn more
-      w += Math.max(0, 6 - (c.yearsAtSchool || 0)) * 0.04; // early tenures wobble
+      w += Math.max(0, 3 - years) * 0.05;               // early tenures wobble
+      // Long tenures run their course: past seven or eight seasons a coach
+      // and a program are steadily more likely to go their separate ways, so
+      // no chair is held for decades by default.
+      w += Math.max(0, years - 7) * 0.22 + Math.max(0, years - 12) * 0.4;
       return Math.max(0.05, w);
     };
 
@@ -90,25 +108,115 @@
       pool.splice(pool.indexOf(s), 1);
       const c = gameState.world.coaches[s.coachId];
       const retiring = (c.age || 45) >= 62 && rng.bool(0.45);
-      Legacy.closeStint(gameState, c, s, gameState.year, retiring ? 'retired' : 'left');
+      Legacy.closeStint(gameState, c, s, gameState.year, retiring ? 'retired' : 'parted');
       if (retiring) {
         Legacy.recordRetiredCoach(gameState, c, 'retired');
         delete gameState.world.coaches[c.id];
-        gameState.logNews(`RETIREMENT: ${c.fullName} steps down at ${s.name} after ${c.careerRecord.seasons || 'several'} seasons.`);
+        if (newsworthy(gameState, s)) gameState.logNews(`RETIREMENT: ${c.fullName} steps down at ${s.name} after ${c.careerRecord.seasons || 'several'} seasons.`);
       } else {
         // Mutual parting / a move elsewhere — the coach hits the open market.
-        c.schoolId = null;
-        c.hotSeat = 0;
-        c.hotSeatYears = 0; c.podiumMissStreak = 0;
-        c.poolYears = 0;
-        gameState.logNews(`COACHING CHANGE: ${s.name} and ${c.fullName} part ways; the program opens a head-coaching search.`);
+        // A long, settled tenure ends on the coach's terms; a short or
+        // pressured one is a parting.
+        const settled = (c.yearsAtSchool || 0) >= 9 && (c.hotSeat || 0) < 34;
+        if (newsworthy(gameState, s)) gameState.logNews(settled
+          ? `COACHING CHANGE: ${c.fullName} steps down at ${s.name} after ${c.yearsAtSchool} seasons to look for a new challenge; the program opens a head-coaching search.`
+          : `COACHING CHANGE: ${s.name} and ${c.fullName} part ways${(c.yearsAtSchool || 0) >= 4 ? ` after ${c.yearsAtSchool} seasons` : ''}; the program opens a head-coaching search.`);
+        toFreeAgency(c);
       }
       s.coachId = null;
       s.coachChangedYear = gameState.year;
       need--;
       opened++;
     }
-    if (opened) gameState.logNews(`📋 The coaching carousel heats up: ${opened} more program${opened === 1 ? '' : 's'} open head-coaching searches this offseason.`);
+    const total = opened + shocks;
+    if (total) gameState.logNews(`📋 The coaching carousel heats up: ${total} more program${total === 1 ? '' : 's'} open head-coaching searches this offseason.`);
+  }
+
+  // Share of programs whose chair opens through a parting or step-down each
+  // offseason (before firings, retirements, shock exits and poach chains).
+  const MARKET_FLOOR_SHARE = 0.05;
+  // Chance, per CPU head coach per offseason, of an exit nobody saw coming.
+  const SHOCK_EXIT_CHANCE = 0.011;
+
+  // Is a routine coaching move worth a line in the national feed? With a
+  // livelier carousel, moves at small programs outside the player's own
+  // conference stay out of the news (they are still on every profile).
+  function newsworthy(gameState, school) {
+    const mine = gameState.getPlayerSchool();
+    return (school.prestige || 0) >= 50 || school.id === gameState.playerSchoolId ||
+      (!!mine && school.conference === mine.conference && (school.division || 'DI') === (mine.division || 'DI'));
+  }
+
+  function toFreeAgency(c) {
+    c.schoolId = null;
+    c.hotSeat = 0;
+    c.hotSeatYears = 0; c.podiumMissStreak = 0;
+    c.poolYears = 0;
+  }
+
+  /*
+   * One exit nobody saw coming: a resignation, a dismissal after an internal
+   * review, or a coach leaving the college ranks for a professional group.
+   * Any program can be hit — a blue blood as easily as a rebuilding one — so
+   * the top of the job board is never predictable. The chair is left open for
+   * the carousel (and the player's job board) to fill. Returns the news line.
+   */
+  function shockExit(gameState, school, rng) {
+    const Legacy = window.XCD.engine.Legacy;
+    const c = school.coachId && gameState.world.coaches[school.coachId];
+    if (!c || c.isPlayer || school.id === gameState.playerSchoolId) return null;
+    const rep = c.reputation || 20;
+    const kind = rng.weightedChoice(['resigned', 'dismissed', 'pro'],
+      (k) => k === 'pro' ? (rep >= 55 ? 1.2 : 0.15) : k === 'dismissed' ? 0.8 : 1);
+    let line;
+    if (kind === 'pro') {
+      Legacy.closeStint(gameState, c, school, gameState.year, 'pro');
+      Legacy.recordRetiredCoach(gameState, c, 'pro');
+      delete gameState.world.coaches[c.id];
+      line = `SHOCK EXIT: ${c.fullName} leaves ${school.name} to coach a professional training group. One of the sport's ${rep >= 70 ? 'biggest' : 'better'} jobs is suddenly open.`;
+    } else if (kind === 'dismissed') {
+      Legacy.closeStint(gameState, c, school, gameState.year, 'dismissed');
+      toFreeAgency(c);
+      c.reputation = Utils.clamp(rep - 8, 1, 99);
+      line = `SHOCK EXIT: ${school.name} dismisses ${c.fullName} after an internal review of the program.`;
+    } else if ((c.age || 45) >= 58) {
+      Legacy.closeStint(gameState, c, school, gameState.year, 'retired');
+      Legacy.recordRetiredCoach(gameState, c, 'retired');
+      delete gameState.world.coaches[c.id];
+      line = `SHOCK EXIT: ${c.fullName} retires without warning after ${c.yearsAtSchool || 0} season${c.yearsAtSchool === 1 ? '' : 's'} at ${school.name}.`;
+    } else {
+      Legacy.closeStint(gameState, c, school, gameState.year, 'resigned');
+      toFreeAgency(c);
+      line = `SHOCK EXIT: ${c.fullName} resigns at ${school.name}, citing a need for a fresh start.`;
+    }
+    school.coachId = null;
+    school.coachChangedYear = gameState.year;
+    if (newsworthy(gameState, school)) gameState.logNews(line);
+    return line;
+  }
+
+  function shockExits(gameState, rng) {
+    let n = 0;
+    Object.values(gameState.world.schools).forEach((s) => {
+      if (rng.bool(SHOCK_EXIT_CHANCE) && shockExit(gameState, s, rng)) n++;
+    });
+    return n;
+  }
+
+  /*
+   * The carousel keeps turning after the market opens: in any offseason week
+   * a late domino can fall — one more surprise exit somewhere in the country.
+   * It runs for the whole world whatever the player is doing; if the player
+   * is still looking, the new chair joins their job board the same week.
+   */
+  const LATE_DOMINO_CHANCE = 0.3;
+  function offseasonChurn(gameState, rng) {
+    if (gameState.seasonPhase !== 'Offseason' || gameState.week >= OFFER_EXPIRY_WEEK) return;
+    if (!rng.bool(LATE_DOMINO_CHANCE)) return;
+    const pool = Object.values(gameState.world.schools).filter((s) => s.id !== gameState.playerSchoolId &&
+      s.coachId && gameState.world.coaches[s.coachId] && !gameState.world.coaches[s.coachId].isPlayer &&
+      s.coachChangedYear !== gameState.year);
+    if (pool.length) shockExit(gameState, rng.choice(pool), rng);
   }
 
   function generateHeadCoachOffers(gameState, rng) {
@@ -643,7 +751,7 @@
       gameState.career.stops = gameState.career.stops || [];
       gameState.career.stops.push({ school: school.name, startYear: gameState.year + 1, role: 'Head' });
 
-      gameState.logNews(`🎉 PROMOTION: ${school.name} names you head coach — promoted from within after out-rating your boss.${headLine} Hire an assistant on My Program.`);
+      gameState.logNews(`🎉 PROMOTION: ${school.name} names you head coach — promoted from within after out-rating your boss.${headLine} Hire an assistant from the staff market (My Program → Staff).`);
       return { ok: true, message: `You're the head coach at ${school.name}!` };
     }
 
@@ -879,6 +987,18 @@
     return rng.bool(Utils.clamp(p, 0.1, 0.9));
   }
 
+  // Does a sitting HEAD coach take a bigger head job? Usually — it is the
+  // ladder — but the smaller the step and the stronger the pull to stay, the
+  // more often the answer is no.
+  const POACH_DEPTH = 3;
+  function acceptsPoach(coach, fromSchool, toSchool, rng) {
+    const am = ambitionOf(coach);
+    const step = (toSchool.prestige || 40) - (fromSchool.prestige || 40);
+    let p = 0.55 + Utils.clamp(step / 60, 0, 0.35) * am.prestigePull;
+    p /= Math.max(0.7, am.stay);
+    return rng.bool(Utils.clamp(p, 0.15, 0.97));
+  }
+
   // The player just lost their coordinator (Update 16): a major offseason
   // event. Post the headline, flag it for the dashboard, and leave the seat
   // OPEN — the player replaces them from the hiring pool.
@@ -890,7 +1010,7 @@
     const verb = kind === 'head'
       ? `accepts the head coaching job at ${destSchool.name}`
       : `leaves for a bigger assistant post at ${destSchool.name}`;
-    gameState.logNews(`📣 STAFF DEPARTURE: your assistant coach ${coach.fullName} ${verb}. Replace them from the hiring pool on My Program.`);
+    gameState.logNews(`📣 STAFF DEPARTURE: your assistant coach ${coach.fullName} ${verb}. Replace them from the staff market (My Program → Staff).`);
     if (window.XCD.engine.Events) window.XCD.engine.Events.emit(gameState, 'staff:assistantLeft', { name: coach.fullName, school: destSchool.name, kind });
   }
 
@@ -909,19 +1029,26 @@
     // 1) Poach a sitting coach whose reputation outgrew their program —
     //    the natural ladder: DIII champion → DII → low-major → power
     //    conference → blue blood (division-agnostic by design).
-    if (depth < 2 && school.prestige >= 45 && rng.bool(0.6)) {
+    //    Chains run three deep, a near-lateral move is on the table (a coach
+    //    will trade a job for a slightly better one), and the search looks
+    //    past the single biggest name, so who lands where is hard to call.
+    if (depth < POACH_DEPTH && school.prestige >= 40 && rng.bool(0.68)) {
       const targets = Object.values(gameState.world.schools)
         .filter((s) => {
           if (s.id === school.id || s.id === gameState.playerSchoolId) return false;
-          if (s.prestige > school.prestige - 10) return false;
+          if (s.prestige > school.prestige - 5) return false;
           const c = s.coachId && gameState.world.coaches[s.coachId];
           if (!c || c.isPlayer) return false;
+          if (s.coachChangedYear === gameState.year) return false; // just hired — not moving again
           if (Legacy.hasLeftSchool(school, c.id)) return false; // never re-hire a coach who left (Update 19)
           return (c.reputation || 0) >= school.prestige * 0.65 - 5 || (rankIndex[s.id] || 999) <= 35;
         })
         .sort((a, b) => (gameState.world.coaches[b.coachId].reputation || 0) - (gameState.world.coaches[a.coachId].reputation || 0));
-      if (targets.length) {
-        const from = targets[rng.int(0, Math.min(2, targets.length - 1))];
+      // Court the shortlist in a shuffled order; ambition decides who says yes
+      // (a Loyal coach in a good spot turns down a modest step up).
+      const shortlist = rng.shuffle(targets.slice(0, 6));
+      const from = shortlist.find((s) => acceptsPoach(gameState.world.coaches[s.coachId], s, school, rng));
+      if (from) {
         const c = gameState.world.coaches[from.coachId];
         Legacy.closeStint(gameState, c, from, gameState.year, 'left');
         from.coachId = null;
@@ -1025,13 +1152,14 @@
     replacement.schoolId = school.id;
     Legacy.openStint(gameState, replacement, school, gameState.year);
     school.coachChangedYear = gameState.year;
-    gameState.logNews(`${school.name} promotes ${replacement.fullName} to head coach — a first big break.`);
+    if (newsworthy(gameState, school)) gameState.logNews(`${school.name} promotes ${replacement.fullName} to head coach — a first big break.`);
     return replacement;
   }
 
   /*
    * The offseason carousel, run at the year rollover (after coach aging).
-   *  - Retirements: random, always 75+.
+   *  - Retirements: certain at the coach's retirement age (75+), and
+   *    increasingly likely every year from 60 on.
    *  - Vacancies (from firings + retirements + moves) get filled.
    *  - Free agents nobody calls eventually retire quietly.
    */
@@ -1045,7 +1173,9 @@
       // Some coaches retire earlier than their clock (Update 3): a small,
       // age-scaled chance from the late 60s on — burnout, health, a good
       // stopping point. Most still coach until 75+.
-      const earlyRetire = coach.age >= 66 && rng.bool(Math.min(0.14, (coach.age - 65) * 0.02));
+      // The window opens at 60 and widens every year, so a chair is rarely
+      // held into a coach's seventies.
+      const earlyRetire = coach.age >= 60 && rng.bool(Math.min(0.24, (coach.age - 59) * 0.022));
       if (coach.age >= coach.retireAge || earlyRetire) {
         Legacy.closeStint(gameState, coach, school, gameState.year, 'retired');
         Legacy.recordRetiredCoach(gameState, coach, 'retired');
@@ -1123,7 +1253,7 @@
         school.assistantId = null;
         if (playerAsst) {
           gameState.assistantDeparture = { year: gameState.year, coachName: asst.fullName, school: null, kind: 'retired' };
-          gameState.logNews(`📣 STAFF DEPARTURE: your assistant coach ${asst.fullName} retires after ${asst.careerRecord.seasons || 'many'} seasons. Hire a replacement from the pool on My Program.`);
+          gameState.logNews(`📣 STAFF DEPARTURE: your assistant coach ${asst.fullName} retires after ${asst.careerRecord.seasons || 'many'} seasons. Hire a replacement from the staff market (My Program → Staff).`);
           if (window.XCD.engine.Events) window.XCD.engine.Events.emit(gameState, 'staff:assistantLeft', { name: asst.fullName, school: null, kind: 'retired' });
         }
         return;
@@ -1152,7 +1282,7 @@
       // The player controls their own staff, but the program makes its concern
       // known when the coordinator's recruiting keeps lagging.
       if (playerAsst && (asst.poorRecruitingYears || 0) >= 2) {
-        gameState.logNews(`⚠️ Your assistant ${asst.fullName}'s recruiting classes have lagged expectations ${asst.poorRecruitingYears} years running — a change at coordinator is worth considering (Manage Staff on My Program).`);
+        gameState.logNews(`⚠️ Your assistant ${asst.fullName}'s recruiting classes have lagged expectations ${asst.poorRecruitingYears} years running — a change at coordinator is worth considering (My Program → Staff).`);
       }
 
       // Programs churn staff: a weak, stagnating assistant is occasionally let
@@ -1207,6 +1337,45 @@
         Legacy.openStint(gameState, c, school, gameState.year);
         gameState.logNews(`${c.fullName} lands a bigger assistant job at ${school.name}, leaving ${from.name}.`);
         if (wasPlayerAsst) notePlayerAssistantDeparture(gameState, c, school, 'lateral');
+      });
+
+    // 2b) Elite staffs raid smaller programs' HEAD coaches: a blue blood with
+    //     an open coordinator seat sometimes talks a proven small-program
+    //     head coach into joining its staff — the same move the player can
+    //     make from the staff market. The chair they leave opens for real and
+    //     is filled through the head-coach carousel (chains and all).
+    Object.values(gameState.world.schools)
+      .filter((s) => (!s.assistantId || !gameState.world.coaches[s.assistantId]) &&
+        s.prestige >= 78 && s.id !== gameState.playerSchoolId)
+      .sort((a, b) => b.prestige - a.prestige)
+      .forEach((school) => {
+        if (!rng.bool(0.3)) return;
+        const gap = window.XCD.engine.Coaching.STAFF_HEAD_GAP || 22;
+        const cands = Object.values(gameState.world.schools)
+          .filter((s) => s.id !== gameState.playerSchoolId && s.prestige <= school.prestige - gap - 6)
+          .map((s) => ({ s, c: s.coachId && gameState.world.coaches[s.coachId] }))
+          .filter(({ c, s }) => c && !c.isPlayer && (c.age || 45) < 58 &&
+            s.coachChangedYear !== gameState.year &&
+            (c.reputation || 0) >= school.prestige * 0.3 && (c.reputation || 0) <= school.prestige * 0.75 &&
+            !['loyal', 'careerBuilder', 'builder'].includes(c.ambition) &&
+            !Legacy.hasLeftSchool(school, c.id))
+          .sort((a, b) => b.c.overallRating - a.c.overallRating);
+        if (!cands.length) return;
+        const { s: from, c } = cands[rng.int(0, Math.min(4, cands.length - 1))];
+        Legacy.closeStint(gameState, c, from, gameState.year, 'left');
+        from.coachId = null;
+        from.coachChangedYear = gameState.year;
+        c.role = 'Assistant';
+        c.reputation = Math.min(c.reputation || 0, 92);
+        c.schoolId = school.id;
+        c.yearsAtSchool = 0;
+        c.hotSeat = 0;
+        c.hotSeatYears = 0; c.podiumMissStreak = 0;
+        c.origin = `Former head coach at ${from.name}`;
+        school.assistantId = c.id;
+        Legacy.openStint(gameState, c, school, gameState.year);
+        gameState.logNews(`STAFF COUP: ${c.fullName} gives up the head job at ${from.name} to join the ${school.name} staff.`);
+        fillVacancy(gameState, from, rng, 1);
       });
 
     // 3) Regenerate: every program must have an assistant coach — except the
@@ -1530,7 +1699,7 @@
 
   window.XCD.engine.Careers = {
     generateOffers, generateAssistantOffers, acceptOffer, applyForJob, applicationRoll,
-    declineOffers, expireOffers, evolveJobMarket, runCarousel, runAssistantCarousel,
+    declineOffers, expireOffers, evolveJobMarket, offseasonChurn, runCarousel, runAssistantCarousel,
     fillVacancy, coachRankings, canRetire, retireAndSucceed, firePlayer
   };
 })();

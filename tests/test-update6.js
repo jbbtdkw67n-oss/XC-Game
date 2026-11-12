@@ -153,10 +153,13 @@ async function run() {
     const g = window.XCD.ui.state.game;
     return g.getCoach(g.getPlayerSchool().assistantId).fullName;
   });
-  await page.click('#btn-manage-staff');
+  await page.click('#btn-manage-staff'); // opens the Staff tab (the staff market)
   await page.waitForSelector('[data-hire]');
+  await page.click('[data-staff-src="applicant"]');
   const candCount = await page.$$eval('[data-hire]', (els) => els.length);
-  await page.click('[data-hire="0"]');
+  await page.click('[data-hire]');           // an applicant: they applied, so it is a yes
+  await page.waitForSelector('#btn-confirm-hire');
+  await page.click('#btn-confirm-hire');
   await page.waitForTimeout(150);
   const staff = await page.evaluate(() => {
     const g = window.XCD.ui.state.game;
@@ -164,7 +167,7 @@ async function run() {
     return { name: a.fullName, mentor: a.mentorName, role: a.role };
   });
   console.log('staff:', candCount, asstBefore, '→', JSON.stringify(staff));
-  ok(candCount === 3, 'expected 3 assistant candidates');
+  ok(candCount >= 2 && candCount <= 3, 'expected the weekly applicants (a free agent on the shortlist is listed with the free agents): ' + candCount);
   ok(staff.name !== asstBefore, 'hire must replace the incumbent');
   ok(staff.mentor && staff.role === 'Assistant', 'hired assistant must be linked to the head coach');
 
@@ -215,6 +218,7 @@ async function run() {
   });
   ok(pre.canRetire, 'retirement must be available in the offseason');
   await page.click('[data-nav="school"]');
+  await page.click('[data-stab="overview"]'); // the hire above left My Program on its Staff tab
   await page.waitForSelector('#btn-retire-coach');
   await page.click('#btn-retire-coach');
   await page.waitForSelector('#btn-retire-confirm');

@@ -323,10 +323,10 @@
             const seatEmpty = !(game.getPlayerSchool().assistantId && game.getCoach(game.getPlayerSchool().assistantId));
             return row(staffDone, 'Settle the staff',
               seatEmpty
-                ? '<span style="color:var(--warning);">your assistant left — hire a replacement from the pool (Manage Staff on My Program)</span>'
-                : 'keep your assistant or make your one offseason hire (Manage Staff on My Program)',
+                ? '<span style="color:var(--warning);">your assistant left: hire a replacement from the staff market (My Program → Staff)</span>'
+                : 'keep your assistant or make your one offseason hire from the staff market (My Program → Staff)',
               seatEmpty
-                ? '<button class="btn small" id="w1-staff-go">Go to My Program</button>'
+                ? '<button class="btn small" id="w1-staff-go">Open Staff Market</button>'
                 : '<button class="btn small primary" id="w1-staff">Keep Current Staff</button>');
           })()}
           ${row(t.setupConfirmed, 'Confirm season setup',
@@ -413,9 +413,9 @@
           <h2 style="margin:0 0 4px;">📣 Assistant Coach Vacancy</h2>
           <div style="color:var(--text-dim); font-size:13px; line-height:1.5;">
             ${line} Losing a coordinator matters — recruiting pull, development, and chemistry all
-            change until you hire a replacement. Build a new hire from the pool on My Program.
+            change until you hire a replacement from the staff market: applicants, free agents, and coaches on other staffs.
           </div>
-          <button class="btn small primary" id="btn-go-hire-asst" style="margin-top:10px;">Go to My Program →</button>
+          <button class="btn small primary" id="btn-go-hire-asst" style="margin-top:10px;">Open Staff Market →</button>
         </div>`;
       })()}
       ${UI.followersCard ? UI.followersCard(game) : ''}
@@ -464,7 +464,8 @@
             <thead><tr><th class="col-grow">School</th><th>Div</th><th class="hide-mobile">Conf</th><th class="num">Prestige</th><th class="num hide-mobile">Budget</th><th class="num hide-mobile">Facilities</th><th class="num hide-mobile">Recent</th><th class="num hide-mobile">Titles</th><th class="num">Interest</th><th></th></tr></thead>
             <tbody>${rows}</tbody>
           </table></div>
-          <div style="margin-top:10px; display:flex; gap:8px;">
+          <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn small primary" id="btn-open-jobs" title="Compare every open chair with your program, with filters">Open the Job Board</button>
             <button class="btn small danger" id="btn-decline-offers">Stay Loyal (${promo ? 'Decline All' : 'Close the Market'})</button>
             <button class="btn small" id="btn-wait-offers">Wait — Decide Later</button>
           </div>
@@ -553,7 +554,7 @@
     if (reportBtn) reportBtn.addEventListener('click', () => { markReviewed(); showOffseasonReport(game); render(container); });
 
     const hireAsstBtn = container.querySelector('#btn-go-hire-asst');
-    if (hireAsstBtn) hireAsstBtn.addEventListener('click', () => UI.navigate('school'));
+    if (hireAsstBtn) hireAsstBtn.addEventListener('click', () => UI.navigate('school', 'staff'));
     const followersBtn = container.querySelector('[data-open-followers]');
     if (followersBtn) followersBtn.addEventListener('click', () => UI.showFollowersPopup(game));
 
@@ -579,7 +580,7 @@
       UI.toast('Staff settled for the season.', 'success');
       render(container);
     });
-    w1('#w1-staff-go', () => UI.navigate('school'));
+    w1('#w1-staff-go', () => UI.navigate('school', 'staff'));
     w1('#w1-confirm', () => {
       game.week1.setupConfirmed = true;
       UI.toast('Season setup confirmed — Week 2 is unlocked. Good luck out there.', 'success');
@@ -650,6 +651,8 @@
       UI.toast('You recommit to the program.', 'success');
       render(container);
     });
+    const jobsBtn = container.querySelector('#btn-open-jobs');
+    if (jobsBtn) jobsBtn.addEventListener('click', () => UI.showJobOffersPopup(game));
     const waitBtn = container.querySelector('#btn-wait-offers');
     if (waitBtn) waitBtn.addEventListener('click', () => {
       UI.toast(`Offers stay open until Week ${game.jobOffers.expiresWeek}. Take your time.`, 'info');

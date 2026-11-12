@@ -16,6 +16,8 @@
   const YEARS_PAGE = 8; // Champions/Awards show this many seasons at a time
   let champShown = YEARS_PAGE;
   let awardShown = YEARS_PAGE;
+  const CAREER_PAGE = 5; // My Career shows this many seasons at a time
+  let careerShown = CAREER_PAGE;
   let goatSub = 'athletes';   // GOAT Lists sub-page
   const goatFilters = { query: '', division: '', gender: '', status: '' }; // Update 12: GOAT list filters
   let boardSub = 'programs';  // Leaderboards sub-page
@@ -73,15 +75,15 @@
     el.innerHTML = `
       <div class="grid cols-4" style="margin-bottom:16px;">
         <div class="stat-tile"><div class="label">Seasons</div><div class="value">${c.seasons}</div><div class="sub">at ${Utils.escapeHtml(school.name)}</div></div>
-        <div class="stat-tile"><div class="label">Conference Titles</div><div class="value">${c.conferenceTitles}</div></div>
+        <div class="stat-tile"><div class="label">Conference Titles</div><div class="value">${c.conferenceTitles}</div><div class="sub">${(c.stops || []).length} coaching stop${(c.stops || []).length === 1 ? '' : 's'}</div></div>
         <div class="stat-tile"><div class="label">National Titles</div><div class="value">${c.nationalTitles}</div><div class="sub">${c.podiums} podiums</div></div>
         <div class="stat-tile"><div class="label">Nationals Trips</div><div class="value">${c.nationalsAppearances}</div><div class="sub">best finish: ${c.bestFinish ? Utils.ordinal(c.bestFinish) : '—'}</div></div>
       </div>
       ${(game.history.playerCareers || []).length ? `
-        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--gold, #d4a017);">
-          <h2>🏛 Dynasty Lineage — ${game.history.playerCareers.length + 1} coach${game.history.playerCareers.length ? 'es' : ''}</h2>
-          <div style="color:var(--text-dim); font-size:12.5px; margin-bottom:8px;">
-            Every coach who has led this dynasty. Retired careers are sealed in the record books forever.
+        ${UI.sectionLabel('Dynasty Lineage')}
+        <div class="card">
+          <div class="note-card" style="font-size:12.5px; margin-bottom:8px;">
+            ${game.history.playerCareers.length + 1} coaches have led this dynasty. Retired careers are sealed in the record books forever.
           </div>
           ${UI.listGroup([
             ...game.history.playerCareers.map((p, i) => UI.listRow({
@@ -99,36 +101,67 @@
           ], { scroll: false })}
         </div>` : ''}
       ${(c.stops || []).length ? `
-        <div class="card" style="margin-bottom:16px;">
-          <h2>Coaching Stops</h2>
-          ${UI.listGroup(c.stops.map((s, i) => UI.listRow({
-            badge: '🏫', tone: 'muted',
-            title: Utils.escapeHtml(s.school),
-            meta: `${s.startYear}${i < c.stops.length - 1 ? '–' + (c.stops[i + 1].startYear - 1) : '–present'}`
-          })), { scroll: false })}
+        ${UI.sectionLabel('Coaching Stops')}
+        <div class="card">
+          ${UI.listGroup(c.stops.map((s, i) => {
+            const end = i < c.stops.length - 1 ? c.stops[i + 1].startYear - 1 : null;
+            const span = end ? Math.max(1, end - s.startYear + 1) : Math.max(1, game.year - s.startYear + 1);
+            return UI.listRow({
+              badge: '🏫', tone: end ? 'muted' : 'accent', mine: !end,
+              title: Utils.escapeHtml(s.school),
+              tag: `${s.role === 'Assistant' ? 'Assistant coach' : 'Head coach'}${s.fired ? ' · after being let go' : ''}`,
+              sub: `${span} season${span === 1 ? '' : 's'}`,
+              meta: `<div class="big" style="font-size:14px;">${s.startYear}–${end || 'present'}</div>`,
+              clickable: false
+            });
+          }).reverse(), { scroll: false })}
         </div>` : ''}
       ${c.awards.length ? `
-        <div class="card" style="margin-bottom:16px;">
-          <h2>Personal Honors</h2>
+        ${UI.sectionLabel('Personal Honors')}
+        <div class="card">
           ${UI.listGroup(c.awards.map((a) => UI.listRow({
-            badge: '🏅', tone: 'gold', title: Utils.escapeHtml(a)
+            badge: '🏅', tone: 'gold', title: Utils.escapeHtml(a), clickable: false
           })), { scroll: false })}
         </div>` : ''}
-      <div class="card">
-        <h2>Season-by-Season</h2>
-        ${years.length ? years.map((year) => {
-          const rows = summaries[year];
-          const champ = (game.history.nationalChampions || {})[year];
-          return `
-            <h3 style="margin-top:12px;">${year} ${champ ? `— Natl champs: ${Utils.escapeHtml(champ.M?.team || '?')} (M), ${Utils.escapeHtml(champ.W?.team || '?')} (W)` : ''}</h3>
-            ${rows.length ? `<div class="table-wrap"><table class="data">
-              <thead><tr><th class="col-rank">Wk</th><th class="col-grow">Meet</th><th></th><th class="num">Place</th><th class="num">Field</th></tr></thead>
-              <tbody>${rows.map((r) => `
-                <tr><td>${r.week}</td><td>${Utils.escapeHtml(r.meet)}</td><td>${r.gender}</td>
-                <td class="num">${Utils.ordinal(r.place)}</td><td class="num">${r.teams}</td></tr>`).join('')}
-              </tbody></table></div>` : '<div style="color:var(--text-dim);">No completed meets.</div>'}`;
-        }).join('') : '<div style="color:var(--text-dim);">Complete a season and your résumé builds here.</div>'}
-      </div>`;
+      ${UI.sectionLabel('Season-by-Season')}
+      ${years.length ? years.slice(0, careerShown).map((year) => {
+        // One row per meet: the men's and women's finish side by side, in
+        // the order the season was run.
+        const meets = [];
+        (summaries[year] || []).forEach((r) => {
+          let m = meets.find((x) => x.week === r.week && x.meet === r.meet);
+          if (!m) { m = { week: r.week, meet: r.meet, teams: r.teams }; meets.push(m); }
+          m[r.gender] = r.place;
+          m.teams = Math.max(m.teams || 0, r.teams || 0);
+        });
+        meets.sort((x, y) => x.week - y.week);
+        const champ = (game.history.nationalChampions || {})[year];
+        const best = (m) => Math.min(m.M || 999, m.W || 999);
+        const wins = meets.reduce((n, m) => n + (m.M === 1 ? 1 : 0) + (m.W === 1 ? 1 : 0), 0);
+        const place = (g, p) => p ? `<span class="career-place${p === 1 ? ' win' : p <= 3 ? ' pod' : ''}">${g} ${Utils.ordinal(p)}</span>` : '';
+        return `
+          <div class="card career-season">
+            <div class="kit-head">
+              <div>
+                <h3 style="margin:0;">${year} Season</h3>
+                <div class="kit-sub">${meets.length} meet${meets.length === 1 ? '' : 's'}${wins ? ` · ${wins} team win${wins === 1 ? '' : 's'}` : ''}${champ ? ` · national champions: ${Utils.escapeHtml(champ.M?.team || '?')} (M), ${Utils.escapeHtml(champ.W?.team || '?')} (W)` : ''}</div>
+              </div>
+            </div>
+            ${meets.length ? UI.listGroup(meets.map((m) => UI.listRow({
+              badge: `<span style="font-size:11.5px; font-weight:800;">W${m.week}</span>`,
+              tone: best(m) === 1 ? 'gold' : best(m) <= 3 ? 'good' : 'muted',
+              title: Utils.escapeHtml(m.meet),
+              sub: `${m.teams} team${m.teams === 1 ? '' : 's'}`,
+              meta: `${place('M', m.M)}${place('W', m.W)}`,
+              clickable: false
+            })), { scroll: false }) : '<div class="note-card" style="margin-top:8px;">No completed meets.</div>'}
+          </div>`;
+      }).join('') + (years.length > careerShown
+        ? `<div style="text-align:center; margin-top:12px;"><button class="btn" id="career-more">Show more (${years.length - careerShown} earlier season${years.length - careerShown === 1 ? '' : 's'})</button></div>` : '')
+      : '<div class="card note-card">Complete a season and your résumé builds here.</div>'}`;
+
+    const more = el.querySelector('#career-more');
+    if (more) more.addEventListener('click', () => { careerShown += CAREER_PAGE; career(game, el); });
 
     // A retired predecessor's full historical profile, forever.
     el.querySelectorAll('[data-lineage]').forEach((row) => {
@@ -333,7 +366,7 @@
       list.innerHTML = filtered.length ? UI.listGroup(filtered.slice(0, 40).map((c, i) => UI.listRow({
         badge: UI.avatar(c, { size: 40, outfit: 'polo' }), tone: (c.careerRecord.nationalTitles > 0 ? 'gold' : 'muted'), mine: c.isPlayer,
         title: `<span class="person-name">${Utils.escapeHtml(c.name)}</span>${c.isPlayer ? ' (You)' : ''}`,
-        sub: `${Utils.escapeHtml(c.reputationLabel || '')} • ${c.reason === 'retired' ? `retired ${c.year}, age ${c.age}` : `left the profession ${c.year}`}<br>${(c.stints || []).map((s) => `${Utils.escapeHtml(s.school)} '${String(s.startYear).slice(2)}–'${String(s.endYear).slice(2)}`).join(' → ')}`,
+        sub: `${Utils.escapeHtml(c.reputationLabel || '')} • ${c.reason === 'retired' ? `retired ${c.year}, age ${c.age}` : c.reason === 'pro' ? `left for the pros ${c.year}` : `left the profession ${c.year}`}<br>${(c.stints || []).map((s) => `${Utils.escapeHtml(s.school)} '${String(s.startYear).slice(2)}–'${String(s.endYear).slice(2)}`).join(' → ')}`,
         meta: `<span class="small">${c.careerRecord.seasons || 0} seasons<br>${c.careerRecord.nationalTitles} natl · ${c.careerRecord.conferenceTitles} conf · ${c.careerRecord.allAmericans || 0} AAs</span>`,
         attrs: { reg: i }
       })), { scroll: false }) : '<div style="color:var(--text-dim); font-size:13px;">No matches.</div>';
@@ -966,6 +999,7 @@
   // leaving a tab and coming back always lands on its default view.
   function reset() {
     activeTab = 'career';
+    careerShown = CAREER_PAGE;
     champDiv = 'DI';
     champYear = '';
     awardDiv = 'DI';

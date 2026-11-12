@@ -26,6 +26,12 @@
   // Per-open-popup state.
   let sortKey = 'prestige'; // prestige | interest | name
   let selectedId = null;    // schoolId of the expanded offer, or null
+  let jobFilter = 'all';    // all | likely | up | division
+
+  // The board is long (every open chair in the country), so it filters to
+  // the jobs a coach actually weighs: good odds, a real step up, or their
+  // own division.
+  const JOB_FILTERS = [['all', 'All'], ['likely', 'Good Odds'], ['up', 'Step Up'], ['division', 'My Division']];
 
   function schoolColors(school) {
     if (school && Array.isArray(school.colors) && school.colors.length >= 2) return school.colors;
@@ -85,8 +91,16 @@
     return 'r-poor';
   }
 
+  function passesFilter(game, o, id) {
+    const cur = game.getPlayerSchool();
+    if (id === 'likely') return isDirect(game, o) || interestOf(o) >= 50;
+    if (id === 'up') return (o.prestige || 0) >= (cur.prestige || 0) + 5;
+    if (id === 'division') return (o.division || 'DI') === (cur.division || 'DI');
+    return true;
+  }
+
   function sortedOffers(game) {
-    const arr = openOffers(game).slice();
+    const arr = openOffers(game).filter((o) => passesFilter(game, o, jobFilter));
     if (sortKey === 'interest') arr.sort((a, b) => (isDirect(game, b) ? 101 : interestOf(b)) - (isDirect(game, a) ? 101 : interestOf(a)));
     else if (sortKey === 'name') arr.sort((a, b) => String(a.schoolName).localeCompare(String(b.schoolName)));
     else arr.sort((a, b) => (b.prestige || 0) - (a.prestige || 0));
@@ -249,7 +263,8 @@
 
   function listHtml(game) {
     const offers = sortedOffers(game).map((o) => rowHtml(game, o, selectedId === o.schoolId)).join('');
-    return offers || '<div style="color:var(--text-dim); padding:18px; text-align:center;">No open chairs this cycle — you can stay put.</div>';
+    return offers || `<div style="color:var(--text-dim); padding:18px; text-align:center;">${openOffers(game).length
+      ? 'No open chairs match this filter.' : 'No open chairs this cycle. You can stay put.'}</div>`;
   }
 
   function continueLabel(game) {
@@ -272,6 +287,23 @@
           </div>
         </div>
         ${currentHtml(game)}
+        ${(() => {
+          // The market at a glance.
+          const all = openOffers(game);
+          const top = all.slice().sort((a, b) => (b.prestige || 0) - (a.prestige || 0))[0];
+          const t = (label, value, sub) => `<div class="job-tile"><div class="l">${label}</div><div class="v">${value}</div><div class="s">${sub}</div></div>`;
+          return `<div class="job-tiles">
+            ${t('Open Chairs', all.length, 'across the country')}
+            ${t('Good Odds', all.filter((o) => passesFilter(game, o, 'likely')).length, promo ? 'direct offers' : '50% interest or better')}
+            ${t('Step Ups', all.filter((o) => passesFilter(game, o, 'up')).length, 'bigger than your program')}
+            ${t('Biggest Job', top ? Math.round(top.prestige || 0) : '—', top ? Utils.escapeHtml(top.schoolName) : 'nothing open')}
+          </div>`;
+        })()}
+        <div class="job-filters">
+          <div class="pill-tabs" id="job-filters">
+            ${JOB_FILTERS.map(([id, label]) => `<button data-job-filter="${id}" class="${jobFilter === id ? 'active' : ''}">${label} <span class="pill-count">${openOffers(game).filter((o) => passesFilter(game, o, id)).length}</span></button>`).join('')}
+          </div>
+        </div>
         <div class="job-sort">
           <span class="job-sort-label">Sort By:</span>
           <select id="job-sort-sel">
@@ -312,6 +344,15 @@
   function wire(modal, game) {
     const sel = modal.querySelector('#job-sort-sel');
     if (sel) sel.addEventListener('change', () => { sortKey = sel.value; refreshList(modal, game); });
+    modal.querySelectorAll('[data-job-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        jobFilter = btn.dataset.jobFilter;
+        modal.querySelectorAll('[data-job-filter]').forEach((b) => b.classList.toggle('active', b === btn));
+        // A selection the filter hides is dropped, so Apply never targets a job off screen.
+        if (selectedId && !sortedOffers(game).some((o) => o.schoolId === selectedId)) selectedId = null;
+        refreshList(modal, game);
+      });
+    });
     wireRows(modal, game);
     modal.querySelector('#job-continue').addEventListener('click', () => onContinue(game));
     modal.querySelector('#job-decline').addEventListener('click', () => onDecline(game));
@@ -391,6 +432,7 @@
     game.jobPopupYear = game.year; // once per offseason, whatever happens to the board
     sortKey = 'prestige';
     selectedId = null;
+    jobFilter = 'all';
     render(game);
     return true;
   };
