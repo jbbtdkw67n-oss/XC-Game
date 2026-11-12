@@ -740,6 +740,9 @@
     return mult;
   }
 
+  // How hard a late grind (Conservative) turns banked energy into pace.
+  const LATE_GRIND_K = 0.012;
+
   /*
    * Simulate one gender's race at a meet — a true segment-by-segment
    * simulation in which positioning changes naturally:
@@ -977,10 +980,16 @@
         if (isLate) {
           // The grind: pace held by stamina + toughness. This is where
           // strong distance runners move up through the field. Conservative
-          // staffs grind up harder late (having saved early).
+          // staffs grind up harder late, spending what they saved early.
           const grind = 0.016 * (1.45 - (a.stamina * 0.6 + a.mentalToughness * 0.4) / 100) * (s - 7);
           t *= 1 + grind;
-          if (tac.lateGrind && r.reserve > 15) t *= 1 - (tac.lateGrind - 1) * 0.02;
+          // The payoff scales with what's actually left in the tank: a
+          // runner who banked energy early spends it here, one who arrives
+          // on empty gets little back.
+          if (tac.lateGrind && r.reserve > 8) {
+            const banked = Utils.clamp((r.reserve - 8) / 22, 0, 1);
+            t *= 1 - (tac.lateGrind - 1) * LATE_GRIND_K * banked;
+          }
         }
 
         if (kickPhase && !r.faded && r.reserve > 10) {
