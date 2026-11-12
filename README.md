@@ -49,6 +49,9 @@ Home Screen** — it installs as a full-screen, offline-capable app. See
   - **Upkeep:** above 85, a name fades 0.115 a year for every point over 85
     unless national honors renew it, so the 90s belong to
     coaches who are still winning.
+  - In two 30-season test worlds, 6-7 Division I head coaches sat at 90+
+    on average late in the run (4-9 in any one season), nearly all of them
+    national champions, spread from 91 to 98 instead of stacked at 99.
 - **Reputation decides who will be an assistant.** No head coach with a
   reputation of 75 or more takes an assistant's job: sitting heads and
   out-of-work former heads at that level show as "Too prominent" on the
