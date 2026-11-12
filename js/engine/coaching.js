@@ -278,10 +278,15 @@
 
     delta += (rng.next() - 0.5) * 0.4; // media noise
     const rep = coach.reputation || 20;
-    // Results (and routine honors) taper hard near the summit: winning
-    // seasons alone carry a coach into the 80s and no further.
-    let applied = Utils.clamp(delta, -5, 4);
-    if (applied > 0) applied *= Utils.clamp(1 - rep / 120, 0.05, 1);
+    // Results (and routine honors) taper as a name grows (the Update 13
+    // curve), and much harder above 80: winning seasons alone carry a coach
+    // into the 80s and no further. Below 80 a program that keeps winning
+    // keeps building its coach's name.
+    let applied = Utils.clamp(delta, -5, 5);
+    if (applied > 0) {
+      applied *= Utils.clamp(1 - rep / 155, 0.28, 1);
+      if (rep > 80) applied *= Utils.clamp(1 - (rep - 80) / 25, 0.3, 1);
+    }
     // Honors taper only lightly.
     applied += Math.min(honors, 12) * Utils.clamp(1 - rep / 320, 0.7, 1);
     // The last rungs are the hardest: gains above 90 count 60%, above 95
