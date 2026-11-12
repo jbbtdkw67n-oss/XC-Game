@@ -558,8 +558,9 @@
       try {
         if (window.XCD.engine.Predictions) window.XCD.engine.Predictions.generate(this);
       } catch (e) { /* the outlook is best-effort and must never block a season */ }
-      // Program expectations for the new season (user request): last
-      // season's finish, this preseason poll, roster talent, and prestige.
+      // Program expectations for the new season (user request): roster
+      // talent and this preseason poll lead, then last season's
+      // finish, with prestige a minor factor.
       window.XCD.engine.Coaching.setSeasonExpectations(this);
       // Custom race schedule options (Update 4, Part 7): what the player can
       // enter each regular-season week, gated by prestige.

@@ -9,8 +9,9 @@
   /*
    * Annual program expectations (Update 5, Part 5; reworked by user
    * request): the athletic department's target finish for each squad, set
-   * fresh every preseason from last season's finish, the preseason poll,
-   * roster talent, and program prestige (Coaching.expectedFinish). The goals
+   * fresh every preseason, led by roster talent and the preseason poll, then
+   * last season's finish, with program prestige a minor factor
+   * (Coaching.expectedFinish). The goals
    * follow the target, so a breakthrough raises next year's bar and a
    * rebuild lowers it. Returns { text, detail }.
    */
@@ -36,8 +37,8 @@
     const r = (g, k) => (p[g][k] ? '#' + p[g][k] : '—');
     const last = p.M.lastRank || p.W.lastRank
       ? `last season's finish (${r('M', 'lastRank')} / ${r('W', 'lastRank')})`
-      : 'last season (no finish on record yet, so prestige stands in)';
-    const detail = `Set this preseason from ${last}, the preseason poll (${r('M', 'pollRank')} / ${r('W', 'pollRank')}), roster talent (${r('M', 'talentRank')} / ${r('W', 'talentRank')}) and program prestige (${school.prestige}). Men / women. Beat the target and the seat cools; fall well short and it heats.`;
+      : 'no finish on record yet, so talent and the poll carry its share';
+    const detail = `Set this preseason mostly from roster talent (${r('M', 'talentRank')} / ${r('W', 'talentRank')}) and the preseason poll (${r('M', 'pollRank')} / ${r('W', 'pollRank')}), then ${last}, with program prestige (${school.prestige}) a small factor. Men / women. Beat the target and the seat cools; fall well short and it heats.`;
 
     // Once the season is graded (final poll after Nationals): the verdict.
     // Before that: how the bar moved from last season's target.

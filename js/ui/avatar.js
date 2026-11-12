@@ -2,7 +2,7 @@
  * Avatar system (Update 12): every athlete, recruit, and coach in the game
  * is a little person, not an emoji. Avatars are illustrated SVG busts in the
  * same style as the game's icon set — skin tone, hair color, hair style,
- * a real face, and (for men) beard style — rendered
+ * a real face with its own expression, and (for men) beard style — rendered
  * deterministically from identity, so the same person always wears the
  * same face on every screen, forever, without storing anything.
  *
@@ -27,6 +27,10 @@
   const HAIR_COLORS = ['#E7CE8C', '#CBA45D', '#B0562B', '#8B5A2B', '#6E4526', '#4B3120', '#1F1B18', '#9C9C9C'];
   const HAIR_STYLE_COUNT = 8;
   const BEARD_STYLE_COUNT = 8;
+  // Facial expressions: not everyone is smiling. Index = stored value.
+  const EXPRESSION_NAMES = ['Smile', 'Grin', 'Neutral', 'Determined', 'Smirk', 'Stern', 'Calm', 'Worried'];
+  // How often each turns up among derived faces (athletes, CPU coaches).
+  const EXPRESSION_WEIGHTS = [16, 11, 18, 17, 10, 11, 9, 8];
   // Outfit palettes are deliberately bright (Update 13): the UI background
   // is dark navy/charcoal (#0e1116–#2a3341), so no polo or singlet color may
   // sit in that range — a shirt that blends into the page reads as a bug.
@@ -84,9 +88,10 @@
    * { name, gender }. An explicit `appearance` on the object wins.
    */
   UI.appearanceFor = function (person, opts = {}) {
-    if (!person) return { gender: 'M', skin: 2, hair: 5, hairStyle: 2, beard: 0 };
+    if (!person) return { gender: 'M', skin: 2, hair: 5, hairStyle: 2, beard: 0, expression: 0 };
     if (person.appearance && person.appearance.skin !== undefined) {
-      return Object.assign({ gender: person.gender || 'M', aged: (person.age || 0) >= 52 }, person.appearance);
+      // A built appearance from before expressions existed keeps its smile.
+      return Object.assign({ gender: person.gender || 'M', aged: (person.age || 0) >= 52, expression: 0 }, person.appearance);
     }
     const D = window.XCD.data;
     const first = person.firstName || String(person.name || '').split(' ')[0] || '';
@@ -106,7 +111,7 @@
     // Hall of Fame, coach registry) don't carry live ids, and a person must
     // wear the same face on their profile before and after retirement.
     const seed = hashStr(first + '|' + last + '|' + gender);
-    const [r1, r2, r3, r4, r5, r6] = rolls(seed, 6);
+    const [r1, r2, r3, r4, r5, r6, r7] = rolls(seed, 7);
 
     const skin = pickWeighted(SKIN_WEIGHTS[heritage] || SKIN_WEIGHTS.mixed, r1);
     // Hair follows heritage and skin: East Asian, African, and Hispanic
@@ -125,7 +130,10 @@
     const beard = gender === 'M' ? (r4 < 0.48 ? 0 : 1 + Math.floor((r4 - 0.48) / 0.52 * (BEARD_STYLE_COUNT - 1))) : 0;
 
     // About one person in nine wears glasses; coaches past 52 show their years.
-    return { gender, skin, hair, hairStyle, beard, glasses: r6 < 0.11, aged: (person.age || 0) >= 52, _seed: seed };
+    // The seventh roll picks the expression, so adding it left every
+    // existing face's skin, hair, beard and glasses exactly as they were.
+    const expression = pickWeighted(EXPRESSION_WEIGHTS, r7);
+    return { gender, skin, hair, hairStyle, beard, glasses: r6 < 0.11, expression, aged: (person.age || 0) >= 52, _seed: seed };
   };
 
   /* ---------------- Drawing ----------------
@@ -205,23 +213,68 @@
     return `<path fill="${color}" ${OUT} d="M21.2 24 C20.6 38 25 45.4 32 45.4 C39 45.4 43.4 38 42.8 24 C42.2 30.6 38.6 32.8 32 32.8 C25.4 32.8 21.8 30.6 21.2 24 Z"/>${stache(29.8)}`; // bushy
   }
 
-  // Eyes, brows, nose, mouth — and glasses for those who wear them.
+  // Eyes, brows, nose, mouth — and glasses for those who wear them. The
+  // expression shapes the brows, the eyes and the mouth.
   function faceSvg(app, skin, hairC) {
     const w = app.gender === 'W';
     const dark = shade(skin, -46);
     const brow = mix(hairC, INK, app.hair === 7 ? 0.25 : 0.45);
+    const ex = app.expression || 0;
     const ey = 25.6;
-    const eye = (x) => `<ellipse cx="${x}" cy="${ey}" rx="${w ? 1.5 : 1.4}" ry="${w ? 2 : 1.85}" fill="${INK}"/><circle cx="${x + 0.5}" cy="${ey - 0.75}" r="0.42" fill="#fff"/>`;
+    // Determined and Stern faces narrow the eyes a touch; Calm closes them
+    // into happy arcs.
+    const ry = (w ? 2 : 1.85) * (ex === 3 || ex === 5 ? 0.8 : 1);
+    const eye = (x) => ex === 6
+      ? `<path fill="none" stroke="${INK}" stroke-width="1.15" stroke-linecap="round" d="M${x - 1.5} ${ey + 0.4} C${x - 0.8} ${ey - 0.9} ${x + 0.8} ${ey - 0.9} ${x + 1.5} ${ey + 0.4}"/>`
+      : `<ellipse cx="${x}" cy="${ey}" rx="${w ? 1.5 : 1.4}" ry="${ry.toFixed(2)}" fill="${INK}"/><circle cx="${x + 0.5}" cy="${ey - 0.75}" r="0.42" fill="#fff"/>`;
     const lash = w ? `<path fill="none" stroke="${INK}" stroke-width="0.8" stroke-linecap="round" d="M26.1 24.5 L25.2 23.8 M37.9 24.5 L38.8 23.8"/>` : '';
-    // A full beard covers the mouth corner-to-corner, so the smile is drawn
-    // lighter there to stay readable on dark hair.
+
+    // Brows: [left outer y, left inner y, right inner y, right outer y]
+    // around the resting line (outer ends sit lower for women).
+    const o = w ? 22.2 : 22.4;
+    const BROWS = {
+      0: [o, 22, 22, o],              // smile: relaxed
+      1: [o - 0.3, 21.6, 21.6, o - 0.3], // grin: lifted
+      2: [22.2, 22.1, 22.1, 22.2],     // neutral: flat
+      3: [21.5, 23.0, 23.0, 21.5],     // determined: drawn down to the middle
+      4: [o, 22, 21.2, o - 0.9],       // smirk: one brow up
+      5: [21.9, 22.7, 22.7, 21.9],     // stern: low and heavy
+      6: [o - 0.2, 21.8, 21.8, o - 0.2], // calm
+      7: [22.8, 21.2, 21.2, 22.8]      // worried: inner ends up
+    };
+    const [lo, li, rI, rO] = BROWS[ex] || BROWS[0];
+    const brows = `<path fill="none" stroke="${brow}" stroke-width="${ex === 3 || ex === 5 ? 1.3 : 1.15}" stroke-linecap="round" d="M26 ${lo} C27 ${(lo + li) / 2 - 0.65} 28.6 ${(lo + li) / 2 - 0.55} 29.6 ${li} M34.4 ${rI} C35.4 ${(rI + rO) / 2 - 0.55} 37 ${(rI + rO) / 2 - 0.65} 38 ${rO}"/>`;
+
+    // A full beard covers the lower lip line, so on those faces the mouth
+    // sits a little lower and shallower, drawn lighter to stay readable
+    // against dark hair.
     const covered = !w && app.beard >= 5;
-    const mouth = `<path fill="none" stroke="${covered ? shade(skin, 10) : (w ? mix(dark, '#c2455a', 0.55) : dark)}" stroke-width="${w ? 1.25 : 1.1}" stroke-linecap="round" d="M29.2 ${covered ? 31.9 : 31.6} C30.6 ${covered ? 33 : 33.1} 33.4 ${covered ? 33 : 33.1} 34.8 ${covered ? 31.9 : 31.6}"/>`;
-    const cheeks = `<ellipse cx="25.4" cy="29.2" rx="1.9" ry="1.2" fill="#e8607a" opacity="0.16"/><ellipse cx="38.6" cy="29.2" rx="1.9" ry="1.2" fill="#e8607a" opacity="0.16"/>`;
+    const mc = covered ? shade(skin, 10) : (w ? mix(dark, '#c2455a', 0.55) : dark);
+    const sw = w ? 1.25 : 1.1;
+    const dy = covered ? 0.3 : 0;
+    const line = (d) => `<path fill="none" stroke="${mc}" stroke-width="${sw}" stroke-linecap="round" d="${d}"/>`;
+    const Y = (v) => (v + dy).toFixed(2);
+    let mouth;
+    if (ex === 1) {
+      // Grin: an open smile with a strip of teeth.
+      const bottom = covered ? 33.4 : 34.6;
+      mouth = `<path fill="${mix(dark, '#7a2430', 0.5)}" stroke="${mc}" stroke-width="${sw * 0.9}" stroke-linejoin="round" d="M28.9 ${Y(31.3)} C30.6 ${Y(31.9)} 33.4 ${Y(31.9)} 35.1 ${Y(31.3)} C34.5 ${bottom} 33.3 ${bottom + 0.3} 32 ${bottom + 0.3} C30.7 ${bottom + 0.3} 29.5 ${bottom} 28.9 ${Y(31.3)} Z"/>
+        <path fill="#fff" d="M29.5 ${Y(31.65)} C31 ${Y(32.1)} 33 ${Y(32.1)} 34.5 ${Y(31.65)} L34.2 ${Y(32.45)} C32.8 ${Y(32.8)} 31.2 ${Y(32.8)} 29.8 ${Y(32.45)} Z"/>`;
+    } else if (ex === 2) mouth = line(`M29.6 ${Y(32.2)} C31 ${Y(32.5)} 33 ${Y(32.5)} 34.4 ${Y(32.2)}`);
+    else if (ex === 3) mouth = line(`M29.9 ${Y(32.5)} C31.2 ${Y(32.15)} 32.8 ${Y(32.15)} 34.1 ${Y(32.5)}`);
+    else if (ex === 4) mouth = line(`M29.6 ${Y(32.3)} C31.2 ${Y(32.75)} 33.4 ${Y(32.6)} 35 ${Y(31.2)}`);
+    else if (ex === 5) mouth = line(`M29.6 ${Y(33)} C31 ${Y(32.05)} 33 ${Y(32.05)} 34.4 ${Y(33)}`);
+    else if (ex === 6) mouth = line(`M30 ${Y(31.9)} C31.2 ${Y(32.9)} 32.8 ${Y(32.9)} 34 ${Y(31.9)}`);
+    else if (ex === 7) mouth = line(`M30 ${Y(32.9)} C30.9 ${Y(32.2)} 31.6 ${Y(32.2)} 32.2 ${Y(32.6)} C32.8 ${Y(33)} 33.4 ${Y(32.9)} 34.1 ${Y(32.4)}`);
+    else mouth = line(`M29.2 ${covered ? 31.9 : 31.6} C30.6 ${covered ? 33 : 33.1} 33.4 ${covered ? 33 : 33.1} 34.8 ${covered ? 31.9 : 31.6}`); // smile
+
+    // Smiling faces flush a little at the cheeks; serious ones barely.
+    const blush = ex === 0 || ex === 1 || ex === 6 ? 0.16 : 0.08;
+    const cheeks = `<ellipse cx="25.4" cy="29.2" rx="1.9" ry="1.2" fill="#e8607a" opacity="${blush}"/><ellipse cx="38.6" cy="29.2" rx="1.9" ry="1.2" fill="#e8607a" opacity="${blush}"/>`;
     const lines = app.aged ? `<path fill="none" stroke="${dark}" stroke-width="0.6" stroke-linecap="round" opacity="0.7" d="M24.6 28.2 C24.9 29.2 25.5 29.9 26.3 30.3 M39.4 28.2 C39.1 29.2 38.5 29.9 37.7 30.3"/>` : '';
     const glasses = app.glasses ? `<g fill="rgba(255,255,255,0.14)" stroke="${INK}" stroke-width="1"><rect x="24.6" y="23" width="6.2" height="5" rx="1.8"/><rect x="33.2" y="23" width="6.2" height="5" rx="1.8"/></g><path fill="none" stroke="${INK}" stroke-width="1" stroke-linecap="round" d="M30.8 25 C31.6 24.5 32.4 24.5 33.2 25 M24.6 25 L22.2 24.4 M39.4 25 L41.8 24.4"/>` : '';
     return `${cheeks}${lines}
-      <path fill="none" stroke="${brow}" stroke-width="1.15" stroke-linecap="round" d="M26 ${w ? 22.2 : 22.4} C27 21.5 28.6 21.4 29.6 22 M34.4 22 C35.4 21.4 37 21.5 38 ${w ? 22.2 : 22.4}"/>
+      ${brows}
       ${eye(28)}${eye(36)}${lash}
       <path fill="none" stroke="${dark}" stroke-width="0.9" stroke-linecap="round" d="M31.4 28.6 C31.7 29.3 32.4 29.4 32.8 28.9"/>
       ${mouth}${glasses}`;
@@ -339,7 +392,8 @@
       skin: clampIdx(app.skin, SKIN_TONES.length),
       hair: clampIdx(app.hair, HAIR_COLORS.length),
       hairStyle: clampIdx(app.hairStyle, HAIR_STYLE_COUNT),
-      beard: app.gender === 'W' ? 0 : clampIdx(app.beard, BEARD_STYLE_COUNT)
+      beard: app.gender === 'W' ? 0 : clampIdx(app.beard, BEARD_STYLE_COUNT),
+      expression: clampIdx(app.expression, EXPRESSION_NAMES.length)
     });
     const skin = SKIN_TONES[app.skin];
     const hairC = HAIR_COLORS[app.hair];
@@ -481,7 +535,7 @@
   };
 
   UI.AVATAR = {
-    SKIN_TONES, HAIR_COLORS, HAIR_STYLE_COUNT, BEARD_STYLE_COUNT, POLO_COLORS,
+    SKIN_TONES, HAIR_COLORS, HAIR_STYLE_COUNT, BEARD_STYLE_COUNT, POLO_COLORS, EXPRESSION_NAMES,
     // Names for the creator's pickers (index = the stored appearance value).
     HAIR_COLOR_NAMES: ['Blonde', 'Dark Blonde', 'Red', 'Light Brown', 'Brown', 'Dark Brown', 'Black', 'Gray'],
     HAIR_STYLE_NAMES: {

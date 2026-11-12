@@ -167,6 +167,20 @@ async function run() {
     const set = (p) => { ['M', 'W'].forEach((gd) => { e[gd].poll = p; e[gd].talent = p; }); return C.expectedFinish(g, school).pct; };
     out.stacked = set(0.02);
     out.thin = set(0.6);
+    // Talent and the poll outweigh prestige: a blue blood with a mid-pack
+    // roster is expected mid-pack, and a loaded low-prestige program is
+    // expected near the top. With no finish on record, prestige does NOT
+    // stand in for last season.
+    const keepPrestige = school.prestige, keepFin = school.seasonFinish;
+    school.seasonFinish = null; school.expectation = null;
+    const e2 = C.seasonExpectation(g, school);
+    out.noRecordLast = e2.M.last;
+    const at = (prestige, p) => { school.prestige = prestige; ['M', 'W'].forEach((gd) => { e2[gd].poll = p; e2[gd].talent = p; }); return C.expectedFinish(g, school).pct; };
+    out.blueBloodThin = at(95, 0.5);
+    out.smallLoaded = at(20, 0.05);
+    out.prestigeSwing = at(20, 0.3) - at(95, 0.3);
+    school.prestige = keepPrestige; school.seasonFinish = keepFin; school.expectation = null;
+    Object.assign(e, C.seasonExpectation(g, school));
     // The hot seat reads it: same finish, a high bar heats more than a low one.
     const coach = g.getPlayerCoach();
     const total = C.divisionSize(g, school.division);
@@ -196,6 +210,10 @@ async function run() {
   ok(ex.stamped, 'every program must carry a preseason expectation with its parts');
   ok(ex.afterTitleRun < ex.base && ex.afterBadYear > ex.afterTitleRun, 'last season\'s finish must move the bar: ' + JSON.stringify(ex));
   ok(ex.stacked < ex.thin, 'roster talent and the preseason poll must move the bar: ' + JSON.stringify(ex));
+  ok(ex.noRecordLast == null, 'with no finish on record, prestige must not stand in for last season: ' + ex.noRecordLast);
+  ok(ex.blueBloodThin > 0.4, 'a 95-prestige program with a mid-pack roster is expected mid-pack: ' + ex.blueBloodThin);
+  ok(ex.smallLoaded < 0.15, 'a 20-prestige program with a loaded roster is expected near the top: ' + ex.smallLoaded);
+  ok(ex.prestigeSwing > 0 && ex.prestigeSwing < 0.09, 'prestige is a minor factor (95 vs 20 moves the target < 9% of the division): ' + ex.prestigeSwing);
   ok(ex.highBarSeat > ex.lowBarSeat, 'the hot seat must judge against the season\'s expectation: ' + JSON.stringify(ex));
   ok(ex.finishStamped, 'the final poll must be stamped for next season\'s expectations');
 

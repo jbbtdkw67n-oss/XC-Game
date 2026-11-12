@@ -38,13 +38,13 @@
       // The human avatar (Update 12): built slider-by-slider on the
       // Appearance step and worn on every profile for the whole career.
       // `polo` (Update 13) is the coaching polo color the coach wears.
-      appearance: { gender: 'M', skin: 2, hair: 5, hairStyle: 2, beard: 0, polo: 1 },
+      appearance: { gender: 'M', skin: 2, hair: 5, hairStyle: 2, beard: 0, expression: 0, polo: 1 },
       archetype: null,
       trainingPhilosophy: 'balanced',
       racePhilosophy: 'even'
     }, opts.initial || {});
     if (!spec.appearance || spec.appearance.skin === undefined) {
-      spec.appearance = { gender: spec.gender || 'M', skin: 2, hair: 5, hairStyle: 2, beard: 0, polo: 1 };
+      spec.appearance = { gender: spec.gender || 'M', skin: 2, hair: 5, hairStyle: 2, beard: 0, expression: 0, polo: 1 };
     }
     if (spec.appearance.polo === undefined) spec.appearance.polo = 1;
 
@@ -187,7 +187,7 @@
 
     /* ---------------- Step 2: Appearance ---------------- *
      * A human avatar builder: choose your gender, then pick skin, hair
-     * color, hair style, facial hair, glasses and polo color from swatches
+     * color, hair style, expression, facial hair, glasses and polo color from swatches
      * and face thumbnails, next to a live preview.
      * This face follows the whole career, onto every historical profile.
      */
@@ -197,6 +197,7 @@
       app.gender = spec.gender;
       if (spec.gender === 'W') app.beard = 0;
       if (app.glasses === undefined) app.glasses = false;
+      if (app.expression === undefined) app.expression = 0;
       const male = spec.gender === 'M';
 
       // Color pickers: a row of swatches. Style pickers: the coach's own face
@@ -241,6 +242,7 @@
             ${group('Skin', ['skin', SKIN_NAMES[app.skin] || ''], swatches('skin', AV.SKIN_TONES, SKIN_NAMES))}
             ${group('Hair Color', ['hair', AV.HAIR_COLOR_NAMES[app.hair] || ''], swatches('hair', AV.HAIR_COLORS, AV.HAIR_COLOR_NAMES))}
             ${group('Hair Style', ['hairStyle', styleNames[app.hairStyle] || ''], thumbs('hairStyle', styleNames))}
+            ${group('Expression', ['expression', AV.EXPRESSION_NAMES[app.expression] || ''], thumbs('expression', AV.EXPRESSION_NAMES))}
             ${male ? group('Facial Hair', ['beard', AV.BEARD_NAMES[app.beard] || ''], thumbs('beard', AV.BEARD_NAMES)) : ''}
             ${group('Glasses', ['glasses', app.glasses ? 'On' : 'Off'], `
               <div class="pill-tabs">
@@ -254,7 +256,7 @@
         { nextLabel: 'Next: Archetype →' }
       );
 
-      const NAMES = { skin: SKIN_NAMES, hair: AV.HAIR_COLOR_NAMES, hairStyle: styleNames, beard: AV.BEARD_NAMES, polo: POLO_NAMES };
+      const NAMES = { skin: SKIN_NAMES, hair: AV.HAIR_COLOR_NAMES, hairStyle: styleNames, beard: AV.BEARD_NAMES, expression: AV.EXPRESSION_NAMES, polo: POLO_NAMES };
       // Redraw in place (no re-render, so nothing scrolls or loses focus):
       // the big preview, every style thumbnail (they wear the current skin
       // and hair color), the selected marks, and the value labels.
@@ -295,6 +297,7 @@
         app.beard = spec.gender === 'M' ? Math.floor(Math.random() * AV.BEARD_STYLE_COUNT) : 0;
         app.polo = Math.floor(Math.random() * AV.POLO_COLORS.length);
         app.glasses = Math.random() < 0.2;
+        app.expression = Math.floor(Math.random() * AV.EXPRESSION_NAMES.length);
         sync();
       });
 

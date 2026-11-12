@@ -33,15 +33,21 @@
    * Program expectations move every season (user request). At the preseason
    * the athletic director sets a target finish for each squad from four
    * things, each read as a fraction of the division (0 = #1):
-   *   prestige  — the brand's standing (read live, it barely moves in-season)
-   *   last      — where the squad finished last season
-   *   poll      — the preseason poll
    *   talent    — roster talent: the top seven by overall, ranked in division
-   * A breakthrough season raises next year's bar; a rebuild lowers it. The
-   * AD's floor still holds — nobody expects to live in the bottom 35%.
+   *   poll      — the preseason poll
+   *   last      — where the squad finished last season
+   *   prestige  — the brand's standing (read live, it barely moves in-season)
+   * What the squad actually has on the roster this year leads: talent and
+   * the preseason poll carry 70% of the target, last season 20%, and the
+   * brand only 10% — a blue blood with a thin roster isn't expected to win,
+   * and a loaded mid-major is. With no finish on record (a new dynasty, a
+   * new program) last season's share goes to talent and the poll, never to
+   * prestige. A breakthrough season raises next year's bar; a rebuild
+   * lowers it. The AD's floor still holds — nobody expects to live in the
+   * bottom 35%.
    */
   const STRUGGLE_LINE = 0.65;
-  const EXPECT_WEIGHTS = { prestige: 0.2, last: 0.3, poll: 0.25, talent: 0.25 };
+  const EXPECT_WEIGHTS = { talent: 0.35, poll: 0.35, last: 0.2, prestige: 0.1 };
 
   // Average overall of a squad's top seven: the roster's raw talent.
   function rosterTalent(gameState, school, gender) {
@@ -76,12 +82,11 @@
       ['M', 'W'].forEach((g) => gameState.rankings[g].forEach((r) => { live[g][r.schoolId] = r.rank; }));
     }
     const fin = school.seasonFinish && school.seasonFinish.year === gameState.year - 1 ? school.seasonFinish : null;
-    const prestigePct = 1 - (school.prestige || 50) / 100;
     const exp = { year: gameState.year };
     ['M', 'W'].forEach((g) => {
       const pollRank = (pre ? pre[g][school.id] : live[g][school.id]) || total;
       exp[g] = {
-        last: fin && fin[g] != null ? fin[g] : prestigePct, // no record yet: the brand stands in
+        last: fin && fin[g] != null ? fin[g] : null, // no record yet: talent and the poll carry it
         poll: Math.min(1, pollRank / total),
         talent: Math.min(1, (talent[g][school.id] || total) / total),
         lastRank: fin ? fin[g + 'Rank'] || null : null,
@@ -134,8 +139,15 @@
     const per = {};
     ['M', 'W'].forEach((g) => {
       const e = exp[g];
-      per[g] = Math.min(STRUGGLE_LINE, prestigePct * W8.prestige + e.last * W8.last +
-        e.poll * W8.poll + e.talent * W8.talent);
+      if (e.last == null) {
+        // No finish on record: split last season's share between talent
+        // and the poll in proportion.
+        const k = 1 + W8.last / (W8.talent + W8.poll);
+        per[g] = prestigePct * W8.prestige + (e.poll * W8.poll + e.talent * W8.talent) * k;
+      } else {
+        per[g] = prestigePct * W8.prestige + e.last * W8.last + e.poll * W8.poll + e.talent * W8.talent;
+      }
+      per[g] = Math.min(STRUGGLE_LINE, per[g]);
     });
     const pct = Math.min(STRUGGLE_LINE,
       Math.min(per.M, per.W) * 0.7 + Math.max(per.M, per.W) * 0.3);
