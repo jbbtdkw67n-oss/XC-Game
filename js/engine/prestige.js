@@ -64,6 +64,12 @@
         score += Math.min(1.0, (honors.allAmericans || 0) * 0.2);
         score += Math.min(0.8, (honors.indivNatChamps || 0) * 0.4);
       }
+      // The pro pipeline (Version 15.16) — the recent record of All-Americans
+      // and individual champions that pro-minded recruits look at.
+      const pipeBase = typeof school.pipeline === 'number' ? school.pipeline
+        : (school.heritage || 0) >= 82 ? 10 : (school.heritage || 0) >= 55 ? 4 : 1;
+      school.pipeline = Math.round((pipeBase * 0.7 +
+        (honors ? (honors.allAmericans || 0) + (honors.indivNatChamps || 0) * 3 : 0)) * 10) / 10;
       const season = gameState.season;
       if (season && season.championships) {
         const champ = season.championships[division];
@@ -108,8 +114,10 @@
       // accelerating rate — inflation no longer lingers.
       const heritage = school.heritage || 0;
       school.poorSeasons = score < -0.2 ? (school.poorSeasons || 0) + 1 : 0;
+      // Version 15.16: the compounding is gentler (−0.35 a year, capped at
+      // −1.0) so a slump costs real standing without becoming a free fall.
       if ((school.poorSeasons || 0) >= 2) {
-        delta -= Math.min(1.5, (school.poorSeasons - 1) * 0.45);
+        delta -= Math.min(1.0, (school.poorSeasons - 1) * 0.35);
       }
 
       // Prestige inflation guard (Phase 14, retuned): the summit stays
@@ -135,14 +143,16 @@
       }
       // A gentle pull toward ~55% of heritage keeps legends off the floor —
       // but a genuinely failing blue blood (many poor years) still slides.
-      const floor = heritage * 0.55;
-      if (school.prestige < floor && score > -0.6) delta += (floor - school.prestige) * 0.02;
+      // Version 15.16: the floor sits at 65% of heritage and pulls harder, so
+      // a fallen power can still crash but tends to find its way back.
+      const floor = heritage * 0.65;
+      if (school.prestige < floor && score > -0.8) delta += (floor - school.prestige) * 0.05;
 
       // Heritage itself is dynamic: sustained excellence builds a new blue
       // blood; a drought erodes an old one's standing (now after 4 poor
-      // seasons rather than 5 — history fades a little faster).
+      // seasons; Version 15.16 puts it back at 5).
       if (score > 0.8 && school.prestige >= 78) school.heritage = Math.min(96, heritage + 1);
-      else if ((school.poorSeasons || 0) >= 4 && heritage > 0) school.heritage = Math.max(0, heritage - 1);
+      else if ((school.poorSeasons || 0) >= 5 && heritage > 0) school.heritage = Math.max(0, heritage - 1);
 
       // Movement cap raised ±3 → ±4: eras still read as eras, but a
       // championship breakthrough (or a collapse) visibly moves the brand.

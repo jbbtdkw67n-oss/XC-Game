@@ -236,6 +236,13 @@
     if (motivations.includes('title-chaser') || motivations.includes('spotlight')) {
       importance.prestige = Utils.clamp(importance.prestige + 30, 15, 100);
     }
+    if (motivations.includes('philosophy-fit')) importance.development = Utils.clamp(importance.development + 15, 15, 100);
+    if (motivations.includes('pro-pipeline')) importance.development = Utils.clamp(importance.development + 15, 15, 100);
+    // A philosophy believer wants one specific style (never Balanced, which
+    // is the absence of a style).
+    const philosophyPref = motivations.includes('philosophy-fit')
+      ? rng.choice((D.TRAINING_PHILOSOPHIES || []).filter((p) => p.key !== 'balanced').map((p) => p.key)) || null
+      : null;
 
     const decisionStyleRoll = rng.next();
     const decisionWeek = decisionStyleRoll < 0.2 ? rng.int(D.RECRUITING.EARLY_COMMIT_WEEK, 8)
@@ -295,6 +302,7 @@
       country,
       gradYear,
       motivations,
+      philosophyPref,
       parentsInfluence: rng.gaussianRange(50, 22, 5, 99),
       importance,
       decisionWeek,
@@ -693,6 +701,19 @@
     return t > 52 && t < 70 ? 85 : 55; // Temperate
   }
 
+  /*
+   * Pro pipeline (Version 15.16): how reliably a program turns out
+   * All-Americans and national champions lately — a rolling score kept on
+   * the school by Prestige.yearlyUpdate (each All-American adds 1, each
+   * individual national title 3, and the score keeps 70% a year). Schools
+   * without a record yet start from their heritage.
+   */
+  function pipelineScore(school) {
+    if (typeof school.pipeline === 'number') return school.pipeline;
+    const h = school.heritage || 0;
+    return h >= 82 ? 10 : h >= 55 ? 4 : 1;
+  }
+
   function fitScore(gameState, school, recruit, ctx) {
     const coach = gameState.getCoach(school.coachId);
     const division = D.divisionFor(school);
@@ -729,9 +750,34 @@
     if (mot.includes('warm-weather')) fit += school.weather.tempBase >= 68 ? 8 : school.weather.tempBase <= 52 ? -8 : 0;
     if (mot.includes('cold-weather')) fit += school.weather.tempBase <= 55 ? 8 : school.weather.tempBase >= 70 ? -8 : 0;
     if (mot.includes('altitude-seeker')) fit += school.weather.altitude === 'High' ? 12 : school.weather.altitude === 'Medium' ? 5 : -3;
-    if (mot.includes('spotlight')) fit += school.conferenceTier === 1 ? 10 : school.conferenceTier >= 3 ? -6 : 0;
+    if (mot.includes('spotlight')) { const et = D.effectiveTier(school); fit += et === 1 ? 10 : et >= 3 ? -6 : 0; }
     if (mot.includes('underdog')) fit += school.prestige < 55 ? 8 : school.prestige > 80 ? -5 : 0;
     if (mot.includes('facilities-hound')) fit += school.facilitiesOverall >= 75 ? 6 : 0;
+    // Version 15.16 motivations.
+    // A stable staff: a long-tenured head coach with a safe seat. A staff
+    // that just turned over, a hot seat, or a coach near retirement all
+    // read as a coach who may not be there for four years.
+    if (mot.includes('stability')) {
+      const yrs = coach ? (coach.yearsAtSchool || 0) : 0;
+      let f = yrs >= 8 ? 9 : yrs >= 4 ? 5 : yrs >= 2 ? 1 : -6;
+      if (school.coachChangedYear === gameState.year) f = Math.min(f, -8);
+      const seat = coach ? D.seatStatus(coach.hotSeat || 0).key : 'stable';
+      if (seat === 'hot') f -= 9;
+      else if (seat === 'warm') f -= 3;
+      if (coach && (coach.age || 0) >= 66) f -= 4;
+      fit += f;
+    }
+    // A believer in one training philosophy wants the coach who runs it;
+    // a Balanced program is neutral, any other style is a mismatch.
+    if (mot.includes('philosophy-fit') && recruit.philosophyPref) {
+      const tp = (coach && coach.trainingPhilosophy) || 'balanced';
+      fit += tp === recruit.philosophyPref ? 11 : tp === 'balanced' ? 0 : -5;
+    }
+    // Where runners become All-Americans: the school's recent record.
+    if (mot.includes('pro-pipeline')) {
+      const p = pipelineScore(school);
+      fit += p >= 12 ? 12 : p >= 6 ? 7 : p >= 2.5 ? 3 : p >= 1 ? 0 : -6;
+    }
     // "Wants to play for an elite coach" (Update 13, Phase 4): coach
     // reputation IS the pitch. A Legend on the door is a decisive draw; an
     // unknown assistant with a modest name struggles to compete for this kid —
@@ -991,6 +1037,23 @@
       if (actionKey === 'campusVisit') int *= 1 + dev * ((school.facilities.trainingCenter - 50) / 130);
       if (actionKey === 'call' || actionKey === 'assistantVisit') int *= 1 + dev * (((coach.training ?? 55) - 55) / 150);
     }
+    // Stability: a long-tenured head coach's word carries; a brand-new
+    // staff has to earn the kid's trust first.
+    if (mot.includes('stability') && ['call', 'homeVisit', 'hostOvernight'].includes(actionKey)) {
+      const yrs = coach.yearsAtSchool || 0;
+      if (yrs >= 5) rel *= 1.15;
+      else if (yrs <= 1) int *= 0.85;
+    }
+    // Philosophy believers light up when the coach talks their language.
+    if (mot.includes('philosophy-fit') && rec.philosophyPref &&
+        (coach.trainingPhilosophy || 'balanced') === rec.philosophyPref &&
+        ['call', 'assistantVisit', 'campusVisit', 'homeVisit'].includes(actionKey)) {
+      int *= 1.25;
+    }
+    // The pro-pipeline kid wants to see the All-Americans on the team.
+    if (mot.includes('pro-pipeline') && (actionKey === 'campusVisit' || actionKey === 'meetTeam')) {
+      int *= 1 + Utils.clamp(pipelineScore(school) / 40, 0, 0.3);
+    }
     return {
       rel: Utils.clamp(rel, 0.5, 1.8),
       int: Utils.clamp(int, 0.5, 1.8)
@@ -1178,8 +1241,8 @@
     let message = messages[actionKey];
     delete st._swayOutcome; // transient — never persist into saves
     if (discovered) {
-      const label = D.MOTIVATIONS.find((m) => m.key === discovered)?.label || discovered;
-      message += ` You learned something: ${label.toLowerCase()}.`;
+      const label = D.motivationLabel(discovered, rec);
+      message += ` You learned something: ${label.charAt(0).toLowerCase() + label.slice(1)}.`;
     }
     return { ok: true, message, discovered };
   }
@@ -2143,6 +2206,7 @@
         delete athlete.playerKnowledge;
         delete athlete.importance;
         delete athlete.motivations;
+        delete athlete.philosophyPref;
         // The recruiting fog lifts at enrollment (Update 11): the athlete's
         // real ceiling becomes canonical — a hidden gem's development from
         // here on is the discovery the recruitment never allowed.
@@ -2214,6 +2278,7 @@
     rankedSuitors,
     RANK_ODDS,
     fitScore,
+    pipelineScore,
     distanceMiles,
     recruitComposite,
     recruitValue,

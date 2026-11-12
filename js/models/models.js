@@ -598,6 +598,7 @@
 
         // Hidden decision drivers (revealed to the player via scouting)
         motivations: [],         // keys into XCD.data.MOTIVATIONS
+        philosophyPref: null,    // 'philosophy-fit' believers: the training philosophy they want
         parentsInfluence: 50,
 
         // What matters to this recruit when weighing schools (20-100 each)

@@ -136,7 +136,10 @@
     // Season styles (Update 25, Stage 3):
     early:     ['easy', 'intervals', 'easy', 'intervals', 'easy', 'long', 'easy'],   // sharp fast — thin base, goes stale
     threshold: ['easy', 'tempo', 'easy', 'tempo', 'easy', 'long', 'easy'],           // build the ceiling, sharpen late
-    champ:     ['easy', 'tempo', 'rest', 'easy', 'easy', 'easy', 'easy']             // between championship rounds
+    champ:     ['easy', 'tempo', 'rest', 'easy', 'easy', 'easy', 'easy'],            // between championship rounds
+    // Training through a regular-season meet (Version 15.16): two quality
+    // sessions, a rest day to absorb the race, and the long run.
+    raceweek:  ['easy', 'tempo', 'easy', 'intervals', 'rest', 'long', 'easy']
   };
 
   /*
@@ -240,10 +243,15 @@
       return AI_TEMPLATES.champ.slice();
     }
     if (racesThisWeek(gameState, coach)) {
-      // Conservative / development-minded staffs rest more before meets.
+      // Regular-season meets (Version 15.16): the week's training runs after
+      // the race, so a competent staff trains through it — the meet is a
+      // workout, not a taper. An interval-first staff sharpens; everyone else
+      // runs the threshold race week. Only poor staffs still waste the week
+      // on a mini-taper (more often if they're conservative by nature).
       const restful = coach && (coach.archetype === 'Developer' ||
         (coach.hasTendency && coach.hasTendency('conservative')));
-      if (craft < 45 && coachRoll(coach, week, 13) < 0.2) return AI_TEMPLATES.build.slice(); // trains through races
+      if (craft >= 45) return (style === 'early' ? AI_TEMPLATES.sharpen : AI_TEMPLATES.raceweek).slice();
+      if (coachRoll(coach, week, 13) < (restful ? 0.3 : 0.55)) return AI_TEMPLATES.raceweek.slice();
       return (restful ? AI_TEMPLATES.taper : AI_TEMPLATES.race).slice();
     }
     // Postseason recovery (Update 13, Phase 8): the week immediately after
@@ -331,6 +339,22 @@
     const peak = school.peakPlan && school.peakPlan[gender] && school.peakPlan[gender].year === gameState.year
       ? school.peakPlan[gender] : null;
     let m = aiMileage(gameState, coach, gender, peak);
+    // Individual volume (Version 15.16): a competent staff doesn't run the
+    // whole squad at one number. Like the player's Ideal Mileage, it builds
+    // each runner toward what their own body can absorb (durable runners up,
+    // fragile ones down). Better staffs get closer; a low-mileage believer
+    // only goes part of the way. Taper weeks and the championship rounds
+    // keep the plan's own number.
+    const week = gameState.week;
+    const shaping = !(peak && week === peak.taperWeek) && !(week >= CAL.CONFERENCE_WEEK && week <= CAL.NATIONAL_WEEK);
+    if (shaping) {
+      const craft = coachCraft(coach);
+      let smart = Utils.clamp((craft - 30) / 45, 0.15, 0.9);
+      if (coach && coach.hasTendency && coach.hasTendency('low-mileage')) smart *= 0.4;
+      let ideal = safeMileage(athlete) - 3;
+      if (week >= CAL.OFFSEASON_START) ideal *= 0.8;
+      m = Math.round(m + (ideal - m) * smart);
+    }
     // Smart AI staffs protect fragile runners from crushing volume —
     // poor talent evaluators don't notice until it's too late.
     const safe = safeMileage(athlete);
@@ -1150,6 +1174,18 @@
     return S ? S.mult(gameState, key) : 1;
   }
 
+  /*
+   * CPU development (Version 15.16): every CPU program develops runners 5%
+   * faster than before on top of its smarter training (individual mileage,
+   * training through regular-season meets). The difficulty slider scales on
+   * top, so Rookie, Normal, Veteran and Legend keep their spacing. The
+   * player's roster is never scaled.
+   */
+  const CPU_DEV_BASE = 1.05;
+  function cpuDevMult(gameState) {
+    return CPU_DEV_BASE * settingMult(gameState, 'cpuDevelopment');
+  }
+
   // Why a CPU program's injury is news to the player (or null if it isn't).
   function notableInjury(gameState, athlete, school) {
     const r = gameState.rankings;
@@ -1847,7 +1883,7 @@
 
     let dev = devPoints(athlete, coach, school, planMeta, rng) * mMeta.devMult;
     // Difficulty: CPU athlete development (the player's own roster is never scaled).
-    if (!isPlayerSchool) dev *= settingMult(gameState, 'cpuDevelopment');
+    if (!isPlayerSchool) dev *= cpuDevMult(gameState);
     if (culture) {
       dev *= 0.88 + culture.chemistry / 450; // 0.88–1.10
       // Strong captains bring the young runners along: underclassmen develop
@@ -2292,7 +2328,7 @@
           pts *= summerBaseMult(a);                         // a big, healthy season base pays off again
           if (a.fatigue > 70) pts *= 0.65;                  // burnout eats the summer
           pts *= 0.7 + rng.next() * 0.6;
-          if (!isPlayerSchool) pts *= settingMult(gameState, 'cpuDevelopment'); // difficulty
+          if (!isPlayerSchool) pts *= cpuDevMult(gameState); // CPU base rate + difficulty
           // One summer can't remake a runner: ~30 points is a +5/+6 ceiling,
           // so stacked late-bloomer multipliers never produce a +15 jump —
           // except a raw talent with a huge gap, whose summer cap stretches
@@ -2488,6 +2524,8 @@
     coachCraft,
     cpuPeakPlan,
     seasonStyle,
-    MEET_WEEKS
+    MEET_WEEKS,
+    CPU_DEV_BASE,
+    cpuDevMult
   };
 })();

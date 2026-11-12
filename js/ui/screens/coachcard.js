@@ -238,9 +238,31 @@
             // A head coach hired after a season's awards didn't lead it: the
             // stamped coach for that school-year says who did.
             if (!assistant && ps.coachId && myId && ps.coachId !== myId) continue;
-            seasons.push({ year: y, school: st.school, schoolId: sid, div: ps.division || div, assistant, ps });
+            seasons.push({ year: y, school: st.school, schoolId: sid, div: ps.division || div, assistant, ps, stint: st });
           }
         });
+        // Job security (Version 15.16): each head-coaching season carries the
+        // seat it ended on, from the coach's seat ledger. The last season of a
+        // tenure that ended in a firing reads Fired (or Dismissed), whatever
+        // the ledger says, so every firing shows, old saves included.
+        const seatLog = coach.seatLog || {};
+        const lastOfStint = new Map();
+        seasons.forEach((s) => {
+          if (!s.assistant && (lastOfStint.get(s.stint) || 0) < s.year) lastOfStint.set(s.stint, s.year);
+        });
+        const seatPill = (s) => {
+          if (s.assistant) return '';
+          const reason = s.stint && s.stint.reason;
+          if ((reason === 'fired' || reason === 'dismissed') && lastOfStint.get(s.stint) === s.year) {
+            const label = reason === 'dismissed' ? 'Dismissed' : 'Fired';
+            const tip = reason === 'dismissed' ? 'Let go after an internal review of the program.' : 'Let go at the end of this season.';
+            return ` <span class="seat-pill seat-fired" title="${tip}">🚪 ${label}</span>`;
+          }
+          const h = seatLog[s.year];
+          if (h === undefined || h === null) return '';
+          const st = D.seatStatus(h);
+          return ` <span class="seat-pill seat-${st.key}" title="Job security after the ${s.year} season: ${Utils.escapeHtml(st.desc)}">${st.icon} ${st.label}</span>`;
+        };
         if (!seasons.length) return '';
         seasons.sort((a, b) => b.year - a.year); // newest first
         return `
@@ -250,7 +272,7 @@
             const r = UI.seasonResult(s.ps, s.div);
             return UI.listRow({
               badge: s.assistant ? '👔' : r.badge, tone: s.assistant ? 'muted' : r.tone,
-              title: `${s.year} <span style="font-weight:400; color:var(--text-dim);">· ${Utils.escapeHtml(s.school)}</span>${s.div !== 'DI' ? ` <span class="tag">${short[s.div] || s.div}</span>` : ''}`,
+              title: `${s.year} <span style="font-weight:400; color:var(--text-dim);">· ${Utils.escapeHtml(s.school)}</span>${s.div !== 'DI' ? ` <span class="tag">${short[s.div] || s.div}</span>` : ''}${seatPill(s)}`,
               sub: `${s.assistant ? '<div class="season-line" style="color:var(--text-faint);">Assistant Coach</div>' : ''}${r.lines}`,
               attrs: schoolAttrs(s.schoolId, s.school)
             });

@@ -92,7 +92,7 @@
     const signingOver = game.week > D.RECRUITING.SIGNING_WEEK;
 
     const motivationHtml = rec.motivations.map((key) => {
-      const label = D.MOTIVATIONS.find((m) => m.key === key)?.label || key;
+      const label = D.motivationLabel(key, rec);
       return know.revealed.includes(key)
         ? `<div class="attr-row"><span>🔓 ${label}</span></div>`
         : `<div class="attr-row"><span style="color:var(--text-faint);">🔒 Unknown motivation</span></div>`;

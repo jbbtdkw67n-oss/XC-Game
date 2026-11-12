@@ -260,7 +260,7 @@
     const div = school.division || 'DI';
     const p = school.prestige;
     const base = Math.round((2500 + p * p * 8) * (DIV_SCALE[div] || 0.8) *
-      (div === 'DI' ? (TIER_SCALE[school.conferenceTier] || 0.9) : 1));
+      (div === 'DI' ? (TIER_SCALE[window.XCD.data.effectiveTier(school)] || 0.9) : 1));
     const rating = travelRating(school);
     const ratingMult = 0.8 + rating / 250;
     const momentum = school.travelMomentum || 0;

@@ -510,13 +510,10 @@
       const prog = game.training.mileage[activeGender];
       let touched = 0;
       roster.forEach((a) => {
-        const isFrosh = a.classYear === 'Freshman';
-        if (p.filter === 'freshmen' && !isFrosh) return;
         let v;
-        if (p.absolute !== undefined) v = p.absolute;
-        else if (p.scale !== undefined) v = Math.round(prog * p.scale);
+        if (p.scale !== undefined) v = Math.round(prog * p.scale);
         else {
-          // Delta presets (+10 / −10, freshmen) nudge each runner from their
+          // Delta presets (+10 / −10) nudge each runner from their
           // CURRENT effective load, so quick ±10 taps stack and individual
           // overrides are adjusted rather than wiped.
           const current = game.training.mileageOverrides[a.id] !== undefined

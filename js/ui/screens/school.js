@@ -772,7 +772,7 @@
   const staffView = { source: 'all', query: '', reachable: false };
 
   function interestChip(row) {
-    if (row.locked) return `<span class="interest-chip locked" title="${Utils.escapeHtml(row.locked)}">🔒 Out of reach</span>`;
+    if (row.locked) return `<span class="interest-chip locked" title="${Utils.escapeHtml(row.locked)}">🔒 ${/stature/.test(row.locked) ? 'Too prominent' : 'Out of reach'}</span>`;
     if (row.declined) return '<span class="interest-chip no" title="Turned the job down this offseason">Said no</span>';
     if (row.source === 'applicant') return '<span class="interest-chip yes" title="Applied for the job: a yes if you offer">Applied</span>';
     const tier = row.interest >= 70 ? 'yes' : row.interest >= 40 ? 'maybe' : 'low';
@@ -877,7 +877,7 @@
       </div>
       <div id="staff-table"></div>
       <div class="foot-note" style="margin-top:10px;">
-        <strong>Hiring reach ${r.cap}</strong> = program prestige (${r.parts.program}) + your reputation (${r.parts.name}) + Staff Management (${r.parts.staff >= 0 ? '+' : ''}${r.parts.staff}) + ${r.parts.base}. A coach whose reputation is above it will not take your assistant's chair.
+        <strong>Hiring reach ${r.cap}</strong> = program prestige (${r.parts.program}) + your reputation (${r.parts.name}) + Staff Management (${r.parts.staff >= 0 ? '+' : ''}${r.parts.staff}) + ${r.parts.base}. A coach whose reputation is above it will not take your assistant's chair, and no head coach (sitting or out of work) with a reputation of 75 or more takes an assistant's job anywhere.
         An assistant only leaves a job for a program at least ${Coaching.STAFF_STEP_UP} prestige bigger; a head coach gives up their own program only for one at least ${Coaching.STAFF_HEAD_GAP} bigger.
         Interest is the chance a coach says yes. A no keeps your hire open, and that coach will not reconsider this offseason.
       </div>`;
