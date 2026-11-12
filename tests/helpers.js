@@ -27,7 +27,27 @@ async function walkCoachWizard(page, { archetype = 'Developer', role = null } = 
   await page.click('#btn-next');
 }
 
-async function newDynasty(page, { archetype = 'Developer', role = null, school = null } = {}) {
+// Pin a page's randomness: replaces Math.random with a seeded generator
+// (mulberry32) before any game script runs. The new-game menu draws the world
+// seed from Math.random, so this fixes the generated world — and every other
+// Math.random roll — making a dynasty reproducible run to run. Call before the
+// page navigates (newDynasty does this when given `seed`).
+async function pinRandom(page, seed) {
+  await page.addInitScript((s) => {
+    let t = s >>> 0;
+    Math.random = () => {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }, seed);
+}
+
+// `seed` (optional): pin the world and every Math.random roll (see pinRandom)
+// for a test whose assertions depend on the shape of the generated world.
+async function newDynasty(page, { archetype = 'Developer', role = null, school = null, seed = null } = {}) {
+  if (seed != null) await pinRandom(page, seed);
   await page.goto('file://' + require('path').resolve(__dirname, '../index.html'));
   await page.click('#btn-new');
   await walkCoachWizard(page, { archetype, role });
@@ -66,4 +86,4 @@ function wireErrors(page, errors) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
 }
 
-module.exports = { newDynasty, walkCoachWizard, skipTutorial, dismissJobOffers, wireErrors, launchOpts };
+module.exports = { newDynasty, pinRandom, walkCoachWizard, skipTutorial, dismissJobOffers, wireErrors, launchOpts };

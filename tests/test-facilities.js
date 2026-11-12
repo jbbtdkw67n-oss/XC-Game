@@ -86,21 +86,42 @@ async function run() {
     const sharpGood = sharpWith(95), sharpPoor = sharpWith(10);
 
     // (c) Training Center: the whole squad develops faster.
-    const devWith = (tc) => {
+    // Injuries are rolled independently of the training center, and once the
+    // two clones' random streams diverge a layoff (≈ -2 overall a week) lands
+    // on different runners in each — enough to swamp the facility's edge in a
+    // whole-roster total. So compare the runners who stayed healthy in BOTH
+    // clones, and pool a few independent weekly-RNG seeds (g.seed only drives
+    // the weekly sim stream; the world itself is already built).
+    const devWith = (tc, seed) => {
       const g = clone();
+      g.seed = seed;
       const school = g.getPlayerSchool();
       school.facilities.trainingCenter = tc;
-      for (let i = 0; i < 6; i++) g.advanceWeek();
-      const roster = g.getRoster(school.id, 'M').concat(g.getRoster(school.id, 'W'));
-      return roster.reduce((s, a) => s + (a.seasonDev || 0), 0);
+      const squad = () => g.getRoster(school.id, 'M').concat(g.getRoster(school.id, 'W'));
+      const hurt = new Set(squad().filter((a) => a.injury).map((a) => a.id));
+      for (let i = 0; i < 6; i++) {
+        g.advanceWeek();
+        squad().forEach((a) => { if (a.injury) hurt.add(a.id); });
+      }
+      const dev = {};
+      squad().forEach((a) => { dev[a.id] = a.seasonDev || 0; });
+      return { dev, hurt };
     };
-    const devGood = devWith(95), devPoor = devWith(15);
+    let devGood = 0, devPoor = 0, devRunners = 0;
+    for (let s = 0; s < 3; s++) {
+      const seed = (g0.seed + s * 104729) >>> 0;
+      const good = devWith(95, seed), poor = devWith(15, seed);
+      Object.keys(good.dev)
+        .filter((id) => id in poor.dev && !good.hurt.has(id) && !poor.hurt.has(id))
+        .forEach((id) => { devGood += good.dev[id]; devPoor += poor.dev[id]; devRunners++; });
+    }
 
-    return { slideGood, slidePoor, sharpGood, sharpPoor, devGood, devPoor };
+    return { slideGood, slidePoor, sharpGood, sharpPoor, devGood, devPoor, devRunners };
   });
   ok(fx.slideGood < fx.slidePoor, `a rehab center must soften the injury fitness slide (${fx.slideGood} vs ${fx.slidePoor})`);
   ok(fx.sharpGood > fx.sharpPoor + 1, `an indoor track must sharpen speed work (${fx.sharpGood.toFixed(1)} vs ${fx.sharpPoor.toFixed(1)})`);
-  ok(fx.devGood > fx.devPoor, `a training center must accelerate development (${fx.devGood} vs ${fx.devPoor})`);
+  ok(fx.devRunners >= 30, `the development check needs a real sample of healthy runners (${fx.devRunners})`);
+  ok(fx.devGood > fx.devPoor, `a training center must accelerate development (${fx.devGood} vs ${fx.devPoor} over ${fx.devRunners} healthy runner-runs)`);
   console.log('implications:', JSON.stringify(fx));
 
   // ---- 3) Fundraising: success × size × alumni network ----
